@@ -9,12 +9,16 @@ class TaskComment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     comment = Column(Text, nullable=False)
     evidence_url = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    event_type = Column(String(50), nullable=False, default="comment")
+    previous_value = Column(String(150), nullable=True)
+    new_value = Column(String(150), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     task = relationship("Task", back_populates="comments")

@@ -12,15 +12,15 @@ class Task(Base):
     title = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
 
-    outlet_id = Column(Integer, ForeignKey("outlets.id"), nullable=False)
-    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    outlet_id = Column(Integer, ForeignKey("outlets.id"), nullable=False, index=True)
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     source_type = Column(String(50), nullable=True)
     source_id = Column(Integer, nullable=True)
 
-    priority = Column(String(50), nullable=False, default="medium")
-    status = Column(String(50), nullable=False, default="open")
+    priority = Column(String(50), nullable=False, default="medium", index=True)
+    status = Column(String(50), nullable=False, default="open", index=True)
 
     due_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -28,7 +28,22 @@ class Task(Base):
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
-    comments = relationship("TaskComment", back_populates="task")
+    comments = relationship(
+        "TaskComment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
+
+    assignments = relationship(
+        "TaskAssignment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )

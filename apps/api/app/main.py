@@ -1,40 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import models agar SQLAlchemy & Alembic mengenali seluruh tabel
-from app.models import (
-    role,
-    user,
-    outlet,
-    form_template,
-    form_field,
-    form_schedule,
-    form_submission,
-    form_answer,
-    task,
-    task_comment,
-    builder_document,
-    runtime_template,
-    execution_session,
-)
-
-# Routers
-from app.routers.health import router as health_router
-from app.routers.form_templates import router as form_templates_router
+from app.modules.task_drafts.draft_router import router as task_drafts_router
+from app.modules.tasks.router import router as tasks_router
+from app.routers.auth import router as auth_router
 from app.routers.builder_documents import router as builder_documents_router
-from app.routers.runtime_templates import router as runtime_templates_router
 from app.routers.execution_sessions import router as execution_sessions_router
+from app.routers.form_templates import router as form_templates_router
+from app.routers.health import router as health_router
+from app.routers.outlets import router as outlets_router
+from app.routers.runtime_templates import router as runtime_templates_router
 
-# Auth router (opsional jika file auth.py sudah dibuat)
-try:
-    from app.routers.auth import router as auth_router
-    HAS_AUTH = True
-except Exception:
-    HAS_AUTH = False
 
 app = FastAPI(
-    title="NovaOps Execution API",
-    version="1.0.0",
+    title="NovaOps Enterprise API",
+    version="0.5.0",
+    description="Enterprise multi-outlet operations platform API",
 )
 
 app.add_middleware(
@@ -48,20 +29,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
-app.include_router(health_router)
-app.include_router(form_templates_router)
-app.include_router(builder_documents_router)
-app.include_router(runtime_templates_router)
-app.include_router(execution_sessions_router)
+API_PREFIX = "/api/v1"
 
-if HAS_AUTH:
-    app.include_router(auth_router)
+app.include_router(health_router, prefix=API_PREFIX)
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(form_templates_router, prefix=API_PREFIX)
+app.include_router(runtime_templates_router, prefix=API_PREFIX)
+app.include_router(builder_documents_router, prefix=API_PREFIX)
+app.include_router(execution_sessions_router, prefix=API_PREFIX)
+app.include_router(outlets_router, prefix=API_PREFIX)
+app.include_router(tasks_router, prefix=API_PREFIX)
+app.include_router(task_drafts_router, prefix=API_PREFIX)
 
 
 @app.get("/")
 def root():
     return {
-        "message": "NovaOps Execution API is running",
-        "version": "1.0.0",
+        "app": "NovaOps Enterprise API",
+        "version": "0.5.0",
+        "status": "running",
     }
