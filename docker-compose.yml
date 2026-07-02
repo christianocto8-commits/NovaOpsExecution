@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: novaops_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: novaops_db
+      POSTGRES_USER: novaops_user
+      POSTGRES_PASSWORD: novaops_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - novaops_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  novaops_postgres_data:
