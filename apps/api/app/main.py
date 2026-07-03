@@ -1,21 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.modules.task_drafts.draft_router import router as task_drafts_router
-from app.modules.tasks.router import router as tasks_router
-from app.routers.auth import router as auth_router
-from app.routers.builder_documents import router as builder_documents_router
-from app.routers.execution_sessions import router as execution_sessions_router
-from app.routers.form_templates import router as form_templates_router
-from app.routers.health import router as health_router
-from app.routers.outlets import router as outlets_router
-from app.routers.runtime_templates import router as runtime_templates_router
-
+from app.routers import auth
+from app.routers import builder_documents
+from app.routers import execution_sessions
+from app.routers import form_templates
+from app.routers import health
+from app.routers import outlets
+from app.routers import reports
+from app.routers import runtime_templates
+from app.routers import settings
 
 app = FastAPI(
-    title="NovaOps Enterprise API",
-    version="0.5.0",
-    description="Enterprise multi-outlet operations platform API",
+    title="NovaOps API",
+    version="0.5.4",
 )
 
 app.add_middleware(
@@ -29,23 +27,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-API_PREFIX = "/api/v1"
-
-app.include_router(health_router, prefix=API_PREFIX)
-app.include_router(auth_router, prefix=API_PREFIX)
-app.include_router(form_templates_router, prefix=API_PREFIX)
-app.include_router(runtime_templates_router, prefix=API_PREFIX)
-app.include_router(builder_documents_router, prefix=API_PREFIX)
-app.include_router(execution_sessions_router, prefix=API_PREFIX)
-app.include_router(outlets_router, prefix=API_PREFIX)
-app.include_router(tasks_router, prefix=API_PREFIX)
-app.include_router(task_drafts_router, prefix=API_PREFIX)
+app.include_router(health.router)
+app.include_router(auth.router)
+app.include_router(outlets.router)
+app.include_router(form_templates.router)
+app.include_router(runtime_templates.router)
+app.include_router(builder_documents.router)
+app.include_router(execution_sessions.router)
+app.include_router(settings.router)
+app.include_router(reports.router)
 
 
 @app.get("/")
 def root():
     return {
-        "app": "NovaOps Enterprise API",
-        "version": "0.5.0",
+        "app": "NovaOps API",
         "status": "running",
+        "version": "0.5.4",
     }

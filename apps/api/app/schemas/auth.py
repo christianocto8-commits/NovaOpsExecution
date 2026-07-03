@@ -1,6 +1,4 @@
-from typing import Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
@@ -26,8 +24,8 @@ class AuthUserResponse(BaseModel):
     name: str
     email: str
     is_active: bool
-    role: Optional[AuthRoleResponse] = None
-    permissions: list[str] = []
+    role: AuthRoleResponse | None = None
+    permissions: list[str] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
