@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useState } from "react";
+import { CommandDialog } from "@/shared/command-center";
 import { EnterpriseSidebar } from "@/shared/layout/enterprise-sidebar";
 import { EnterpriseTopbar } from "@/shared/layout/enterprise-topbar";
 
@@ -25,6 +26,8 @@ export function EnterpriseLayout({ children }: EnterpriseLayoutProps) {
           <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
+
+      <CommandDialog />
     </div>
   );
 }

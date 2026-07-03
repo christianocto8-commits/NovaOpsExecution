@@ -1,44 +1,22 @@
-import { ReactNode } from "react";
+import { LucideIcon } from "lucide-react";
 
-export type CommandGroup =
+export type CommandItemType =
   | "navigation"
-  | "quick-actions"
-  | "recent"
-  | "search"
-  | "system";
+  | "action"
+  | "task"
+  | "report"
+  | "outlet"
+  | "user"
+  | "setting";
 
 export type CommandItem = {
   id: string;
   title: string;
-  subtitle?: string;
-  group: CommandGroup;
-  icon?: ReactNode;
-  keywords?: string[];
+  description?: string;
+  href?: string;
+  group: string;
+  type: CommandItemType;
+  icon?: LucideIcon;
   shortcut?: string;
-  href?: string;
   action?: () => void;
-};
-
-export type RecentCommandItem = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  href?: string;
-  group?: CommandGroup;
-  createdAt: string;
-};
-
-export type CommandCenterContextValue = {
-  isOpen: boolean;
-  query: string;
-  commands: CommandItem[];
-  recentItems: RecentCommandItem[];
-  openCommandCenter: () => void;
-  closeCommandCenter: () => void;
-  toggleCommandCenter: () => void;
-  setQuery: (query: string) => void;
-  registerCommand: (command: CommandItem) => void;
-  unregisterCommand: (id: string) => void;
-  registerRecentItem: (item: Omit<RecentCommandItem, "createdAt">) => void;
-  clearRecentItems: () => void;
 };
