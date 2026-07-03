@@ -6,11 +6,11 @@ foreach ($port in $ports) {
     $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
 
     foreach ($connection in $connections) {
-        $pid = $connection.OwningProcess
+        $processId = $connection.OwningProcess
 
-        if ($pid) {
-            Write-Host "Stopping process on port $port. PID: $pid"
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        if ($processId) {
+            Write-Host "Stopping process on port $port. PID: $processId"
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
         }
     }
 }
