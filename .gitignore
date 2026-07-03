@@ -1,64 +1,39 @@
-# ===============================
-# Python
-# ===============================
-**/__pycache__/
-**/*.py[cod]
-**/.pytest_cache/
-**/.mypy_cache/
-**/.ruff_cache/
-
-# Virtual Environment
-**/.venv/
-**/venv/
-
-# ===============================
-# Node.js
-# ===============================
-**/node_modules/
-**/.next/
-**/out/
-**/dist/
-
-# ===============================
 # Environment
-# ===============================
-**/.env
-**/.env.local
-**/.env.development.local
-**/.env.production.local
+.env
+.env.*
+!.env.example
 
-# ===============================
-# IDE
-# ===============================
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
 
-# ===============================
-# OS
-# ===============================
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Local DB / cache
+*.sqlite
+*.db
+.cache/
 
-# ===============================
-# Logs
-# ===============================
-*.log
-
-# ===============================
-# Coverage
-# ===============================
-.coverage
-htmlcov/
-
-# ===============================
-# Python Build
-# ===============================
-build/
-dist/
-*.egg-info/
-
-# ===============================
-# Alembic
-# ===============================
-alembic/versions/__pycache__/
+# Temporary troubleshooting scripts
+apps/api/check_users.py
+apps/api/reset_admin_password.py
