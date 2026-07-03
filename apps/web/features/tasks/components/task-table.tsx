@@ -1,12 +1,22 @@
-﻿import { Eye, Search, Trash2 } from "lucide-react";
-import { EmptyState, Input, Section } from "@/shared/ui";
-import { Task, TaskStatus } from "../types";
+﻿import { Eye, Trash2 } from "lucide-react";
+import { EmptyState, Section } from "@/shared/ui";
+import {
+  Task,
+  TaskPriorityFilter,
+  TaskStatus,
+  TaskStatusFilter,
+} from "../types";
 import { getPriorityClass, getStatusClass } from "../utils";
+import { TaskFilters } from "./task-filters";
 
 type TaskTableProps = {
   tasks: Task[];
   query: string;
+  statusFilter: TaskStatusFilter;
+  priorityFilter: TaskPriorityFilter;
   onQueryChange: (value: string) => void;
+  onStatusFilterChange: (value: TaskStatusFilter) => void;
+  onPriorityFilterChange: (value: TaskPriorityFilter) => void;
   onSelectTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
@@ -15,7 +25,11 @@ type TaskTableProps = {
 export function TaskTable({
   tasks,
   query,
+  statusFilter,
+  priorityFilter,
   onQueryChange,
+  onStatusFilterChange,
+  onPriorityFilterChange,
   onSelectTask,
   onDeleteTask,
   onStatusChange,
@@ -23,19 +37,16 @@ export function TaskTable({
   return (
     <Section
       title="Task Workspace"
-      description="Search, update, inspect, and delete operational tasks."
+      description="Search, filter, update, inspect, and delete operational tasks."
     >
-      <div className="mb-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-          <Input
-            className="pl-9"
-            placeholder="Search tasks..."
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-          />
-        </div>
-      </div>
+      <TaskFilters
+        query={query}
+        statusFilter={statusFilter}
+        priorityFilter={priorityFilter}
+        onQueryChange={onQueryChange}
+        onStatusFilterChange={onStatusFilterChange}
+        onPriorityFilterChange={onPriorityFilterChange}
+      />
 
       {tasks.length === 0 ? (
         <EmptyState

@@ -37,7 +37,11 @@ export function TasksWorkspace() {
       <TaskTable
         tasks={taskWorkspace.filteredTasks}
         query={taskWorkspace.query}
+        statusFilter={taskWorkspace.statusFilter}
+        priorityFilter={taskWorkspace.priorityFilter}
         onQueryChange={taskWorkspace.setQuery}
+        onStatusFilterChange={taskWorkspace.setStatusFilter}
+        onPriorityFilterChange={taskWorkspace.setPriorityFilter}
         onSelectTask={taskWorkspace.setSelectedTask}
         onDeleteTask={taskWorkspace.deleteTask}
         onStatusChange={taskWorkspace.updateStatus}

@@ -2,11 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { emptyTaskForm, mockTasks } from "../data/mock-tasks";
-import { Task, TaskFormState, TaskStatus } from "../types";
+import {
+  Task,
+  TaskFormState,
+  TaskPriorityFilter,
+  TaskStatus,
+  TaskStatusFilter,
+} from "../types";
 
 export function useTaskWorkspace() {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("All");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
@@ -15,16 +23,24 @@ export function useTaskWorkspace() {
     const value = query.toLowerCase();
 
     return tasks.filter((task) => {
-      return (
+      const matchesQuery =
         task.title.toLowerCase().includes(value) ||
         task.outlet.toLowerCase().includes(value) ||
-        task.assignee.toLowerCase().includes(value)
-      );
+        task.assignee.toLowerCase().includes(value);
+
+      const matchesStatus =
+        statusFilter === "All" || task.status === statusFilter;
+
+      const matchesPriority =
+        priorityFilter === "All" || task.priority === priorityFilter;
+
+      return matchesQuery && matchesStatus && matchesPriority;
     });
-  }, [tasks, query]);
+  }, [tasks, query, statusFilter, priorityFilter]);
 
   const metrics = useMemo(() => {
     return {
+      total: tasks.length,
       open: tasks.filter((task) => task.status !== "Completed").length,
       completed: tasks.filter((task) => task.status === "Completed").length,
       overdue: tasks.filter(
@@ -61,6 +77,10 @@ export function useTaskWorkspace() {
     filteredTasks,
     query,
     setQuery,
+    statusFilter,
+    setStatusFilter,
+    priorityFilter,
+    setPriorityFilter,
     modalOpen,
     setModalOpen,
     selectedTask,
