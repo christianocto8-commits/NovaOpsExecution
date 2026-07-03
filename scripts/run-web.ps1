@@ -1,7 +1,6 @@
-@"
-`$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
-Set-Location "`$PSScriptRoot\..\apps\web"
+$root = Split-Path $PSScriptRoot -Parent
+Set-Location "$root\apps\web"
 
 npm run dev
-"@ | Set-Content scripts\run-web.ps1

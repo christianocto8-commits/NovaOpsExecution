@@ -1,8 +1,8 @@
-@"
-`$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
-Set-Location "`$PSScriptRoot\..\apps\api"
-& "..\..\.venv\Scripts\Activate.ps1"
+$root = Split-Path $PSScriptRoot -Parent
+Set-Location "$root\apps\api"
+
+& "$root\.venv\Scripts\Activate.ps1"
 
 uvicorn app.main:app --reload
-"@ | Set-Content scripts\run-api.ps1
