@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   Bell,
   CheckCircle2,
@@ -9,6 +9,8 @@ import {
   MoreHorizontal,
   X,
 } from "lucide-react";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
+import { usePopup } from "@/shared/popup";
 
 type NotificationType = "task" | "report" | "approval" | "system";
 
@@ -20,6 +22,8 @@ type Notification = {
   time: string;
   unread: boolean;
 };
+
+const POPUP_ID = "notification-menu";
 
 const notifications: Notification[] = [
   {
@@ -56,17 +60,27 @@ function getNotificationIcon(type: NotificationType) {
 }
 
 export function NotificationMenu() {
-  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const { isPopupOpen, togglePopup, closePopup } = usePopup();
+
+  const open = isPopupOpen(POPUP_ID);
+
+  const closeMenu = useCallback(() => {
+    closePopup(POPUP_ID);
+  }, [closePopup]);
+
+  useClickOutside(menuRef, closeMenu, { enabled: open });
+  useEscapeKey(closeMenu, open);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => notification.unread).length;
   }, []);
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => togglePopup(POPUP_ID)}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
         aria-label="Open notifications"
       >
@@ -83,9 +97,7 @@ export function NotificationMenu() {
         <div className="absolute right-0 top-12 z-50 w-[380px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
           <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
             <div>
-              <div className="text-sm font-bold text-slate-950">
-                Notifications
-              </div>
+              <div className="text-sm font-bold text-slate-950">Notifications</div>
               <div className="mt-0.5 text-xs text-slate-500">
                 Operational updates and workflow alerts
               </div>
@@ -93,7 +105,7 @@ export function NotificationMenu() {
 
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={closeMenu}
               className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               aria-label="Close notifications"
             >
@@ -109,6 +121,7 @@ export function NotificationMenu() {
                 <button
                   key={notification.id}
                   type="button"
+                  onClick={closeMenu}
                   className="flex w-full gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-slate-50"
                 >
                   <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -139,17 +152,11 @@ export function NotificationMenu() {
           </div>
 
           <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
-            <button
-              type="button"
-              className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800"
-            >
+            <button type="button" onClick={closeMenu} className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800">
               Mark all as read
             </button>
 
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-slate-900"
-            >
+            <button type="button" onClick={closeMenu} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-slate-900">
               View all
               <MoreHorizontal className="h-4 w-4" />
             </button>

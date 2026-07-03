@@ -1,4 +1,4 @@
-﻿import { Eye, Trash2 } from "lucide-react";
+﻿import { Edit3, Eye, Trash2 } from "lucide-react";
 import { EmptyState, Section } from "@/shared/ui";
 import {
   Task,
@@ -18,6 +18,7 @@ type TaskTableProps = {
   onStatusFilterChange: (value: TaskStatusFilter) => void;
   onPriorityFilterChange: (value: TaskPriorityFilter) => void;
   onSelectTask: (task: Task) => void;
+  onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
 };
@@ -31,6 +32,7 @@ export function TaskTable({
   onStatusFilterChange,
   onPriorityFilterChange,
   onSelectTask,
+  onEditTask,
   onDeleteTask,
   onStatusChange,
 }: TaskTableProps) {
@@ -112,13 +114,23 @@ export function TaskTable({
                       <button
                         onClick={() => onSelectTask(task)}
                         className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                        title="View"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
 
                       <button
+                        onClick={() => onEditTask(task)}
+                        className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                        title="Edit"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+
+                      <button
                         onClick={() => onDeleteTask(task.id)}
                         className="rounded-lg border border-red-200 p-2 text-red-500 hover:bg-red-50"
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

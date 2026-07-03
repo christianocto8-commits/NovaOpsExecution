@@ -1,4 +1,7 @@
-"use client";
+﻿"use client";
+
+import { useCallback, useRef } from "react";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
 
 type OutletExportCardProps = {
   outlet: string;
@@ -47,8 +50,22 @@ export function OutletExportCard({
   onExportPdf,
   onExportCsv,
 }: OutletExportCardProps) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const closeCard = useCallback(() => {
+    if (isOpen) {
+      onToggle();
+    }
+  }, [isOpen, onToggle]);
+
+  useClickOutside(cardRef, closeCard, { enabled: isOpen });
+  useEscapeKey(closeCard, isOpen);
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div
+      ref={cardRef}
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -63,7 +80,7 @@ export function OutletExportCard({
         </div>
 
         <span
-          className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-transform duration-300 ${
+          className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-transform duration-500 ease-in-out ${
             isOpen ? "rotate-180" : "rotate-0"
           }`}
         >
@@ -83,7 +100,7 @@ export function OutletExportCard({
       </button>
 
       <div
-        className={`grid transition-all duration-300 ease-in-out ${
+        className={`grid transition-all duration-500 ease-in-out ${
           isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >
@@ -131,13 +148,7 @@ export function OutletExportCard({
 
               <div className="flex items-center gap-2">
                 <IconButton label="Export Excel" onClick={onExportExcel}>
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <path d="M14 2v6h6" />
                     <path d="M8 13h8" />
@@ -147,13 +158,7 @@ export function OutletExportCard({
                 </IconButton>
 
                 <IconButton label="Export PDF" onClick={onExportPdf}>
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
                     <path d="M14 2v5h5" />
                     <path d="M8 15h8" />
@@ -163,13 +168,7 @@ export function OutletExportCard({
                 </IconButton>
 
                 <IconButton label="Export CSV" onClick={onExportCsv}>
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M4 4h16v16H4z" />
                     <path d="M4 9h16" />
                     <path d="M9 4v16" />

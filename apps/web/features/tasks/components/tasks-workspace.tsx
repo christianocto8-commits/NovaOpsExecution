@@ -11,6 +11,10 @@ import { TaskTable } from "./task-table";
 export function TasksWorkspace() {
   const taskWorkspace = useTaskWorkspace();
 
+  function handleCloseTaskForm() {
+    taskWorkspace.setModalOpen(false);
+  }
+
   return (
     <main className="space-y-6">
       <PageHeader
@@ -21,7 +25,7 @@ export function TasksWorkspace() {
           <Button
             variant="primary"
             leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => taskWorkspace.setModalOpen(true)}
+            onClick={taskWorkspace.openCreateDialog}
           >
             New Task
           </Button>
@@ -45,14 +49,16 @@ export function TasksWorkspace() {
         onSelectTask={taskWorkspace.setSelectedTask}
         onDeleteTask={taskWorkspace.deleteTask}
         onStatusChange={taskWorkspace.updateStatus}
+        onEditTask={taskWorkspace.openEditDialog}
       />
 
       <TaskFormDialog
         open={taskWorkspace.modalOpen}
+        editingTaskId={taskWorkspace.editingTaskId}
         form={taskWorkspace.form}
-        onClose={() => taskWorkspace.setModalOpen(false)}
+        onClose={handleCloseTaskForm}
         onFormChange={taskWorkspace.setForm}
-        onCreate={taskWorkspace.createTask}
+        onCreate={taskWorkspace.saveTask}
       />
 
       <TaskDetailDrawer

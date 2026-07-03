@@ -16,6 +16,7 @@ export function useTaskWorkspace() {
   const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("All");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>("All");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
 
@@ -49,21 +50,57 @@ export function useTaskWorkspace() {
     };
   }, [tasks]);
 
-  function createTask() {
+  function openCreateDialog() {
+    setEditingTaskId(null);
+    setForm(emptyTaskForm);
+    setModalOpen(true);
+  }
+
+  function openEditDialog(task: Task) {
+    setEditingTaskId(task.id);
+    setForm({
+      title: task.title,
+      outlet: task.outlet,
+      status: task.status,
+      priority: task.priority,
+      assignee: task.assignee,
+      due: task.due,
+      description: task.description,
+    });
+    setModalOpen(true);
+  }
+
+  function saveTask() {
     if (!form.title.trim()) return;
 
-    const nextTask: Task = {
-      id: `TASK-${String(tasks.length + 1).padStart(3, "0")}`,
-      ...form,
-    };
+    if (editingTaskId) {
+      setTasks((current) =>
+        current.map((task) =>
+          task.id === editingTaskId
+            ? {
+                ...task,
+                ...form,
+              }
+            : task
+        )
+      );
+    } else {
+      const nextTask: Task = {
+        id: `TASK-${String(tasks.length + 1).padStart(3, "0")}`,
+        ...form,
+      };
 
-    setTasks((current) => [nextTask, ...current]);
+      setTasks((current) => [nextTask, ...current]);
+    }
+
     setForm(emptyTaskForm);
+    setEditingTaskId(null);
     setModalOpen(false);
   }
 
   function deleteTask(id: string) {
     setTasks((current) => current.filter((task) => task.id !== id));
+    if (selectedTask?.id === id) setSelectedTask(null);
   }
 
   function updateStatus(id: string, status: TaskStatus) {
@@ -83,12 +120,15 @@ export function useTaskWorkspace() {
     setPriorityFilter,
     modalOpen,
     setModalOpen,
+    editingTaskId,
     selectedTask,
     setSelectedTask,
     form,
     setForm,
     metrics,
-    createTask,
+    openCreateDialog,
+    openEditDialog,
+    saveTask,
     deleteTask,
     updateStatus,
   };

@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useCallback, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { IconButton } from "@/shared/ui/primitives";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
 
 type DrawerProps = {
   open: boolean;
@@ -12,6 +13,8 @@ type DrawerProps = {
   footer?: ReactNode;
   onClose: () => void;
   width?: "md" | "lg" | "xl";
+  closeOnOutsideClick?: boolean;
+  closeOnEscape?: boolean;
 };
 
 const widthClass = {
@@ -28,44 +31,75 @@ export function Drawer({
   footer,
   onClose,
   width = "lg",
+  closeOnOutsideClick = true,
+  closeOnEscape = true,
 }: DrawerProps) {
+  const drawerRef = useRef<HTMLElement | null>(null);
+
+  const closeDrawer = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  useClickOutside(drawerRef, closeDrawer, {
+    enabled: open && closeOnOutsideClick,
+  });
+
+  useEscapeKey(closeDrawer, open && closeOnEscape);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button
-        type="button"
-        aria-label="Close drawer overlay"
-        className="absolute inset-0 bg-black/30"
-        onClick={onClose}
-      />
-
+    <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm">
       <aside
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
         className={cn(
           "absolute right-0 top-0 flex h-full w-full flex-col bg-white shadow-2xl",
+          "animate-in slide-in-from-right duration-300",
           widthClass[width]
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#E7ECE9] px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div>
             {title ? (
-              <h2 className="text-lg font-semibold text-[#1E1E1E]">
-                {title}
-              </h2>
+              <h2 className="text-lg font-bold text-slate-950">{title}</h2>
             ) : null}
 
             {description ? (
-              <p className="mt-1 text-sm text-gray-500">{description}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-500">
+                {description}
+              </p>
             ) : null}
           </div>
 
-          <IconButton label="Close drawer" icon="×" onClick={onClose} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close drawer"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer ? (
-          <div className="border-t border-[#E7ECE9] px-6 py-4">{footer}</div>
+          <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
+            {footer}
+          </div>
         ) : null}
       </aside>
     </div>

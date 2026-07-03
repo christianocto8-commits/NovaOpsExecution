@@ -1,16 +1,25 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { commandItems } from "../constants";
 import { useCommandCenter } from "../hooks/use-command-center";
 import { filterCommandItems, groupCommandItems } from "../utils";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
 
 export function CommandDialog() {
   const router = useRouter();
   const { open, setOpen } = useCommandCenter();
   const [query, setQuery] = useState("");
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  const closeDialog = useCallback(() => {
+    setOpen(false);
+  }, [setOpen]);
+
+  useClickOutside(dialogRef, closeDialog, { enabled: open });
+  useEscapeKey(closeDialog, open);
 
   const filteredItems = useMemo(() => {
     return filterCommandItems(commandItems, query);
@@ -25,22 +34,6 @@ export function CommandDialog() {
       setQuery("");
     }
   }, [open]);
-
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    if (open) {
-      window.addEventListener("keydown", handleEscape);
-    }
-
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [open, setOpen]);
 
   if (!open) return null;
 
@@ -58,7 +51,7 @@ export function CommandDialog() {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/30 p-4 backdrop-blur-sm">
-      <div className="mx-auto mt-20 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div ref={dialogRef} className="mx-auto mt-20 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
           <input
             autoFocus
@@ -70,7 +63,7 @@ export function CommandDialog() {
 
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={closeDialog}
             className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close command center"
           >

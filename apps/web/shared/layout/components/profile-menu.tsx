@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useRef } from "react";
 import {
   ChevronDown,
   HelpCircle,
@@ -11,10 +11,24 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
+import { usePopup } from "@/shared/popup";
+
+const POPUP_ID = "profile-menu";
 
 export function ProfileMenu() {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const { isPopupOpen, togglePopup, closePopup } = usePopup();
+
+  const open = isPopupOpen(POPUP_ID);
+
+  const closeMenu = useCallback(() => {
+    closePopup(POPUP_ID);
+  }, [closePopup]);
+
+  useClickOutside(menuRef, closeMenu, { enabled: open });
+  useEscapeKey(closeMenu, open);
 
   function handleLogout() {
     localStorage.removeItem("novaops_token");
@@ -22,10 +36,10 @@ export function ProfileMenu() {
   }
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => togglePopup(POPUP_ID)}
         className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
       >
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm font-black text-emerald-700">
@@ -65,22 +79,22 @@ export function ProfileMenu() {
           </div>
 
           <div className="p-2">
-            <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <User className="h-4 w-4 text-slate-400" />
               Profile
             </button>
 
-            <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <Settings className="h-4 w-4 text-slate-400" />
               Preferences
             </button>
 
-            <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <Keyboard className="h-4 w-4 text-slate-400" />
               Keyboard Shortcuts
             </button>
 
-            <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <HelpCircle className="h-4 w-4 text-slate-400" />
               Help Center
             </button>
