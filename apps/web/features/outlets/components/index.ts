@@ -1,0 +1,1 @@
+export { OutletsWorkspace } from "./outlets-workspace";

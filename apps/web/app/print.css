@@ -1,0 +1,37 @@
+@media print {
+  body {
+    background: white !important;
+  }
+
+  nav,
+  aside,
+  button,
+  input,
+  select {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  section {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 8px !important;
+  }
+
+  thead {
+    background: #f8fafc !important;
+  }
+}
