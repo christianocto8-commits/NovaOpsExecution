@@ -1,32 +1,35 @@
-@"
-`$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
-Write-Host "NovaOps Developer Setup" -ForegroundColor Green
+. "$PSScriptRoot\lib\common.ps1"
 
-Set-Location "`$PSScriptRoot\.."
+$root = Get-NovaOpsRoot
+Set-Location $root
+
+Write-Step "NovaOps Developer Setup"
 
 if (!(Test-Path ".venv")) {
-    Write-Host "Creating Python virtual environment..."
+    Write-Step "Creating Python virtual environment"
     python -m venv .venv
 }
 
-Write-Host "Activating virtual environment..."
-& ".\.venv\Scripts\Activate.ps1"
+$python = Get-NovaOpsPython
 
-Write-Host "Upgrading pip..."
-python -m pip install --upgrade pip
+Write-Step "Upgrading pip"
+& $python -m pip install --upgrade pip
 
-Write-Host "Installing backend dependencies..."
-pip install -r apps\api\requirements.txt
+Write-Step "Installing backend dependencies"
+& $python -m pip install -r "$root\apps\api\requirements.txt"
 
-Write-Host "Installing frontend dependencies..."
-Set-Location "apps\web"
+Write-Step "Validating bcrypt lock"
+$bcryptVersion = & $python -m pip show bcrypt | Select-String "^Version:"
+if ($bcryptVersion -notmatch "4\.0\.1") {
+    throw "bcrypt must be 4.0.1 for passlib compatibility. Check apps\api\requirements.txt"
+}
+
+Write-Step "Installing frontend dependencies"
+Set-Location "$root\apps\web"
 npm install
 
-Set-Location "..\.."
-
-Write-Host ""
-Write-Host "Setup complete." -ForegroundColor Green
-Write-Host "Run API : .\scripts\run-api.ps1"
-Write-Host "Run Web : .\scripts\run-web.ps1"
-"@ | Set-Content scripts\setup-dev.ps1
+Set-Location $root
+Write-Ok "Setup complete"
+Write-Host "Run all: .\scripts\run-all.ps1"

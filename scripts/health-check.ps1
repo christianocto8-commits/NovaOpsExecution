@@ -1,54 +1,61 @@
 $ErrorActionPreference = "Continue"
 
-Set-Location "$PSScriptRoot\.."
+. "$PSScriptRoot\lib\common.ps1"
 
-Write-Host "NovaOps Health Check" -ForegroundColor Green
-Write-Host ""
+$root = Get-NovaOpsRoot
+Set-Location $root
 
-function Check-Command($name) {
-    $cmd = Get-Command $name -ErrorAction SilentlyContinue
-    if ($cmd) {
-        Write-Host "[OK] $name found" -ForegroundColor Green
+Write-Step "NovaOps Health Check"
+
+foreach ($cmd in @("python", "node", "npm", "git")) {
+    if (Get-Command $cmd -ErrorAction SilentlyContinue) {
+        Write-Ok "$cmd found"
     } else {
-        Write-Host "[FAIL] $name not found" -ForegroundColor Red
+        Write-Fail "$cmd not found"
     }
 }
 
-function Check-Path($path, $label) {
-    if (Test-Path $path) {
-        Write-Host "[OK] $label" -ForegroundColor Green
-    } else {
-        Write-Host "[FAIL] $label missing" -ForegroundColor Red
+if (Test-Path ".venv\Scripts\python.exe") {
+    Write-Ok ".venv Python found"
+    $python = Get-NovaOpsPython
+
+    foreach ($module in @("sqlalchemy", "fastapi", "uvicorn", "passlib", "bcrypt")) {
+        & $python -c "import $module" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "Python module: $module"
+        } else {
+            Write-Fail "Python module missing: $module"
+        }
     }
+
+    $bcryptVersion = & $python -m pip show bcrypt | Select-String "^Version:"
+    if ($bcryptVersion -match "4\.0\.1") {
+        Write-Ok "bcrypt locked to 4.0.1"
+    } else {
+        Write-Fail "bcrypt version is not 4.0.1"
+    }
+} else {
+    Write-Fail ".venv Python missing"
 }
 
-Check-Command "python"
-Check-Command "node"
-Check-Command "npm"
-Check-Command "git"
+if (Test-Path "apps\web\package.json") { Write-Ok "Frontend package.json" } else { Write-Fail "Frontend package.json missing" }
+if (Test-Path "apps\web\node_modules") { Write-Ok "Frontend node_modules" } else { Write-Warn "Frontend node_modules missing" }
 
-Check-Path ".venv" "Python virtual environment"
-Check-Path "apps\api\requirements.txt" "Backend requirements"
-Check-Path "apps\web\package.json" "Frontend package.json"
-Check-Path "apps\web\node_modules" "Frontend node_modules"
-
-Write-Host ""
-Write-Host "Checking API..."
+Write-Step "Checking API"
 try {
-    $api = Invoke-WebRequest "http://localhost:8000/docs" -UseBasicParsing -TimeoutSec 3
-    Write-Host "[OK] API reachable: http://localhost:8000/docs" -ForegroundColor Green
+    Invoke-WebRequest "http://localhost:8000/docs" -UseBasicParsing -TimeoutSec 3 | Out-Null
+    Write-Ok "API reachable"
 } catch {
-    Write-Host "[WARN] API not reachable. Run .\scripts\run-api.ps1" -ForegroundColor Yellow
+    Write-Warn "API not reachable"
 }
 
-Write-Host ""
-Write-Host "Checking Web..."
+Write-Step "Checking Web"
 try {
-    $web = Invoke-WebRequest "http://localhost:3000" -UseBasicParsing -TimeoutSec 3
-    Write-Host "[OK] Web reachable: http://localhost:3000" -ForegroundColor Green
+    Invoke-WebRequest "http://localhost:3000" -UseBasicParsing -TimeoutSec 3 | Out-Null
+    Write-Ok "Web reachable"
 } catch {
-    Write-Host "[WARN] Web not reachable. Run .\scripts\run-web.ps1" -ForegroundColor Yellow
+    Write-Warn "Web not reachable"
 }
 
 Write-Host ""
-Write-Host "Health check complete."
+Write-Ok "Health check complete"

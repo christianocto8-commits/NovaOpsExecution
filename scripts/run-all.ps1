@@ -1,8 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path $PSScriptRoot -Parent
+. "$PSScriptRoot\lib\common.ps1"
 
-Write-Host "Starting NovaOps API and Web..." -ForegroundColor Green
+$root = Get-NovaOpsRoot
+
+Write-Step "Starting NovaOps API and Web"
 
 Start-Process powershell.exe -WorkingDirectory $root -ArgumentList @(
   "-NoExit",
@@ -18,5 +20,6 @@ Start-Process powershell.exe -WorkingDirectory $root -ArgumentList @(
   "-File", "$PSScriptRoot\run-web.ps1"
 )
 
+Write-Ok "Services are starting"
 Write-Host "Backend : http://localhost:8000/docs"
 Write-Host "Frontend: http://localhost:3000"

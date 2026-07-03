@@ -1,20 +1,22 @@
-@"
-`$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
-Set-Location "`$PSScriptRoot\.."
+. "$PSScriptRoot\lib\common.ps1"
+
+$root = Get-NovaOpsRoot
+Set-Location $root
 
 if (Test-Path ".venv") {
-    Write-Host "Removing old .venv..."
+    Write-Step "Removing old .venv"
     Remove-Item ".venv" -Recurse -Force
 }
 
-Write-Host "Creating fresh .venv..."
+Write-Step "Creating fresh .venv"
 python -m venv .venv
 
-& ".\.venv\Scripts\Activate.ps1"
+$python = Get-NovaOpsPython
 
-python -m pip install --upgrade pip
-pip install -r apps\api\requirements.txt
+Write-Step "Installing backend dependencies"
+& $python -m pip install --upgrade pip
+& $python -m pip install -r "$root\apps\api\requirements.txt"
 
-Write-Host "Virtual environment recreated." -ForegroundColor Green
-"@ | Set-Content scripts\recreate-venv.ps1
+Write-Ok "Virtual environment recreated"

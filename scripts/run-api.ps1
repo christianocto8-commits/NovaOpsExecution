@@ -1,8 +1,11 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path $PSScriptRoot -Parent
+. "$PSScriptRoot\lib\common.ps1"
+
+$root = Get-NovaOpsRoot
+$python = Get-NovaOpsPython
+
 Set-Location "$root\apps\api"
 
-& "$root\.venv\Scripts\Activate.ps1"
-
-uvicorn app.main:app --reload
+Write-Step "Starting NovaOps API"
+& $python -m uvicorn app.main:app --reload

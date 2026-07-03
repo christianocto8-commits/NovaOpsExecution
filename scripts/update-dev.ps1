@@ -1,26 +1,27 @@
 $ErrorActionPreference = "Stop"
 
-Set-Location "$PSScriptRoot\.."
+. "$PSScriptRoot\lib\common.ps1"
 
-Write-Host "Updating NovaOps development environment..." -ForegroundColor Green
+$root = Get-NovaOpsRoot
+Set-Location $root
 
+Write-Step "Pulling latest source"
 git pull
 
 if (!(Test-Path ".venv")) {
-    Write-Host "Creating Python virtual environment..."
+    Write-Step "Creating Python virtual environment"
     python -m venv .venv
 }
 
-& ".\.venv\Scripts\Activate.ps1"
+$python = Get-NovaOpsPython
 
-Write-Host "Updating backend dependencies..."
-python -m pip install --upgrade pip
-pip install -r apps\api\requirements.txt
+Write-Step "Updating backend dependencies"
+& $python -m pip install --upgrade pip
+& $python -m pip install -r "$root\apps\api\requirements.txt"
 
-Write-Host "Updating frontend dependencies..."
-Set-Location "apps\web"
+Write-Step "Updating frontend dependencies"
+Set-Location "$root\apps\web"
 npm install
 
-Set-Location "..\.."
-
-Write-Host "Development environment updated." -ForegroundColor Green
+Set-Location $root
+Write-Ok "Development environment updated"
