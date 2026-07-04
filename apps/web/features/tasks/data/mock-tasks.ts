@@ -1,4 +1,4 @@
-﻿import { Task, TaskFormState } from "../types";
+﻿import { Task, TaskExecutionForm, TaskFormState } from "../types";
 
 export const emptyTaskForm: TaskFormState = {
   title: "",
@@ -6,20 +6,41 @@ export const emptyTaskForm: TaskFormState = {
   status: "Pending",
   priority: "Medium",
   assignee: "",
-  due: "Today",
+  due: "2026-07-04T09:00",
   description: "",
+  formTemplateId: "FORM-OPENING",
+};
+
+export const emptyTaskExecutionForm: TaskExecutionForm = {
+  operatorName: "",
+  operatorPosition: "Crew",
+  note: "",
+  evidenceText: "",
+  formResponses: {},
 };
 
 export const mockTasks: Task[] = [
   {
     id: "TASK-001",
-    title: "Daily opening checklist",
+    title: "Test Form - Daily Opening Checklist",
     outlet: "KOV Montre",
-    status: "In Progress",
+    status: "Pending",
     priority: "High",
-    assignee: "Lead Barista",
-    due: "Today",
-    description: "Complete daily opening standards and submit evidence.",
+    assignee: "Outlet Team",
+    due: "2026-07-04T09:00",
+    description:
+      "Test task untuk mencoba isi form, save draft, continue, dan submit final.",
+    formTemplateId: "FORM-OPENING",
+    activity: [
+      {
+        id: "ACT-001-created",
+        type: "created",
+        title: "Task created",
+        description: "Daily Opening Checklist assigned to KOV Montre.",
+        actor: "Owner/Admin",
+        timestamp: "Today",
+      },
+    ],
   },
   {
     id: "TASK-002",
@@ -27,18 +48,9 @@ export const mockTasks: Task[] = [
     outlet: "KOV Heritage",
     status: "Pending",
     priority: "Medium",
-    assignee: "Senior Barista",
-    due: "Tomorrow",
+    assignee: "Outlet Team",
+    due: "2026-07-04T17:00",
     description: "Audit espresso machine cleaning and backflush compliance.",
-  },
-  {
-    id: "TASK-003",
-    title: "Inventory variance review",
-    outlet: "KOV Sultan Agung",
-    status: "Completed",
-    priority: "Low",
-    assignee: "Head Barista",
-    due: "Yesterday",
-    description: "Review inventory variance and submit correction notes.",
+    formTemplateId: "FORM-CLEANING",
   },
 ];

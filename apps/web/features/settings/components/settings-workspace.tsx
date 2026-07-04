@@ -1,12 +1,21 @@
-"use client";
+﻿"use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-import { getSettings, updateSettings } from "@/features/settings/settings-api";
+import { updateSettings } from "@/features/settings/settings-api";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
+import {
+  EnterpriseCheckbox,
+  EnterpriseField,
+  EnterpriseInput,
+  EnterpriseSelect,
+} from "@/shared/form";
 
 type SettingsTab = "organization" | "operations" | "notifications" | "security";
 
@@ -33,6 +42,42 @@ const tabs: { id: SettingsTab; label: string; description: string }[] = [
   },
 ];
 
+const settingsSchema = z.object({
+  organization_name: z.string(),
+  workspace_name: z.string(),
+  timezone: z.string().min(1, "Timezone is required"),
+  default_language: z.string().min(1, "Language is required"),
+  task_auto_archive_days: z.coerce.number().min(1),
+  evidence_required: z.boolean(),
+  approval_required: z.boolean(),
+  email_notifications: z.boolean(),
+  dashboard_alerts: z.boolean(),
+  overdue_alerts: z.boolean(),
+  session_timeout_minutes: z.coerce.number().min(15),
+  enforce_role_permissions: z.boolean(),
+});
+
+type SettingsFormValues = z.infer<typeof settingsSchema>;
+
+function getSettingsFormValues(
+  settings: Partial<SettingsFormValues> | null | undefined
+): SettingsFormValues {
+  return {
+    organization_name: settings?.organization_name ?? "",
+    workspace_name: settings?.workspace_name ?? "",
+    timezone: settings?.timezone ?? "Asia/Jakarta",
+    default_language: settings?.default_language ?? "en",
+    task_auto_archive_days: Number(settings?.task_auto_archive_days ?? 30),
+    evidence_required: Boolean(settings?.evidence_required ?? true),
+    approval_required: Boolean(settings?.approval_required ?? true),
+    email_notifications: Boolean(settings?.email_notifications ?? true),
+    dashboard_alerts: Boolean(settings?.dashboard_alerts ?? true),
+    overdue_alerts: Boolean(settings?.overdue_alerts ?? true),
+    session_timeout_minutes: Number(settings?.session_timeout_minutes ?? 120),
+    enforce_role_permissions: Boolean(settings?.enforce_role_permissions ?? true),
+  };
+}
+
 export function SettingsWorkspace() {
   const { settings, isLoading, error, reload } = useSettings();
 
@@ -40,39 +85,20 @@ export function SettingsWorkspace() {
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    organization_name: "",
-    workspace_name: "",
-    timezone: "Asia/Jakarta",
-    default_language: "en",
-    task_auto_archive_days: "30",
-    evidence_required: true,
-    approval_required: true,
-    email_notifications: true,
-    dashboard_alerts: true,
-    overdue_alerts: true,
-    session_timeout_minutes: "120",
-    enforce_role_permissions: true,
+  const formValues = useMemo(
+    () => getSettingsFormValues(settings),
+    [settings]
+  );
+
+  const {
+    register,
+    handleSubmit,formState: { errors },
+  } = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
+    values: formValues,
   });
 
-  useEffect(() => {
-    if (!settings) return;
-
-    setForm({
-      organization_name: settings.organization_name ?? "",
-      workspace_name: settings.workspace_name ?? "",
-      timezone: settings.timezone ?? "Asia/Jakarta",
-      default_language: settings.default_language ?? "en",
-      task_auto_archive_days: String(settings.task_auto_archive_days ?? 30),
-      evidence_required: Boolean(settings.evidence_required),
-      approval_required: Boolean(settings.approval_required),
-      email_notifications: Boolean(settings.email_notifications),
-      dashboard_alerts: Boolean(settings.dashboard_alerts),
-      overdue_alerts: Boolean(settings.overdue_alerts),
-      session_timeout_minutes: String(settings.session_timeout_minutes ?? 120),
-      enforce_role_permissions: Boolean(settings.enforce_role_permissions),
-    });
-  }, [settings]);
+  const form = useWatch({ control }) as SettingsFormValues;
 
   const completionScore = useMemo(() => {
     let score = 0;
@@ -88,43 +114,18 @@ export function SettingsWorkspace() {
     return score;
   }, [form]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleSave(values: SettingsFormValues) {
     try {
       setIsSaving(true);
       setNotice(null);
 
-      await updateSettings({
-        organization_name: form.organization_name,
-        workspace_name: form.workspace_name,
-        timezone: form.timezone,
-        default_language: form.default_language,
-        task_auto_archive_days: Number(form.task_auto_archive_days),
-        evidence_required: form.evidence_required,
-        approval_required: form.approval_required,
-        email_notifications: form.email_notifications,
-        dashboard_alerts: form.dashboard_alerts,
-        overdue_alerts: form.overdue_alerts,
-        session_timeout_minutes: Number(form.session_timeout_minutes),
-        enforce_role_permissions: form.enforce_role_permissions,
-      });
-
+      await updateSettings(values);
       await reload();
+
       setNotice("Settings saved successfully.");
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function updateField<T extends keyof typeof form>(
-    key: T,
-    value: (typeof form)[T]
-  ) {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
-    }));
   }
 
   if (isLoading) {
@@ -195,6 +196,7 @@ export function SettingsWorkspace() {
           description="Role based access control"
         />
       </div>
+
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
         <SectionCard title="Settings Menu">
           <nav className="space-y-2">
@@ -220,114 +222,79 @@ export function SettingsWorkspace() {
 
         <form
           id="settings-form"
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit(handleSave)}
           className="space-y-6"
         >
-          {activeTab === "organization" && (
+          {activeTab === "organization" ? (
             <SectionCard
               title="Organization Settings"
               description="Basic organization profile and regional defaults."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">
-                    Organization Name
-                  </span>
+                <EnterpriseField
+                  label="Organization Name"
+                  error={errors.organization_name?.message}
+                >
+                  <EnterpriseInput {...register("organization_name")} />
+                </EnterpriseField>
 
-                  <input
-                    value={form.organization_name}
-                    onChange={(e) =>
-                      updateField("organization_name", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
-                  />
-                </label>
+                <EnterpriseField
+                  label="Workspace Name"
+                  error={errors.workspace_name?.message}
+                >
+                  <EnterpriseInput {...register("workspace_name")} />
+                </EnterpriseField>
 
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">Workspace Name</span>
+                <EnterpriseField
+                  label="Timezone"
+                  error={errors.timezone?.message}
+                >
+                  <EnterpriseSelect {...register("timezone")}>
+                    <option value="Asia/Jakarta">Asia/Jakarta</option>
+                    <option value="Asia/Makassar">Asia/Makassar</option>
+                    <option value="Asia/Jayapura">Asia/Jayapura</option>
+                    <option value="UTC">UTC</option>
+                  </EnterpriseSelect>
+                </EnterpriseField>
 
-                  <input
-                    value={form.workspace_name}
-                    onChange={(e) =>
-                      updateField("workspace_name", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">Timezone</span>
-
-                  <select
-                    value={form.timezone}
-                    onChange={(e) =>
-                      updateField("timezone", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
-                  >
-                    <option>Asia/Jakarta</option>
-                    <option>Asia/Makassar</option>
-                    <option>Asia/Jayapura</option>
-                    <option>UTC</option>
-                  </select>
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">Language</span>
-
-                  <select
-                    value={form.default_language}
-                    onChange={(e) =>
-                      updateField("default_language", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
-                  >
+                <EnterpriseField
+                  label="Language"
+                  error={errors.default_language?.message}
+                >
+                  <EnterpriseSelect {...register("default_language")}>
                     <option value="en">English</option>
                     <option value="id">Bahasa Indonesia</option>
-                  </select>
-                </label>
+                  </EnterpriseSelect>
+                </EnterpriseField>
               </div>
             </SectionCard>
-          )}
+          ) : null}
 
-          {activeTab === "operations" && (
+          {activeTab === "operations" ? (
             <SectionCard
               title="Operations Settings"
               description="Enterprise operational defaults."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">
-                    Auto Archive (days)
-                  </span>
-
-                  <input
+                <EnterpriseField
+                  label="Auto Archive (days)"
+                  error={errors.task_auto_archive_days?.message}
+                >
+                  <EnterpriseInput
                     type="number"
-                    value={form.task_auto_archive_days}
-                    onChange={(e) =>
-                      updateField(
-                        "task_auto_archive_days",
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
+                    {...register("task_auto_archive_days", {
+                      valueAsNumber: true,
+                    })}
                   />
-                </label>
+                </EnterpriseField>
 
                 <div className="space-y-4">
                   <ActionCard
                     title="Evidence Required"
                     description="Task cannot be completed without evidence."
                     action={
-                      <input
-                        type="checkbox"
-                        checked={form.evidence_required}
-                        onChange={(e) =>
-                          updateField(
-                            "evidence_required",
-                            e.target.checked
-                          )
-                        }
+                      <EnterpriseCheckbox
+                        {...register("evidence_required")}
                       />
                     }
                   />
@@ -336,24 +303,17 @@ export function SettingsWorkspace() {
                     title="Approval Required"
                     description="Require supervisor approval."
                     action={
-                      <input
-                        type="checkbox"
-                        checked={form.approval_required}
-                        onChange={(e) =>
-                          updateField(
-                            "approval_required",
-                            e.target.checked
-                          )
-                        }
+                      <EnterpriseCheckbox
+                        {...register("approval_required")}
                       />
                     }
                   />
                 </div>
               </div>
             </SectionCard>
-          )}
+          ) : null}
 
-          {activeTab === "notifications" && (
+          {activeTab === "notifications" ? (
             <SectionCard
               title="Notification Settings"
               description="Control operational notifications."
@@ -363,15 +323,8 @@ export function SettingsWorkspace() {
                   title="Email Notifications"
                   description="Send operational emails."
                   action={
-                    <input
-                      type="checkbox"
-                      checked={form.email_notifications}
-                      onChange={(e) =>
-                        updateField(
-                          "email_notifications",
-                          e.target.checked
-                        )
-                      }
+                    <EnterpriseCheckbox
+                      {...register("email_notifications")}
                     />
                   }
                 />
@@ -380,16 +333,7 @@ export function SettingsWorkspace() {
                   title="Dashboard Alerts"
                   description="Show alerts inside dashboard."
                   action={
-                    <input
-                      type="checkbox"
-                      checked={form.dashboard_alerts}
-                      onChange={(e) =>
-                        updateField(
-                          "dashboard_alerts",
-                          e.target.checked
-                        )
-                      }
-                    />
+                    <EnterpriseCheckbox {...register("dashboard_alerts")} />
                   }
                 />
 
@@ -397,67 +341,46 @@ export function SettingsWorkspace() {
                   title="Overdue Alerts"
                   description="Notify overdue operational tasks."
                   action={
-                    <input
-                      type="checkbox"
-                      checked={form.overdue_alerts}
-                      onChange={(e) =>
-                        updateField(
-                          "overdue_alerts",
-                          e.target.checked
-                        )
-                      }
-                    />
+                    <EnterpriseCheckbox {...register("overdue_alerts")} />
                   }
                 />
               </div>
             </SectionCard>
-          )}
+          ) : null}
 
-          {activeTab === "security" && (
+          {activeTab === "security" ? (
             <SectionCard
               title="Security Settings"
               description="Session and permission configuration."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium">
-                    Session Timeout (minutes)
-                  </span>
-
-                  <input
+                <EnterpriseField
+                  label="Session Timeout (minutes)"
+                  error={errors.session_timeout_minutes?.message}
+                >
+                  <EnterpriseInput
                     type="number"
-                    value={form.session_timeout_minutes}
-                    onChange={(e) =>
-                      updateField(
-                        "session_timeout_minutes",
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5"
+                    {...register("session_timeout_minutes", {
+                      valueAsNumber: true,
+                    })}
                   />
-                </label>
+                </EnterpriseField>
 
                 <ActionCard
                   title="Role Permission Enforcement"
                   description="Strict enterprise RBAC."
                   action={
-                    <input
-                      type="checkbox"
-                      checked={form.enforce_role_permissions}
-                      onChange={(e) =>
-                        updateField(
-                          "enforce_role_permissions",
-                          e.target.checked
-                        )
-                      }
+                    <EnterpriseCheckbox
+                      {...register("enforce_role_permissions")}
                     />
                   }
                 />
               </div>
             </SectionCard>
-          )}
+          ) : null}
         </form>
       </div>
     </main>
   );
 }
+

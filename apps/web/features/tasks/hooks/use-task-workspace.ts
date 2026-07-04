@@ -1,64 +1,92 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-import { emptyTaskForm, mockTasks } from "../data/mock-tasks";
+
 import {
-  Task,
-  TaskFormState,
-  TaskPriorityFilter,
-  TaskStatus,
-  TaskStatusFilter,
-} from "../types";
+  emptyTaskExecutionForm,
+  emptyTaskForm,
+  mockTasks,
+} from "@/features/tasks/data/mock-tasks";
+import { Task, TaskExecutionForm, TaskFormState } from "@/features/tasks/types";
+import { createMockEvidence, detectEvidenceType } from "@/shared/files";
+
+type WorkspaceRole = "owner" | "outlet";
+
+const TASK_STORAGE_KEY = "novaops_tasks_mock";
+
+function normalizeTask(task: Task): Task {
+  return {
+    ...task,
+    formTemplateId: task.formTemplateId ?? "FORM-OPENING",
+  };
+}
+
+function loadInitialTasks() {
+  if (typeof window === "undefined") return mockTasks.map(normalizeTask);
+
+  const raw = window.localStorage.getItem(TASK_STORAGE_KEY);
+
+  if (!raw) return mockTasks.map(normalizeTask);
+
+  try {
+    return (JSON.parse(raw) as Task[]).map(normalizeTask);
+  } catch {
+    return mockTasks.map(normalizeTask);
+  }
+}
+
+function persistTasks(tasks: Task[]) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
+}
 
 export function useTaskWorkspace() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("All");
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>("All");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [tasks, setTasksState] = useState<Task[]>(loadInitialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
+  const [currentRole, setCurrentRole] = useState<WorkspaceRole>("owner");
 
-  const filteredTasks = useMemo(() => {
-    const value = query.toLowerCase();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isExecutionOpen, setIsExecutionOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-    return tasks.filter((task) => {
-      const matchesQuery =
-        task.title.toLowerCase().includes(value) ||
-        task.outlet.toLowerCase().includes(value) ||
-        task.assignee.toLowerCase().includes(value);
+  const [taskForm, setTaskForm] = useState<TaskFormState>(emptyTaskForm);
+  const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(
+    emptyTaskExecutionForm
+  );
 
-      const matchesStatus =
-        statusFilter === "All" || task.status === statusFilter;
+  function setTasks(next: Task[] | ((currentTasks: Task[]) => Task[])) {
+    setTasksState((currentTasks) => {
+      const resolvedTasks =
+        typeof next === "function" ? next(currentTasks) : next;
 
-      const matchesPriority =
-        priorityFilter === "All" || task.priority === priorityFilter;
-
-      return matchesQuery && matchesStatus && matchesPriority;
+      const normalizedTasks = resolvedTasks.map(normalizeTask);
+      persistTasks(normalizedTasks);
+      return normalizedTasks;
     });
-  }, [tasks, query, statusFilter, priorityFilter]);
+  }
 
-  const metrics = useMemo(() => {
+  const taskSummary = useMemo(() => {
     return {
       total: tasks.length,
-      open: tasks.filter((task) => task.status !== "Completed").length,
+      pending: tasks.filter((task) => task.status === "Pending").length,
+      inProgress: tasks.filter((task) => task.status === "In Progress").length,
       completed: tasks.filter((task) => task.status === "Completed").length,
-      overdue: tasks.filter(
-        (task) => task.due === "Yesterday" && task.status !== "Completed"
-      ).length,
     };
   }, [tasks]);
 
-  function openCreateDialog() {
+  function openCreateTask() {
     setEditingTaskId(null);
-    setForm(emptyTaskForm);
-    setModalOpen(true);
+    setTaskForm({
+      ...emptyTaskForm,
+      assignee: "Outlet Team",
+    });
+    setIsFormOpen(true);
   }
 
-  function openEditDialog(task: Task) {
+  function openEditTask(task: Task) {
     setEditingTaskId(task.id);
-    setForm({
+    setTaskForm({
       title: task.title,
       outlet: task.outlet,
       status: task.status,
@@ -66,70 +94,203 @@ export function useTaskWorkspace() {
       assignee: task.assignee,
       due: task.due,
       description: task.description,
+      formTemplateId: task.formTemplateId ?? "FORM-OPENING",
     });
-    setModalOpen(true);
+    setIsFormOpen(true);
   }
 
-  function saveTask() {
-    if (!form.title.trim()) return;
+  function closeTaskForm() {
+    setIsFormOpen(false);
+    setEditingTaskId(null);
+    setTaskForm(emptyTaskForm);
+  }
+
+  function submitTaskForm() {
+    const timestamp = "Just now";
 
     if (editingTaskId) {
-      setTasks((current) =>
-        current.map((task) =>
-          task.id === editingTaskId
-            ? {
-                ...task,
-                ...form,
-              }
-            : task
-        )
-      );
-    } else {
-      const nextTask: Task = {
-        id: `TASK-${String(tasks.length + 1).padStart(3, "0")}`,
-        ...form,
-      };
+      setTasks((currentTasks) =>
+        currentTasks.map((task) => {
+          if (task.id !== editingTaskId) return task;
 
-      setTasks((current) => [nextTask, ...current]);
+          return {
+            ...task,
+            ...taskForm,
+            formTemplateId: taskForm.formTemplateId,
+            activity: [
+              ...(task.activity ?? []),
+              {
+                id: `ACT-${Date.now()}-updated`,
+                type: "updated",
+                title: "Task updated",
+                description: "Task information was updated by Owner/Admin.",
+                actor: "Owner/Admin",
+                timestamp,
+              },
+            ],
+          };
+        })
+      );
+
+      closeTaskForm();
+      return;
     }
 
-    setForm(emptyTaskForm);
-    setEditingTaskId(null);
-    setModalOpen(false);
+    const newTask: Task = {
+      id: `TASK-${String(tasks.length + 1).padStart(3, "0")}`,
+      title: taskForm.title,
+      outlet: taskForm.outlet,
+      status: taskForm.status,
+      priority: taskForm.priority,
+      assignee: taskForm.assignee,
+      due: taskForm.due,
+      description: taskForm.description,
+      formTemplateId: taskForm.formTemplateId,
+      activity: [
+        {
+          id: `ACT-${Date.now()}-created`,
+          type: "created",
+          title: "Task created",
+          description: `Task created for ${taskForm.outlet}.`,
+          actor: "Owner/Admin",
+          timestamp,
+        },
+      ],
+    };
+
+    setTasks((currentTasks) => [newTask, ...currentTasks]);
+    closeTaskForm();
   }
 
-  function deleteTask(id: string) {
-    setTasks((current) => current.filter((task) => task.id !== id));
-    if (selectedTask?.id === id) setSelectedTask(null);
+  function openTaskDetail(task: Task) {
+    setSelectedTask(task);
   }
 
-  function updateStatus(id: string, status: TaskStatus) {
-    setTasks((current) =>
-      current.map((task) => (task.id === id ? { ...task, status } : task))
+  function closeDetail() {
+    setSelectedTask(null);
+  }
+
+  function openExecution(task: Task) {
+    const normalizedTask = normalizeTask(task);
+
+    setSelectedTask(normalizedTask);
+    setExecutionForm(normalizedTask.executionDraft ?? emptyTaskExecutionForm);
+    setIsExecutionOpen(true);
+  }
+
+  function closeExecution() {
+    setIsExecutionOpen(false);
+    setSelectedTask(null);
+    setExecutionForm(emptyTaskExecutionForm);
+  }
+
+  function saveExecutionDraft() {
+    if (!selectedTask) return;
+
+    const timestamp = "Just now";
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => {
+        if (task.id !== selectedTask.id) return task;
+
+        return {
+          ...task,
+          status: "In Progress",
+          executionDraft: executionForm,
+          activity: [
+            ...(task.activity ?? []),
+            {
+              id: `ACT-${Date.now()}-draft`,
+              type: "draft_saved",
+              title: "Execution draft saved",
+              description: `${
+                executionForm.operatorName || "Outlet operator"
+              } saved form progress.`,
+              actor: executionForm.operatorName || "Outlet Operator",
+              timestamp,
+            },
+          ],
+        };
+      })
     );
+
+    closeExecution();
+  }
+
+  function submitTaskExecution() {
+    if (!selectedTask) return;
+
+    const completedAt = "Just now";
+    const evidenceValue = executionForm.evidenceText.trim();
+
+    const evidence = [
+      createMockEvidence({
+        type: evidenceValue ? detectEvidenceType(evidenceValue) : "note",
+        label: evidenceValue ? "Outlet Evidence" : "Execution Confirmation",
+        value:
+          evidenceValue ||
+          "Execution completed without additional evidence attachment.",
+        submittedAt: completedAt,
+      }),
+    ];
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => {
+        if (task.id !== selectedTask.id) return task;
+
+        return {
+          ...task,
+          status: "Completed",
+          executionDraft: undefined,
+          execution: {
+            operatorName: executionForm.operatorName,
+            operatorPosition: executionForm.operatorPosition,
+            note: executionForm.note,
+            evidence,
+            formResponses: executionForm.formResponses,
+            completedAt,
+          },
+          activity: [
+            ...(task.activity ?? []),
+            {
+              id: `ACT-${Date.now()}-completed`,
+              type: "completed",
+              title: "Task completed",
+              description: "Outlet task execution completed.",
+              actor: executionForm.operatorName,
+              timestamp: completedAt,
+            },
+          ],
+        };
+      })
+    );
+
+    closeExecution();
   }
 
   return {
+    currentRole,
+    setCurrentRole,
     tasks,
-    filteredTasks,
-    query,
-    setQuery,
-    statusFilter,
-    setStatusFilter,
-    priorityFilter,
-    setPriorityFilter,
-    modalOpen,
-    setModalOpen,
-    editingTaskId,
+    taskSummary,
     selectedTask,
-    setSelectedTask,
-    form,
-    setForm,
-    metrics,
-    openCreateDialog,
-    openEditDialog,
-    saveTask,
-    deleteTask,
-    updateStatus,
+    isFormOpen,
+    isEditingTask: Boolean(editingTaskId),
+    taskForm,
+    setTaskForm,
+    openCreateTask,
+    openEditTask,
+    closeTaskForm,
+    submitTaskForm,
+    openTaskDetail,
+    closeDetail,
+    executionForm,
+    setExecutionForm,
+    isExecutionOpen,
+    openExecution,
+    closeExecution,
+    cancelExecutionChanges: closeExecution,
+    saveExecutionDraft,
+    submitTaskExecution,
   };
 }

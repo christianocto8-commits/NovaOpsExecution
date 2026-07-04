@@ -1,12 +1,6 @@
-"use client";
+﻿"use client";
 
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
 type Outlet = {
   id: number | string;
@@ -24,26 +18,21 @@ const OutletContext = createContext<OutletContextValue | undefined>(undefined);
 
 export function OutletProvider({ children }: { children: ReactNode }) {
   const [currentOutlet, setCurrentOutlet] = useState<Outlet | null>(null);
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [outlets] = useState<Outlet[]>([]);
+  const [isLoading] = useState(false);
 
-  useEffect(() => {
-    setOutlets([]);
-    setCurrentOutlet(null);
-    setIsLoading(false);
-  }, []);
+  const value = useMemo<OutletContextValue>(
+    () => ({
+      currentOutlet,
+      outlets,
+      isLoading,
+      setCurrentOutlet,
+    }),
+    [currentOutlet, outlets, isLoading]
+  );
 
   return (
-    <OutletContext.Provider
-      value={{
-        currentOutlet,
-        outlets,
-        isLoading,
-        setCurrentOutlet,
-      }}
-    >
-      {children}
-    </OutletContext.Provider>
+    <OutletContext.Provider value={value}>{children}</OutletContext.Provider>
   );
 }
 

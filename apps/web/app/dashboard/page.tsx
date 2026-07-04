@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   BarChartCard,
@@ -10,195 +10,228 @@ import {
   EnterpriseColumn,
   EnterpriseDataTable,
 } from "@/shared/data-table";
+import {
+  getOutletTaskCompletionTrend,
+  getOutletTaskFormBreakdown,
+  getOutletTaskPerformance,
+  getOutletTaskStatusDistribution,
+  getOutletTaskStatusLabel,
+  getOutletTaskStoreSummary,
+  OutletTaskStoreItem,
+  resetOutletTaskStore,
+  useOutletTaskStore,
+} from "@/shared/outlet-task-store";
+import { RealtimeClock } from "@/shared/realtime";
 
-type OutletSummary = {
-  outlet: string;
-  completion: string;
-  compliance: string;
-  openTasks: number;
-  overdue: number;
-  lastActivity: string;
-};
-
-const completionTrend = [
-  { day: "Mon", completion: 84, compliance: 88 },
-  { day: "Tue", completion: 90, compliance: 91 },
-  { day: "Wed", completion: 88, compliance: 90 },
-  { day: "Thu", completion: 92, compliance: 93 },
-  { day: "Fri", completion: 95, compliance: 95 },
-  { day: "Sat", completion: 94, compliance: 94 },
-  { day: "Sun", completion: 96, compliance: 96 },
-];
-
-const outletRanking = [
-  { outlet: "Montre", score: 98 },
-  { outlet: "Heritage", score: 94 },
-  { outlet: "Sultan Agung", score: 89 },
-  { outlet: "Sula", score: 86 },
-];
-
-const findingCategories = [
-  { category: "Cleanliness", count: 18 },
-  { category: "Inventory", count: 14 },
-  { category: "Equipment", count: 11 },
-  { category: "Service", count: 8 },
-  { category: "Food Safety", count: 5 },
-];
-
-const taskStatus = [
-  { status: "Completed", value: 124 },
-  { status: "In Progress", value: 28 },
-  { status: "Pending", value: 19 },
-  { status: "Overdue", value: 9 },
-];
-
-const inspectionResult = [
-  { result: "Pass", value: 76 },
-  { result: "Warning", value: 18 },
-  { result: "Critical", value: 6 },
-];
-
-const kpis = [
-  { label: "Total Outlets", value: "4", note: "Active operating outlets" },
-  { label: "Today Checklists", value: "186", note: "Submitted across all outlets" },
-  { label: "Completion Rate", value: "94%", note: "All outlets average" },
-  { label: "Compliance Score", value: "96%", note: "Enterprise score" },
-  { label: "Open Actions", value: "56", note: "Corrective actions pending" },
-  { label: "Overdue Actions", value: "9", note: "Need owner attention" },
-];
-
-const outletSummary: OutletSummary[] = [
+const columns: EnterpriseColumn<OutletTaskStoreItem>[] = [
+  { key: "id", header: "Task ID", sortable: true },
+  { key: "outlet", header: "Outlet", sortable: true },
+  { key: "task", header: "Task", sortable: true },
+  { key: "form", header: "Form", sortable: true },
   {
-    outlet: "Montre",
-    completion: "96%",
-    compliance: "98%",
-    openTasks: 3,
-    overdue: 0,
-    lastActivity: "10 min ago",
+    key: "status",
+    header: "Status",
+    sortable: true,
+    render: (task) => {
+      const statusLabel = getOutletTaskStatusLabel(task.status);
+
+      const statusClass =
+        task.status === "completed" || task.status === "submitted"
+          ? "bg-emerald-50 text-emerald-700"
+          : task.status === "draft"
+            ? "bg-blue-50 text-blue-700"
+            : task.status === "overdue"
+              ? "bg-red-50 text-red-700"
+              : "bg-amber-50 text-amber-700";
+
+      return (
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}
+        >
+          {statusLabel}
+        </span>
+      );
+    },
   },
   {
-    outlet: "Heritage",
-    completion: "91%",
-    compliance: "94%",
-    openTasks: 7,
-    overdue: 1,
-    lastActivity: "15 min ago",
+    key: "progress",
+    header: "Progress",
+    sortable: true,
+    render: (task) => `${task.progress}%`,
   },
   {
-    outlet: "Sultan Agung",
-    completion: "88%",
-    compliance: "89%",
-    openTasks: 10,
-    overdue: 3,
-    lastActivity: "25 min ago",
+    key: "score",
+    header: "Score",
+    sortable: true,
+    render: (task) => `${task.score}%`,
   },
-  {
-    outlet: "Sula",
-    completion: "84%",
-    compliance: "86%",
-    openTasks: 14,
-    overdue: 5,
-    lastActivity: "40 min ago",
-  },
-];
-
-const outletColumns: EnterpriseColumn<OutletSummary>[] = [
-  { key: "outlet", label: "Outlet", sortable: true },
-  { key: "completion", label: "Completion", sortable: true },
-  { key: "compliance", label: "Compliance", sortable: true },
-  { key: "openTasks", label: "Open Tasks", sortable: true },
-  { key: "overdue", label: "Overdue", sortable: true },
-  { key: "lastActivity", label: "Last Activity", sortable: true },
+  { key: "due", header: "Due", sortable: true },
+  { key: "operator", header: "Operator", sortable: true },
+  { key: "updatedAt", header: "Updated", sortable: true },
 ];
 
 export default function DashboardPage() {
+  const outletTaskItems = useOutletTaskStore();
+
+  const summary = getOutletTaskStoreSummary(outletTaskItems);
+  const completionTrend = getOutletTaskCompletionTrend(outletTaskItems);
+  const outletPerformance = getOutletTaskPerformance(outletTaskItems);
+  const statusDistribution = getOutletTaskStatusDistribution(outletTaskItems);
+  const formDistribution = getOutletTaskFormBreakdown(outletTaskItems);
+
   return (
     <main className="space-y-6 p-6">
-      <div>
-        <p className="text-sm font-medium text-emerald-700">Owner Dashboard</p>
-        <h1 className="text-2xl font-semibold text-slate-950">
-          Enterprise Overview
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          All-outlet operational summary for checklist completion, compliance,
-          findings, and corrective actions.
-        </p>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">
+            Owner Dashboard
+          </p>
+          <h1 className="text-2xl font-semibold text-slate-950">
+            Outlet Task Form Overview
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Live operational visibility based on outlet task forms, saved
+            drafts, submitted forms, completion percentage, and due status.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={resetOutletTaskStore}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
+            Reset Store
+          </button>
+
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Realtime
+            </p>
+            <RealtimeClock />
+          </div>
+        </div>
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        {kpis.map((item) => (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <p className="text-sm text-slate-500">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">
-              {item.value}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Total Tasks</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {summary.total}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Across all outlets</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Completed / Submitted</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-700">
+            {summary.completed + summary.submitted}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Ready for review</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Draft</p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">
+            {summary.draft}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Saved by outlet</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Pending</p>
+          <p className="mt-2 text-2xl font-semibold text-amber-700">
+            {summary.pending}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Not started</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Overdue</p>
+          <p className="mt-2 text-2xl font-semibold text-red-700">
+            {summary.overdue}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Needs attention</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Avg Progress</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {summary.averageProgress}%
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">Form completion</p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              All Outlet Form Completion
             </p>
-            <p className="mt-1 text-xs text-emerald-700">{item.note}</p>
+            <p className="text-xs text-slate-500">
+              Calculated from shared outlet task store.
+            </p>
           </div>
-        ))}
+          <p className="text-sm font-bold text-emerald-700">
+            {summary.averageProgress}%
+          </p>
+        </div>
+
+        <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-emerald-700 transition-all duration-700"
+            style={{ width: `${summary.averageProgress}%` }}
+          />
+        </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
         <LineChartCard
-          title="Checklist Completion Trend"
-          description="Completion percentage across all outlets."
+          title="Form Completion Trend"
+          description="Daily outlet task form completion and submitted count."
           data={completionTrend}
           xKey="day"
-          series={[{ dataKey: "completion", name: "Completion %" }]}
-        />
-
-        <LineChartCard
-          title="Compliance Trend"
-          description="Compliance score movement across all outlets."
-          data={completionTrend}
-          xKey="day"
-          series={[{ dataKey: "compliance", name: "Compliance %" }]}
-        />
-
-        <BarChartCard
-          title="Outlet Compliance Ranking"
-          description="All active outlets ranked by compliance score."
-          data={outletRanking}
-          xKey="outlet"
-          series={[{ dataKey: "score", name: "Compliance Score" }]}
-        />
-
-        <BarChartCard
-          title="Most Common Findings"
-          description="Global finding categories across all outlets."
-          data={findingCategories}
-          xKey="category"
-          series={[{ dataKey: "count", name: "Findings" }]}
-        />
-
-        <PieChartCard
-          title="Corrective Action Status"
-          description="All corrective actions across the organization."
-          data={taskStatus}
-          nameKey="status"
-          valueKey="value"
+          series={[
+            { dataKey: "completion", name: "Completion %" },
+            { dataKey: "submitted", name: "Submitted" },
+          ]}
         />
 
         <DonutChartCard
-          title="Inspection Result Mix"
-          description="Pass, warning, and critical results across all outlets."
-          data={inspectionResult}
-          nameKey="result"
+          title="Task Form Status"
+          description="Current task form lifecycle across outlets."
+          data={statusDistribution}
+          nameKey="name"
+          valueKey="value"
+        />
+
+        <BarChartCard
+          title="Outlet Progress"
+          description="Current form completion percentage by outlet."
+          data={outletPerformance}
+          xKey="outlet"
+          series={[{ dataKey: "progress", name: "Progress %" }]}
+        />
+
+        <PieChartCard
+          title="Form Type Distribution"
+          description="Task form workload by form template."
+          data={formDistribution}
+          nameKey="name"
           valueKey="value"
         />
       </section>
 
       <EnterpriseDataTable
-        title="Outlet Performance Summary"
-        description="Owner-level searchable and sortable snapshot of each outlet."
-        data={outletSummary}
-        columns={outletColumns}
-        searchPlaceholder="Search outlet..."
+        title="Outlet Task Form Register"
+        description="Realtime operational task forms by outlet, status, progress, due date, and operator."
+        data={outletTaskItems}
+        columns={columns}
+        searchPlaceholder="Search outlet task..."
         exportable
-        exportFileName="enterprise-outlet-summary"
-        exportSheetName="Owner Dashboard"
+        exportFileName="outlet-task-form-register"
+        exportSheetName="Outlet Task Forms"
       />
     </main>
   );

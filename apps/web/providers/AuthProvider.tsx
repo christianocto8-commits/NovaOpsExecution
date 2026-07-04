@@ -1,72 +1,89 @@
-"use client";
+﻿"use client";
 
-import { createContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   getMe,
   logout as logoutService,
   type AuthUser,
 } from "@/services/auth.service";
 
+type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
+
 type AuthContextValue = {
   user: AuthUser | null;
+  status: AuthStatus;
   loading: boolean;
   isAuthenticated: boolean;
-  restoreSession: () => Promise<void>;
+  restoreSession: () => Promise<AuthUser | null>;
   logout: () => void;
   can: (permission: string) => boolean;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+function getStoredToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("novaops_token");
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<AuthStatus>("idle");
 
-  async function restoreSession() {
+  const restoreSession = useCallback(async () => {
+    const token = getStoredToken();
+
+    if (!token) {
+      setUser(null);
+      setStatus("unauthenticated");
+      return null;
+    }
+
+    setStatus("loading");
+
     try {
-      const token = localStorage.getItem("novaops_token");
-
-      if (!token) {
-        setUser(null);
-        return;
-      }
-
       const currentUser = await getMe();
       setUser(currentUser);
+      setStatus("authenticated");
+      return currentUser;
     } catch {
       logoutService();
       setUser(null);
-    } finally {
-      setLoading(false);
+      setStatus("unauthenticated");
+      return null;
     }
-  }
-
-  function logout() {
-    logoutService();
-    setUser(null);
-    window.location.href = "/login";
-  }
-
-  function can(permission: string) {
-    return user?.permissions?.includes(permission) ?? false;
-  }
-
-  useEffect(() => {
-    restoreSession();
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: Boolean(user),
-        restoreSession,
-        logout,
-        can,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const logout = useCallback(() => {
+    logoutService();
+    setUser(null);
+    setStatus("unauthenticated");
+    window.location.href = "/login";
+  }, []);
+
+  const can = useCallback(
+    (permission: string) => user?.permissions?.includes(permission) ?? false,
+    [user]
   );
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      status,
+      loading: status === "idle" || status === "loading",
+      isAuthenticated: status === "authenticated",
+      restoreSession,
+      logout,
+      can,
+    }),
+    [user, status, restoreSession, logout, can]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

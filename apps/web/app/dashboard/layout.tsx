@@ -1,28 +1,100 @@
 ﻿"use client";
 
+import { usePathname } from "next/navigation";
+import { useSyncExternalStore, type ReactNode } from "react";
+
 import { AuthGuard } from "@/lib/auth/auth-guard";
-import { OutletProvider } from "@/features/outlets/hooks/use-outlet-context";
-import { CommandCenterProvider } from "@/shared/command-center";
-import { EnterpriseLayout } from "@/shared/layout/enterprise-layout";
-import { AppProviders } from "@/shared/providers/app-providers";
-import { QueryProvider } from "@/shared/providers/query-provider";
+import {
+  DashboardHeader,
+  EnterpriseSidebar,
+  canAccessPath,
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
+
+const SIDEBAR_STORAGE_KEY = "novaops_sidebar_collapsed";
+
+function subscribeSidebarStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("novaops-sidebar-change", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("novaops-sidebar-change", callback);
+  };
+}
+
+function getSidebarSnapshot() {
+  return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
+}
+
+function getServerSidebarSnapshot() {
+  return false;
+}
+
+function AccessDenied() {
+  return (
+    <main className="p-6">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+        <p className="text-sm font-semibold text-red-700">Access Denied</p>
+        <h1 className="mt-2 text-2xl font-semibold text-red-950">
+          You do not have permission to access this page.
+        </h1>
+        <p className="mt-2 text-sm text-red-700">
+          This route is restricted by NovaOps role-based access control.
+        </p>
+      </div>
+    </main>
+  );
+}
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  const pathname = usePathname();
+
+  const collapsed = useSyncExternalStore(
+    subscribeSidebarStorage,
+    getSidebarSnapshot,
+    getServerSidebarSnapshot
+  );
+
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+
+  const canAccess = canAccessPath(workspace.role, pathname);
+
+  function toggleSidebar() {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(!collapsed));
+    window.dispatchEvent(new Event("novaops-sidebar-change"));
+  }
+
   return (
     <AuthGuard>
-      <QueryProvider>
-        <AppProviders>
-          <OutletProvider>
-            <CommandCenterProvider>
-              <EnterpriseLayout>{children}</EnterpriseLayout>
-            </CommandCenterProvider>
-          </OutletProvider>
-        </AppProviders>
-      </QueryProvider>
+      <div className="min-h-screen bg-[#F7FAF8]">
+        <EnterpriseSidebar
+          collapsed={collapsed}
+          workspace={workspace}
+          onToggle={toggleSidebar}
+        />
+
+        <div
+          className={[
+            "transition-all duration-300 ease-out",
+            collapsed ? "lg:pl-24" : "lg:pl-72",
+          ].join(" ")}
+        >
+          <DashboardHeader workspace={workspace} />
+
+          {canAccess ? children : <AccessDenied />}
+        </div>
+      </div>
     </AuthGuard>
   );
 }

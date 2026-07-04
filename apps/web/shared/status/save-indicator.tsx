@@ -1,0 +1,52 @@
+﻿"use client";
+
+import { DraftSaveState } from "@/features/tasks/types/autosave";
+
+type SaveIndicatorProps = {
+  state: DraftSaveState;
+  lastSavedAt?: Date | null;
+};
+
+function formatTime(date?: Date | null) {
+  if (!date) return null;
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function SaveIndicator({ state, lastSavedAt }: SaveIndicatorProps) {
+  const savedTime = formatTime(lastSavedAt);
+
+  const label =
+    state === "saving"
+      ? "Saving..."
+      : state === "dirty"
+        ? "Unsaved changes"
+        : state === "saved"
+          ? savedTime
+            ? `Saved ${savedTime}`
+            : "Saved"
+          : state === "error"
+            ? "Save failed"
+            : "Ready";
+
+  const dotClass =
+    state === "saving"
+      ? "bg-blue-500"
+      : state === "dirty"
+        ? "bg-amber-500"
+        : state === "saved"
+          ? "bg-emerald-500"
+          : state === "error"
+            ? "bg-red-500"
+            : "bg-slate-300";
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+      <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+      <span>{label}</span>
+    </div>
+  );
+}

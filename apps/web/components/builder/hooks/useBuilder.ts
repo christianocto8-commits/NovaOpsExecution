@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import type {
@@ -20,16 +20,17 @@ export const fieldTypes = [
   "time",
 ];
 
-export function useBuilder() {
-  // ==========================
-  // Builder Document
-  // ==========================
+let builderIdSeed = 1000;
 
-  const [builderDocumentId, setBuilderDocumentId] = useState<number | null>(
-    null
-  );
+function createBuilderId() {
+  builderIdSeed += 1;
+  return builderIdSeed;
+}
 
-  const [document, setDocument] = useState<BuilderDocument>({
+function createInitialDocument(): BuilderDocument {
+  const sectionId = createBuilderId();
+
+  return {
     metadata: {
       title: "Opening Checklist",
       description: "Daily opening operational checklist",
@@ -39,20 +40,26 @@ export function useBuilder() {
     },
     sections: [
       {
-        id: Date.now(),
+        id: sectionId,
         title: "Opening Section",
         description: "Checklist before outlet operation starts",
         fields: [],
       },
     ],
-  });
+  };
+}
 
-  // ==========================
-  // Selection
-  // ==========================
+export function useBuilder() {
+  const [builderDocumentId, setBuilderDocumentId] = useState<number | null>(
+    null
+  );
+
+  const [document, setDocument] = useState<BuilderDocument>(
+    createInitialDocument
+  );
 
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
-    document.sections[0]?.id ?? null
+    () => document.sections[0]?.id ?? null
   );
 
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
@@ -64,10 +71,6 @@ export function useBuilder() {
   const selectedField = document.sections
     .flatMap((section) => section.fields)
     .find((field) => field.id === selectedFieldId);
-
-  // ==========================
-  // Metadata
-  // ==========================
 
   function updateMetadata(
     key: keyof BuilderDocument["metadata"],
@@ -92,13 +95,9 @@ export function useBuilder() {
     }));
   }
 
-  // ==========================
-  // Section
-  // ==========================
-
   function addSection() {
     const newSection: BuilderSection = {
-      id: Date.now(),
+      id: createBuilderId(),
       title: "Untitled Section",
       description: "",
       fields: [],
@@ -131,15 +130,11 @@ export function useBuilder() {
     }));
   }
 
-  // ==========================
-  // Field
-  // ==========================
-
   function addField(field_type: string) {
     if (!selectedSectionId) return;
 
     const newField: BuilderField = {
-      id: Date.now(),
+      id: createBuilderId(),
       label: "Untitled Field",
       field_type,
       is_required: false,
@@ -195,34 +190,22 @@ export function useBuilder() {
     setSelectedFieldId(null);
   }
 
-  // ==========================
-  // Return
-  // ==========================
-
   return {
     document,
     builderDocumentId,
-
     selectedSection,
     selectedSectionId,
-
     selectedField,
     selectedFieldId,
-
     fieldTypes,
-
     updateMetadata,
     setDocumentStatus,
-
     addSection,
     updateSection,
-
     addField,
     updateField,
     removeField,
-
     setBuilderDocumentId,
-
     setSelectedSectionId,
     setSelectedFieldId,
   };

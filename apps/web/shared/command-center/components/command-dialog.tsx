@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { commandItems } from "../constants";
@@ -15,6 +15,7 @@ export function CommandDialog() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   const closeDialog = useCallback(() => {
+    setQuery("");
     setOpen(false);
   }, [setOpen]);
 
@@ -29,29 +30,21 @@ export function CommandDialog() {
     return groupCommandItems(filteredItems);
   }, [filteredItems]);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-    }
-  }, [open]);
-
   if (!open) return null;
 
   function runCommand(href?: string, action?: () => void) {
-    if (action) {
-      action();
-    }
+    if (action) action();
+    if (href) router.push(href);
 
-    if (href) {
-      router.push(href);
-    }
-
-    setOpen(false);
+    closeDialog();
   }
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/30 p-4 backdrop-blur-sm">
-      <div ref={dialogRef} className="mx-auto mt-20 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div
+        ref={dialogRef}
+        className="mx-auto mt-20 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+      >
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
           <input
             autoFocus
@@ -108,18 +101,18 @@ export function CommandDialog() {
                             <span className="block truncate text-sm font-semibold text-slate-950">
                               {item.title}
                             </span>
-                            {item.description && (
+                            {item.description ? (
                               <span className="block truncate text-xs text-slate-500">
                                 {item.description}
                               </span>
-                            )}
+                            ) : null}
                           </span>
 
-                          {item.shortcut && (
+                          {item.shortcut ? (
                             <span className="rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-400">
                               {item.shortcut}
                             </span>
-                          )}
+                          ) : null}
                         </button>
                       );
                     })}

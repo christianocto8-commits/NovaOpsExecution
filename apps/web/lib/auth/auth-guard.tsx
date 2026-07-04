@@ -1,28 +1,33 @@
-"use client";
+﻿"use client";
 
+import { useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { AuthContext } from "@/providers/AuthProvider";
 
 type AuthGuardProps = {
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  const auth = useContext(AuthContext);
+
+  if (!auth) {
+    throw new Error("AuthGuard must be used inside AuthProvider");
+  }
 
   useEffect(() => {
-    const token = localStorage.getItem("novaops_token");
-
-    if (!token) {
-      router.replace("/login");
+    if (auth.status === "idle") {
+      void auth.restoreSession();
       return;
     }
 
-    setIsChecking(false);
-  }, [router]);
+    if (auth.status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [auth, router]);
 
-  if (isChecking) {
+  if (auth.loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8]">
         <div className="rounded-2xl border border-[#DDE8E1] bg-white px-6 py-5 shadow-sm">
@@ -32,6 +37,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
         </div>
       </main>
     );
+  }
+
+  if (!auth.isAuthenticated) {
+    return null;
   }
 
   return <>{children}</>;

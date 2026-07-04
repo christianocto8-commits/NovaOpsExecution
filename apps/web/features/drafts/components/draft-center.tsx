@@ -1,6 +1,9 @@
-"use client";
+﻿"use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
   createTaskDraft,
@@ -9,65 +12,103 @@ import {
   publishTaskDraft,
   type TaskDraft,
 } from "@/services/draft.service";
+import {
+  EnterpriseField,
+  EnterpriseInput,
+  EnterpriseSelect,
+  EnterpriseTextarea,
+} from "@/shared/form";
 
-const priorities = ["low", "medium", "high", "critical"];
+const priorities = ["low", "medium", "high", "critical"] as const;
+
+const draftSchema = z.object({
+  title: z.string().trim().min(1, "Draft title is required"),
+  description: z.string().optional(),
+  priority: z.enum(priorities),
+});
+
+type DraftFormValues = z.infer<typeof draftSchema>;
+
+type DraftResourceState = {
+  drafts: TaskDraft[];
+  isLoading: boolean;
+  error: string | null;
+};
 
 export function DraftCenter() {
-  const [drafts, setDrafts] = useState<TaskDraft[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [resource, setResource] = useState<DraftResourceState>({
+    drafts: [],
+    isLoading: false,
+    error: null,
+  });
+
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<DraftFormValues>({
+    resolver: zodResolver(draftSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "medium",
+    },
+  });
 
   const activeDrafts = useMemo(
-    () => drafts.filter((draft) => draft.status === "draft"),
-    [drafts]
+    () => resource.drafts.filter((draft) => draft.status === "draft"),
+    [resource.drafts]
   );
 
   async function loadDrafts() {
+    setResource((current) => ({
+      ...current,
+      isLoading: true,
+      error: null,
+    }));
+
     try {
-      setError(null);
       const data = await getTaskDrafts();
-      setDrafts(data);
+
+      setResource({
+        drafts: data,
+        isLoading: false,
+        error: null,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load drafts");
-    } finally {
-      setIsLoading(false);
+      setResource((current) => ({
+        ...current,
+        isLoading: false,
+        error: err instanceof Error ? err.message : "Failed to load drafts",
+      }));
     }
   }
 
-  useEffect(() => {
-    void loadDrafts();
-  }, []);
-
-  async function handleCreateDraft(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    const title = String(formData.get("title") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim();
-    const priority = String(formData.get("priority") ?? "medium");
-
-    if (!title) {
-      setError("Draft title is required");
-      return;
-    }
-
+  async function handleCreateDraft(values: DraftFormValues) {
     try {
       setIsSaving(true);
-      setError(null);
+
+      setResource((current) => ({
+        ...current,
+        error: null,
+      }));
 
       await createTaskDraft({
-        title,
-        description,
-        priority,
+        title: values.title,
+        description: values.description ?? "",
+        priority: values.priority,
       });
 
-      form.reset();
+      reset();
       await loadDrafts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create draft");
+      setResource((current) => ({
+        ...current,
+        error: err instanceof Error ? err.message : "Failed to create draft",
+      }));
     } finally {
       setIsSaving(false);
     }
@@ -75,21 +116,35 @@ export function DraftCenter() {
 
   async function handlePublish(draftId: number) {
     try {
-      setError(null);
+      setResource((current) => ({
+        ...current,
+        error: null,
+      }));
+
       await publishTaskDraft(draftId);
       await loadDrafts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish draft");
+      setResource((current) => ({
+        ...current,
+        error: err instanceof Error ? err.message : "Failed to publish draft",
+      }));
     }
   }
 
   async function handleDelete(draftId: number) {
     try {
-      setError(null);
+      setResource((current) => ({
+        ...current,
+        error: null,
+      }));
+
       await deleteTaskDraft(draftId);
       await loadDrafts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete draft");
+      setResource((current) => ({
+        ...current,
+        error: err instanceof Error ? err.message : "Failed to delete draft",
+      }));
     }
   }
 
@@ -97,7 +152,7 @@ export function DraftCenter() {
     <div className="space-y-8">
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#3D6B49]">
-          Sprint 05.3
+          Sprint 06B
         </p>
         <h1 className="mt-2 text-3xl font-bold text-[#274733]">
           Draft Center
@@ -108,40 +163,46 @@ export function DraftCenter() {
         </p>
       </header>
 
-      {error ? (
+      {resource.error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {error}
+          {resource.error}
         </div>
       ) : null}
 
       <section className="rounded-3xl border border-[#DDE8E1] bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-[#274733]">Create Draft</h2>
 
-        <form onSubmit={handleCreateDraft} className="mt-5 grid gap-4">
-          <input
-            name="title"
-            placeholder="Draft task title"
-            className="rounded-2xl border border-[#DDE8E1] px-4 py-3 text-sm outline-none focus:border-[#3D6B49]"
-          />
+        <form
+          onSubmit={handleSubmit(handleCreateDraft)}
+          className="mt-5 grid gap-4"
+        >
+          <EnterpriseField label="Title" error={errors.title?.message}>
+            <EnterpriseInput
+              {...register("title")}
+              placeholder="Draft task title"
+            />
+          </EnterpriseField>
 
-          <textarea
-            name="description"
-            placeholder="Draft description"
-            rows={4}
-            className="rounded-2xl border border-[#DDE8E1] px-4 py-3 text-sm outline-none focus:border-[#3D6B49]"
-          />
-
-          <select
-            name="priority"
-            defaultValue="medium"
-            className="rounded-2xl border border-[#DDE8E1] px-4 py-3 text-sm outline-none focus:border-[#3D6B49]"
+          <EnterpriseField
+            label="Description"
+            error={errors.description?.message}
           >
-            {priorities.map((priority) => (
-              <option key={priority} value={priority}>
-                {priority}
-              </option>
-            ))}
-          </select>
+            <EnterpriseTextarea
+              {...register("description")}
+              placeholder="Draft description"
+              rows={4}
+            />
+          </EnterpriseField>
+
+          <EnterpriseField label="Priority" error={errors.priority?.message}>
+            <EnterpriseSelect {...register("priority")}>
+              {priorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </EnterpriseSelect>
+          </EnterpriseField>
 
           <button
             type="submit"
@@ -154,17 +215,36 @@ export function DraftCenter() {
       </section>
 
       <section className="rounded-3xl border border-[#DDE8E1] bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#274733]">Draft Queue</h2>
-          <span className="rounded-full bg-[#EAF1EC] px-3 py-1 text-xs font-semibold text-[#3D6B49]">
-            {activeDrafts.length} Active Drafts
-          </span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[#274733]">Draft Queue</h2>
+            <p className="mt-1 text-sm text-[#66756B]">
+              Load draft data on demand to avoid render-time side effects.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-[#EAF1EC] px-3 py-1 text-xs font-semibold text-[#3D6B49]">
+              {activeDrafts.length} Active Drafts
+            </span>
+
+            <button
+              type="button"
+              onClick={() => void loadDrafts()}
+              disabled={resource.isLoading}
+              className="rounded-xl border border-[#DDE8E1] bg-white px-4 py-2 text-xs font-semibold text-[#274733] transition hover:bg-[#F7FAF8] disabled:opacity-60"
+            >
+              {resource.isLoading ? "Loading..." : "Load Drafts"}
+            </button>
+          </div>
         </div>
 
-        {isLoading ? (
+        {resource.isLoading ? (
           <p className="mt-6 text-sm text-[#66756B]">Loading drafts...</p>
         ) : activeDrafts.length === 0 ? (
-          <p className="mt-6 text-sm text-[#66756B]">No drafts yet.</p>
+          <p className="mt-6 text-sm text-[#66756B]">
+            No drafts loaded yet. Click Load Drafts to fetch current data.
+          </p>
         ) : (
           <div className="mt-6 grid gap-4">
             {activeDrafts.map((draft) => (
@@ -187,6 +267,7 @@ export function DraftCenter() {
 
                 <div className="mt-5 flex gap-3">
                   <button
+                    type="button"
                     onClick={() => void handlePublish(draft.id)}
                     className="rounded-xl bg-[#3D6B49] px-4 py-2 text-xs font-semibold text-white"
                   >
@@ -194,6 +275,7 @@ export function DraftCenter() {
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => void handleDelete(draft.id)}
                     className="rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-semibold text-red-600"
                   >

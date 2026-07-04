@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -9,413 +9,257 @@ import {
   PieChartCard,
 } from "@/shared/analytics/charts";
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
-import { OutletExportCard } from "@/shared/export/components";
 import {
+  EnterpriseFilterDefinition,
   EnterpriseFilterState,
-  FilterBar,
   applyEnterpriseFilters,
 } from "@/shared/filters";
+import {
+  getOutletTaskCompletionTrend,
+  getOutletTaskFormBreakdown,
+  getOutletTaskPerformance,
+  getOutletTaskStatusDistribution,
+  getOutletTaskStatusLabel,
+  getOutletTaskStoreSummary,
+  OutletTaskStoreItem,
+  resetOutletTaskStore,
+  useOutletTaskStore,
+} from "@/shared/outlet-task-store";
+import { RealtimeClock } from "@/shared/realtime";
 import { EnterpriseToolbar } from "@/shared/toolbar";
 
-type RecentReport = {
-  id: string;
-  checklist: string;
-  outlet: string;
-  status: string;
-  score: string;
-  submittedBy: string;
-  submittedAt: string;
-};
-
-const outlets = ["KOV Montre", "KOV Heritage", "KOV Sultan Agung", "KOV Sula"];
-
-const completionTrend = [
-  { day: "Mon", completion: 84, submitted: 42 },
-  { day: "Tue", completion: 90, submitted: 48 },
-  { day: "Wed", completion: 88, submitted: 45 },
-  { day: "Thu", completion: 92, submitted: 51 },
-  { day: "Fri", completion: 95, submitted: 56 },
-  { day: "Sat", completion: 91, submitted: 49 },
-  { day: "Sun", completion: 89, submitted: 44 },
-];
-
-const statusDistribution = [
-  { name: "Completed", value: 68 },
-  { name: "In Review", value: 21 },
-  { name: "Flagged", value: 11 },
-];
-
-const outletPerformance = [
-  { outlet: "KOV Montre", score: 94 },
-  { outlet: "KOV Heritage", score: 91 },
-  { outlet: "KOV Sultan Agung", score: 88 },
-  { outlet: "KOV Sula", score: 86 },
-];
-
-const issueBreakdown = [
-  { name: "Cleanliness", value: 32 },
-  { name: "Service", value: 26 },
-  { name: "Product", value: 24 },
-  { name: "Equipment", value: 18 },
-];
-
-const recentReports: RecentReport[] = [
-  {
-    id: "RPT-001",
-    checklist: "Opening Readiness",
-    outlet: "KOV Montre",
-    status: "Completed",
-    score: "96%",
-    submittedBy: "Lead Barista",
-    submittedAt: "Today, 07:15",
-  },
-  {
-    id: "RPT-002",
-    checklist: "Service Quality Audit",
-    outlet: "KOV Heritage",
-    status: "In Review",
-    score: "89%",
-    submittedBy: "Senior Barista",
-    submittedAt: "Today, 10:40",
-  },
-  {
-    id: "RPT-003",
-    checklist: "Cleanliness Standard",
-    outlet: "KOV Sultan Agung",
-    status: "Flagged",
-    score: "74%",
-    submittedBy: "Head Barista",
-    submittedAt: "Yesterday, 21:10",
-  },
-  {
-    id: "RPT-004",
-    checklist: "Product Availability",
-    outlet: "KOV Sula",
-    status: "Completed",
-    score: "91%",
-    submittedBy: "Lead Barista",
-    submittedAt: "Yesterday, 16:25",
-  },
-];
-
-const reportColumns: EnterpriseColumn<RecentReport>[] = [
-  { key: "id", header: "Report ID", sortable: true },
-  { key: "checklist", header: "Checklist", sortable: true },
+const reportColumns: EnterpriseColumn<OutletTaskStoreItem>[] = [
+  { key: "id", header: "Report ID", sortable: true, hideable: true },
   { key: "outlet", header: "Outlet", sortable: true },
+  { key: "task", header: "Task", sortable: true },
+  { key: "form", header: "Form", sortable: true, hideable: true },
   {
     key: "status",
     header: "Status",
     sortable: true,
+    hideable: true,
     render: (report) => {
       const statusClass =
-        report.status === "Completed"
+        report.status === "completed" || report.status === "submitted"
           ? "bg-emerald-50 text-emerald-700"
-          : report.status === "In Review"
-            ? "bg-amber-50 text-amber-700"
-            : "bg-rose-50 text-rose-700";
+          : report.status === "draft"
+            ? "bg-blue-50 text-blue-700"
+            : report.status === "overdue"
+              ? "bg-red-50 text-red-700"
+              : "bg-amber-50 text-amber-700";
 
       return (
         <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}
         >
-          {report.status}
+          {getOutletTaskStatusLabel(report.status)}
         </span>
       );
     },
   },
-  { key: "score", header: "Score", sortable: true },
-  { key: "submittedBy", header: "Submitted By", sortable: true },
-  { key: "submittedAt", header: "Submitted At", sortable: true },
-];
-
-const reportFilters = [
   {
-    key: "outlet",
-    label: "Outlet",
-    placeholder: "All outlets",
-    options: outlets.map((outlet) => ({ label: outlet, value: outlet })),
+    key: "progress",
+    header: "Progress",
+    sortable: true,
+    hideable: true,
+    render: (report) => `${report.progress}%`,
   },
   {
-    key: "status",
-    label: "Status",
-    placeholder: "All status",
-    options: [
-      { label: "Completed", value: "Completed" },
-      { label: "In Review", value: "In Review" },
-      { label: "Flagged", value: "Flagged" },
-    ],
+    key: "score",
+    header: "Score",
+    sortable: true,
+    hideable: true,
+    render: (report) => `${report.score}%`,
   },
+  { key: "operator", header: "Operator", sortable: true, hideable: true },
+  { key: "due", header: "Due", sortable: true, hideable: true },
   {
-    key: "submittedBy",
-    label: "Submitted By",
-    placeholder: "All users",
-    options: [
-      { label: "Senior Barista", value: "Senior Barista" },
-      { label: "Lead Barista", value: "Lead Barista" },
-      { label: "Head Barista", value: "Head Barista" },
-    ],
+    key: "submittedAt",
+    header: "Submitted At",
+    sortable: true,
+    hideable: true,
   },
 ];
 
-function getOutletFileName(outlet: string) {
-  return `${outlet.toLowerCase().replaceAll(" ", "-")}-report`;
-}
-
-function getAverageScore(reports: RecentReport[]) {
-  if (reports.length === 0) return "0%";
-
-  const total = reports.reduce((sum, report) => {
-    return sum + Number(report.score.replace("%", ""));
-  }, 0);
-
-  return `${Math.round(total / reports.length)}%`;
-}
-
-function downloadBlob(content: string, fileName: string, type: string) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.href = url;
-  link.download = fileName;
-  link.click();
-
-  URL.revokeObjectURL(url);
-}
-
-function exportOutletCsv(outlet: string, reports: RecentReport[]) {
-  const headers = [
-    "Report ID",
-    "Checklist",
-    "Outlet",
-    "Status",
-    "Score",
-    "Submitted By",
-    "Submitted At",
-  ];
-
-  const rows = reports.map((report) => [
-    report.id,
-    report.checklist,
-    report.outlet,
-    report.status,
-    report.score,
-    report.submittedBy,
-    report.submittedAt,
-  ]);
-
-  const csv = [headers, ...rows]
-    .map((row) =>
-      row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","),
-    )
-    .join("\n");
-
-  downloadBlob(csv, `${getOutletFileName(outlet)}.csv`, "text/csv;charset=utf-8;");
-}
-
-function exportOutletExcel(outlet: string, reports: RecentReport[]) {
-  const rows = reports
-    .map(
-      (report) => `
-        <tr>
-          <td>${report.id}</td>
-          <td>${report.checklist}</td>
-          <td>${report.outlet}</td>
-          <td>${report.status}</td>
-          <td>${report.score}</td>
-          <td>${report.submittedBy}</td>
-          <td>${report.submittedAt}</td>
-        </tr>
-      `,
-    )
-    .join("");
-
-  const html = `
-    <html>
-      <head>
-        <meta charset="UTF-8" />
-      </head>
-      <body>
-        <h2>${outlet} Report</h2>
-        <table border="1">
-          <thead>
-            <tr>
-              <th>Report ID</th>
-              <th>Checklist</th>
-              <th>Outlet</th>
-              <th>Status</th>
-              <th>Score</th>
-              <th>Submitted By</th>
-              <th>Submitted At</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </body>
-    </html>
-  `;
-
-  downloadBlob(
-    html,
-    `${getOutletFileName(outlet)}.xls`,
-    "application/vnd.ms-excel;charset=utf-8;",
-  );
-}
-
-function exportOutletPdf(outlet: string, reports: RecentReport[]) {
-  const rows = reports
-    .map(
-      (report) => `
-        <tr>
-          <td>${report.id}</td>
-          <td>${report.checklist}</td>
-          <td>${report.outlet}</td>
-          <td>${report.status}</td>
-          <td>${report.score}</td>
-          <td>${report.submittedBy}</td>
-          <td>${report.submittedAt}</td>
-        </tr>
-      `,
-    )
-    .join("");
-
-  const printWindow = window.open("", "_blank");
-
-  if (!printWindow) return;
-
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>${outlet} Report</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 32px;
-            color: #0f172a;
-          }
-
-          h1 {
-            margin: 0 0 8px;
-            font-size: 24px;
-          }
-
-          p {
-            margin: 0 0 24px;
-            color: #64748b;
-            font-size: 13px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-          }
-
-          th, td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
-            text-align: left;
-          }
-
-          th {
-            background: #f8fafc;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>${outlet} Report</h1>
-        <p>Generated from NovaOps Reports.</p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Report ID</th>
-              <th>Checklist</th>
-              <th>Outlet</th>
-              <th>Status</th>
-              <th>Score</th>
-              <th>Submitted By</th>
-              <th>Submitted At</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-
-        <script>
-          window.onload = function () {
-            window.print();
-          };
-        </script>
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-}
+const initialReportFilters: EnterpriseFilterState = {
+  outlet: "",
+  form: "",
+  status: "",
+};
 
 export function ReportsWorkspace() {
-  const [filters, setFilters] = useState<EnterpriseFilterState>({
-    outlet: null,
-    status: null,
-    submittedBy: null,
-  });
+  const outletTaskItems = useOutletTaskStore();
 
+  const [filters, setFilters] =
+    useState<EnterpriseFilterState>(initialReportFilters);
   const [toolbarSearch, setToolbarSearch] = useState("");
-  const [openOutlet, setOpenOutlet] = useState<string | null>(null);
 
-  const filteredReports = useMemo(() => {
-    const filtered = applyEnterpriseFilters(recentReports, filters);
+  const summary = getOutletTaskStoreSummary(outletTaskItems);
+  const completionTrend = getOutletTaskCompletionTrend(outletTaskItems);
+  const statusDistribution = getOutletTaskStatusDistribution(outletTaskItems);
+  const outletPerformance = getOutletTaskPerformance(outletTaskItems);
+  const formBreakdown = getOutletTaskFormBreakdown(outletTaskItems);
 
-    if (!toolbarSearch.trim()) return filtered;
+  const reportFilterDefinitions: EnterpriseFilterDefinition[] = useMemo(() => {
+    const outlets = Array.from(
+      new Set(outletTaskItems.map((report) => report.outlet))
+    );
+
+    const forms = Array.from(
+      new Set(outletTaskItems.map((report) => report.form))
+    );
+
+    return [
+      {
+        key: "outlet",
+        label: "Outlet",
+        type: "select",
+        placeholder: "All outlets",
+        options: outlets.map((outlet) => ({ label: outlet, value: outlet })),
+      },
+      {
+        key: "form",
+        label: "Form",
+        type: "select",
+        placeholder: "All forms",
+        options: forms.map((form) => ({ label: form, value: form })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        placeholder: "All status",
+        options: [
+          { label: "Completed", value: "completed" },
+          { label: "Submitted", value: "submitted" },
+          { label: "Draft", value: "draft" },
+          { label: "Pending", value: "pending" },
+          { label: "Overdue", value: "overdue" },
+        ],
+      },
+    ];
+  }, [outletTaskItems]);
+
+  const searchedReports = useMemo(() => {
+    if (!toolbarSearch.trim()) return outletTaskItems;
 
     const query = toolbarSearch.toLowerCase();
 
-    return filtered.filter((report) => {
-      return Object.values(report).some((value) =>
-        String(value).toLowerCase().includes(query),
-      );
-    });
-  }, [filters, toolbarSearch]);
+    return outletTaskItems.filter((report) =>
+      Object.values(report).some((value) =>
+        String(value).toLowerCase().includes(query)
+      )
+    );
+  }, [outletTaskItems, toolbarSearch]);
+
+  const filteredReports = useMemo(
+    () =>
+      applyEnterpriseFilters(
+        searchedReports,
+        filters,
+        reportFilterDefinitions
+      ),
+    [searchedReports, filters, reportFilterDefinitions]
+  );
+
+  function resetReports() {
+    setToolbarSearch("");
+    setFilters(initialReportFilters);
+  }
 
   return (
     <main className="space-y-6 p-6">
-      <div>
-        <p className="text-sm font-medium text-emerald-700">Reports</p>
-        <h1 className="text-2xl font-semibold text-slate-950">
-          Outlet-Level Analytics
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Track checklist completion, outlet performance, report status, and
-          operational issue trends.
-        </p>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Reports</p>
+          <h1 className="text-2xl font-semibold text-slate-950">
+            Outlet Task Form Reports
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Live operational reports based on shared outlet task store, saved
+            drafts, submitted forms, completion percentage, due status, and
+            operator activity.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              resetReports();
+              resetOutletTaskStore();
+            }}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
+            Reset Store
+          </button>
+
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Realtime
+            </p>
+            <RealtimeClock />
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Completion Rate</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">91%</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {summary.averageProgress}%
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Submitted Reports</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">341</p>
+          <p className="text-sm text-slate-500">Submitted / Completed</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-700">
+            {summary.submitted + summary.completed}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Flagged Issues</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">18</p>
+          <p className="text-sm text-slate-500">Draft / In Progress</p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">
+            {summary.draft}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Average Score</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">88%</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {summary.averageScore}%
+          </p>
         </div>
       </div>
 
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              Outlet Form Completion
+            </p>
+            <p className="text-xs text-slate-500">
+              Calculated from shared outlet task store.
+            </p>
+          </div>
+          <p className="text-sm font-bold text-emerald-700">
+            {summary.averageProgress}%
+          </p>
+        </div>
+
+        <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-emerald-700 transition-all duration-700"
+            style={{ width: `${summary.averageProgress}%` }}
+          />
+        </div>
+      </section>
+
       <div className="grid gap-4 xl:grid-cols-2">
         <LineChartCard
-          title="Checklist Completion Trend"
-          description="Daily completion rate and submitted reports."
+          title="Task Form Completion Trend"
+          description="Daily completion percentage and submitted task form count."
           data={completionTrend}
           xKey="day"
           series={[
@@ -425,48 +269,41 @@ export function ReportsWorkspace() {
         />
 
         <DonutChartCard
-          title="Report Status Distribution"
-          description="Current report lifecycle overview."
+          title="Task Form Status Distribution"
+          description="Current form lifecycle status across outlets."
           data={statusDistribution}
           dataKey="value"
           nameKey="name"
         />
 
         <BarChartCard
-          title="Outlet Performance"
-          description="Average operational report score by outlet."
+          title="Outlet Form Progress"
+          description="Average task form progress per outlet."
           data={outletPerformance}
           xKey="outlet"
-          series={[{ dataKey: "score", name: "Score" }]}
+          series={[{ dataKey: "progress", name: "Progress %" }]}
         />
 
         <PieChartCard
-          title="Issue Breakdown"
-          description="Common operational issue categories."
-          data={issueBreakdown}
+          title="Form Template Breakdown"
+          description="Task form distribution by template."
+          data={formBreakdown}
           dataKey="value"
           nameKey="name"
         />
       </div>
 
       <EnterpriseToolbar
-        title="Report Actions"
-        description="Centralized controls for report search, refresh, print, and settings."
+        title="Task Form Report Actions"
+        description="Search, refresh, print, and inspect outlet task form reports."
         searchValue={toolbarSearch}
-        searchPlaceholder="Search reports..."
+        searchPlaceholder="Search task form reports..."
         onSearchChange={setToolbarSearch}
         actions={[
           {
             label: "Refresh",
             variant: "secondary",
-            onClick: () => {
-              setToolbarSearch("");
-              setFilters({
-                outlet: null,
-                status: null,
-                submittedBy: null,
-              });
-            },
+            onClick: resetReports,
           },
           {
             label: "Print",
@@ -481,67 +318,26 @@ export function ReportsWorkspace() {
         ]}
       />
 
-      <FilterBar
-        filters={reportFilters}
-        value={filters}
-        onChange={setFilters}
-        onApply={() => {}}
-        onReset={() => {}}
-      />
-
       <EnterpriseDataTable
-        title="Recent Reports"
-        description="Search, filter, sort, paginate, and export filtered outlet reports."
+        title="Outlet Task Form Register"
+        description="Search, filter, sort, paginate, customize columns, and save outlet task form report views."
         data={filteredReports}
         columns={reportColumns}
-        searchPlaceholder="Search reports..."
-        exportFileName="novaops-reports-filtered"
+        searchPlaceholder="Search current result..."
+        pageSize={10}
+        getRowId={(report) => report.id}
+        filterDefinitions={reportFilterDefinitions}
+        filters={filters}
+        onFiltersChange={setFilters}
+        enableFilters
+        enableSavedViews
+        savedViewScope="outlet-task-store-reports"
+        emptyTitle="No task form reports found"
+        emptyDescription="Try adjusting task form search or filter criteria."
+        exportable
+        exportFileName="outlet-task-form-reports"
+        exportSheetName="Outlet Task Form Reports"
       />
-
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Outlet Report Export
-          </p>
-          <h2 className="text-xl font-semibold text-slate-950">
-            Export Reports Per Outlet
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Open one outlet at a time and export dedicated outlet reports.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {outlets.map((outlet) => {
-            const outletReports = recentReports.filter(
-              (report) => report.outlet === outlet,
-            );
-
-            return (
-              <OutletExportCard
-                key={outlet}
-                outlet={outlet}
-                totalReports={outletReports.length}
-                averageScore={getAverageScore(outletReports)}
-                flaggedIssues={
-                  outletReports.filter((report) => report.status === "Flagged")
-                    .length
-                }
-                lastUpdated={outletReports[0]?.submittedAt ?? "-"}
-                isOpen={openOutlet === outlet}
-                onToggle={() =>
-                  setOpenOutlet((current) =>
-                    current === outlet ? null : outlet,
-                  )
-                }
-                onExportExcel={() => exportOutletExcel(outlet, outletReports)}
-                onExportPdf={() => exportOutletPdf(outlet, outletReports)}
-                onExportCsv={() => exportOutletCsv(outlet, outletReports)}
-              />
-            );
-          })}
-        </div>
-      </section>
     </main>
   );
 }

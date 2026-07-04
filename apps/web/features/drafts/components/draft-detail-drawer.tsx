@@ -1,9 +1,28 @@
-"use client";
+﻿"use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import { DraftTask } from "../types";
 import { DraftStatusBadge } from "./draft-status-badge";
 import { publishDraft, updateDraft } from "../api";
+import {
+  EnterpriseField,
+  EnterpriseInput,
+  EnterpriseSelect,
+  EnterpriseTextarea,
+} from "@/shared/form";
+
+const draftDetailSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  description: z.string().optional(),
+  priority: z.string().optional(),
+  due_date: z.string().optional(),
+});
+
+type DraftDetailFormValues = z.infer<typeof draftDetailSchema>;
 
 type Props = {
   draft: DraftTask | null;
@@ -12,37 +31,43 @@ type Props = {
   onUpdated: () => void;
 };
 
+function getDraftFormValues(draft: DraftTask | null): DraftDetailFormValues {
+  return {
+    title: draft?.title ?? "",
+    description: draft?.description ?? "",
+    priority: draft?.priority ?? "",
+    due_date: draft?.due_date ? draft.due_date.slice(0, 10) : "",
+  };
+}
+
 export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  useEffect(() => {
-    if (!draft) return;
+  const formValues = useMemo(() => getDraftFormValues(draft), [draft]);
 
-    setTitle(draft.title ?? "");
-    setDescription(draft.description ?? "");
-    setPriority(draft.priority ?? "");
-    setDueDate(draft.due_date ? draft.due_date.slice(0, 10) : "");
-  }, [draft]);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<DraftDetailFormValues>({
+    resolver: zodResolver(draftDetailSchema),
+    values: formValues,
+  });
 
   if (!open || !draft) return null;
 
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSave(values: DraftDetailFormValues) {
     if (!draft) return;
 
     setIsSaving(true);
 
     try {
       await updateDraft(draft.id, {
-        title,
-        description,
-        priority: priority || null,
-        due_date: dueDate || null,
+        title: values.title,
+        description: values.description ?? "",
+        priority: values.priority || null,
+        due_date: values.due_date || null,
       });
 
       onUpdated();
@@ -68,6 +93,7 @@ export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
   return (
     <div className="fixed inset-0 z-50">
       <button
+        type="button"
         aria-label="Close drawer overlay"
         onClick={onClose}
         className="absolute inset-0 bg-black/30"
@@ -77,13 +103,16 @@ export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-500">Draft Detail</p>
+              <p className="text-sm font-medium text-slate-500">
+                Draft Detail
+              </p>
               <h2 className="mt-1 text-xl font-semibold text-slate-950">
                 {draft.title}
               </h2>
             </div>
 
             <button
+              type="button"
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
@@ -96,58 +125,32 @@ export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-5 px-6 py-6">
-          <div>
-            <label className="text-sm font-medium text-slate-700">Title</label>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit(handleSave)} className="space-y-5 px-6 py-6">
+          <EnterpriseField label="Title" error={errors.title?.message}>
+            <EnterpriseInput {...register("title")} required />
+          </EnterpriseField>
 
-          <div>
-            <label className="text-sm font-medium text-slate-700">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={6}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400"
-            />
-          </div>
+          <EnterpriseField
+            label="Description"
+            error={errors.description?.message}
+          >
+            <EnterpriseTextarea {...register("description")} rows={6} />
+          </EnterpriseField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-slate-700">
-                Priority
-              </label>
-              <select
-                value={priority}
-                onChange={(event) => setPriority(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400"
-              >
+            <EnterpriseField label="Priority" error={errors.priority?.message}>
+              <EnterpriseSelect {...register("priority")}>
                 <option value="">None</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
-              </select>
-            </div>
+              </EnterpriseSelect>
+            </EnterpriseField>
 
-            <div>
-              <label className="text-sm font-medium text-slate-700">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400"
-              />
-            </div>
+            <EnterpriseField label="Due Date" error={errors.due_date?.message}>
+              <EnterpriseInput type="date" {...register("due_date")} />
+            </EnterpriseField>
           </div>
 
           <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row">

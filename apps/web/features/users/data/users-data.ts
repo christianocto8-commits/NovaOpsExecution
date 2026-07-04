@@ -1,51 +1,53 @@
-export type UserStatus = "Active" | "Pending" | "Suspended";
-export type UserRole = "Owner" | "Admin" | "Area Manager" | "Supervisor" | "Crew";
+﻿import { User, UserFormState } from "../types";
 
-export type UserRow = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  outlet: string;
-  status: UserStatus;
-  lastActive: string;
+export const emptyUserForm: UserFormState = {
+  name: "",
+  email: "",
+  role: "Outlet",
+  outlet: "KOV Montre",
+  outletScope: "Single Outlet",
+  status: "Pending",
 };
 
-export const users: UserRow[] = [
+export const mockUsers: User[] = [
   {
-    id: "USR-001",
-    name: "Admin NovaOps",
+    id: "ACC-001",
+    name: "Owner Admin",
     email: "admin@novaops.com",
-    role: "Owner",
+    role: "Owner/Admin",
     outlet: "All Outlets",
+    outletScope: "All Outlets",
     status: "Active",
     lastActive: "Today",
   },
   {
-    id: "USR-002",
-    name: "Maya Operations",
-    email: "maya@novaops.com",
+    id: "ACC-002",
+    name: "Area Manager South",
+    email: "area.south@novaops.com",
     role: "Area Manager",
-    outlet: "KOV Montre",
+    outlet: "KOV Montre, KOV Heritage, KOV Sultan Agung",
+    outletScope: "Multiple Outlets",
     status: "Active",
     lastActive: "2 hours ago",
   },
   {
-    id: "USR-003",
-    name: "Raka Supervisor",
-    email: "raka@novaops.com",
-    role: "Supervisor",
+    id: "ACC-003",
+    name: "KOV Heritage",
+    email: "heritage@kov.co.id",
+    role: "Outlet",
     outlet: "KOV Heritage",
-    status: "Pending",
-    lastActive: "Yesterday",
+    outletScope: "Single Outlet",
+    status: "Active",
+    lastActive: "Today",
   },
   {
-    id: "USR-004",
-    name: "Dina Crew",
-    email: "dina@novaops.com",
-    role: "Crew",
-    outlet: "KOV Sultan Agung",
-    status: "Active",
-    lastActive: "3 days ago",
+    id: "ACC-004",
+    name: "KOV Montre",
+    email: "montre@kov.co.id",
+    role: "Outlet",
+    outlet: "KOV Montre",
+    outletScope: "Single Outlet",
+    status: "Pending",
+    lastActive: "Invite pending",
   },
 ];

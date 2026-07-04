@@ -1,5 +1,13 @@
 ﻿import { Edit3, Eye, Trash2 } from "lucide-react";
-import { EmptyState, Section } from "@/shared/ui";
+
+import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
+import { ExportMenu } from "@/shared/export/components";
+import {
+  exportToCsv,
+  exportToExcel,
+  exportToPdf,
+} from "@/shared/export/utils";
+
 import {
   Task,
   TaskPriorityFilter,
@@ -7,7 +15,6 @@ import {
   TaskStatusFilter,
 } from "../types";
 import { getPriorityClass, getStatusClass } from "../utils";
-import { TaskFilters } from "./task-filters";
 
 type TaskTableProps = {
   tasks: Task[];
@@ -23,125 +30,186 @@ type TaskTableProps = {
   onStatusChange: (id: string, status: TaskStatus) => void;
 };
 
+const taskFilterDefinitions = [
+  {
+    key: "outlet",
+    label: "Outlet",
+    type: "select",
+    options: [
+      { label: "KOV Montre", value: "KOV Montre" },
+      { label: "KOV Heritage", value: "KOV Heritage" },
+      { label: "KOV Sultan Agung", value: "KOV Sultan Agung" },
+      { label: "KOV Sula", value: "KOV Sula" },
+    ],
+  },
+  {
+    key: "status",
+    label: "Status",
+    type: "select",
+    options: [
+      { label: "Pending", value: "Pending" },
+      { label: "In Progress", value: "In Progress" },
+      { label: "Completed", value: "Completed" },
+    ],
+  },
+  {
+    key: "priority",
+    label: "Priority",
+    type: "select",
+    options: [
+      { label: "Low", value: "Low" },
+      { label: "Medium", value: "Medium" },
+      { label: "High", value: "High" },
+    ],
+  },
+  {
+    key: "assignee",
+    label: "Assignee",
+    type: "text",
+  },
+];
+
+function getExportRows(tasks: Task[]) {
+  return tasks.map((task) => ({
+    ID: task.id,
+    Task: task.title,
+    Outlet: task.outlet,
+    Assignee: task.assignee,
+    Priority: task.priority,
+    Status: task.status,
+    Due: task.due,
+    Description: task.description,
+  }));
+}
+
 export function TaskTable({
   tasks,
-  query,
-  statusFilter,
-  priorityFilter,
-  onQueryChange,
-  onStatusFilterChange,
-  onPriorityFilterChange,
   onSelectTask,
   onEditTask,
   onDeleteTask,
   onStatusChange,
 }: TaskTableProps) {
+  const columns: EnterpriseColumn<Task>[] = [
+    {
+      key: "title",
+      header: "Task",
+      sortable: true,
+      render: (task) => (
+        <div>
+          <p className="font-semibold text-slate-950">{task.title}</p>
+          <p className="text-xs text-slate-500">{task.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: "outlet",
+      header: "Outlet",
+      sortable: true,
+    },
+    {
+      key: "assignee",
+      header: "Assignee",
+      sortable: true,
+    },
+    {
+      key: "priority",
+      header: "Priority",
+      sortable: true,
+      render: (task) => (
+        <span
+          className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityClass(
+            task.priority
+          )}`}
+        >
+          {task.priority}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      render: (task) => (
+        <select
+          value={task.status}
+          onChange={(event) =>
+            onStatusChange(task.id, event.target.value as TaskStatus)
+          }
+          className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getStatusClass(
+            task.status
+          )}`}
+        >
+          <option>Pending</option>
+          <option>In Progress</option>
+          <option>Completed</option>
+        </select>
+      ),
+    },
+    {
+      key: "due",
+      header: "Due",
+      sortable: true,
+    },
+  ];
+
+  const exportRows = getExportRows(tasks);
+
   return (
-    <Section
+    <EnterpriseDataTable
       title="Task Workspace"
       description="Search, filter, update, inspect, and delete operational tasks."
-    >
-      <TaskFilters
-        query={query}
-        statusFilter={statusFilter}
-        priorityFilter={priorityFilter}
-        onQueryChange={onQueryChange}
-        onStatusFilterChange={onStatusFilterChange}
-        onPriorityFilterChange={onPriorityFilterChange}
-      />
-
-      {tasks.length === 0 ? (
-        <EmptyState
-          title="No tasks found"
-          description="Create your first operational task."
+      columns={columns}
+      data={tasks}
+      getRowId={(task) => task.id}
+      searchPlaceholder="Search tasks, outlets, assignees..."
+      emptyTitle="No tasks found"
+      emptyDescription="Create your first operational task."
+      pageSize={10}
+      defaultDensity="comfortable"
+      enableFilters
+      enableSavedViews
+      savedViewScope="tasks-workspace"
+      filterDefinitions={taskFilterDefinitions}
+      actions={
+        <ExportMenu
+          onCsvExport={() => exportToCsv(exportRows, "novaops-tasks")}
+          onExcelExport={() => exportToExcel(exportRows, "novaops-tasks")}
+          onPdfExport={() =>
+            exportToPdf({
+              title: "NovaOps Tasks",
+              filename: "novaops-tasks",
+              data: exportRows,
+            })
+          }
         />
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Task</th>
-                <th className="px-4 py-3 font-semibold">Outlet</th>
-                <th className="px-4 py-3 font-semibold">Assignee</th>
-                <th className="px-4 py-3 font-semibold">Priority</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Due</th>
-                <th className="px-4 py-3 font-semibold">Actions</th>
-              </tr>
-            </thead>
+      }
+      rowActions={(task) => (
+        <>
+          <button
+            onClick={() => onSelectTask(task)}
+            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+            title="View"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
 
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {tasks.map((task) => (
-                <tr key={task.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-4">
-                    <p className="font-semibold text-slate-950">{task.title}</p>
-                    <p className="text-xs text-slate-500">{task.id}</p>
-                  </td>
+          <button
+            onClick={() => onEditTask(task)}
+            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+            title="Edit"
+          >
+            <Edit3 className="h-4 w-4" />
+          </button>
 
-                  <td className="px-4 py-4 text-slate-600">{task.outlet}</td>
-                  <td className="px-4 py-4 text-slate-600">{task.assignee}</td>
-
-                  <td className="px-4 py-4">
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityClass(
-                        task.priority
-                      )}`}
-                    >
-                      {task.priority}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <select
-                      value={task.status}
-                      onChange={(event) =>
-                        onStatusChange(task.id, event.target.value as TaskStatus)
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getStatusClass(
-                        task.status
-                      )}`}
-                    >
-                      <option>Pending</option>
-                      <option>In Progress</option>
-                      <option>Completed</option>
-                    </select>
-                  </td>
-
-                  <td className="px-4 py-4 text-slate-600">{task.due}</td>
-
-                  <td className="px-4 py-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => onSelectTask(task)}
-                        className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                        title="View"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-
-                      <button
-                        onClick={() => onEditTask(task)}
-                        className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                        title="Edit"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-
-                      <button
-                        onClick={() => onDeleteTask(task.id)}
-                        className="rounded-lg border border-red-200 p-2 text-red-500 hover:bg-red-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <button
+            onClick={() => onDeleteTask(task.id)}
+            className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </>
       )}
-    </Section>
+    />
   );
 }
