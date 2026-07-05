@@ -1,19 +1,58 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth
-from app.routers import builder_documents
-from app.routers import execution_sessions
-from app.routers import form_templates
-from app.routers import health
-from app.routers import outlets
-from app.routers import reports
-from app.routers import runtime_templates
-from app.routers import settings
+from app.api.v1.router import api_router
+from app.core.config import get_settings
+
+settings = get_settings()
 
 app = FastAPI(
-    title="NovaOps API",
-    version="0.5.4",
+    title=settings.app_name,
+    version=settings.app_version,
+    description="""
+NovaOps Enterprise API.
+
+Backend core for multi-outlet operations management, task execution,
+dynamic forms, workflow approvals, reports, notifications, RBAC, and audit logs.
+""",
+    contact={
+        "name": "NovaOps Engineering",
+        "email": "engineering@novaops.dev",
+    },
+    openapi_tags=[
+        {
+            "name": "System",
+            "description": "Health check, version, and platform diagnostics.",
+        },
+        {
+            "name": "Authentication",
+            "description": "Login, token management, and current user session.",
+        },
+        {
+            "name": "Identity",
+            "description": "Users, roles, permissions, organizations, and outlets.",
+        },
+        {
+            "name": "Tasks",
+            "description": "Enterprise task engine.",
+        },
+        {
+            "name": "Forms",
+            "description": "Dynamic form engine.",
+        },
+        {
+            "name": "Workflows",
+            "description": "Workflow approval and escalation engine.",
+        },
+        {
+            "name": "Reports",
+            "description": "Analytics, KPI, and reporting API.",
+        },
+        {
+            "name": "Notifications",
+            "description": "Notification delivery and reminder engine.",
+        },
+    ],
 )
 
 app.add_middleware(
@@ -27,21 +66,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health.router)
-app.include_router(auth.router)
-app.include_router(outlets.router)
-app.include_router(form_templates.router)
-app.include_router(runtime_templates.router)
-app.include_router(builder_documents.router)
-app.include_router(execution_sessions.router)
-app.include_router(settings.router)
-app.include_router(reports.router)
+app.include_router(api_router)
 
 
-@app.get("/")
-def root():
+@app.get("/", tags=["System"])
+def root() -> dict[str, str]:
     return {
-        "app": "NovaOps API",
+        "service": settings.app_name,
+        "version": settings.app_version,
         "status": "running",
-        "version": "0.5.4",
     }

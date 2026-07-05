@@ -3,47 +3,61 @@
 $Root = Resolve-Path "$PSScriptRoot\.."
 Set-Location $Root
 
-function HasCmd($cmd) { return $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue) }
+$BackendDir = Join-Path $Root "apps\api"
+$FrontendDir = Join-Path $Root "apps\web"
+$BackendPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
 
-function Resolve-Python {
-  if (HasCmd py) {
-    py --version *> $null
-    if ($LASTEXITCODE -eq 0) { return "py" }
-  }
+Write-Host ""
+Write-Host "Starting NovaOps development stack..." -ForegroundColor Cyan
+Write-Host "Root     : $Root"
+Write-Host "Backend  : $BackendDir"
+Write-Host "Frontend : $FrontendDir"
 
-  if (HasCmd python) {
-    python --version *> $null
-    if ($LASTEXITCODE -eq 0) { return "python" }
-  }
-
-  throw "No working Python interpreter found."
+if (!(Test-Path $BackendDir)) {
+  throw "Backend folder not found: $BackendDir"
 }
 
-$PythonCmd = Resolve-Python
+if (!(Test-Path $FrontendDir)) {
+  throw "Frontend folder not found: $FrontendDir"
+}
 
-Write-Host "`nStarting NovaOps development stack..." -ForegroundColor Cyan
+if (!(Test-Path $BackendPython)) {
+  throw "Backend virtualenv not found. Run .\bootstrap.ps1 first."
+}
 
+Write-Host ""
+Write-Host "[INFO] Starting Docker services" -ForegroundColor Cyan
 docker compose up -d
 
-$Backend = $null
-if (Test-Path "apps\api") {
-  $Backend = "apps\api"
-} elseif (Test-Path "apps\backend") {
-  $Backend = "apps\backend"
-}
+Write-Host ""
+Write-Host "[INFO] Opening backend terminal" -ForegroundColor Cyan
+Start-Process powershell -ArgumentList @(
+  "-NoExit",
+  "-ExecutionPolicy", "Bypass",
+  "-Command",
+  "cd `"$BackendDir`"; `"$BackendPython`" -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
+)
 
-if (-not $Backend) {
-  throw "Backend folder not found. Expected apps\api or apps\backend."
-}
+Start-Sleep -Seconds 2
 
-Write-Host "`nBackend path: $Backend"
-Write-Host "Frontend path: apps\web"
-Write-Host "Python command: $PythonCmd"
+Write-Host "[INFO] Opening frontend terminal" -ForegroundColor Cyan
+Start-Process powershell -ArgumentList @(
+  "-NoExit",
+  "-ExecutionPolicy", "Bypass",
+  "-Command",
+  "cd `"$FrontendDir`"; npm run dev"
+)
 
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$Root\$Backend`"; $PythonCmd -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$Root\apps\web`"; npm run dev"
+Start-Sleep -Seconds 2
 
-Write-Host "`nNovaOps is starting:" -ForegroundColor Green
+Write-Host "[INFO] Opening browser" -ForegroundColor Cyan
+Start-Process "http://localhost:3000"
+
+Write-Host ""
+Write-Host "NovaOps development stack is starting." -ForegroundColor Green
 Write-Host "Frontend : http://localhost:3000"
 Write-Host "Backend  : http://localhost:8000"
 Write-Host "Swagger  : http://localhost:8000/docs"
+Write-Host ""
+Write-Host "To stop services:"
+Write-Host "  .\novaops.ps1 stop"

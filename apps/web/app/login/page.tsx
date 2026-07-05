@@ -1,30 +1,41 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://127.0.0.1:8000";
+  "http://localhost:8000";
+
+const REMEMBER_KEY = "novaops_remember_identifier";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@novaops.com");
-  const [password, setPassword] = useState("admin123");
+  const [identifier, setIdentifier] = useState(() => {
+    if (typeof window === "undefined") return "admin";
+    return localStorage.getItem(REMEMBER_KEY) ?? "admin";
+  });
+  const [password, setPassword] = useState("Admin12345!");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return Boolean(localStorage.getItem(REMEMBER_KEY));
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
 
   async function handleLogin() {
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          identifier,
           password,
         }),
       });
@@ -43,17 +54,18 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("novaops_token", data.access_token);
+      localStorage.removeItem("novaops_outlet_id");
 
-      // sementara gunakan default outlet
-      localStorage.setItem("novaops_outlet_id", "1");
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_KEY, identifier);
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
 
       setMessage("Login success. Redirecting...");
-
-      // Force navigation
       window.location.replace("/dashboard");
     } catch (error) {
       console.error(error);
-
       setMessage(error instanceof Error ? error.message : "Unable to connect to API");
     } finally {
       setLoading(false);
@@ -76,18 +88,38 @@ export default function LoginPage() {
         <div className="space-y-5">
           <input
             className="w-full rounded-2xl border border-slate-200 px-5 py-4 text-sm outline-none focus:border-[#3D6B49]"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Username or email"
           />
 
-          <input
-            type="password"
-            className="w-full rounded-2xl border border-slate-200 px-5 py-4 text-sm outline-none focus:border-[#3D6B49]"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              className="w-full rounded-2xl border border-slate-200 px-5 py-4 pr-24 text-sm outline-none focus:border-[#3D6B49]"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#3D6B49]"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          <label className="flex items-center gap-3 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-[#3D6B49]"
+            />
+            Remember me
+          </label>
 
           <button
             type="button"
@@ -108,3 +140,4 @@ export default function LoginPage() {
     </main>
   );
 }
+

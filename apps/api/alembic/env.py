@@ -3,44 +3,35 @@
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import settings
-from app.core.database import Base
-
-from app.models import (  # noqa: F401
-    builder_document,
-    execution_session,
-    form_answer,
-    form_field,
-    form_schedule,
-    form_submission,
-    form_template,
-    outlet,
-    role,
-    runtime_template,
-    task,
-    task_assignment,
-    task_comment,
-    task_draft,
-    user,
-    user_outlet_role,
-)
+from app.core.config import get_settings
+from app.db.base import Base
+import app.db.models  # noqa: F401
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+settings = get_settings()
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table":
+        return name.startswith("identity_") or name == "alembic_version"
+    return True
+
+
 def run_migrations_offline() -> None:
     context.configure(
-        url=settings.DATABASE_URL,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -48,8 +39,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = settings.database_url
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -58,6 +52,8 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

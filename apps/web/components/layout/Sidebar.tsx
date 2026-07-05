@@ -77,7 +77,7 @@ export function Sidebar() {
               expanded ? "max-h-28 opacity-100" : "max-h-0 opacity-0",
             ].join(" ")}
           >
-            <p className="text-sm font-semibold text-[#1E1E1E]">{user.name}</p>
+            <p className="text-sm font-semibold text-[#1E1E1E]">{user.username}</p>
             <p className="text-xs text-gray-500">{user.email}</p>
             <p className="mt-1 text-xs font-medium text-[#3D6B49]">{user.role ?? "No Role"}</p>
           </div>
@@ -103,3 +103,5 @@ export function Sidebar() {
     </aside>
   );
 }
+
+

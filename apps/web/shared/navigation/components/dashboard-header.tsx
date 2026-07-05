@@ -1,5 +1,8 @@
 ﻿"use client";
 
+import { useContext } from "react";
+
+import { AuthContext } from "@/providers/AuthProvider";
 import {
   CurrentWorkspace,
   NovaRole,
@@ -12,6 +15,8 @@ type DashboardHeaderProps = {
 };
 
 export function DashboardHeader({ workspace }: DashboardHeaderProps) {
+  const auth = useContext(AuthContext);
+
   return (
     <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/85 px-6 py-4 backdrop-blur-xl">
       <div className="flex items-center justify-between gap-4">
@@ -43,6 +48,14 @@ export function DashboardHeader({ workspace }: DashboardHeaderProps) {
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] sm:block">
             {workspace.roleLabel}
           </div>
+
+          <button
+            type="button"
+            onClick={() => auth?.logout()}
+            className="rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </header>

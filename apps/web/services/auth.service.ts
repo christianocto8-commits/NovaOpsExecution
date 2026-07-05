@@ -1,14 +1,17 @@
-import { api } from "@/services/api";
+﻿import { api } from "@/services/api";
 
 export type AuthUser = {
-  id: string;
-  name: string;
+  user_id: string;
+  username: string;
   email: string;
   role: string;
+  outlet_id: string | null;
+  permissions: string[];
+  token_version: number;
 };
 
 export type LoginPayload = {
-  email: string;
+  identifier: string;
   password: string;
 };
 
@@ -18,14 +21,14 @@ export type LoginResponse = {
 };
 
 export async function login(payload: LoginPayload) {
-  return api<LoginResponse>("/auth/login", {
+  return api<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function getMe() {
-  return api<AuthUser>("/auth/me", {
+  return api<AuthUser>("/api/v1/auth/me", {
     method: "GET",
   });
 }

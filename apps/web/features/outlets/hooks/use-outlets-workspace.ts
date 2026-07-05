@@ -1,19 +1,64 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/query/keys";
+import {
+  createIdentityOutlet,
+  deactivateIdentityOutlet,
+  getIdentityOutlets,
+  IdentityOutlet,
+  updateIdentityOutlet,
+} from "@/services/identity.service";
 
 import {
   emptyOperatorForm,
   emptyOutletForm,
   mockOutletOperators,
-  mockOutlets,
 } from "../data/outlets-data";
 import { OperatorFormState, Outlet, OutletFormState, OutletOperator, OutletStatus } from "../types";
 
-export function useOutletsWorkspace() {
-  const [outlets, setOutlets] = useState<Outlet[]>(mockOutlets);
-  const [operators, setOperators] = useState<OutletOperator[]>(mockOutletOperators);
+function toUiStatus(status: string): OutletStatus {
+  if (status === "inactive") return "Offline";
+  if (status === "review") return "Review";
+  return "Online";
+}
 
+function toApiStatus(status: OutletStatus) {
+  if (status === "Offline") return "inactive";
+  if (status === "Review") return "review";
+  return "active";
+}
+
+function mapIdentityOutlet(outlet: IdentityOutlet): Outlet {
+  return {
+    id: outlet.id,
+    name: outlet.name,
+    area: outlet.address ?? "-",
+    status: toUiStatus(outlet.status),
+    tier: "Standard",
+    compliance: "0%",
+    openTasks: 0,
+    lastAudit: "Not audited",
+    accountEmail: `${outlet.code.toLowerCase()}@novaops.local`,
+  };
+}
+
+function makeOutletCode(name: string) {
+  return (
+    name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "")
+      .slice(0, 12) || "OUTLET"
+  );
+}
+
+export function useOutletsWorkspace() {
+  const queryClient = useQueryClient();
+
+  const [operators, setOperators] = useState<OutletOperator[]>(mockOutletOperators);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
 
   const [outletModalOpen, setOutletModalOpen] = useState(false);
@@ -23,6 +68,16 @@ export function useOutletsWorkspace() {
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
   const [editingOperatorId, setEditingOperatorId] = useState<string | null>(null);
   const [operatorForm, setOperatorForm] = useState<OperatorFormState>(emptyOperatorForm);
+
+  const [error, setError] = useState("");
+
+  const outletsQuery = useQuery({
+    queryKey: queryKeys.identity.outlets,
+    queryFn: getIdentityOutlets,
+  });
+
+  const identityOutlets = outletsQuery.data ?? [];
+  const outlets = useMemo(() => identityOutlets.map(mapIdentityOutlet), [identityOutlets]);
 
   const metrics = useMemo(() => {
     return {
@@ -35,13 +90,41 @@ export function useOutletsWorkspace() {
 
   const selectedOutletOperators = useMemo(() => {
     if (!selectedOutlet) return [];
-
     return operators.filter((operator) => operator.outletId === selectedOutlet.id);
   }, [operators, selectedOutlet]);
+
+  function invalidateOutlets() {
+    return queryClient.invalidateQueries({ queryKey: queryKeys.identity.outlets });
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createIdentityOutlet,
+    onSuccess: invalidateOutlets,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ outletId, payload }: { outletId: string; payload: Parameters<typeof updateIdentityOutlet>[1] }) =>
+      updateIdentityOutlet(outletId, payload),
+    onSuccess: invalidateOutlets,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deactivateIdentityOutlet,
+    onSuccess: invalidateOutlets,
+  });
+
+  const loading =
+    outletsQuery.isLoading ||
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
+
+  const queryError = outletsQuery.error instanceof Error ? outletsQuery.error.message : "";
 
   function openCreateOutletDialog() {
     setEditingOutletId(null);
     setOutletForm(emptyOutletForm);
+    setError("");
     setOutletModalOpen(true);
   }
 
@@ -54,59 +137,69 @@ export function useOutletsWorkspace() {
       tier: outlet.tier,
       accountEmail: outlet.accountEmail,
     });
+    setError("");
     setOutletModalOpen(true);
   }
 
-  function saveOutlet() {
+  async function saveOutlet() {
     if (!outletForm.name.trim()) return;
 
-    if (editingOutletId) {
-      setOutlets((current) =>
-        current.map((outlet) =>
-          outlet.id === editingOutletId
-            ? {
-                ...outlet,
-                ...outletForm,
-              }
-            : outlet
-        )
-      );
-    } else {
-      const nextOutlet: Outlet = {
-        id: `OUT-${String(outlets.length + 1).padStart(3, "0")}`,
-        ...outletForm,
-        compliance: "0%",
-        openTasks: 0,
-        lastAudit: "Not audited",
-      };
+    try {
+      setError("");
 
-      setOutlets((current) => [nextOutlet, ...current]);
+      if (editingOutletId) {
+        await updateMutation.mutateAsync({
+          outletId: editingOutletId,
+          payload: {
+            name: outletForm.name,
+            address: outletForm.area,
+            status: toApiStatus(outletForm.status),
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          code: makeOutletCode(outletForm.name),
+          name: outletForm.name,
+          address: outletForm.area,
+          phone: null,
+          status: toApiStatus(outletForm.status),
+        });
+      }
+
+      setOutletForm(emptyOutletForm);
+      setEditingOutletId(null);
+      setOutletModalOpen(false);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Failed to save outlet");
     }
-
-    setOutletForm(emptyOutletForm);
-    setEditingOutletId(null);
-    setOutletModalOpen(false);
   }
 
-  function updateOutletStatus(id: string, status: OutletStatus) {
-    setOutlets((current) =>
-      current.map((outlet) => (outlet.id === id ? { ...outlet, status } : outlet))
-    );
+  async function updateOutletStatus(id: string, status: OutletStatus) {
+    try {
+      setError("");
+      await updateMutation.mutateAsync({
+        outletId: id,
+        payload: { status: toApiStatus(status) },
+      });
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Failed to update outlet status");
+    }
   }
 
-  function deleteOutlet(id: string) {
-    setOutlets((current) => current.filter((outlet) => outlet.id !== id));
-    setOperators((current) => current.filter((operator) => operator.outletId !== id));
-
-    if (selectedOutlet?.id === id) setSelectedOutlet(null);
+  async function deleteOutlet(id: string) {
+    try {
+      setError("");
+      await deleteMutation.mutateAsync(id);
+      setOperators((current) => current.filter((operator) => operator.outletId !== id));
+      if (selectedOutlet?.id === id) setSelectedOutlet(null);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Failed to deactivate outlet");
+    }
   }
 
   function openCreateOperatorDialog(outletId: string) {
     setEditingOperatorId(null);
-    setOperatorForm({
-      ...emptyOperatorForm,
-      outletId,
-    });
+    setOperatorForm({ ...emptyOperatorForm, outletId });
     setOperatorModalOpen(true);
   }
 
@@ -128,12 +221,7 @@ export function useOutletsWorkspace() {
     if (editingOperatorId) {
       setOperators((current) =>
         current.map((operator) =>
-          operator.id === editingOperatorId
-            ? {
-                ...operator,
-                ...operatorForm,
-              }
-            : operator
+          operator.id === editingOperatorId ? { ...operator, ...operatorForm } : operator
         )
       );
     } else {
@@ -141,7 +229,6 @@ export function useOutletsWorkspace() {
         id: `OPR-${String(operators.length + 1).padStart(3, "0")}`,
         ...operatorForm,
       };
-
       setOperators((current) => [nextOperator, ...current]);
     }
 
@@ -161,6 +248,9 @@ export function useOutletsWorkspace() {
     setSelectedOutlet,
     selectedOutletOperators,
     metrics,
+    loading,
+    error: error || queryError,
+    refresh: invalidateOutlets,
 
     outletModalOpen,
     setOutletModalOpen,
