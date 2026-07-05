@@ -73,14 +73,10 @@ export function Drawer({
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div>
-            {title ? (
-              <h2 className="text-lg font-bold text-slate-950">{title}</h2>
-            ) : null}
+            {title ? <h2 className="text-lg font-bold text-slate-950">{title}</h2> : null}
 
             {description ? (
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                {description}
-              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
             ) : null}
           </div>
 
@@ -97,9 +93,7 @@ export function Drawer({
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer ? (
-          <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
-            {footer}
-          </div>
+          <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">{footer}</div>
         ) : null}
       </aside>
     </div>

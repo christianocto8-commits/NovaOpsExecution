@@ -17,12 +17,8 @@ export function UploadPlaceholder({ onAdd }: UploadPlaceholderProps) {
         <Plus className="h-5 w-5" />
       </span>
 
-      <span className="mt-3 text-sm font-bold text-slate-800">
-        Add Evidence
-      </span>
-      <span className="mt-1 text-xs text-slate-500">
-        Paste image link for now
-      </span>
+      <span className="mt-3 text-sm font-bold text-slate-800">Add Evidence</span>
+      <span className="mt-1 text-xs text-slate-500">Paste image link for now</span>
     </button>
   );
 }

@@ -72,17 +72,13 @@ export function GlobalSearch() {
                   onClick={() => setQuery("")}
                   className="block rounded-xl px-3 py-3 hover:bg-slate-50"
                 >
-                  <div className="text-sm font-semibold text-slate-800">
-                    {item.title}
-                  </div>
+                  <div className="text-sm font-semibold text-slate-800">{item.title}</div>
                   <div className="text-xs text-slate-500">{item.description}</div>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="px-4 py-6 text-sm text-slate-500">
-              No result found.
-            </div>
+            <div className="px-4 py-6 text-sm text-slate-500">No result found.</div>
           )}
         </div>
       )}

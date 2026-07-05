@@ -67,9 +67,7 @@ export function CommandDialog() {
         <div className="max-h-[520px] overflow-y-auto p-3">
           {filteredItems.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <div className="text-sm font-semibold text-slate-900">
-                No results found
-              </div>
+              <div className="text-sm font-semibold text-slate-900">No results found</div>
               <div className="mt-1 text-sm text-slate-500">
                 Try searching for tasks, reports, outlets, users, or settings.
               </div>

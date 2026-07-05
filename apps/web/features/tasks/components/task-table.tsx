@@ -2,18 +2,9 @@
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
-import {
-  exportToCsv,
-  exportToExcel,
-  exportToPdf,
-} from "@/shared/export/utils";
+import { exportToCsv, exportToExcel, exportToPdf } from "@/shared/export/utils";
 
-import {
-  Task,
-  TaskPriorityFilter,
-  TaskStatus,
-  TaskStatusFilter,
-} from "../types";
+import { Task, TaskPriorityFilter, TaskStatus, TaskStatusFilter } from "../types";
 import { getPriorityClass, getStatusClass } from "../utils";
 
 type TaskTableProps = {
@@ -34,7 +25,7 @@ const taskFilterDefinitions = [
   {
     key: "outlet",
     label: "Outlet",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "KOV Montre", value: "KOV Montre" },
       { label: "KOV Heritage", value: "KOV Heritage" },
@@ -45,7 +36,7 @@ const taskFilterDefinitions = [
   {
     key: "status",
     label: "Status",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Pending", value: "Pending" },
       { label: "In Progress", value: "In Progress" },
@@ -55,7 +46,7 @@ const taskFilterDefinitions = [
   {
     key: "priority",
     label: "Priority",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Low", value: "Low" },
       { label: "Medium", value: "Medium" },
@@ -65,7 +56,7 @@ const taskFilterDefinitions = [
   {
     key: "assignee",
     label: "Assignee",
-    type: "text",
+    type: "text" as const,
   },
 ];
 
@@ -132,9 +123,7 @@ export function TaskTable({
       render: (task) => (
         <select
           value={task.status}
-          onChange={(event) =>
-            onStatusChange(task.id, event.target.value as TaskStatus)
-          }
+          onChange={(event) => onStatusChange(task.id, event.target.value as TaskStatus)}
           className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getStatusClass(
             task.status
           )}`}
@@ -177,8 +166,12 @@ export function TaskTable({
           onPdfExport={() =>
             exportToPdf({
               title: "NovaOps Tasks",
-              filename: "novaops-tasks",
-              data: exportRows,
+              fileName: "novaops-tasks",
+              rows: exportRows,
+              columns: Object.keys(exportRows[0] ?? {}).map((key) => ({
+                key: key as keyof (typeof exportRows)[number],
+                label: key,
+              })),
             })
           }
         />

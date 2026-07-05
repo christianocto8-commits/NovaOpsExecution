@@ -28,8 +28,7 @@ export const mockTasks: Task[] = [
     priority: "High",
     assignee: "Outlet Team",
     due: "2026-07-04T09:00",
-    description:
-      "Test task untuk mencoba isi form, save draft, continue, dan submit final.",
+    description: "Test task untuk mencoba isi form, save draft, continue, dan submit final.",
     formTemplateId: "FORM-OPENING",
     activity: [
       {

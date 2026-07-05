@@ -9,13 +9,9 @@ export function DataTableEmptyState() {
         <SlidersHorizontal className="h-5 w-5" />
       </div>
 
-      <p className="mt-3 text-sm font-semibold text-slate-900">
-        No data found
-      </p>
+      <p className="mt-3 text-sm font-semibold text-slate-900">No data found</p>
 
-      <p className="mt-1 text-sm text-slate-500">
-        Try changing your search keyword or filters.
-      </p>
+      <p className="mt-1 text-sm text-slate-500">Try changing your search keyword or filters.</p>
     </div>
   );
 }

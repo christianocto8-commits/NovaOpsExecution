@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import {
-  EnterpriseFilterDefinition,
-  EnterpriseFilterState,
-  EnterpriseFilterValue,
-} from "../types";
+import { EnterpriseFilterDefinition, EnterpriseFilterState, EnterpriseFilterValue } from "../types";
 import {
   compactFilters,
   createInitialFilterState,
@@ -30,10 +26,7 @@ export function useEnterpriseFilters({
 
   const [filters, setFilters] = useState<EnterpriseFilterState>(initialState);
 
-  const activeFilterCount = useMemo(
-    () => getActiveFilterCount(filters),
-    [filters]
-  );
+  const activeFilterCount = useMemo(() => getActiveFilterCount(filters), [filters]);
 
   const compactedFilters = useMemo(() => compactFilters(filters), [filters]);
 
@@ -50,11 +43,7 @@ export function useEnterpriseFilters({
     if (!definition) return;
 
     const emptyValue =
-      definition.type === "multi_select"
-        ? []
-        : definition.type === "boolean"
-          ? null
-          : "";
+      definition.type === "multi_select" ? [] : definition.type === "boolean" ? null : "";
 
     setFilters((current) => ({
       ...current,

@@ -1,10 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  deleteDraft,
-  DraftsResponse,
-  getDrafts,
-  publishDraft,
-} from "../services/drafts-api";
+import { deleteDraft, DraftsResponse, getDrafts, publishDraft } from "../services/drafts-api";
 
 export function useDrafts() {
   return useQuery({
@@ -35,7 +30,7 @@ export function usePublishDraft() {
                   status: "published",
                   updatedAt: "Just now",
                 }
-              : item,
+              : item
           ),
         };
       });

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { chartTheme } from "../hooks/use-chart-theme";
 import { ChartData } from "../types";

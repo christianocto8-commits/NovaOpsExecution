@@ -86,9 +86,7 @@ export function useUsersWorkspace() {
   }
 
   function updateStatus(id: string, status: UserStatus) {
-    setUsers((current) =>
-      current.map((user) => (user.id === id ? { ...user, status } : user))
-    );
+    setUsers((current) => current.map((user) => (user.id === id ? { ...user, status } : user)));
   }
 
   return {

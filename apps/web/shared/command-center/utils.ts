@@ -1,4 +1,4 @@
-import { CommandItem } from "./types";
+﻿import { CommandItem } from "./types";
 
 export function filterCommandItems(items: CommandItem[], query: string) {
   const value = query.trim().toLowerCase();
@@ -24,4 +24,11 @@ export function groupCommandItems(items: CommandItem[]) {
     groups[item.group].push(item);
     return groups;
   }, {});
+}
+
+export function getGroupLabel(group: string) {
+  return group
+    .split(/[-_]/g)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

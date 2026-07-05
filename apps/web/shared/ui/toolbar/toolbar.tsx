@@ -13,13 +13,9 @@ export function Toolbar({ left, right, children }: ToolbarProps) {
         children
       ) : (
         <>
-          <div className="flex flex-1 flex-col gap-3 md:flex-row md:items-center">
-            {left}
-          </div>
+          <div className="flex flex-1 flex-col gap-3 md:flex-row md:items-center">{left}</div>
 
-          {right ? (
-            <div className="flex shrink-0 items-center gap-2">{right}</div>
-          ) : null}
+          {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
         </>
       )}
     </div>

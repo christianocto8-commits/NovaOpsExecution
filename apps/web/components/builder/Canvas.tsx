@@ -41,9 +41,7 @@ export function Canvas({ builder }: Props) {
             }`}
           >
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-[#274733]">
-                {section.title}
-              </h3>
+              <h3 className="text-lg font-bold text-[#274733]">{section.title}</h3>
               <p className="text-sm text-gray-500">{section.description}</p>
             </div>
 
@@ -70,20 +68,14 @@ export function Canvas({ builder }: Props) {
                   >
                     <p className="text-sm font-semibold text-[#1E1E1E]">
                       {field.label}
-                      {field.is_required && (
-                        <span className="text-red-500"> *</span>
-                      )}
+                      {field.is_required && <span className="text-red-500"> *</span>}
                     </p>
 
                     {field.help_text && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        {field.help_text}
-                      </p>
+                      <p className="mt-1 text-xs text-gray-500">{field.help_text}</p>
                     )}
 
-                    <p className="mt-2 text-xs text-gray-400">
-                      Type: {field.field_type}
-                    </p>
+                    <p className="mt-2 text-xs text-gray-400">Type: {field.field_type}</p>
                   </button>
                 ))
               )}

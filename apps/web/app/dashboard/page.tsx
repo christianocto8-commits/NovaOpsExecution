@@ -6,10 +6,7 @@ import {
   LineChartCard,
   PieChartCard,
 } from "@/shared/analytics/charts";
-import {
-  EnterpriseColumn,
-  EnterpriseDataTable,
-} from "@/shared/data-table";
+import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import {
   getOutletTaskCompletionTrend,
   getOutletTaskFormBreakdown,
@@ -45,9 +42,7 @@ const columns: EnterpriseColumn<OutletTaskStoreItem>[] = [
               : "bg-amber-50 text-amber-700";
 
       return (
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}
-        >
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
           {statusLabel}
         </span>
       );
@@ -83,15 +78,11 @@ export default function DashboardPage() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Owner Dashboard
-          </p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Outlet Task Form Overview
-          </h1>
+          <p className="text-sm font-medium text-emerald-700">Owner Dashboard</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Form Overview</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Live operational visibility based on outlet task forms, saved
-            drafts, submitted forms, completion percentage, and due status.
+            Live operational visibility based on outlet task forms, saved drafts, submitted forms,
+            completion percentage, and due status.
           </p>
         </div>
 
@@ -105,9 +96,7 @@ export default function DashboardPage() {
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Realtime
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>
             <RealtimeClock />
           </div>
         </div>
@@ -116,9 +105,7 @@ export default function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Total Tasks</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {summary.total}
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.total}</p>
           <p className="mt-1 text-xs text-emerald-700">Across all outlets</p>
         </div>
 
@@ -132,33 +119,25 @@ export default function DashboardPage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Draft</p>
-          <p className="mt-2 text-2xl font-semibold text-blue-700">
-            {summary.draft}
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">{summary.draft}</p>
           <p className="mt-1 text-xs text-emerald-700">Saved by outlet</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Pending</p>
-          <p className="mt-2 text-2xl font-semibold text-amber-700">
-            {summary.pending}
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-amber-700">{summary.pending}</p>
           <p className="mt-1 text-xs text-emerald-700">Not started</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Overdue</p>
-          <p className="mt-2 text-2xl font-semibold text-red-700">
-            {summary.overdue}
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-red-700">{summary.overdue}</p>
           <p className="mt-1 text-xs text-emerald-700">Needs attention</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Avg Progress</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {summary.averageProgress}%
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageProgress}%</p>
           <p className="mt-1 text-xs text-emerald-700">Form completion</p>
         </div>
       </section>
@@ -166,16 +145,10 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-950">
-              All Outlet Form Completion
-            </p>
-            <p className="text-xs text-slate-500">
-              Calculated from shared outlet task store.
-            </p>
+            <p className="text-sm font-semibold text-slate-950">All Outlet Form Completion</p>
+            <p className="text-xs text-slate-500">Calculated from shared outlet task store.</p>
           </div>
-          <p className="text-sm font-bold text-emerald-700">
-            {summary.averageProgress}%
-          </p>
+          <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
         </div>
 
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">

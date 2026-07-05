@@ -9,9 +9,7 @@ export function EnterpriseTopbar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-6 backdrop-blur">
       <div>
-        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Workspace
-        </div>
+        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Workspace</div>
 
         <Breadcrumb />
       </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 
@@ -19,12 +19,11 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 export function CommandCenter() {
-  const { toggleCommandCenter } = useCommandCenter();
+  const { toggle } = useCommandCenter();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      const isCommandK =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+      const isCommandK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
 
       if (!isCommandK) return;
 
@@ -33,7 +32,7 @@ export function CommandCenter() {
       }
 
       event.preventDefault();
-      toggleCommandCenter();
+      toggle();
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -41,7 +40,7 @@ export function CommandCenter() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [toggleCommandCenter]);
+  }, [toggle]);
 
   return <CommandDialog />;
 }

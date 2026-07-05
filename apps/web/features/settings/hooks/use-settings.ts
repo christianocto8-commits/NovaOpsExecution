@@ -32,11 +32,7 @@ export function useSettings() {
     settings: query.data,
     isLoading: query.isPending,
     error:
-      query.error instanceof Error
-        ? query.error.message
-        : query.error
-          ? String(query.error)
-          : null,
+      query.error instanceof Error ? query.error.message : query.error ? String(query.error) : null,
 
     reload: query.refetch,
 

@@ -1,10 +1,17 @@
-export function exportToCsv<T extends Record<string, string | number>>({
-  fileName,
-  rows,
-}: {
+﻿type ExportCsvParams<T extends Record<string, string | number>> = {
   fileName: string;
   rows: T[];
-}) {
+};
+
+export function exportToCsv<T extends Record<string, string | number>>(
+  paramsOrRows: ExportCsvParams<T> | T[],
+  legacyFileName?: string
+) {
+  const rows = Array.isArray(paramsOrRows) ? paramsOrRows : paramsOrRows.rows;
+  const fileName = Array.isArray(paramsOrRows)
+    ? (legacyFileName ?? "novaops-export")
+    : paramsOrRows.fileName;
+
   if (rows.length === 0) return;
 
   const headers = Object.keys(rows[0]);
@@ -12,9 +19,7 @@ export function exportToCsv<T extends Record<string, string | number>>({
   const csv = [
     headers.join(","),
     ...rows.map((row) =>
-      headers
-        .map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`)
-        .join(",")
+      headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(",")
     ),
   ].join("\n");
 

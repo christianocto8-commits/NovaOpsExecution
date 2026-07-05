@@ -55,10 +55,7 @@ function normalizeErrorMessage(errorBody: unknown): string {
   return String(errorBody);
 }
 
-export async function api<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   const outletId = getOutletId();
 

@@ -35,10 +35,7 @@ export async function createTaskDraft(payload: CreateTaskDraftPayload) {
   });
 }
 
-export async function updateTaskDraft(
-  draftId: number,
-  payload: UpdateTaskDraftPayload
-) {
+export async function updateTaskDraft(draftId: number, payload: UpdateTaskDraftPayload) {
   return api<TaskDraft>(`/task-drafts/${draftId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

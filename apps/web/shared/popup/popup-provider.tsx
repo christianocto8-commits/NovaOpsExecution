@@ -1,13 +1,6 @@
 ﻿"use client";
 
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
 type PopupContextValue = {
   activePopupId: string | null;
@@ -22,10 +15,7 @@ const PopupContext = createContext<PopupContextValue | null>(null);
 export function PopupProvider({ children }: { children: ReactNode }) {
   const [activePopupId, setActivePopupId] = useState<string | null>(null);
 
-  const isPopupOpen = useCallback(
-    (popupId: string) => activePopupId === popupId,
-    [activePopupId]
-  );
+  const isPopupOpen = useCallback((popupId: string) => activePopupId === popupId, [activePopupId]);
 
   const openPopup = useCallback((popupId: string) => {
     setActivePopupId(popupId);
@@ -53,11 +43,7 @@ export function PopupProvider({ children }: { children: ReactNode }) {
     [activePopupId, isPopupOpen, openPopup, closePopup, togglePopup]
   );
 
-  return (
-    <PopupContext.Provider value={value}>
-      {children}
-    </PopupContext.Provider>
-  );
+  return <PopupContext.Provider value={value}>{children}</PopupContext.Provider>;
 }
 
 export function usePopup() {

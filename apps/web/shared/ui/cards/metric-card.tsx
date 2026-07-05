@@ -23,23 +23,13 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm",
-        className
-      )}
-    >
+    <div className={cn("rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm", className)}>
       <div className="text-sm font-medium text-gray-500">{label}</div>
 
       <div className="mt-3 flex items-end justify-between gap-4">
         <div className="text-2xl font-bold text-[#1E1E1E]">{value}</div>
 
-        <span
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-semibold",
-            statusMap[status]
-          )}
-        >
+        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", statusMap[status])}>
           {status}
         </span>
       </div>

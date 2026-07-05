@@ -9,13 +9,7 @@ type ActionCardProps = {
   className?: string;
 };
 
-export function ActionCard({
-  title,
-  description,
-  icon,
-  action,
-  className,
-}: ActionCardProps) {
+export function ActionCard({ title, description, icon, action, className }: ActionCardProps) {
   return (
     <div
       className={cn(
@@ -33,9 +27,7 @@ export function ActionCard({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-[#1E1E1E]">{title}</h3>
 
-          {description ? (
-            <p className="mt-1 text-sm text-gray-500">{description}</p>
-          ) : null}
+          {description ? <p className="mt-1 text-sm text-gray-500">{description}</p> : null}
 
           {action ? <div className="mt-4">{action}</div> : null}
         </div>

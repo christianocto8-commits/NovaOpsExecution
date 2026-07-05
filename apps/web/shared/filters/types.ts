@@ -15,12 +15,7 @@
   | "is_not_empty";
 
 export type EnterpriseFilterType =
-  | "text"
-  | "select"
-  | "multi_select"
-  | "number"
-  | "date"
-  | "boolean";
+  "text" | "select" | "multi_select" | "number" | "date" | "boolean";
 
 export type EnterpriseFilterOption = {
   label: string;
@@ -49,9 +44,7 @@ export type EnterpriseFilterValue =
 
 export type EnterpriseFilterState = Record<string, EnterpriseFilterValue>;
 
-export type EnterpriseFilterChangeHandler = (
-  nextFilters: EnterpriseFilterState
-) => void;
+export type EnterpriseFilterChangeHandler = (nextFilters: EnterpriseFilterState) => void;
 
 export type EnterpriseSavedView = {
   id: string;

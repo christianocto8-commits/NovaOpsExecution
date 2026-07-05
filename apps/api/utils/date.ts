@@ -1,5 +1,3 @@
-export function formatDate(date:string){
-
-    return new Date(date).toLocaleString();
-
+export function formatDate(date: string) {
+  return new Date(date).toLocaleString();
 }

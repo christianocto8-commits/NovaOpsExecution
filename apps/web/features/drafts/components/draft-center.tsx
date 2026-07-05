@@ -154,12 +154,9 @@ export function DraftCenter() {
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#3D6B49]">
           Sprint 06B
         </p>
-        <h1 className="mt-2 text-3xl font-bold text-[#274733]">
-          Draft Center
-        </h1>
+        <h1 className="mt-2 text-3xl font-bold text-[#274733]">Draft Center</h1>
         <p className="mt-3 max-w-2xl text-sm text-[#66756B]">
-          Prepare task drafts before publishing them into live operational task
-          execution.
+          Prepare task drafts before publishing them into live operational task execution.
         </p>
       </header>
 
@@ -172,21 +169,12 @@ export function DraftCenter() {
       <section className="rounded-3xl border border-[#DDE8E1] bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-[#274733]">Create Draft</h2>
 
-        <form
-          onSubmit={handleSubmit(handleCreateDraft)}
-          className="mt-5 grid gap-4"
-        >
+        <form onSubmit={handleSubmit(handleCreateDraft)} className="mt-5 grid gap-4">
           <EnterpriseField label="Title" error={errors.title?.message}>
-            <EnterpriseInput
-              {...register("title")}
-              placeholder="Draft task title"
-            />
+            <EnterpriseInput {...register("title")} placeholder="Draft task title" />
           </EnterpriseField>
 
-          <EnterpriseField
-            label="Description"
-            error={errors.description?.message}
-          >
+          <EnterpriseField label="Description" error={errors.description?.message}>
             <EnterpriseTextarea
               {...register("description")}
               placeholder="Draft description"

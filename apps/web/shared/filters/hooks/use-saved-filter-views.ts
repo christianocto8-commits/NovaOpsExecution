@@ -2,15 +2,8 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import {
-  EnterpriseFilterState,
-  EnterpriseSavedView,
-} from "../types";
-import {
-  createSavedView,
-  parseSavedViews,
-  serializeSavedViews,
-} from "../utils/saved-view-utils";
+import { EnterpriseFilterState, EnterpriseSavedView } from "../types";
+import { createSavedView, parseSavedViews, serializeSavedViews } from "../utils/saved-view-utils";
 
 const SAVED_VIEW_EVENT = "novaops-saved-filter-views-change";
 
@@ -63,10 +56,7 @@ export function useSavedFilterViews(scope = "default") {
     getServerSavedViewsSnapshot
   );
 
-  const defaultView = useMemo(
-    () => views.find((view) => view.isDefault) ?? null,
-    [views]
-  );
+  const defaultView = useMemo(() => views.find((view) => view.isDefault) ?? null, [views]);
 
   const saveViews = useCallback(
     (nextViews: EnterpriseSavedView[]) => {
@@ -103,8 +93,7 @@ export function useSavedFilterViews(scope = "default") {
         views.map((view) => ({
           ...view,
           isDefault: view.id === viewId,
-          updatedAt:
-            view.id === viewId ? new Date().toISOString() : view.updatedAt,
+          updatedAt: view.id === viewId ? new Date().toISOString() : view.updatedAt,
         }))
       );
     },

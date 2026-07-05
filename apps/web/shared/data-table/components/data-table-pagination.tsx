@@ -14,8 +14,8 @@ export function DataTablePagination({
   return (
     <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
       <p>
-        Showing page <span className="font-medium text-slate-900">{page}</span>{" "}
-        of <span className="font-medium text-slate-900">{totalPages}</span> ·{" "}
+        Showing page <span className="font-medium text-slate-900">{page}</span> of{" "}
+        <span className="font-medium text-slate-900">{totalPages}</span> ·{" "}
         <span className="font-medium text-slate-900">{totalRows}</span> rows
       </p>
 

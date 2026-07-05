@@ -43,10 +43,7 @@ export class WorkflowEngine {
     return Boolean(item?.id);
   }
 
-  static isSameWorkflowItem(a?: WorkflowInboxFilter,
-  WorkflowInboxItem,
-  WorkflowInboxSort,
-  WorkflowItem, b?: WorkflowItem) {
+  static isSameWorkflowItem(a?: WorkflowItem, b?: WorkflowItem) {
     return Boolean(a && b && a.id === b.id && a.module === b.module);
   }
 
@@ -60,23 +57,16 @@ export class WorkflowEngine {
 
   static canEdit(item?: WorkflowItem) {
     if (!item) return false;
-
     return !this.isTerminal(item.status);
   }
 
   static canSubmit(item?: WorkflowItem) {
     if (!item) return false;
-
-    return ["draft", "assigned", "in_progress", "revision_required"].includes(
-      item.status
-    );
+    return ["draft", "assigned", "in_progress", "revision_required"].includes(item.status);
   }
 
   static getAvailableTransitions(item?: WorkflowItem) {
-    if (!item) return [];
-
-    if (this.isTerminal(item.status)) return [];
-
+    if (!item || this.isTerminal(item.status)) return [];
     return getWorkflowTransitionsFrom(item.status);
   }
 
@@ -88,6 +78,7 @@ export class WorkflowEngine {
       return {
         allowed: false,
         from: "draft",
+        action,
         reason: "Workflow item is missing.",
       };
     }
@@ -130,12 +121,8 @@ export class WorkflowEngine {
     };
   }
 
-  static getNextStatus(
-    item: WorkflowItem | undefined,
-    action: WorkflowTransitionAction
-  ) {
+  static getNextStatus(item: WorkflowItem | undefined, action: WorkflowTransitionAction) {
     const result = this.canTransition(item, action);
-
     return result.allowed ? result.to : undefined;
   }
 
@@ -157,7 +144,6 @@ export class WorkflowEngine {
       .sort((a, b) => {
         const outletScoreA = a.outletId ? 10 : 0;
         const outletScoreB = b.outletId ? 10 : 0;
-
         const priorityScoreA = getWorkflowPriorityWeight(a.priority);
         const priorityScoreB = getWorkflowPriorityWeight(b.priority);
 
@@ -180,10 +166,7 @@ export class WorkflowEngine {
   }
 
   static assignItem(
-    item: WorkflowInboxFilter,
-  WorkflowInboxItem,
-  WorkflowInboxSort,
-  WorkflowItem,
+    item: WorkflowItem,
     rules: WorkflowAssignmentRule[],
     currentRole?: WorkflowRole
   ): WorkflowItem {
@@ -200,10 +183,7 @@ export class WorkflowEngine {
     };
   }
 
-  static resolveSlaPolicy(
-    item: WorkflowItem | undefined,
-    policies: WorkflowSlaPolicy[]
-  ) {
+  static resolveSlaPolicy(item: WorkflowItem | undefined, policies: WorkflowSlaPolicy[]) {
     if (!item) return undefined;
 
     return policies
@@ -211,7 +191,6 @@ export class WorkflowEngine {
       .sort((a, b) => {
         const outletScoreA = a.outletId ? 10 : 0;
         const outletScoreB = b.outletId ? 10 : 0;
-
         const priorityScoreA = getWorkflowPriorityWeight(a.priority);
         const priorityScoreB = getWorkflowPriorityWeight(b.priority);
 
@@ -219,13 +198,7 @@ export class WorkflowEngine {
       })[0];
   }
 
-  static applySla(
-    item: WorkflowInboxFilter,
-  WorkflowInboxItem,
-  WorkflowInboxSort,
-  WorkflowItem,
-    policies: WorkflowSlaPolicy[]
-  ): WorkflowItem {
+  static applySla(item: WorkflowItem, policies: WorkflowSlaPolicy[]): WorkflowItem {
     if (item.dueAt) return item;
 
     const policy = this.resolveSlaPolicy(item, policies);
@@ -240,10 +213,7 @@ export class WorkflowEngine {
     };
   }
 
-  static evaluateSla(
-    item: WorkflowItem | undefined,
-    now = new Date()
-  ): WorkflowSlaEvaluation {
+  static evaluateSla(item: WorkflowItem | undefined, now = new Date()): WorkflowSlaEvaluation {
     if (!item) {
       return {
         status: "none",
@@ -267,9 +237,7 @@ export class WorkflowEngine {
     }
 
     const dueDate = new Date(item.dueAt);
-    const remainingMinutes = Math.ceil(
-      (dueDate.getTime() - now.getTime()) / 60000
-    );
+    const remainingMinutes = Math.ceil((dueDate.getTime() - now.getTime()) / 60000);
 
     if (remainingMinutes < 0) {
       return {
@@ -294,14 +262,10 @@ export class WorkflowEngine {
     };
   }
 
-  static markOverdueIfNeeded(item: WorkflowInboxFilter,
-  WorkflowInboxItem,
-  WorkflowInboxSort,
-  WorkflowItem, now = new Date()): WorkflowItem {
+  static markOverdueIfNeeded(item: WorkflowItem, now = new Date()): WorkflowItem {
     const evaluation = this.evaluateSla(item, now);
 
     if (evaluation.status !== "overdue") return item;
-
     if (item.status === "overdue") return item;
 
     return {
@@ -390,17 +354,11 @@ export class WorkflowEngine {
   }
 
   static resolveNotificationRecipients(
-    item: WorkflowInboxFilter,
-  WorkflowInboxItem,
-  WorkflowInboxSort,
-  WorkflowItem,
+    item: WorkflowItem,
     rules: WorkflowNotificationRule[],
     event?: WorkflowTimelineEvent
   ): WorkflowNotificationRecipient[] {
-    const matchedRules = rules.filter((rule) =>
-      workflowNotificationRuleMatches(rule, item, event)
-    );
-
+    const matchedRules = rules.filter((rule) => workflowNotificationRuleMatches(rule, item, event));
     const recipients = matchedRules.flatMap((rule) => rule.recipients);
 
     if (recipients.length > 0) {
@@ -422,9 +380,7 @@ export class WorkflowEngine {
     return [];
   }
 
-  static dedupeNotificationRecipients(
-    recipients: WorkflowNotificationRecipient[]
-  ) {
+  static dedupeNotificationRecipients(recipients: WorkflowNotificationRecipient[]) {
     const recipientMap = new Map<string, WorkflowNotificationRecipient>();
 
     recipients.forEach((recipient) => {
@@ -450,8 +406,7 @@ export class WorkflowEngine {
       priority: item.priority === "critical" ? "critical" : "normal",
       title: event.title,
       message:
-        event.description ??
-        `${item.title} has workflow event: ${event.type.replace(/_/g, " ")}.`,
+        event.description ?? `${item.title} has workflow event: ${event.type.replace(/_/g, " ")}.`,
       recipients,
       metadata: {
         eventId: event.id,

@@ -1,5 +1,1 @@
-export type Status =
-    | "draft"
-    | "published"
-    | "active"
-    | "completed";
+export type Status = "draft" | "published" | "active" | "completed";

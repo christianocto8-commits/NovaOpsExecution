@@ -31,9 +31,7 @@ export function OutletProvider({ children }: { children: ReactNode }) {
     [currentOutlet, outlets, isLoading]
   );
 
-  return (
-    <OutletContext.Provider value={value}>{children}</OutletContext.Provider>
-  );
+  return <OutletContext.Provider value={value}>{children}</OutletContext.Provider>;
 }
 
 export function useOutlet() {

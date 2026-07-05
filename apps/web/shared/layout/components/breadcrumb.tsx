@@ -4,9 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 function toTitle(value: string) {
-  return value
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return value.replaceAll("-", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function Breadcrumb() {

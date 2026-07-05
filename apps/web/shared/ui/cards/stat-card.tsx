@@ -10,27 +10,13 @@ type StatCardProps = {
   className?: string;
 };
 
-export function StatCard({
-  title,
-  value,
-  description,
-  icon,
-  trend,
-  className,
-}: StatCardProps) {
+export function StatCard({ title, value, description, icon, trend, className }: StatCardProps) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-[#E7ECE9] bg-white p-6 shadow-sm",
-        className
-      )}
-    >
+    <div className={cn("rounded-2xl border border-[#E7ECE9] bg-white p-6 shadow-sm", className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm font-medium text-gray-500">{title}</div>
-          <div className="mt-3 text-3xl font-bold tracking-tight text-[#274733]">
-            {value}
-          </div>
+          <div className="mt-3 text-3xl font-bold tracking-tight text-[#274733]">{value}</div>
         </div>
 
         {icon ? (
@@ -40,9 +26,7 @@ export function StatCard({
         ) : null}
       </div>
 
-      {description ? (
-        <p className="mt-3 text-xs text-gray-500">{description}</p>
-      ) : null}
+      {description ? <p className="mt-3 text-xs text-gray-500">{description}</p> : null}
 
       {trend ? (
         <div className="mt-4 inline-flex rounded-full bg-[#EAF1EC] px-3 py-1 text-xs font-semibold text-[#274733]">

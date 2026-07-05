@@ -103,12 +103,8 @@ export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-500">
-                Draft Detail
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                {draft.title}
-              </h2>
+              <p className="text-sm font-medium text-slate-500">Draft Detail</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">{draft.title}</h2>
             </div>
 
             <button
@@ -130,10 +126,7 @@ export function DraftDetailDrawer({ draft, open, onClose, onUpdated }: Props) {
             <EnterpriseInput {...register("title")} required />
           </EnterpriseField>
 
-          <EnterpriseField
-            label="Description"
-            error={errors.description?.message}
-          >
+          <EnterpriseField label="Description" error={errors.description?.message}>
             <EnterpriseTextarea {...register("description")} rows={6} />
           </EnterpriseField>
 

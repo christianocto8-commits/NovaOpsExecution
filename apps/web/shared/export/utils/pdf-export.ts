@@ -1,4 +1,4 @@
-import jsPDF from "jspdf";
+﻿import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 type ExportColumn<T> = {
@@ -7,7 +7,8 @@ type ExportColumn<T> = {
 };
 
 type ExportPdfParams<T extends Record<string, string | number>> = {
-  fileName: string;
+  fileName?: string;
+  filename?: string;
   title: string;
   columns: ExportColumn<T>[];
   rows: T[];
@@ -16,11 +17,14 @@ type ExportPdfParams<T extends Record<string, string | number>> = {
 
 export function exportToPdf<T extends Record<string, string | number>>({
   fileName,
+  filename,
   title,
   columns,
   rows,
   openInNewTab = false,
 }: ExportPdfParams<T>) {
+  const resolvedFileName = fileName ?? filename ?? "novaops-export";
+
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
@@ -42,9 +46,7 @@ export function exportToPdf<T extends Record<string, string | number>>({
   autoTable(doc, {
     startY: 48,
     head: [columns.map((column) => column.label)],
-    body: rows.map((row) =>
-      columns.map((column) => String(row[column.key] ?? ""))
-    ),
+    body: rows.map((row) => columns.map((column) => String(row[column.key] ?? ""))),
     styles: {
       fontSize: 8,
       cellPadding: 3,
@@ -74,5 +76,5 @@ export function exportToPdf<T extends Record<string, string | number>>({
     return;
   }
 
-  doc.save(`${fileName}.pdf`);
+  doc.save(`${resolvedFileName}.pdf`);
 }

@@ -30,9 +30,7 @@ export function calculateFormProgress(
     };
   }
 
-  const completed = activeRequiredFields.filter((field) =>
-    isFilled(values[field.id])
-  ).length;
+  const completed = activeRequiredFields.filter((field) => isFilled(values[field.id])).length;
 
   const remaining = total - completed;
   const percentage = Math.round((completed / total) * 100);

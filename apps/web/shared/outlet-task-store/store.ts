@@ -3,11 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 import { initialOutletTaskStoreItems } from "./data";
-import {
-  OutletTaskExecutionStatus,
-  OutletTaskStoreItem,
-  OutletTaskStoreSummary,
-} from "./types";
+import { OutletTaskExecutionStatus, OutletTaskStoreItem, OutletTaskStoreSummary } from "./types";
 
 let outletTaskItems: OutletTaskStoreItem[] = initialOutletTaskStoreItems;
 
@@ -46,10 +42,7 @@ export function setOutletTaskStoreItems(items: OutletTaskStoreItem[]) {
   emitChange();
 }
 
-export function updateOutletTaskStoreItem(
-  id: string,
-  patch: Partial<OutletTaskStoreItem>
-) {
+export function updateOutletTaskStoreItem(id: string, patch: Partial<OutletTaskStoreItem>) {
   outletTaskItems = outletTaskItems.map((item) =>
     item.id === id
       ? {
@@ -120,14 +113,10 @@ export function getOutletTaskStoreSummary(
   const overdue = items.filter((item) => item.status === "overdue").length;
 
   const averageProgress =
-    total > 0
-      ? Math.round(items.reduce((sum, item) => sum + item.progress, 0) / total)
-      : 0;
+    total > 0 ? Math.round(items.reduce((sum, item) => sum + item.progress, 0) / total) : 0;
 
   const averageScore =
-    total > 0
-      ? Math.round(items.reduce((sum, item) => sum + item.score, 0) / total)
-      : 0;
+    total > 0 ? Math.round(items.reduce((sum, item) => sum + item.score, 0) / total) : 0;
 
   return {
     total,
@@ -142,9 +131,7 @@ export function getOutletTaskStoreSummary(
 }
 
 export function getOutletTaskCompletedCount(items: OutletTaskStoreItem[]) {
-  return items.filter((item) =>
-    ["submitted", "completed"].includes(item.status)
-  ).length;
+  return items.filter((item) => ["submitted", "completed"].includes(item.status)).length;
 }
 
 export function getOutletTaskStatusDistribution(items: OutletTaskStoreItem[]) {
@@ -166,10 +153,7 @@ export function getOutletTaskPerformance(items: OutletTaskStoreItem[]) {
 
     const progress =
       outletItems.length > 0
-        ? Math.round(
-            outletItems.reduce((sum, item) => sum + item.progress, 0) /
-              outletItems.length
-          )
+        ? Math.round(outletItems.reduce((sum, item) => sum + item.progress, 0) / outletItems.length)
         : 0;
 
     return {

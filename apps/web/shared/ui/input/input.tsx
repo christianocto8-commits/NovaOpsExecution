@@ -6,19 +6,11 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
 };
 
-export function Input({
-  label,
-  hint,
-  error,
-  className = "",
-  ...props
-}: InputProps) {
+export function Input({ label, hint, error, className = "", ...props }: InputProps) {
   return (
     <label className="block">
       {label ? (
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
-          {label}
-        </span>
+        <span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>
       ) : null}
 
       <input
@@ -33,9 +25,7 @@ export function Input({
       />
 
       {error ? (
-        <span className="mt-1.5 block text-xs font-medium text-red-600">
-          {error}
-        </span>
+        <span className="mt-1.5 block text-xs font-medium text-red-600">{error}</span>
       ) : hint ? (
         <span className="mt-1.5 block text-xs text-slate-500">{hint}</span>
       ) : null}

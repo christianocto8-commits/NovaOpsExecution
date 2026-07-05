@@ -86,9 +86,7 @@ function SectionCard({
   return (
     <section
       className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-300 ${
-        sectionHasHighlight
-          ? "border-red-200 ring-2 ring-red-100"
-          : "border-slate-200"
+        sectionHasHighlight ? "border-red-200 ring-2 ring-red-100" : "border-slate-200"
       }`}
     >
       <button
@@ -99,8 +97,8 @@ function SectionCard({
         <div>
           <p className="text-sm font-bold text-slate-950">{section.title}</p>
           <p className="mt-1 text-xs text-slate-500">
-            {section.fields.length} fields · {progress.completed} of{" "}
-            {progress.total} required completed
+            {section.fields.length} fields · {progress.completed} of {progress.total} required
+            completed
           </p>
         </div>
 

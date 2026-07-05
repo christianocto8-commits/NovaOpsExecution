@@ -8,10 +8,9 @@ type PanelProps = {
 export function Panel({ children, className = "" }: PanelProps) {
   return (
     <div
-      className={[
-        "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm",
-        className,
-      ].join(" ")}
+      className={["rounded-3xl border border-slate-200 bg-white p-5 shadow-sm", className].join(
+        " "
+      )}
     >
       {children}
     </div>

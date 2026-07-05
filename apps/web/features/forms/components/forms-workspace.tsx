@@ -41,12 +41,10 @@ export function FormsWorkspace() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">My Forms</p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Operational Forms
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-950">Operational Forms</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Build reusable operational checklists for tasks, audits, cleaning,
-            inventory, and outlet execution.
+            Build reusable operational checklists for tasks, audits, cleaning, inventory, and outlet
+            execution.
           </p>
         </div>
 

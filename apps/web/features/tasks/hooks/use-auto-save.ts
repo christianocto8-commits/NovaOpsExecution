@@ -11,11 +11,7 @@ type UseAutoSaveOptions = {
   getPayload: () => AutoSavePayload | null;
 };
 
-export function useAutoSave({
-  delay = 1500,
-  enabled = true,
-  getPayload,
-}: UseAutoSaveOptions) {
+export function useAutoSave({ delay = 1500, enabled = true, getPayload }: UseAutoSaveOptions) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 

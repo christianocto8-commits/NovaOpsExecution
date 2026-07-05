@@ -23,34 +23,13 @@ function MetricCard({
   );
 }
 
-export function UserMetrics({
-  total,
-  active,
-  pending,
-  suspended,
-}: UserMetricsProps) {
+export function UserMetrics({ total, active, pending, suspended }: UserMetricsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-4">
-      <MetricCard
-        label="Total Users"
-        value={total}
-        description="Registered enterprise users"
-      />
-      <MetricCard
-        label="Active Users"
-        value={active}
-        description="Enabled accounts"
-      />
-      <MetricCard
-        label="Pending Invites"
-        value={pending}
-        description="Waiting for activation"
-      />
-      <MetricCard
-        label="Suspended"
-        value={suspended}
-        description="Restricted access"
-      />
+      <MetricCard label="Total Users" value={total} description="Registered enterprise users" />
+      <MetricCard label="Active Users" value={active} description="Enabled accounts" />
+      <MetricCard label="Pending Invites" value={pending} description="Waiting for activation" />
+      <MetricCard label="Suspended" value={suspended} description="Restricted access" />
     </div>
   );
 }

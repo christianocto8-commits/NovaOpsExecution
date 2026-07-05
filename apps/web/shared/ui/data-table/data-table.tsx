@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+﻿import { ReactNode } from "react";
 
 export type DataTableColumn<T> = {
   key: keyof T | string;
@@ -68,7 +68,7 @@ export function DataTable<T>({
                     >
                       {column.render
                         ? column.render(row)
-                        : String((row as Record<string, unknown>)[column.key] ?? "-")}
+                        : String((row as Record<string, unknown>)[String(column.key)] ?? "-")}
                     </td>
                   ))}
                 </tr>

@@ -4,18 +4,12 @@ import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
-import {
-  SectionedFormRenderer,
-  getMissingRequiredFields,
-} from "@/features/forms/renderer";
+import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { useAutoSave } from "@/features/tasks/hooks/use-auto-save";
 import { useUnsavedChangesGuard } from "@/features/tasks/hooks/use-unsaved-changes-guard";
 import { Task, TaskExecutionForm } from "@/features/tasks/types";
 import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
-import {
-  FormProgressBar,
-  useFormProgress,
-} from "@/shared/form-progress";
+import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { SaveIndicator } from "@/shared/status";
 
 type OutletTaskExecutionDrawerProps = {
@@ -41,9 +35,7 @@ function hasFormData(form: TaskExecutionForm) {
     Boolean(form.operatorName.trim()) ||
     Boolean(form.note.trim()) ||
     Boolean(form.evidenceText.trim()) ||
-    Object.values(form.formResponses).some((value) =>
-      String(value ?? "").trim()
-    )
+    Object.values(form.formResponses).some((value) => String(value ?? "").trim())
   );
 }
 
@@ -57,9 +49,7 @@ function parseEvidenceItems(value: string): EvidenceItem[] {
 
     return parsed.filter(
       (item): item is EvidenceItem =>
-        Boolean(item) &&
-        typeof item.id === "string" &&
-        typeof item.url === "string"
+        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
     );
   } catch {
     return [];
@@ -84,10 +74,7 @@ export function OutletTaskExecutionDrawer({
 
   const template = task ? getFormTemplate(task.formTemplateId) : null;
 
-  const evidenceItems = useMemo(
-    () => parseEvidenceItems(form.evidenceText),
-    [form.evidenceText]
-  );
+  const evidenceItems = useMemo(() => parseEvidenceItems(form.evidenceText), [form.evidenceText]);
 
   const missingRequiredFields = template
     ? getMissingRequiredFields(template.fields, form.formResponses)
@@ -180,9 +167,7 @@ export function OutletTaskExecutionDrawer({
       setHighlightedFieldIds(ids);
 
       window.setTimeout(() => {
-        const firstField = document.querySelector(
-          `[data-form-field-id="${ids[0]}"]`
-        );
+        const firstField = document.querySelector(`[data-form-field-id="${ids[0]}"]`);
 
         firstField?.scrollIntoView({
           behavior: "smooth",
@@ -218,9 +203,7 @@ export function OutletTaskExecutionDrawer({
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
                 Outlet Execution
               </p>
-              <h2 className="mt-1 text-xl font-bold text-slate-950">
-                {task.title}
-              </h2>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">{task.title}</h2>
               <p className="mt-1 text-sm text-slate-500">
                 {template
                   ? `${template.name} • ${template.fields.length} fields`
@@ -254,12 +237,10 @@ export function OutletTaskExecutionDrawer({
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-sm font-semibold text-emerald-900">
-              Operator audit required
-            </p>
+            <p className="text-sm font-semibold text-emerald-900">Operator audit required</p>
             <p className="mt-1 text-sm leading-6 text-emerald-800">
-              Isi semua field required sebelum submit final. Save Draft tetap
-              bisa digunakan untuk melanjutkan nanti.
+              Isi semua field required sebelum submit final. Save Draft tetap bisa digunakan untuk
+              melanjutkan nanti.
             </p>
           </section>
 
@@ -268,7 +249,9 @@ export function OutletTaskExecutionDrawer({
               <p className="text-sm font-bold text-amber-900">
                 Complete all required fields before submitting this task.
               </p>
-              <p className="mt-1 text-xs text-amber-700">The first missing field will be highlighted automatically when you press Submit.</p>
+              <p className="mt-1 text-xs text-amber-700">
+                The first missing field will be highlighted automatically when you press Submit.
+              </p>
 
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
                 {missingRequiredFields.map((field) => (
@@ -280,30 +263,23 @@ export function OutletTaskExecutionDrawer({
 
           <section className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Operator Name
-              </label>
+              <label className="text-sm font-semibold text-slate-700">Operator Name</label>
               <input
                 value={form.operatorName}
-                onChange={(event) =>
-                  updateForm({ ...form, operatorName: event.target.value })
-                }
+                onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
                 placeholder="Contoh: Fajar"
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-600"
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Operator Position
-              </label>
+              <label className="text-sm font-semibold text-slate-700">Operator Position</label>
               <select
                 value={form.operatorPosition}
                 onChange={(event) =>
                   updateForm({
                     ...form,
-                    operatorPosition: event.target
-                      .value as TaskExecutionForm["operatorPosition"],
+                    operatorPosition: event.target.value as TaskExecutionForm["operatorPosition"],
                   })
                 }
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-600"
@@ -320,44 +296,31 @@ export function OutletTaskExecutionDrawer({
           {template ? (
             <section>
               <div className="mb-3">
-                <p className="text-sm font-bold text-slate-950">
-                  {template.name}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {template.description}
-                </p>
+                <p className="text-sm font-bold text-slate-950">{template.name}</p>
+                <p className="text-sm text-slate-500">{template.description}</p>
               </div>
 
               <SectionedFormRenderer
                 fields={template.fields}
                 responses={form.formResponses}
-                onChange={(formResponses) =>
-                  updateForm({ ...form, formResponses })
-                }
+                onChange={(formResponses) => updateForm({ ...form, formResponses })}
                 highlightedFieldIds={highlightedFieldIds}
               />
             </section>
           ) : null}
 
           <section>
-            <label className="text-sm font-semibold text-slate-700">
-              Execution Note
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Execution Note</label>
             <textarea
               value={form.note}
-              onChange={(event) =>
-                updateForm({ ...form, note: event.target.value })
-              }
+              onChange={(event) => updateForm({ ...form, note: event.target.value })}
               placeholder="Catatan pengerjaan task"
               rows={4}
               className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-600"
             />
           </section>
 
-          <EvidenceGallery
-            value={evidenceItems}
-            onChange={handleEvidenceChange}
-          />
+          <EvidenceGallery value={evidenceItems} onChange={handleEvidenceChange} />
         </div>
 
         <div className="sticky bottom-0 grid gap-3 border-t border-slate-200 bg-white/95 p-6 backdrop-blur sm:grid-cols-3">
@@ -391,11 +354,3 @@ export function OutletTaskExecutionDrawer({
     </div>
   );
 }
-
-
-
-
-
-
-
-

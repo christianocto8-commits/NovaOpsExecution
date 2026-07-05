@@ -35,12 +35,8 @@ export function OutletDetailDrawer({
         <div className="border-b border-slate-200 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-emerald-700">
-                Outlet Profile
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                {outlet.name}
-              </h2>
+              <p className="text-sm font-medium text-emerald-700">Outlet Profile</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">{outlet.name}</h2>
               <p className="mt-1 text-sm text-slate-500">
                 {outlet.id} • {outlet.area}
               </p>
@@ -59,9 +55,7 @@ export function OutletDetailDrawer({
         <div className="space-y-6 p-6">
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Status
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
               <span
                 className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getOutletStatusClass(
                   outlet.status
@@ -72,9 +66,7 @@ export function OutletDetailDrawer({
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Tier
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tier</p>
               <span
                 className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getOutletTierClass(
                   outlet.tier
@@ -88,18 +80,14 @@ export function OutletDetailDrawer({
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Compliance
               </p>
-              <p className="mt-2 text-sm font-semibold text-emerald-800">
-                {outlet.compliance}
-              </p>
+              <p className="mt-2 text-sm font-semibold text-emerald-800">{outlet.compliance}</p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Open Tasks
               </p>
-              <p className="mt-2 text-sm font-semibold text-slate-800">
-                {outlet.openTasks}
-              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{outlet.openTasks}</p>
             </div>
           </div>
 
@@ -107,17 +95,13 @@ export function OutletDetailDrawer({
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Outlet Account
             </p>
-            <p className="mt-2 text-sm font-medium text-slate-800">
-              {outlet.accountEmail}
-            </p>
+            <p className="mt-2 text-sm font-medium text-slate-800">{outlet.accountEmail}</p>
           </div>
 
           <div className="rounded-2xl border border-slate-200">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
               <div>
-                <h3 className="font-semibold text-slate-950">
-                  Outlet Operators
-                </h3>
+                <h3 className="font-semibold text-slate-950">Outlet Operators</h3>
                 <p className="text-sm text-slate-500">
                   Operators are used for task execution audit.
                 </p>
@@ -136,14 +120,9 @@ export function OutletDetailDrawer({
             <div className="divide-y divide-slate-100">
               {operators.length > 0 ? (
                 operators.map((operator) => (
-                  <div
-                    key={operator.id}
-                    className="flex items-center justify-between gap-4 p-4"
-                  >
+                  <div key={operator.id} className="flex items-center justify-between gap-4 p-4">
                     <div>
-                      <p className="font-semibold text-slate-950">
-                        {operator.name}
-                      </p>
+                      <p className="font-semibold text-slate-950">{operator.name}</p>
                       <p className="text-sm text-slate-500">
                         {operator.position} • PIN {operator.pin}
                       </p>

@@ -2,11 +2,7 @@
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
-import {
-  exportToCsv,
-  exportToExcel,
-  exportToPdf,
-} from "@/shared/export/utils";
+import { exportToCsv, exportToExcel, exportToPdf } from "@/shared/export/utils";
 
 import { User, UserStatus } from "../types";
 import { getUserRoleClass, getUserStatusClass } from "../utils";
@@ -23,7 +19,7 @@ const userFilterDefinitions = [
   {
     key: "role",
     label: "Role",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Owner/Admin", value: "Owner/Admin" },
       { label: "Area Manager", value: "Area Manager" },
@@ -33,7 +29,7 @@ const userFilterDefinitions = [
   {
     key: "outletScope",
     label: "Outlet Scope",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "All Outlets", value: "All Outlets" },
       { label: "Multiple Outlets", value: "Multiple Outlets" },
@@ -43,7 +39,7 @@ const userFilterDefinitions = [
   {
     key: "status",
     label: "Status",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Active", value: "Active" },
       { label: "Pending", value: "Pending" },
@@ -53,7 +49,7 @@ const userFilterDefinitions = [
   {
     key: "email",
     label: "Email",
-    type: "text",
+    type: "text" as const,
   },
 ];
 
@@ -101,9 +97,7 @@ export function UserTable({
             {getInitials(user.name)}
           </span>
           <span>
-            <span className="block font-semibold text-slate-950">
-              {user.name}
-            </span>
+            <span className="block font-semibold text-slate-950">{user.name}</span>
             <span className="block text-xs text-slate-500">{user.email}</span>
           </span>
         </button>
@@ -133,9 +127,7 @@ export function UserTable({
       header: "Outlet Access",
       sortable: true,
       render: (user) => (
-        <span className="max-w-[260px] truncate text-sm text-slate-700">
-          {user.outlet}
-        </span>
+        <span className="max-w-[260px] truncate text-sm text-slate-700">{user.outlet}</span>
       ),
     },
     {
@@ -145,9 +137,7 @@ export function UserTable({
       render: (user) => (
         <select
           value={user.status}
-          onChange={(event) =>
-            onStatusChange(user.id, event.target.value as UserStatus)
-          }
+          onChange={(event) => onStatusChange(user.id, event.target.value as UserStatus)}
           className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getUserStatusClass(
             user.status
           )}`}
@@ -190,8 +180,12 @@ export function UserTable({
           onPdfExport={() =>
             exportToPdf({
               title: "NovaOps Accounts",
-              filename: "novaops-accounts",
-              data: exportRows,
+              fileName: "novaops-accounts",
+              rows: exportRows,
+              columns: Object.keys(exportRows[0] ?? {}).map((key) => ({
+                key: key as keyof (typeof exportRows)[number],
+                label: key,
+              })),
             })
           }
         />

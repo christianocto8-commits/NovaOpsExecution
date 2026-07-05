@@ -8,32 +8,21 @@ import {
   mockOutletOperators,
   mockOutlets,
 } from "../data/outlets-data";
-import {
-  OperatorFormState,
-  Outlet,
-  OutletFormState,
-  OutletOperator,
-  OutletStatus,
-} from "../types";
+import { OperatorFormState, Outlet, OutletFormState, OutletOperator, OutletStatus } from "../types";
 
 export function useOutletsWorkspace() {
   const [outlets, setOutlets] = useState<Outlet[]>(mockOutlets);
-  const [operators, setOperators] =
-    useState<OutletOperator[]>(mockOutletOperators);
+  const [operators, setOperators] = useState<OutletOperator[]>(mockOutletOperators);
 
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
 
   const [outletModalOpen, setOutletModalOpen] = useState(false);
   const [editingOutletId, setEditingOutletId] = useState<string | null>(null);
-  const [outletForm, setOutletForm] =
-    useState<OutletFormState>(emptyOutletForm);
+  const [outletForm, setOutletForm] = useState<OutletFormState>(emptyOutletForm);
 
   const [operatorModalOpen, setOperatorModalOpen] = useState(false);
-  const [editingOperatorId, setEditingOperatorId] = useState<string | null>(
-    null
-  );
-  const [operatorForm, setOperatorForm] =
-    useState<OperatorFormState>(emptyOperatorForm);
+  const [editingOperatorId, setEditingOperatorId] = useState<string | null>(null);
+  const [operatorForm, setOperatorForm] = useState<OperatorFormState>(emptyOperatorForm);
 
   const metrics = useMemo(() => {
     return {
@@ -47,9 +36,7 @@ export function useOutletsWorkspace() {
   const selectedOutletOperators = useMemo(() => {
     if (!selectedOutlet) return [];
 
-    return operators.filter(
-      (operator) => operator.outletId === selectedOutlet.id
-    );
+    return operators.filter((operator) => operator.outletId === selectedOutlet.id);
   }, [operators, selectedOutlet]);
 
   function openCreateOutletDialog() {
@@ -109,9 +96,7 @@ export function useOutletsWorkspace() {
 
   function deleteOutlet(id: string) {
     setOutlets((current) => current.filter((outlet) => outlet.id !== id));
-    setOperators((current) =>
-      current.filter((operator) => operator.outletId !== id)
-    );
+    setOperators((current) => current.filter((operator) => operator.outletId !== id));
 
     if (selectedOutlet?.id === id) setSelectedOutlet(null);
   }

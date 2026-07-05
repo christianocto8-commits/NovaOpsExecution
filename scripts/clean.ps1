@@ -1,20 +1,28 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Continue"
 
-$Root = Split-Path -Parent $PSScriptRoot
-$WebPath = Join-Path $Root "apps\web"
+$Root = Resolve-Path "$PSScriptRoot\.."
+Set-Location $Root
 
-Write-Host "Cleaning NovaOps local build artifacts..." -ForegroundColor Cyan
+Write-Host "`nCleaning NovaOps development cache..." -ForegroundColor Cyan
 
-Set-Location $WebPath
+$paths = @(
+  "apps\web\.next",
+  "apps\web\node_modules\.cache",
+  "apps\web\dist",
+  "apps\web\coverage",
+  "apps\api\__pycache__",
+  "apps\api\.pytest_cache",
+  "apps\backend\__pycache__",
+  "apps\backend\.pytest_cache"
+)
 
-if (Test-Path ".next") {
-  Remove-Item ".next" -Recurse -Force
-  Write-Host "Removed apps/web/.next"
+foreach ($p in $paths) {
+  if (Test-Path $p) {
+    Remove-Item $p -Recurse -Force
+    Write-Host "Removed $p" -ForegroundColor Green
+  }
 }
 
-if (Test-Path "node_modules\.cache") {
-  Remove-Item "node_modules\.cache" -Recurse -Force
-  Write-Host "Removed apps/web/node_modules/.cache"
-}
+Get-ChildItem -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 
 Write-Host "Clean completed." -ForegroundColor Green

@@ -9,10 +9,7 @@ export function LoadingState({ rows = 5 }: LoadingStateProps) {
 
       <div className="mt-5 space-y-3">
         {Array.from({ length: rows }).map((_, index) => (
-          <div
-            key={index}
-            className="h-12 animate-pulse rounded-2xl bg-slate-100"
-          />
+          <div key={index} className="h-12 animate-pulse rounded-2xl bg-slate-100" />
         ))}
       </div>
     </div>

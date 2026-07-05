@@ -63,12 +63,8 @@ export function ProfileMenu() {
               </div>
 
               <div className="min-w-0">
-                <div className="truncate text-sm font-bold text-slate-950">
-                  Admin NovaOps
-                </div>
-                <div className="truncate text-xs text-slate-500">
-                  admin@novaops.com
-                </div>
+                <div className="truncate text-sm font-bold text-slate-950">Admin NovaOps</div>
+                <div className="truncate text-xs text-slate-500">admin@novaops.com</div>
               </div>
             </div>
 
@@ -79,22 +75,34 @@ export function ProfileMenu() {
           </div>
 
           <div className="p-2">
-            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button
+              onClick={closeMenu}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
               <User className="h-4 w-4 text-slate-400" />
               Profile
             </button>
 
-            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button
+              onClick={closeMenu}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
               <Settings className="h-4 w-4 text-slate-400" />
               Preferences
             </button>
 
-            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button
+              onClick={closeMenu}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
               <Keyboard className="h-4 w-4 text-slate-400" />
               Keyboard Shortcuts
             </button>
 
-            <button onClick={closeMenu} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button
+              onClick={closeMenu}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
               <HelpCircle className="h-4 w-4 text-slate-400" />
               Help Center
             </button>

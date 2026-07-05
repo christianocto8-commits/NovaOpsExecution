@@ -32,10 +32,7 @@ export function CommandGroup({
           const isActive = command.id === activeCommandId;
 
           return (
-            <div
-              key={command.id}
-              ref={isActive ? activeItemRef : undefined}
-            >
+            <div key={command.id} ref={isActive ? activeItemRef : undefined}>
               <CommandItem
                 command={command}
                 isActive={isActive}

@@ -2,10 +2,7 @@
 
 import { useEffect } from "react";
 
-export function useEscapeKey(
-  onEscape: () => void,
-  enabled = true
-) {
+export function useEscapeKey(onEscape: () => void, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
 

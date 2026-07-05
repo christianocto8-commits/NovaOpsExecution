@@ -12,18 +12,10 @@ type OutletFormDialogProps = {
 const statuses: OutletStatus[] = ["Online", "Review", "Offline"];
 const tiers: OutletTier[] = ["Flagship", "Standard", "Express"];
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1.5">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
     </label>
   );
@@ -50,9 +42,7 @@ export function OutletFormDialog({
 
       <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
         <div className="border-b border-slate-200 p-6">
-          <p className="text-sm font-medium text-emerald-700">
-            Outlet Management
-          </p>
+          <p className="text-sm font-medium text-emerald-700">Outlet Management</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">
             {editingOutletId ? "Edit Outlet" : "Create Outlet"}
           </h2>
@@ -65,9 +55,7 @@ export function OutletFormDialog({
           <Field label="Outlet Name">
             <input
               value={form.name}
-              onChange={(event) =>
-                onFormChange({ ...form, name: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, name: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="KOV Heritage"
             />
@@ -76,9 +64,7 @@ export function OutletFormDialog({
           <Field label="Area">
             <input
               value={form.area}
-              onChange={(event) =>
-                onFormChange({ ...form, area: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, area: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="Semarang"
             />
@@ -123,9 +109,7 @@ export function OutletFormDialog({
           <Field label="Outlet Account Email">
             <input
               value={form.accountEmail}
-              onChange={(event) =>
-                onFormChange({ ...form, accountEmail: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, accountEmail: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="heritage@kov.co.id"
             />

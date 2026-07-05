@@ -1,7 +1,4 @@
-﻿import {
-  EnterpriseFilterState,
-  EnterpriseSavedView,
-} from "../types";
+﻿import { EnterpriseFilterState, EnterpriseSavedView } from "../types";
 
 export function createSavedViewId() {
   return `view_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

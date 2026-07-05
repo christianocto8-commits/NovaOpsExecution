@@ -3,11 +3,7 @@ type SkeletonProps = {
 };
 
 export function Skeleton({ className = "" }: SkeletonProps) {
-  return (
-    <div
-      className={`animate-pulse rounded-xl bg-slate-200/80 ${className}`}
-    />
-  );
+  return <div className={`animate-pulse rounded-xl bg-slate-200/80 ${className}`} />;
 }
 
 export function TableSkeleton({ rows = 6 }: { rows?: number }) {
@@ -20,10 +16,7 @@ export function TableSkeleton({ rows = 6 }: { rows?: number }) {
 
       <div className="space-y-3">
         {Array.from({ length: rows }).map((_, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-4 gap-4 border-t border-slate-100 pt-3"
-          >
+          <div key={index} className="grid grid-cols-4 gap-4 border-t border-slate-100 pt-3">
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-full" />

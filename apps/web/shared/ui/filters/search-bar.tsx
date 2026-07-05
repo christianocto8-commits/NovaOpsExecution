@@ -8,11 +8,7 @@ type SearchBarProps = {
   onChange: (value: string) => void;
 };
 
-export function SearchBar({
-  value,
-  placeholder = "Search...",
-  onChange,
-}: SearchBarProps) {
+export function SearchBar({ value, placeholder = "Search...", onChange }: SearchBarProps) {
   return (
     <Input
       value={value}

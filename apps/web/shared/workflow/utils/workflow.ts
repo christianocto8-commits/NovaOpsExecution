@@ -61,19 +61,13 @@ export function getWorkflowTransitionByAction(
   );
 }
 
-export function canWorkflowTransition(
-  from: WorkflowStatus,
-  to: WorkflowStatus
-) {
+export function canWorkflowTransition(from: WorkflowStatus, to: WorkflowStatus) {
   return WORKFLOW_TRANSITIONS.some(
     (transition) => transition.from === from && transition.to === to
   );
 }
 
-export function workflowRuleMatchesItem(
-  rule: WorkflowAssignmentRule,
-  item: WorkflowItem
-) {
+export function workflowRuleMatchesItem(rule: WorkflowAssignmentRule, item: WorkflowItem) {
   if (rule.module !== item.module) return false;
 
   if (rule.outletId && rule.outletId !== item.outletId) return false;
@@ -83,10 +77,7 @@ export function workflowRuleMatchesItem(
   return true;
 }
 
-export function workflowRuleMatchesRole(
-  rule: WorkflowAssignmentRule,
-  role?: WorkflowRole
-) {
+export function workflowRuleMatchesRole(rule: WorkflowAssignmentRule, role?: WorkflowRole) {
   if (!rule.role) return true;
 
   return rule.role === role;
@@ -103,10 +94,7 @@ export function getWorkflowPriorityWeight(priority?: WorkflowPriority) {
   return priority ? weight[priority] : 0;
 }
 
-export function getWorkflowSlaDurationMinutes(
-  duration: number,
-  unit: WorkflowSlaUnit
-) {
+export function getWorkflowSlaDurationMinutes(duration: number, unit: WorkflowSlaUnit) {
   if (unit === "minute") return duration;
 
   if (unit === "hour") return duration * 60;
@@ -114,21 +102,14 @@ export function getWorkflowSlaDurationMinutes(
   return duration * 24 * 60;
 }
 
-export function calculateWorkflowDueAt(
-  startAt: string,
-  duration: number,
-  unit: WorkflowSlaUnit
-) {
+export function calculateWorkflowDueAt(startAt: string, duration: number, unit: WorkflowSlaUnit) {
   const startDate = new Date(startAt);
   const minutes = getWorkflowSlaDurationMinutes(duration, unit);
 
   return new Date(startDate.getTime() + minutes * 60 * 1000).toISOString();
 }
 
-export function workflowSlaPolicyMatchesItem(
-  policy: WorkflowSlaPolicy,
-  item: WorkflowItem
-) {
+export function workflowSlaPolicyMatchesItem(policy: WorkflowSlaPolicy, item: WorkflowItem) {
   if (policy.module !== item.module) return false;
 
   if (policy.outletId && policy.outletId !== item.outletId) return false;
@@ -345,14 +326,15 @@ export function sortWorkflowInboxItems(
 ) {
   return [...items].sort((a, b) => {
     if (sortBy === "priority") {
-      return (
-        getWorkflowPriorityWeight(b.priority) -
-        getWorkflowPriorityWeight(a.priority)
-      );
+      return getWorkflowPriorityWeight(b.priority) - getWorkflowPriorityWeight(a.priority);
     }
 
-    const dateA = new Date(a[sortBy] ?? 0).getTime();
-    const dateB = new Date(b[sortBy] ?? 0).getTime();
+    const dateA = new Date(
+      String((a as unknown as Record<string, unknown>)[sortBy] ?? 0)
+    ).getTime();
+    const dateB = new Date(
+      String((b as unknown as Record<string, unknown>)[sortBy] ?? 0)
+    ).getTime();
 
     return dateA - dateB;
   });

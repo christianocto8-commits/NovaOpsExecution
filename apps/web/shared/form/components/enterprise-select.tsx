@@ -4,10 +4,7 @@ import { SelectHTMLAttributes } from "react";
 
 type EnterpriseSelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 
-export function EnterpriseSelect({
-  className = "",
-  ...props
-}: EnterpriseSelectProps) {
+export function EnterpriseSelect({ className = "", ...props }: EnterpriseSelectProps) {
   return (
     <select
       {...props}

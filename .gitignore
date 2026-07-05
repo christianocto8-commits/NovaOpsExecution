@@ -37,3 +37,19 @@ Thumbs.db
 # Temporary troubleshooting scripts
 apps/api/check_users.py
 apps/api/reset_admin_password.py
+
+# Python virtual environments
+.venv/
+**/.venv/
+venv/
+**/venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local reports
+display-report.txt

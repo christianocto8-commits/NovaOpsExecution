@@ -5,11 +5,7 @@ type SkeletonProps = {
 };
 
 export function Skeleton({ className = "" }: SkeletonProps) {
-  return (
-    <div
-      className={`animate-pulse rounded-2xl bg-slate-100 ${className}`}
-    />
-  );
+  return <div className={`animate-pulse rounded-2xl bg-slate-100 ${className}`} />;
 }
 
 export function FormSkeleton() {

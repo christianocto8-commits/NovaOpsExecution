@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { chartTheme } from "../hooks/use-chart-theme";
 import { ChartData, ChartSeries } from "../types";
@@ -22,13 +14,7 @@ type BarChartCardProps = {
   series: ChartSeries[];
 };
 
-export function BarChartCard({
-  title,
-  description,
-  data,
-  xKey,
-  series,
-}: BarChartCardProps) {
+export function BarChartCard({ title, description, data, xKey, series }: BarChartCardProps) {
   return (
     <ChartCard title={title} description={description}>
       <ResponsiveContainer width="100%" height="100%">
@@ -40,11 +26,7 @@ export function BarChartCard({
             axisLine={false}
             tickLine={false}
           />
-          <YAxis
-            tick={{ fill: chartTheme.text, fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-          />
+          <YAxis tick={{ fill: chartTheme.text, fontSize: 12 }} axisLine={false} tickLine={false} />
           <Tooltip />
           {series.map((item, index) => (
             <Bar

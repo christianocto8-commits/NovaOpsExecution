@@ -1,10 +1,4 @@
-﻿export type FormFieldType =
-  | "text"
-  | "textarea"
-  | "yes_no"
-  | "number"
-  | "photo"
-  | "signature";
+﻿export type FormFieldType = "text" | "textarea" | "yes_no" | "number" | "photo" | "signature";
 
 export type FormField = {
   id: string;

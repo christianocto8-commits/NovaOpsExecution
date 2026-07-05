@@ -54,9 +54,7 @@ export default function LoginPage() {
     } catch (error) {
       console.error(error);
 
-      setMessage(
-        error instanceof Error ? error.message : "Unable to connect to API"
-      );
+      setMessage(error instanceof Error ? error.message : "Unable to connect to API");
     } finally {
       setLoading(false);
     }
@@ -70,13 +68,9 @@ export default function LoginPage() {
             NOVAOPS ENTERPRISE
           </p>
 
-          <h1 className="mt-3 text-5xl font-bold text-[#1E1E1E]">
-            Sign in
-          </h1>
+          <h1 className="mt-3 text-5xl font-bold text-[#1E1E1E]">Sign in</h1>
 
-          <p className="mt-3 text-sm text-slate-500">
-            Multi Outlet Operations Platform
-          </p>
+          <p className="mt-3 text-sm text-slate-500">Multi Outlet Operations Platform</p>
         </div>
 
         <div className="space-y-5">

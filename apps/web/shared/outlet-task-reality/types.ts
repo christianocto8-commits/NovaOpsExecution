@@ -1,9 +1,4 @@
-﻿export type OutletTaskFormStatus =
-  | "Pending"
-  | "Draft"
-  | "Submitted"
-  | "Completed"
-  | "Overdue";
+﻿export type OutletTaskFormStatus = "Pending" | "Draft" | "Submitted" | "Completed" | "Overdue";
 
 export type OutletTaskFormReport = {
   id: string;

@@ -22,13 +22,7 @@ type LineChartCardProps = {
   series: ChartSeries[];
 };
 
-export function LineChartCard({
-  title,
-  description,
-  data,
-  xKey,
-  series,
-}: LineChartCardProps) {
+export function LineChartCard({ title, description, data, xKey, series }: LineChartCardProps) {
   return (
     <ChartCard title={title} description={description}>
       <ResponsiveContainer width="100%" height="100%">
@@ -40,11 +34,7 @@ export function LineChartCard({
             axisLine={false}
             tickLine={false}
           />
-          <YAxis
-            tick={{ fill: chartTheme.text, fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-          />
+          <YAxis tick={{ fill: chartTheme.text, fontSize: 12 }} axisLine={false} tickLine={false} />
           <Tooltip />
           {series.map((item, index) => (
             <Line

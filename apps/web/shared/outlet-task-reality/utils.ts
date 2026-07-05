@@ -19,18 +19,10 @@ export function getOutletTaskFormSummary(
   const overdue = reports.filter((report) => report.status === "Overdue").length;
 
   const averageProgress =
-    total > 0
-      ? Math.round(
-          reports.reduce((sum, report) => sum + report.progress, 0) / total
-        )
-      : 0;
+    total > 0 ? Math.round(reports.reduce((sum, report) => sum + report.progress, 0) / total) : 0;
 
   const averageScore =
-    total > 0
-      ? Math.round(
-          reports.reduce((sum, report) => sum + report.score, 0) / total
-        )
-      : 0;
+    total > 0 ? Math.round(reports.reduce((sum, report) => sum + report.score, 0) / total) : 0;
 
   return {
     total,
@@ -66,8 +58,7 @@ export function getOutletTaskPerformance(
     const average =
       outletReports.length > 0
         ? Math.round(
-            outletReports.reduce((sum, report) => sum + report.progress, 0) /
-              outletReports.length
+            outletReports.reduce((sum, report) => sum + report.progress, 0) / outletReports.length
           )
         : 0;
 
@@ -107,14 +98,10 @@ export function getOutletTaskCompletionTrend(
   ];
 }
 
-export function getOutletTaskOutlets(
-  reports: OutletTaskFormReport[] = OUTLET_TASK_FORM_REPORTS
-) {
+export function getOutletTaskOutlets(reports: OutletTaskFormReport[] = OUTLET_TASK_FORM_REPORTS) {
   return Array.from(new Set(reports.map((report) => report.outlet)));
 }
 
-export function getOutletTaskForms(
-  reports: OutletTaskFormReport[] = OUTLET_TASK_FORM_REPORTS
-) {
+export function getOutletTaskForms(reports: OutletTaskFormReport[] = OUTLET_TASK_FORM_REPORTS) {
   return Array.from(new Set(reports.map((report) => report.form)));
 }

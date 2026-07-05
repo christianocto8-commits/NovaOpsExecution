@@ -5,10 +5,7 @@ type CircularProgressProps = {
   size?: number;
 };
 
-export function CircularProgress({
-  percentage,
-  size = 44,
-}: CircularProgressProps) {
+export function CircularProgress({ percentage, size = 44 }: CircularProgressProps) {
   const stroke = 4;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,9 +36,7 @@ export function CircularProgress({
         />
       </svg>
 
-      <span className="absolute text-[10px] font-semibold text-slate-700">
-        {percentage}%
-      </span>
+      <span className="absolute text-[10px] font-semibold text-slate-700">{percentage}%</span>
     </div>
   );
 }

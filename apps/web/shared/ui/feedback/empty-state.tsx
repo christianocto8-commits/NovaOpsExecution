@@ -15,9 +15,7 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
 
       <h3 className="mt-4 text-base font-semibold text-[#1E1E1E]">{title}</h3>
 
-      {description ? (
-        <p className="mt-2 max-w-md text-sm text-gray-500">{description}</p>
-      ) : null}
+      {description ? <p className="mt-2 max-w-md text-sm text-gray-500">{description}</p> : null}
 
       {action ? <div className="mt-5">{action}</div> : null}
     </div>

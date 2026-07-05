@@ -1,49 +1,83 @@
-$ErrorActionPreference = "Continue"
+﻿$ErrorActionPreference = "Continue"
 
-$Root = Split-Path -Parent $PSScriptRoot
-$ApiPath = Join-Path $Root "apps\api"
-$WebPath = Join-Path $Root "apps\web"
-
-Write-Host "== NovaOps Doctor ==" -ForegroundColor Cyan
-
-Write-Host "`nGit:" -ForegroundColor Yellow
+$Root = Resolve-Path "$PSScriptRoot\.."
 Set-Location $Root
+
+function Pass($m) { Write-Host "[PASS] $m" -ForegroundColor Green }
+function Warn($m) { Write-Host "[WARN] $m" -ForegroundColor Yellow }
+function Fail($m) { Write-Host "[FAIL] $m" -ForegroundColor Red }
+function Section($m) { Write-Host "`n=== $m ===" -ForegroundColor Cyan }
+function HasCmd($cmd) { return $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue) }
+
+function RunCheck($label, $command) {
+  $output = Invoke-Expression "$command 2>&1"
+  if ($LASTEXITCODE -eq 0) {
+    Pass "$label`: $output"
+    return $true
+  }
+
+  Fail "$label failed: $output"
+  return $false
+}
+
+Write-Host "`nNovaOps Doctor" -ForegroundColor Cyan
+Write-Host "Root: $Root"
+
+Section "Repository"
+if (Test-Path ".git") { Pass "Git repository found" } else { Fail ".git not found" }
 git status --short
-git rev-parse --short HEAD
+git log --oneline -1
 
-$dirtyLock = git status --short -- "apps/web/package-lock.json"
-if ($dirtyLock) {
-  Write-Host "WARNING package-lock.json has local changes. Run: git restore apps/web/package-lock.json" -ForegroundColor Red
-} else {
-  Write-Host "OK package-lock.json clean"
+Section "Runtime"
+if (HasCmd node) { RunCheck "Node" "node --version" | Out-Null } else { Fail "Node missing" }
+if (HasCmd npm) { RunCheck "npm" "npm --version" | Out-Null } else { Fail "npm missing" }
+
+$PythonCmd = $null
+if (HasCmd py) {
+  if (RunCheck "Python launcher" "py --version") { $PythonCmd = "py" }
 }
 
-Write-Host "`nDocker:" -ForegroundColor Yellow
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-Write-Host "`nBackend:" -ForegroundColor Yellow
-Set-Location $ApiPath
-if (Test-Path ".env") { Write-Host "OK .env found" } else { Write-Host "MISSING .env" -ForegroundColor Red }
-if (Test-Path ".venv") { Write-Host "OK .venv found" } else { Write-Host "MISSING .venv" -ForegroundColor Red }
-if (Test-Path ".venv\Scripts\alembic.exe") {
-  & ".\.venv\Scripts\alembic.exe" current
-} else {
-  Write-Host "MISSING alembic executable" -ForegroundColor Red
+if (-not $PythonCmd -and (HasCmd python)) {
+  if (RunCheck "Python" "python --version") { $PythonCmd = "python" }
 }
 
-Write-Host "`nFrontend:" -ForegroundColor Yellow
-Set-Location $WebPath
-node -v
-npm -v
-
-if (Test-Path "package-lock.json") {
-  Write-Host "OK package-lock.json found"
+if ($PythonCmd) {
+  RunCheck "pip" "$PythonCmd -m pip --version" | Out-Null
 } else {
-  Write-Host "MISSING package-lock.json" -ForegroundColor Red
+  Fail "No working Python interpreter found"
 }
 
-npm list next --depth=0
-npm list tailwindcss --depth=0
-npm list react --depth=0
+Section "Docker"
+if (HasCmd docker) {
+  RunCheck "Docker" "docker --version" | Out-Null
+  docker info *> $null
+  if ($LASTEXITCODE -eq 0) { Pass "Docker engine running" } else { Fail "Docker engine not running" }
+} else {
+  Fail "Docker missing"
+}
 
-Write-Host "`nDoctor completed." -ForegroundColor Green
+Section "Project Structure"
+if (Test-Path "apps\web\package.json") { Pass "Frontend found: apps\web" } else { Fail "Frontend missing: apps\web" }
+
+if (Test-Path "apps\api") {
+  Pass "Backend found: apps\api"
+} elseif (Test-Path "apps\backend") {
+  Pass "Backend found: apps\backend"
+} else {
+  Fail "Backend folder not found"
+}
+
+if (Test-Path "docker-compose.yml") { Pass "docker-compose.yml found" } else { Fail "docker-compose.yml missing" }
+if (Test-Path ".env") { Pass ".env found" } else { Warn ".env missing" }
+if (Test-Path ".env.example") { Pass ".env.example found" } else { Warn ".env.example missing" }
+
+Section "Ports"
+foreach ($port in @(3000, 8000, 5432, 5433)) {
+  $active = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+  if ($active) { Pass "Port $port active" } else { Warn "Port $port inactive" }
+}
+
+Section "Docker Compose"
+docker compose ps
+
+Write-Host "`nDoctor completed." -ForegroundColor Cyan

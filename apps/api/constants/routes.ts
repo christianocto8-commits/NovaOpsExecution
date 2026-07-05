@@ -1,13 +1,11 @@
 export const ROUTES = {
+  LOGIN: "/login",
 
-    LOGIN:"/login",
+  DASHBOARD: "/",
 
-    DASHBOARD:"/",
+  BUILDER: "/builder",
 
-    BUILDER:"/builder",
+  EXECUTION: "/execution",
 
-    EXECUTION:"/execution",
-
-    SETTINGS:"/settings",
-
+  SETTINGS: "/settings",
 } as const;

@@ -28,18 +28,10 @@ function getScopeLabel(role: UserRole) {
   return "Single Outlet";
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1.5">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
     </label>
   );
@@ -68,9 +60,7 @@ export function UserFormDialog({
 
       <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
         <div className="border-b border-slate-200 p-6">
-          <p className="text-sm font-medium text-emerald-700">
-            Account Management
-          </p>
+          <p className="text-sm font-medium text-emerald-700">Account Management</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">
             {editingUserId ? "Edit Account" : "Create Account"}
           </h2>
@@ -83,9 +73,7 @@ export function UserFormDialog({
           <Field label="Account Name">
             <input
               value={form.name}
-              onChange={(event) =>
-                onFormChange({ ...form, name: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, name: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="Example: KOV Heritage"
             />
@@ -94,9 +82,7 @@ export function UserFormDialog({
           <Field label="Email">
             <input
               value={form.email}
-              onChange={(event) =>
-                onFormChange({ ...form, email: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, email: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="heritage@kov.co.id"
             />
@@ -152,9 +138,7 @@ export function UserFormDialog({
           <Field label="Outlet Access">
             <select
               value={form.outlet}
-              onChange={(event) =>
-                onFormChange({ ...form, outlet: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, outlet: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
               {outletOptions.map((outlet) => (

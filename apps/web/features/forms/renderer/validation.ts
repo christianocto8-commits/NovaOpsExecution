@@ -1,10 +1,7 @@
 ﻿import { FormField } from "@/features/forms/types";
 import { TaskFormResponses } from "@/features/tasks/types";
 
-export function getMissingRequiredFields(
-  fields: FormField[],
-  responses: TaskFormResponses
-) {
+export function getMissingRequiredFields(fields: FormField[], responses: TaskFormResponses) {
   return fields.filter((field) => {
     if (!field.required) return false;
 
@@ -14,9 +11,6 @@ export function getMissingRequiredFields(
   });
 }
 
-export function isFormResponseComplete(
-  fields: FormField[],
-  responses: TaskFormResponses
-) {
+export function isFormResponseComplete(fields: FormField[], responses: TaskFormResponses) {
   return getMissingRequiredFields(fields, responses).length === 0;
 }

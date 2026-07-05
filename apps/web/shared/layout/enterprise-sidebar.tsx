@@ -10,10 +10,7 @@ type EnterpriseSidebarProps = {
   onToggle: () => void;
 };
 
-export function EnterpriseSidebar({
-  collapsed,
-  onToggle,
-}: EnterpriseSidebarProps) {
+export function EnterpriseSidebar({ collapsed, onToggle }: EnterpriseSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -25,12 +22,8 @@ export function EnterpriseSidebar({
       <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
         {!collapsed ? (
           <div>
-            <div className="text-sm font-black tracking-wide text-slate-950">
-              NovaOPS
-            </div>
-            <div className="text-xs font-medium text-slate-500">
-              Enterprise Console
-            </div>
+            <div className="text-sm font-black tracking-wide text-slate-950">NovaOPS</div>
+            <div className="text-xs font-medium text-slate-500">Enterprise Console</div>
           </div>
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-sm font-black text-white shadow-sm">
@@ -44,11 +37,7 @@ export function EnterpriseSidebar({
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
 
@@ -94,11 +83,7 @@ export function EnterpriseSidebar({
                           <Icon className="h-4 w-4" />
                         </span>
 
-                        {!collapsed && (
-                          <span className="ml-3 flex-1 truncate">
-                            {item.label}
-                          </span>
-                        )}
+                        {!collapsed && <span className="ml-3 flex-1 truncate">{item.label}</span>}
                       </Link>
                     );
                   })}
@@ -110,9 +95,7 @@ export function EnterpriseSidebar({
 
         {!collapsed && (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-bold text-slate-800">
-              NovaOPS v0.6.0
-            </div>
+            <div className="text-xs font-bold text-slate-800">NovaOPS v0.6.0</div>
             <div className="mt-1 text-xs leading-5 text-slate-500">
               Enterprise Operations Platform
             </div>

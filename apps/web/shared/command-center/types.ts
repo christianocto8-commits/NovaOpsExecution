@@ -1,13 +1,7 @@
 import { LucideIcon } from "lucide-react";
 
 export type CommandItemType =
-  | "navigation"
-  | "action"
-  | "task"
-  | "report"
-  | "outlet"
-  | "user"
-  | "setting";
+  "navigation" | "action" | "task" | "report" | "outlet" | "user" | "setting";
 
 export type CommandItem = {
   id: string;

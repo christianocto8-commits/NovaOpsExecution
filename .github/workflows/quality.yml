@@ -1,0 +1,35 @@
+﻿name: NovaOps Enterprise Quality
+
+on:
+
+  push:
+    branches: [ main ]
+
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  quality:
+
+    runs-on: windows-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bootstrap
+        shell: pwsh
+        run: .\bootstrap.ps1
+
+      - name: Enterprise CI
+        shell: pwsh
+        run: .\novaops.ps1 ci

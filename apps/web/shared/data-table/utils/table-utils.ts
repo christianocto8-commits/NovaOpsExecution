@@ -9,27 +9,17 @@ export function normalizeSearchValue(value: unknown) {
   return String(value).toLowerCase();
 }
 
-export function filterRows<T>(
-  rows: T[],
-  columns: EnterpriseColumn<T>[],
-  search: string
-) {
+export function filterRows<T>(rows: T[], columns: EnterpriseColumn<T>[], search: string) {
   const query = search.trim().toLowerCase();
 
   if (!query) return rows;
 
   return rows.filter((row) =>
-    columns.some((column) =>
-      normalizeSearchValue(getCellValue(row, column.key)).includes(query)
-    )
+    columns.some((column) => normalizeSearchValue(getCellValue(row, column.key)).includes(query))
   );
 }
 
-export function sortRows<T>(
-  rows: T[],
-  sortKey: string | null,
-  direction: "asc" | "desc"
-) {
+export function sortRows<T>(rows: T[], sortKey: string | null, direction: "asc" | "desc") {
   if (!sortKey) return rows;
 
   return [...rows].sort((a, b) => {

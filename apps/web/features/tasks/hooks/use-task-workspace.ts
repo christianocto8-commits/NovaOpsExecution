@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import {
-  emptyTaskExecutionForm,
-  emptyTaskForm,
-  mockTasks,
-} from "@/features/tasks/data/mock-tasks";
+import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
 import { Task, TaskExecutionForm, TaskFormState } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
 
@@ -51,14 +47,11 @@ export function useTaskWorkspace() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   const [taskForm, setTaskForm] = useState<TaskFormState>(emptyTaskForm);
-  const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(
-    emptyTaskExecutionForm
-  );
+  const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(emptyTaskExecutionForm);
 
   function setTasks(next: Task[] | ((currentTasks: Task[]) => Task[])) {
     setTasksState((currentTasks) => {
-      const resolvedTasks =
-        typeof next === "function" ? next(currentTasks) : next;
+      const resolvedTasks = typeof next === "function" ? next(currentTasks) : next;
 
       const normalizedTasks = resolvedTasks.map(normalizeTask);
       persistTasks(normalizedTasks);
@@ -227,9 +220,7 @@ export function useTaskWorkspace() {
       createMockEvidence({
         type: evidenceValue ? detectEvidenceType(evidenceValue) : "note",
         label: evidenceValue ? "Outlet Evidence" : "Execution Confirmation",
-        value:
-          evidenceValue ||
-          "Execution completed without additional evidence attachment.",
+        value: evidenceValue || "Execution completed without additional evidence attachment.",
         submittedAt: completedAt,
       }),
     ];

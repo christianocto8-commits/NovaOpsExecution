@@ -105,11 +105,9 @@ export const navigationItems: NavigationItem[] = [
   },
 ];
 
-export const navigationSectionLabels: Record<NavigationItem["section"], string> =
-  {
-    enterprise: "Enterprise",
-    operations: "Operations",
-    administration: "Administration",
-    configuration: "Configuration",
-  };
-
+export const navigationSectionLabels: Record<NavigationItem["section"], string> = {
+  enterprise: "Enterprise",
+  operations: "Operations",
+  administration: "Administration",
+  configuration: "Configuration",
+};

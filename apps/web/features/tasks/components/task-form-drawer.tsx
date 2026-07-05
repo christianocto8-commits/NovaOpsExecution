@@ -30,9 +30,7 @@ export function TaskFormDrawer({
 
   const isEditMode = mode === "edit";
   const safeFormTemplateId = form.formTemplateId || formTemplates[0]?.id || "";
-  const selectedTemplate = formTemplates.find(
-    (template) => template.id === safeFormTemplateId
-  );
+  const selectedTemplate = formTemplates.find((template) => template.id === safeFormTemplateId);
 
   const canSubmit =
     Boolean(form.title?.trim()) &&
@@ -75,15 +73,11 @@ export function TaskFormDrawer({
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              My Form Template
-            </label>
+            <label className="text-sm font-semibold text-slate-700">My Form Template</label>
             <select
               value={safeFormTemplateId}
               onChange={(event) => {
-                const template = formTemplates.find(
-                  (item) => item.id === event.target.value
-                );
+                const template = formTemplates.find((item) => item.id === event.target.value);
 
                 onChange({
                   ...form,
@@ -114,28 +108,20 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              Task Title
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Task Title</label>
             <input
               value={form.title ?? ""}
-              onChange={(event) =>
-                onChange({ ...form, title: event.target.value })
-              }
+              onChange={(event) => onChange({ ...form, title: event.target.value })}
               placeholder="Contoh: Daily opening checklist"
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              Outlet
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Outlet</label>
             <select
               value={form.outlet ?? "KOV Montre"}
-              onChange={(event) =>
-                onChange({ ...form, outlet: event.target.value })
-              }
+              onChange={(event) => onChange({ ...form, outlet: event.target.value })}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600"
             >
               {outlets.map((outlet) => (
@@ -148,9 +134,7 @@ export function TaskFormDrawer({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Status
-              </label>
+              <label className="text-sm font-semibold text-slate-700">Status</label>
               <select
                 value={form.status ?? "Pending"}
                 onChange={(event) =>
@@ -170,9 +154,7 @@ export function TaskFormDrawer({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Priority
-              </label>
+              <label className="text-sm font-semibold text-slate-700">Priority</label>
               <select
                 value={form.priority ?? "Medium"}
                 onChange={(event) =>
@@ -193,23 +175,17 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              Assignee
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Assignee</label>
             <input
               value={form.assignee ?? ""}
-              onChange={(event) =>
-                onChange({ ...form, assignee: event.target.value })
-              }
+              onChange={(event) => onChange({ ...form, assignee: event.target.value })}
               placeholder="Contoh: Outlet Team"
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              Due Date & Time
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Due Date & Time</label>
             <input
               type="datetime-local"
               value={form.due ?? ""}
@@ -219,14 +195,10 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">
-              Description
-            </label>
+            <label className="text-sm font-semibold text-slate-700">Description</label>
             <textarea
               value={form.description ?? ""}
-              onChange={(event) =>
-                onChange({ ...form, description: event.target.value })
-              }
+              onChange={(event) => onChange({ ...form, description: event.target.value })}
               placeholder="Detail instruksi task untuk outlet."
               rows={4}
               className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"

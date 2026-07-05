@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  publishBuilderDocument,
-  saveBuilderDocument,
-} from "@/services/builder.service";
+import { publishBuilderDocument, saveBuilderDocument } from "@/services/builder.service";
 import { useAuth } from "@/hooks/useAuth";
 import { useBuilder } from "./hooks/useBuilder";
 
@@ -67,9 +64,7 @@ export function BuilderHeader({ builder }: Props) {
         <div className="mt-1 flex gap-3 text-xs text-gray-500">
           <span>Status: {builder.document.metadata.status}</span>
 
-          {builder.builderDocumentId && (
-            <span>Draft ID: {builder.builderDocumentId}</span>
-          )}
+          {builder.builderDocumentId && <span>Draft ID: {builder.builderDocumentId}</span>}
         </div>
       </div>
 

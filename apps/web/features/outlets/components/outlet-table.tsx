@@ -2,11 +2,7 @@
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
-import {
-  exportToCsv,
-  exportToExcel,
-  exportToPdf,
-} from "@/shared/export/utils";
+import { exportToCsv, exportToExcel, exportToPdf } from "@/shared/export/utils";
 
 import { Outlet, OutletStatus } from "../types";
 import { getOutletStatusClass, getOutletTierClass } from "../utils";
@@ -23,13 +19,13 @@ const outletFilterDefinitions = [
   {
     key: "area",
     label: "Area",
-    type: "select",
+    type: "select" as const,
     options: [{ label: "Semarang", value: "Semarang" }],
   },
   {
     key: "tier",
     label: "Tier",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Flagship", value: "Flagship" },
       { label: "Standard", value: "Standard" },
@@ -39,7 +35,7 @@ const outletFilterDefinitions = [
   {
     key: "status",
     label: "Status",
-    type: "select",
+    type: "select" as const,
     options: [
       { label: "Online", value: "Online" },
       { label: "Review", value: "Review" },
@@ -49,7 +45,7 @@ const outletFilterDefinitions = [
   {
     key: "accountEmail",
     label: "Outlet Account",
-    type: "text",
+    type: "text" as const,
   },
 ];
 
@@ -80,14 +76,8 @@ export function OutletTable({
       header: "Outlet",
       sortable: true,
       render: (outlet) => (
-        <button
-          type="button"
-          onClick={() => onSelectOutlet(outlet)}
-          className="text-left"
-        >
-          <span className="block font-semibold text-slate-950">
-            {outlet.name}
-          </span>
+        <button type="button" onClick={() => onSelectOutlet(outlet)} className="text-left">
+          <span className="block font-semibold text-slate-950">{outlet.name}</span>
           <span className="block text-xs text-slate-500">
             {outlet.id} • {outlet.area}
           </span>
@@ -118,9 +108,7 @@ export function OutletTable({
       header: "Compliance",
       sortable: true,
       render: (outlet) => (
-        <span className="font-semibold text-emerald-800">
-          {outlet.compliance}
-        </span>
+        <span className="font-semibold text-emerald-800">{outlet.compliance}</span>
       ),
     },
     {
@@ -136,9 +124,7 @@ export function OutletTable({
       render: (outlet) => (
         <select
           value={outlet.status}
-          onChange={(event) =>
-            onStatusChange(outlet.id, event.target.value as OutletStatus)
-          }
+          onChange={(event) => onStatusChange(outlet.id, event.target.value as OutletStatus)}
           className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getOutletStatusClass(
             outlet.status
           )}`}
@@ -181,8 +167,12 @@ export function OutletTable({
           onPdfExport={() =>
             exportToPdf({
               title: "NovaOps Outlets",
-              filename: "novaops-outlets",
-              data: exportRows,
+              fileName: "novaops-outlets",
+              rows: exportRows,
+              columns: Object.keys(exportRows[0] ?? {}).map((key) => ({
+                key: key as keyof (typeof exportRows)[number],
+                label: key,
+              })),
             })
           }
         />

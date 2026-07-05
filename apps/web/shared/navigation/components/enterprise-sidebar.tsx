@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import {
-  getNavigationForRole,
-  navigationSectionLabels,
-  NavigationItem,
-} from "@/shared/navigation";
+import { getNavigationForRole, navigationSectionLabels, NavigationItem } from "@/shared/navigation";
 import { CurrentWorkspace } from "../role-config";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarFooter } from "./sidebar-footer";
@@ -33,11 +29,7 @@ function groupNavigation(items: NavigationItem[]) {
   );
 }
 
-export function EnterpriseSidebar({
-  collapsed,
-  workspace,
-  onToggle,
-}: EnterpriseSidebarProps) {
+export function EnterpriseSidebar({ collapsed, workspace, onToggle }: EnterpriseSidebarProps) {
   const pathname = usePathname();
   const groupedItems = groupNavigation(getNavigationForRole(workspace.role));
 
@@ -67,8 +59,7 @@ export function EnterpriseSidebar({
                   const Icon = item.icon;
                   const active =
                     pathname === item.href ||
-                    (item.href !== "/dashboard" &&
-                      pathname.startsWith(item.href));
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
                   return (
                     <Link
@@ -77,9 +68,7 @@ export function EnterpriseSidebar({
                       title={collapsed ? item.label : undefined}
                       className={[
                         "group flex items-center rounded-2xl text-sm font-semibold transition",
-                        collapsed
-                          ? "justify-center px-3 py-3"
-                          : "gap-3 px-4 py-3",
+                        collapsed ? "justify-center px-3 py-3" : "gap-3 px-4 py-3",
                         active
                           ? "bg-[#EAF1EC] text-[#274733] shadow-sm"
                           : "text-slate-500 hover:bg-slate-50 hover:text-[#274733]",

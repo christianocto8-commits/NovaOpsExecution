@@ -62,9 +62,4 @@ export const sidebarItems: SidebarItem[] = [
   },
 ];
 
-export const sidebarGroups: SidebarGroup[] = [
-  "Main",
-  "Operations",
-  "Analytics",
-  "Administration",
-];
+export const sidebarGroups: SidebarGroup[] = ["Main", "Operations", "Analytics", "Administration"];

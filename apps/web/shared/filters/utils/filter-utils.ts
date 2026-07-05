@@ -1,8 +1,4 @@
-﻿import {
-  EnterpriseFilterDefinition,
-  EnterpriseFilterState,
-  EnterpriseFilterValue,
-} from "../types";
+﻿import { EnterpriseFilterDefinition, EnterpriseFilterState, EnterpriseFilterValue } from "../types";
 
 export function isEmptyFilterValue(value: EnterpriseFilterValue) {
   if (value === null || value === undefined) return true;
@@ -23,8 +19,7 @@ export function compactFilters(filters: EnterpriseFilterState) {
 }
 
 export function getActiveFilterCount(filters: EnterpriseFilterState) {
-  return Object.values(filters).filter((value) => !isEmptyFilterValue(value))
-    .length;
+  return Object.values(filters).filter((value) => !isEmptyFilterValue(value)).length;
 }
 
 export function createInitialFilterState(

@@ -7,12 +7,7 @@ type PageHeaderProps = {
   actions?: ReactNode;
 };
 
-export function PageHeader({
-  eyebrow,
-  title,
-  description,
-  actions,
-}: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between">
       <div>
@@ -22,14 +17,10 @@ export function PageHeader({
           </p>
         ) : null}
 
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-          {title}
-        </h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
 
         {description ? (
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            {description}
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>
         ) : null}
       </div>
 

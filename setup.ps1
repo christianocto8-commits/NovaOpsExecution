@@ -1,19 +1,9 @@
-Write-Host "NovaOps Setup"
+﻿$ErrorActionPreference = "Stop"
 
-Write-Host "Installing Frontend"
+$Root = Resolve-Path "$PSScriptRoot"
+Set-Location $Root
 
-cd apps/web
+Write-Host "setup.ps1 is a compatibility wrapper." -ForegroundColor Yellow
+Write-Host "Running bootstrap.ps1..." -ForegroundColor Cyan
 
-npm install
-
-Write-Host "Installing Backend"
-
-cd ../api
-
-python -m venv .venv
-
-.\.venv\Scripts\activate
-
-pip install -r requirements.txt
-
-Write-Host "Done"
+& "$Root\bootstrap.ps1"

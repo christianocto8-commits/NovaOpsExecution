@@ -9,12 +9,7 @@ type DrawerShellProps = {
   maxWidth?: string;
 };
 
-export function DrawerShell({
-  open,
-  onClose,
-  children,
-  maxWidth = "max-w-xl",
-}: DrawerShellProps) {
+export function DrawerShell({ open, onClose, children, maxWidth = "max-w-xl" }: DrawerShellProps) {
   if (!open) return null;
 
   return (

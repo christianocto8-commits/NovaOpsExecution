@@ -147,5 +147,5 @@ export const NOVAOPS_REAL_PROJECT_TASKS: ProjectTask[] = [
     sprint: "07",
     module: "Backend",
     status: "planned",
-  }
+  },
 ];

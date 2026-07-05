@@ -27,9 +27,7 @@ export function TaskFormDialog({
       open={open}
       title={isEditing ? "Edit Task" : "Create New Task"}
       description={
-        isEditing
-          ? "Update operational assignment details."
-          : "Add a new operational assignment."
+        isEditing ? "Update operational assignment details." : "Add a new operational assignment."
       }
       onClose={onClose}
       size="lg"
@@ -39,11 +37,7 @@ export function TaskFormDialog({
             Cancel
           </Button>
 
-          <Button
-            variant="primary"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={onCreate}
-          >
+          <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={onCreate}>
             {isEditing ? "Update Task" : "Create Task"}
           </Button>
         </div>
@@ -53,42 +47,32 @@ export function TaskFormDialog({
         <Input
           placeholder="Task title"
           value={form.title}
-          onChange={(event) =>
-            onFormChange({ ...form, title: event.target.value })
-          }
+          onChange={(event) => onFormChange({ ...form, title: event.target.value })}
         />
 
         <Input
           placeholder="Assignee"
           value={form.assignee}
-          onChange={(event) =>
-            onFormChange({ ...form, assignee: event.target.value })
-          }
+          onChange={(event) => onFormChange({ ...form, assignee: event.target.value })}
         />
 
         <Input
           placeholder="Outlet"
           value={form.outlet}
-          onChange={(event) =>
-            onFormChange({ ...form, outlet: event.target.value })
-          }
+          onChange={(event) => onFormChange({ ...form, outlet: event.target.value })}
         />
 
         <Input
           placeholder="Due"
           value={form.due}
-          onChange={(event) =>
-            onFormChange({ ...form, due: event.target.value })
-          }
+          onChange={(event) => onFormChange({ ...form, due: event.target.value })}
         />
       </div>
 
       <textarea
         placeholder="Description"
         value={form.description}
-        onChange={(event) =>
-          onFormChange({ ...form, description: event.target.value })
-        }
+        onChange={(event) => onFormChange({ ...form, description: event.target.value })}
         className="mt-4 min-h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500"
       />
     </Modal>

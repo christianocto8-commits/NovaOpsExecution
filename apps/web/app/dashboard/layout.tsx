@@ -49,11 +49,7 @@ function AccessDenied() {
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const collapsed = useSyncExternalStore(
@@ -78,11 +74,7 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#F7FAF8]">
-        <EnterpriseSidebar
-          collapsed={collapsed}
-          workspace={workspace}
-          onToggle={toggleSidebar}
-        />
+        <EnterpriseSidebar collapsed={collapsed} workspace={workspace} onToggle={toggleSidebar} />
 
         <div
           className={[

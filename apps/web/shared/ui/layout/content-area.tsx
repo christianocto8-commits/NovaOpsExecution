@@ -8,7 +8,9 @@ type ContentAreaProps = {
 
 export function ContentArea({ children, className }: ContentAreaProps) {
   return (
-    <section className={cn("rounded-2xl border border-[#E7ECE9] bg-white p-6 shadow-sm", className)}>
+    <section
+      className={cn("rounded-2xl border border-[#E7ECE9] bg-white p-6 shadow-sm", className)}
+    >
       {children}
     </section>
   );

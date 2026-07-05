@@ -1,9 +1,6 @@
 ﻿import { Search } from "lucide-react";
 import { Input } from "@/shared/ui";
-import {
-  TaskPriorityFilter,
-  TaskStatusFilter,
-} from "../types";
+import { TaskPriorityFilter, TaskStatusFilter } from "../types";
 
 type TaskFiltersProps = {
   query: string;
@@ -36,9 +33,7 @@ export function TaskFilters({
 
       <select
         value={statusFilter}
-        onChange={(event) =>
-          onStatusFilterChange(event.target.value as TaskStatusFilter)
-        }
+        onChange={(event) => onStatusFilterChange(event.target.value as TaskStatusFilter)}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
       >
         <option>All</option>
@@ -49,9 +44,7 @@ export function TaskFilters({
 
       <select
         value={priorityFilter}
-        onChange={(event) =>
-          onPriorityFilterChange(event.target.value as TaskPriorityFilter)
-        }
+        onChange={(event) => onPriorityFilterChange(event.target.value as TaskPriorityFilter)}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
       >
         <option>All</option>

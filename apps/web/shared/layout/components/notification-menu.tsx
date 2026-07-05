@@ -1,14 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import {
-  Bell,
-  CheckCircle2,
-  ClipboardCheck,
-  FileText,
-  MoreHorizontal,
-  X,
-} from "lucide-react";
+import { Bell, CheckCircle2, ClipboardCheck, FileText, MoreHorizontal, X } from "lucide-react";
 import { useClickOutside, useEscapeKey } from "@/shared/hooks";
 import { usePopup } from "@/shared/popup";
 
@@ -152,11 +145,19 @@ export function NotificationMenu() {
           </div>
 
           <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
-            <button type="button" onClick={closeMenu} className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800">
+            <button
+              type="button"
+              onClick={closeMenu}
+              className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800"
+            >
               Mark all as read
             </button>
 
-            <button type="button" onClick={closeMenu} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-slate-900">
+            <button
+              type="button"
+              onClick={closeMenu}
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-slate-900"
+            >
               View all
               <MoreHorizontal className="h-4 w-4" />
             </button>

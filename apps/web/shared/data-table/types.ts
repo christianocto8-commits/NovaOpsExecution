@@ -1,12 +1,10 @@
 ﻿import { ReactNode } from "react";
-import {
-  EnterpriseFilterDefinition,
-  EnterpriseFilterState,
-} from "@/shared/filters";
+import { EnterpriseFilterDefinition, EnterpriseFilterState } from "@/shared/filters";
 
 export type EnterpriseColumn<T> = {
   key: keyof T | string;
-  header: string;
+  header?: string;
+  label?: string;
   sortable?: boolean;
   hideable?: boolean;
   defaultHidden?: boolean;
@@ -29,7 +27,12 @@ export type EnterpriseDataTableProps<T> = {
   getRowId?: (row: T, index: number) => string;
   actions?: ReactNode;
   rowActions?: (row: T) => ReactNode;
+  onRowClick?: (row: T) => void;
   defaultDensity?: EnterpriseDataTableDensity;
+
+  exportable?: boolean;
+  exportFileName?: string;
+  exportSheetName?: string;
 
   filterDefinitions?: EnterpriseFilterDefinition[];
   filters?: EnterpriseFilterState;
@@ -38,3 +41,6 @@ export type EnterpriseDataTableProps<T> = {
   enableSavedViews?: boolean;
   savedViewScope?: string;
 };
+
+export type Density = EnterpriseDataTableDensity;
+export type SortDirection = "asc" | "desc";

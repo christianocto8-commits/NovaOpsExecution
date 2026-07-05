@@ -20,8 +20,7 @@ export function getProjectSummary(
     completedTasks,
     inProgressTasks,
     plannedTasks,
-    completionPercentage:
-      totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+    completionPercentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
   };
 }
 
@@ -83,9 +82,7 @@ export function getProjectModuleSummaries(
   });
 }
 
-export function getProjectStatusDistribution(
-  tasks: ProjectTask[] = NOVAOPS_REAL_PROJECT_TASKS
-) {
+export function getProjectStatusDistribution(tasks: ProjectTask[] = NOVAOPS_REAL_PROJECT_TASKS) {
   const summary = getProjectSummary(tasks);
 
   return [

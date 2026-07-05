@@ -11,9 +11,7 @@ type Props = {
 export function Toolbox({ builder }: Props) {
   return (
     <aside className="overflow-auto rounded-xl bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold text-[#1E1E1E]">
-        Toolbox
-      </h3>
+      <h3 className="mb-4 text-sm font-semibold text-[#1E1E1E]">Toolbox</h3>
 
       <div className="space-y-2">
         {builder.fieldTypes.map((type) => (

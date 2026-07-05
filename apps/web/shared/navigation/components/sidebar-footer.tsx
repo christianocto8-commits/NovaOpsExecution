@@ -6,10 +6,7 @@ type SidebarFooterProps = {
 };
 
 export function SidebarFooter({ collapsed, workspace }: SidebarFooterProps) {
-  const title =
-    workspace.mode === "outlet"
-      ? workspace.outletName ?? "Outlet"
-      : "KOV Operations";
+  const title = workspace.mode === "outlet" ? (workspace.outletName ?? "Outlet") : "KOV Operations";
 
   return (
     <div className="border-t border-[#DDE8E1] p-4">
@@ -27,9 +24,7 @@ export function SidebarFooter({ collapsed, workspace }: SidebarFooterProps) {
           <>
             <p className="mt-1 text-sm font-bold text-[#274733]">{title}</p>
             <p className="mt-1 text-xs text-slate-500">
-              {workspace.mode === "outlet"
-                ? "Outlet mode active"
-                : "Enterprise mode active"}
+              {workspace.mode === "outlet" ? "Outlet mode active" : "Enterprise mode active"}
             </p>
           </>
         ) : null}

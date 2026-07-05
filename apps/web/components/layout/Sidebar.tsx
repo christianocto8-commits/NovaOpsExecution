@@ -79,9 +79,7 @@ export function Sidebar() {
           >
             <p className="text-sm font-semibold text-[#1E1E1E]">{user.name}</p>
             <p className="text-xs text-gray-500">{user.email}</p>
-            <p className="mt-1 text-xs font-medium text-[#3D6B49]">
-              {user.role?.name ?? "No Role"}
-            </p>
+            <p className="mt-1 text-xs font-medium text-[#3D6B49]">{user.role ?? "No Role"}</p>
           </div>
         )}
 

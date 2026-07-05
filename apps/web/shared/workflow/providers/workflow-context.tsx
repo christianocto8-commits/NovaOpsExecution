@@ -1,12 +1,6 @@
 ﻿"use client";
 
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
 import { WorkflowItem } from "../types/workflow";
 
@@ -30,11 +24,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     [current]
   );
 
-  return (
-    <WorkflowContext.Provider value={value}>
-      {children}
-    </WorkflowContext.Provider>
-  );
+  return <WorkflowContext.Provider value={value}>{children}</WorkflowContext.Provider>;
 }
 
 export function useWorkflowContext() {

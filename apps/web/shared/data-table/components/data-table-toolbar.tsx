@@ -2,10 +2,7 @@
 
 import { ReactNode } from "react";
 
-import {
-  EnterpriseColumn,
-  EnterpriseDataTableDensity,
-} from "../types";
+import { EnterpriseColumn, EnterpriseDataTableDensity } from "../types";
 
 type DataTableToolbarProps<T> = {
   title?: string;
@@ -38,13 +35,9 @@ export function DataTableToolbar<T>({
     <div className="flex flex-col gap-4 border-b border-slate-200 p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          {title ? (
-            <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-          ) : null}
+          {title ? <h2 className="text-base font-semibold text-slate-950">{title}</h2> : null}
 
-          {description ? (
-            <p className="mt-1 text-sm text-slate-500">{description}</p>
-          ) : null}
+          {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -55,9 +48,7 @@ export function DataTableToolbar<T>({
             className="h-10 min-w-[240px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
           />
 
-          {actions ? (
-            <div className="flex items-center gap-2">{actions}</div>
-          ) : null}
+          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </div>
       </div>
 

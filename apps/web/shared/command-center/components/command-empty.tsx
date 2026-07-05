@@ -7,9 +7,7 @@ export function CommandEmpty() {
         <SearchX className="h-5 w-5" />
       </div>
 
-      <p className="mt-4 text-sm font-semibold text-slate-800">
-        No command found
-      </p>
+      <p className="mt-4 text-sm font-semibold text-slate-800">No command found</p>
 
       <p className="mt-1 text-xs text-slate-500">
         Try reports, tasks, drafts, outlets, users, or settings.

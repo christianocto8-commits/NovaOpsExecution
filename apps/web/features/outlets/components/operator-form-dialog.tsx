@@ -10,24 +10,12 @@ type OperatorFormDialogProps = {
   onSave: () => void;
 };
 
-const positions: OperatorPosition[] = [
-  "Head Barista",
-  "Lead Barista",
-  "Crew",
-];
+const positions: OperatorPosition[] = ["Head Barista", "Lead Barista", "Crew"];
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1.5">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
     </label>
   );
@@ -55,9 +43,7 @@ export function OperatorFormDialog({
 
       <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
         <div className="border-b border-slate-200 p-6">
-          <p className="text-sm font-medium text-emerald-700">
-            Outlet Operator
-          </p>
+          <p className="text-sm font-medium text-emerald-700">Outlet Operator</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">
             {editingOperatorId ? "Edit Operator" : "Add Operator"}
           </h2>
@@ -70,9 +56,7 @@ export function OperatorFormDialog({
           <Field label="Outlet">
             <select
               value={form.outletId}
-              onChange={(event) =>
-                onFormChange({ ...form, outletId: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, outletId: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
               <option value="">Select outlet</option>
@@ -87,9 +71,7 @@ export function OperatorFormDialog({
           <Field label="Operator Name">
             <input
               value={form.name}
-              onChange={(event) =>
-                onFormChange({ ...form, name: event.target.value })
-              }
+              onChange={(event) => onFormChange({ ...form, name: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="Operator name"
             />
@@ -117,9 +99,7 @@ export function OperatorFormDialog({
               <input
                 value={form.pin}
                 maxLength={6}
-                onChange={(event) =>
-                  onFormChange({ ...form, pin: event.target.value })
-                }
+                onChange={(event) => onFormChange({ ...form, pin: event.target.value })}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 placeholder="1234"
               />
@@ -130,9 +110,7 @@ export function OperatorFormDialog({
             <input
               type="checkbox"
               checked={form.active}
-              onChange={(event) =>
-                onFormChange({ ...form, active: event.target.checked })
-              }
+              onChange={(event) => onFormChange({ ...form, active: event.target.checked })}
               className="h-4 w-4 rounded border-slate-300"
             />
             Active operator

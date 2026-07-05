@@ -14,10 +14,7 @@ import { Task } from "@/features/tasks/types";
 import { formatTaskDue } from "@/features/tasks/utils";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
-import {
-  updateOutletTaskStoreItem,
-  upsertOutletTaskStoreItem,
-} from "@/shared/outlet-task-store";
+import { updateOutletTaskStoreItem, upsertOutletTaskStoreItem } from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
 
 function getTaskDraftProgress(task: Task) {
@@ -32,10 +29,7 @@ function getTaskDraftProgress(task: Task) {
     required: field.required,
   }));
 
-  return calculateFormProgress(
-    progressFields,
-    task.executionDraft.formResponses
-  );
+  return calculateFormProgress(progressFields, task.executionDraft.formResponses);
 }
 function getTaskExecutionProgressPercentage(task: Task) {
   const draftProgress = getTaskDraftProgress(task);
@@ -64,10 +58,7 @@ function getOutletTaskExecutionMetrics(tasks: Task[]) {
   const averageProgress =
     total > 0
       ? Math.round(
-          tasks.reduce(
-            (sum, task) => sum + getTaskExecutionProgressPercentage(task),
-            0
-          ) / total
+          tasks.reduce((sum, task) => sum + getTaskExecutionProgressPercentage(task), 0) / total
         )
       : 0;
 
@@ -113,14 +104,13 @@ export function TasksWorkspace() {
   const searchParams = useSearchParams();
   const continuedDraftRef = useRef<string | null>(null);
 
-  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(
-    null
-  );
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   const {
     currentRole,
     setCurrentRole,
-    tasks,    selectedTask,
+    tasks,
+    selectedTask,
     isFormOpen,
     isEditingTask,
     taskForm,
@@ -148,9 +138,7 @@ export function TasksWorkspace() {
     if (mode !== "outlet" || !continueDraftTaskId) return;
     if (continuedDraftRef.current === continueDraftTaskId) return;
 
-    const draftTask = tasks.find(
-      (task) => task.id === continueDraftTaskId && task.executionDraft
-    );
+    const draftTask = tasks.find((task) => task.id === continueDraftTaskId && task.executionDraft);
 
     if (!draftTask) return;
 
@@ -162,9 +150,7 @@ export function TasksWorkspace() {
     }, 0);
 
     window.setTimeout(() => {
-      const row = document.querySelector(
-        `[data-task-row-id="${continueDraftTaskId}"]`
-      );
+      const row = document.querySelector(`[data-task-row-id="${continueDraftTaskId}"]`);
 
       row?.scrollIntoView({
         behavior: "smooth",
@@ -184,10 +170,7 @@ export function TasksWorkspace() {
   const isOutletRole = currentRole === "outlet";
   const canCreateTask = !isOutletRole;
 
-  const outletTaskMetrics = useMemo(
-    () => getOutletTaskExecutionMetrics(tasks),
-    [tasks]
-  );
+  const outletTaskMetrics = useMemo(() => getOutletTaskExecutionMetrics(tasks), [tasks]);
 
   useEffect(() => {
     tasks.forEach((task) => {
@@ -206,9 +189,7 @@ export function TasksWorkspace() {
           <div
             data-task-row-id={task.id}
             className={`rounded-2xl p-2 transition-all duration-500 ${
-              isHighlighted
-                ? "bg-emerald-50 ring-2 ring-emerald-300"
-                : ""
+              isHighlighted ? "bg-emerald-50 ring-2 ring-emerald-300" : ""
             }`}
           >
             <p className="font-semibold text-slate-950">{task.title}</p>
@@ -328,9 +309,7 @@ export function TasksWorkspace() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Tasks</p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Task Management
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-950">Task Management</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Operational task execution plus real NovaOps project progress.
           </p>
@@ -382,30 +361,22 @@ export function TasksWorkspace() {
       <div className="grid gap-4 md:grid-cols-5">
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Total Outlet Tasks</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {outletTaskMetrics.total}
-          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">{outletTaskMetrics.total}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Pending</p>
-          <p className="mt-2 text-2xl font-bold text-amber-700">
-            {outletTaskMetrics.pending}
-          </p>
+          <p className="mt-2 text-2xl font-bold text-amber-700">{outletTaskMetrics.pending}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Draft / In Progress</p>
-          <p className="mt-2 text-2xl font-bold text-blue-700">
-            {outletTaskMetrics.draft}
-          </p>
+          <p className="mt-2 text-2xl font-bold text-blue-700">{outletTaskMetrics.draft}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Completed / Submitted</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">
-            {outletTaskMetrics.completed}
-          </p>
+          <p className="mt-2 text-2xl font-bold text-emerald-700">{outletTaskMetrics.completed}</p>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
@@ -447,11 +418,7 @@ export function TasksWorkspace() {
       ) : null}
 
       {!isOutletRole ? (
-        <TaskDetailDrawer
-          task={selectedTask}
-          onClose={closeDetail}
-          onEdit={openEditTask}
-        />
+        <TaskDetailDrawer task={selectedTask} onClose={closeDetail} onEdit={openEditTask} />
       ) : null}
 
       {isOutletRole ? (
@@ -481,21 +448,3 @@ export function TasksWorkspace() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

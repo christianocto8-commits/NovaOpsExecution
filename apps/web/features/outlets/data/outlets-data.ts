@@ -1,9 +1,4 @@
-﻿import {
-  OperatorFormState,
-  Outlet,
-  OutletFormState,
-  OutletOperator,
-} from "../types";
+﻿import { OperatorFormState, Outlet, OutletFormState, OutletOperator } from "../types";
 
 export const emptyOutletForm: OutletFormState = {
   name: "",

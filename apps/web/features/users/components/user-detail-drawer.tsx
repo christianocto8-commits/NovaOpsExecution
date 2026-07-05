@@ -31,12 +31,8 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
         <div className="border-b border-slate-200 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-emerald-700">
-                User Profile
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                {user.name}
-              </h2>
+              <p className="text-sm font-medium text-emerald-700">User Profile</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">{user.name}</h2>
               <p className="mt-1 text-sm text-slate-500">{user.email}</p>
             </div>
 
@@ -64,9 +60,7 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
 
           <div className="grid gap-4">
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Role
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
               <span
                 className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getUserRoleClass(
                   user.role
@@ -80,15 +74,11 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Outlet Access
               </p>
-              <p className="mt-2 text-sm font-medium text-slate-800">
-                {user.outlet}
-              </p>
+              <p className="mt-2 text-sm font-medium text-slate-800">{user.outlet}</p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Status
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
               <span
                 className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getUserStatusClass(
                   user.status
@@ -102,9 +92,7 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Last Active
               </p>
-              <p className="mt-2 text-sm font-medium text-slate-800">
-                {user.lastActive}
-              </p>
+              <p className="mt-2 text-sm font-medium text-slate-800">{user.lastActive}</p>
             </div>
           </div>
         </div>

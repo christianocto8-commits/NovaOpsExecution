@@ -85,20 +85,23 @@ export function SettingsWorkspace() {
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const formValues = useMemo(
-    () => getSettingsFormValues(settings),
-    [settings]
-  );
+  const formValues = useMemo(() => getSettingsFormValues(settings), [settings]);
 
   const {
     register,
-    handleSubmit,formState: { errors },
+    control,
+    handleSubmit,
+    formState: { errors },
   } = useForm<SettingsFormValues>({
-    resolver: zodResolver(settingsSchema),
+    resolver: zodResolver(settingsSchema) as never,
     values: formValues,
   });
 
-  const form = useWatch({ control }) as SettingsFormValues;
+  const watchedForm = useWatch<SettingsFormValues>({ control });
+  const form: SettingsFormValues = {
+    ...formValues,
+    ...watchedForm,
+  };
 
   const completionScore = useMemo(() => {
     let score = 0;
@@ -133,9 +136,7 @@ export function SettingsWorkspace() {
       <main className="space-y-6 p-6">
         <div>
           <p className="text-sm font-medium text-emerald-700">Settings</p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Loading workspace settings...
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-950">Loading workspace settings...</h1>
         </div>
       </main>
     );
@@ -145,15 +146,11 @@ export function SettingsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Admin Settings
-          </p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Settings Workspace
-          </h1>
+          <p className="text-sm font-medium text-emerald-700">Admin Settings</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Settings Workspace</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Configure NovaOps organization standards, outlet operation rules,
-            notifications, and enterprise access behavior.
+            Configure NovaOps organization standards, outlet operation rules, notifications, and
+            enterprise access behavior.
           </p>
         </div>
 
@@ -180,20 +177,11 @@ export function SettingsWorkspace() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          label="Setup Score"
-          value={`${completionScore}%`}
-          description="Workspace configuration readiness"
-        />
-        <MetricCard
-          label="Timezone"
-          value={form.timezone}
-          description="Default operational reporting timezone"
-        />
+        <MetricCard label="Setup Score" value={`${completionScore}%`} />
+        <MetricCard label="Timezone" value={form.timezone ?? "-"} />
         <MetricCard
           label="Security"
           value={form.enforce_role_permissions ? "Enabled" : "Limited"}
-          description="Role based access control"
         />
       </div>
 
@@ -212,19 +200,13 @@ export function SettingsWorkspace() {
                 }`}
               >
                 <div className="font-medium text-slate-900">{tab.label}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {tab.description}
-                </div>
+                <div className="mt-1 text-xs text-slate-500">{tab.description}</div>
               </button>
             ))}
           </nav>
         </SectionCard>
 
-        <form
-          id="settings-form"
-          onSubmit={handleSubmit(handleSave)}
-          className="space-y-6"
-        >
+        <form id="settings-form" onSubmit={handleSubmit(handleSave as never)} className="space-y-6">
           {activeTab === "organization" ? (
             <SectionCard
               title="Organization Settings"
@@ -238,17 +220,11 @@ export function SettingsWorkspace() {
                   <EnterpriseInput {...register("organization_name")} />
                 </EnterpriseField>
 
-                <EnterpriseField
-                  label="Workspace Name"
-                  error={errors.workspace_name?.message}
-                >
+                <EnterpriseField label="Workspace Name" error={errors.workspace_name?.message}>
                   <EnterpriseInput {...register("workspace_name")} />
                 </EnterpriseField>
 
-                <EnterpriseField
-                  label="Timezone"
-                  error={errors.timezone?.message}
-                >
+                <EnterpriseField label="Timezone" error={errors.timezone?.message}>
                   <EnterpriseSelect {...register("timezone")}>
                     <option value="Asia/Jakarta">Asia/Jakarta</option>
                     <option value="Asia/Makassar">Asia/Makassar</option>
@@ -257,10 +233,7 @@ export function SettingsWorkspace() {
                   </EnterpriseSelect>
                 </EnterpriseField>
 
-                <EnterpriseField
-                  label="Language"
-                  error={errors.default_language?.message}
-                >
+                <EnterpriseField label="Language" error={errors.default_language?.message}>
                   <EnterpriseSelect {...register("default_language")}>
                     <option value="en">English</option>
                     <option value="id">Bahasa Indonesia</option>
@@ -271,10 +244,7 @@ export function SettingsWorkspace() {
           ) : null}
 
           {activeTab === "operations" ? (
-            <SectionCard
-              title="Operations Settings"
-              description="Enterprise operational defaults."
-            >
+            <SectionCard title="Operations Settings" description="Enterprise operational defaults.">
               <div className="grid gap-5 md:grid-cols-2">
                 <EnterpriseField
                   label="Auto Archive (days)"
@@ -292,21 +262,13 @@ export function SettingsWorkspace() {
                   <ActionCard
                     title="Evidence Required"
                     description="Task cannot be completed without evidence."
-                    action={
-                      <EnterpriseCheckbox
-                        {...register("evidence_required")}
-                      />
-                    }
+                    action={<EnterpriseCheckbox {...register("evidence_required")} />}
                   />
 
                   <ActionCard
                     title="Approval Required"
                     description="Require supervisor approval."
-                    action={
-                      <EnterpriseCheckbox
-                        {...register("approval_required")}
-                      />
-                    }
+                    action={<EnterpriseCheckbox {...register("approval_required")} />}
                   />
                 </div>
               </div>
@@ -322,27 +284,19 @@ export function SettingsWorkspace() {
                 <ActionCard
                   title="Email Notifications"
                   description="Send operational emails."
-                  action={
-                    <EnterpriseCheckbox
-                      {...register("email_notifications")}
-                    />
-                  }
+                  action={<EnterpriseCheckbox {...register("email_notifications")} />}
                 />
 
                 <ActionCard
                   title="Dashboard Alerts"
                   description="Show alerts inside dashboard."
-                  action={
-                    <EnterpriseCheckbox {...register("dashboard_alerts")} />
-                  }
+                  action={<EnterpriseCheckbox {...register("dashboard_alerts")} />}
                 />
 
                 <ActionCard
                   title="Overdue Alerts"
                   description="Notify overdue operational tasks."
-                  action={
-                    <EnterpriseCheckbox {...register("overdue_alerts")} />
-                  }
+                  action={<EnterpriseCheckbox {...register("overdue_alerts")} />}
                 />
               </div>
             </SectionCard>
@@ -369,11 +323,7 @@ export function SettingsWorkspace() {
                 <ActionCard
                   title="Role Permission Enforcement"
                   description="Strict enterprise RBAC."
-                  action={
-                    <EnterpriseCheckbox
-                      {...register("enforce_role_permissions")}
-                    />
-                  }
+                  action={<EnterpriseCheckbox {...register("enforce_role_permissions")} />}
                 />
               </div>
             </SectionCard>
@@ -383,4 +333,3 @@ export function SettingsWorkspace() {
     </main>
   );
 }
-

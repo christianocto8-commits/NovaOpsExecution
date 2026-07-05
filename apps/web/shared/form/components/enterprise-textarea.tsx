@@ -4,10 +4,7 @@ import { TextareaHTMLAttributes } from "react";
 
 type EnterpriseTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
-export function EnterpriseTextarea({
-  className = "",
-  ...props
-}: EnterpriseTextareaProps) {
+export function EnterpriseTextarea({ className = "", ...props }: EnterpriseTextareaProps) {
   return (
     <textarea
       {...props}

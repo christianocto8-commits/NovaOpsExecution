@@ -20,16 +20,11 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
             {index > 0 && <span className="text-slate-300">/</span>}
 
             {item.href && !isLast ? (
-              <Link
-                href={item.href}
-                className="text-slate-500 hover:text-emerald-700"
-              >
+              <Link href={item.href} className="text-slate-500 hover:text-emerald-700">
                 {item.label}
               </Link>
             ) : (
-              <span className="font-semibold text-slate-800">
-                {item.label}
-              </span>
+              <span className="font-semibold text-slate-800">{item.label}</span>
             )}
           </div>
         );

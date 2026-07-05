@@ -28,8 +28,7 @@ export function TablePagination({
       <div>
         Showing <span className="font-medium text-slate-700">{start}</span> to{" "}
         <span className="font-medium text-slate-700">{end}</span> of{" "}
-        <span className="font-medium text-slate-700">{filteredCount}</span>{" "}
-        results
+        <span className="font-medium text-slate-700">{filteredCount}</span> results
       </div>
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">

@@ -1,12 +1,5 @@
 type StatusVariant =
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  | "neutral"
-  | "draft"
-  | "active"
-  | "inactive";
+  "success" | "warning" | "danger" | "info" | "neutral" | "draft" | "active" | "inactive";
 
 type StatusBadgeProps = {
   label: string;
@@ -24,10 +17,7 @@ const variantClasses: Record<StatusVariant, string> = {
   inactive: "bg-slate-50 text-slate-500 ring-slate-200",
 };
 
-export function StatusBadge({
-  label,
-  variant = "neutral",
-}: StatusBadgeProps) {
+export function StatusBadge({ label, variant = "neutral" }: StatusBadgeProps) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${variantClasses[variant]}`}

@@ -23,12 +23,7 @@ function MetricCard({
   );
 }
 
-export function OutletMetrics({
-  total,
-  online,
-  review,
-  offline,
-}: OutletMetricsProps) {
+export function OutletMetrics({ total, online, review, offline }: OutletMetricsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <MetricCard
@@ -36,21 +31,9 @@ export function OutletMetrics({
         value={total}
         description="Registered operating locations"
       />
-      <MetricCard
-        label="Online"
-        value={online}
-        description="Operational outlets"
-      />
-      <MetricCard
-        label="Need Review"
-        value={review}
-        description="Require operational validation"
-      />
-      <MetricCard
-        label="Offline"
-        value={offline}
-        description="Temporarily inactive"
-      />
+      <MetricCard label="Online" value={online} description="Operational outlets" />
+      <MetricCard label="Need Review" value={review} description="Require operational validation" />
+      <MetricCard label="Offline" value={offline} description="Temporarily inactive" />
     </div>
   );
 }

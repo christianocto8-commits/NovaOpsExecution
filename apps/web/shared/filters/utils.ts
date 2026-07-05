@@ -2,7 +2,7 @@ import { EnterpriseFilterState } from "./types/filter";
 
 export function applyEnterpriseFilters<T extends Record<string, unknown>>(
   data: T[],
-  filters: EnterpriseFilterState,
+  filters: EnterpriseFilterState
 ) {
   return data.filter((item) => {
     return Object.entries(filters).every(([key, value]) => {

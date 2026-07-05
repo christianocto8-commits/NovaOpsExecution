@@ -35,9 +35,7 @@ function loadTaskDrafts(): OperationalDraft[] {
       .map((task) => {
         const template = getFormTemplate(task.formTemplateId);
         const responses = task.executionDraft?.formResponses ?? {};
-        const answeredCount = Object.values(responses).filter((value) =>
-          value.trim()
-        ).length;
+        const answeredCount = Object.values(responses).filter((value) => value.trim()).length;
         const totalFields = template?.fields.length ?? 0;
 
         return {
@@ -45,11 +43,9 @@ function loadTaskDrafts(): OperationalDraft[] {
           taskId: task.id,
           title: task.title,
           outlet: task.outlet,
-          operatorName:
-            task.executionDraft?.operatorName || "Outlet Operator",
+          operatorName: task.executionDraft?.operatorName || "Outlet Operator",
           formName: template?.name ?? task.formTemplateId ?? "No Form",
-          progress:
-            totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
+          progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
           updatedAt: "Just now",
         };
       });
@@ -81,12 +77,8 @@ export function DraftCenterWorkspace() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-sm font-medium text-emerald-700">
-              Draft Center
-            </p>
-            <h1 className="text-2xl font-semibold text-slate-950">
-              Enterprise Draft Center
-            </h1>
+            <p className="text-sm font-medium text-emerald-700">Draft Center</p>
+            <h1 className="text-2xl font-semibold text-slate-950">Enterprise Draft Center</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
               Manage operational execution drafts and content drafts separately.
             </p>
@@ -136,9 +128,7 @@ export function DraftCenterWorkspace() {
       {mode === "operational" ? (
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-base font-bold text-slate-950">
-              Operational Drafts
-            </h2>
+            <h2 className="text-base font-bold text-slate-950">Operational Drafts</h2>
             <p className="mt-1 text-sm text-slate-500">
               Execution drafts saved by outlet users from task forms.
             </p>
@@ -162,25 +152,15 @@ export function DraftCenterWorkspace() {
                 {filteredOperationalDrafts.map((draft) => (
                   <tr key={draft.id} className="border-t border-slate-100">
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-950">
-                        {draft.title}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {draft.taskId}
-                      </p>
+                      <p className="font-semibold text-slate-950">{draft.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{draft.taskId}</p>
                     </td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {draft.formName}
-                    </td>
+                    <td className="px-5 py-4 text-slate-600">{draft.formName}</td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {draft.outlet}
-                    </td>
+                    <td className="px-5 py-4 text-slate-600">{draft.outlet}</td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {draft.operatorName}
-                    </td>
+                    <td className="px-5 py-4 text-slate-600">{draft.operatorName}</td>
 
                     <td className="px-5 py-4">
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -188,9 +168,7 @@ export function DraftCenterWorkspace() {
                       </span>
                     </td>
 
-                    <td className="px-5 py-4 text-slate-500">
-                      {draft.updatedAt}
-                    </td>
+                    <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
 
                     <td className="px-5 py-4 text-right">
                       <a
@@ -205,12 +183,9 @@ export function DraftCenterWorkspace() {
 
                 {filteredOperationalDrafts.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-12 text-center text-slate-500"
-                    >
-                      No operational drafts found. Save a task execution draft
-                      from Outlet Mode first.
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
+                      No operational drafts found. Save a task execution draft from Outlet Mode
+                      first.
                     </td>
                   </tr>
                 ) : null}
@@ -224,9 +199,7 @@ export function DraftCenterWorkspace() {
         </section>
       ) : (
         <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-base font-bold text-slate-950">
-            Content Drafts
-          </h2>
+          <h2 className="text-base font-bold text-slate-950">Content Drafts</h2>
           <p className="mt-2 text-sm text-slate-500">
             SOP, policy, form template, and announcement drafts will stay here.
           </p>

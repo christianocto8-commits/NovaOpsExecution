@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import {
-  EnterpriseFilterState,
-  FilterBar,
-  createInitialFilterState,
-} from "@/shared/filters";
+import { EnterpriseFilterState, FilterBar, createInitialFilterState } from "@/shared/filters";
 
 import { DataTableEmptyState } from "./components/data-table-empty-state";
 import { DataTablePagination } from "./components/data-table-pagination";
@@ -33,6 +29,7 @@ export function EnterpriseDataTable<T>({
   getRowId,
   actions,
   rowActions,
+  onRowClick,
   defaultDensity = "comfortable",
   filterDefinitions,
   filters,
@@ -41,14 +38,11 @@ export function EnterpriseDataTable<T>({
   enableSavedViews = false,
   savedViewScope = "default",
 }: EnterpriseDataTableProps<T>) {
-  const [internalFilters, setInternalFilters] = useState<EnterpriseFilterState>(
-    () => createInitialFilterState(filterDefinitions ?? [])
+  const [internalFilters, setInternalFilters] = useState<EnterpriseFilterState>(() =>
+    createInitialFilterState(filterDefinitions ?? [])
   );
 
-  const activeFilters = useMemo(
-    () => filters ?? internalFilters,
-    [filters, internalFilters]
-  );
+  const activeFilters = useMemo(() => filters ?? internalFilters, [filters, internalFilters]);
 
   function handleFiltersChange(nextFilters: EnterpriseFilterState) {
     setInternalFilters(nextFilters);
@@ -64,8 +58,7 @@ export function EnterpriseDataTable<T>({
     filters: activeFilters,
   });
 
-  const cellPadding =
-    table.density === "compact" ? "px-5 py-2.5" : "px-5 py-4";
+  const cellPadding = table.density === "compact" ? "px-5 py-2.5" : "px-5 py-4";
 
   const headerColSpan = table.columns.length + (rowActions ? 1 : 0);
   const shouldShowFilters = enableFilters && Boolean(filterDefinitions?.length);
@@ -119,14 +112,10 @@ export function EnterpriseDataTable<T>({
                     onClick={() => table.handleSort(key, column.sortable)}
                   >
                     <span className="inline-flex items-center gap-1">
-                      {column.header}
+                      {column.header ?? column.label ?? String(column.key)}
                       {column.sortable ? (
                         <span className="text-[10px] text-slate-400">
-                          {active
-                            ? table.sortDirection === "asc"
-                              ? "↑"
-                              : "↓"
-                            : "↕"}
+                          {active ? (table.sortDirection === "asc" ? "↑" : "↓") : "↕"}
                         </span>
                       ) : null}
                     </span>
@@ -150,7 +139,11 @@ export function EnterpriseDataTable<T>({
               table.rows.map((row, rowIndex) => (
                 <tr
                   key={getRowId ? getRowId(row, rowIndex) : String(rowIndex)}
-                  className="transition hover:bg-slate-50"
+                  className={[
+                    "transition hover:bg-slate-50",
+                    onRowClick ? "cursor-pointer" : "",
+                  ].join(" ")}
+                  onClick={() => onRowClick?.(row)}
                 >
                   {table.columns.map((column) => (
                     <td

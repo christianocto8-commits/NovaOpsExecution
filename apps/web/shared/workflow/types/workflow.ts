@@ -26,13 +26,7 @@ export type WorkflowStatus =
   | "overdue"
   | "blocked";
 
-export type WorkflowStatusTone =
-  | "neutral"
-  | "info"
-  | "warning"
-  | "success"
-  | "danger"
-  | "purple";
+export type WorkflowStatusTone = "neutral" | "info" | "warning" | "success" | "danger" | "purple";
 
 export type WorkflowTransitionAction =
   | "assign"
@@ -51,13 +45,7 @@ export type WorkflowTransitionAction =
 
 export type WorkflowAssigneeType = "user" | "role" | "outlet" | "team";
 
-export type WorkflowRole =
-  | "owner"
-  | "admin"
-  | "area_manager"
-  | "outlet"
-  | "reviewer"
-  | "approver";
+export type WorkflowRole = "owner" | "admin" | "area_manager" | "outlet" | "reviewer" | "approver";
 
 export type WorkflowSlaUnit = "minute" | "hour" | "day";
 
@@ -94,20 +82,10 @@ export type WorkflowNotificationType =
   | "evidence"
   | "system";
 
-export type WorkflowNotificationPriority =
-  | "low"
-  | "normal"
-  | "high"
-  | "critical";
+export type WorkflowNotificationPriority = "low" | "normal" | "high" | "critical";
 
 export type WorkflowInboxBucket =
-  | "my_tasks"
-  | "team_tasks"
-  | "review"
-  | "overdue"
-  | "blocked"
-  | "completed"
-  | "all";
+  "my_tasks" | "team_tasks" | "review" | "overdue" | "blocked" | "completed" | "all";
 
 export type WorkflowInboxSort = "priority" | "dueAt" | "updatedAt" | "createdAt";
 

@@ -29,7 +29,8 @@ const fallbackDrafts: DraftsResponse = {
       status: "draft",
       version: "v1.2",
       updatedAt: "Today",
-      summary: "Draft checklist untuk opening outlet, readiness bar, station setup, dan service preparation.",
+      summary:
+        "Draft checklist untuk opening outlet, readiness bar, station setup, dan service preparation.",
     },
     {
       id: "2",

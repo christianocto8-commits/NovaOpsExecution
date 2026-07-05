@@ -13,12 +13,7 @@ export async function getDraft(id: string): Promise<DraftTask> {
 
 export async function updateDraft(
   id: string,
-  payload: Partial<
-    Pick<
-      DraftTask,
-      "title" | "description" | "status" | "priority" | "due_date"
-    >
-  >
+  payload: Partial<Pick<DraftTask, "title" | "description" | "status" | "priority" | "due_date">>
 ): Promise<DraftTask> {
   return api<DraftTask>(`${DRAFTS_ENDPOINT}/${id}`, {
     method: "PATCH",

@@ -1,10 +1,6 @@
 ﻿"use client";
 
-import {
-  EnterpriseFilterDefinition,
-  EnterpriseFilterState,
-  EnterpriseFilterValue,
-} from "../types";
+import { EnterpriseFilterDefinition, EnterpriseFilterState, EnterpriseFilterValue } from "../types";
 import { isEmptyFilterValue } from "../utils/filter-utils";
 
 type FilterChipListProps = {
@@ -14,10 +10,7 @@ type FilterChipListProps = {
   onReset: () => void;
 };
 
-function formatFilterValue(
-  definition: EnterpriseFilterDefinition,
-  value: EnterpriseFilterValue
-) {
+function formatFilterValue(definition: EnterpriseFilterDefinition, value: EnterpriseFilterValue) {
   if (Array.isArray(value)) return value.join(", ");
 
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -26,9 +19,7 @@ function formatFilterValue(
     return [value.from, value.to].filter(Boolean).join(" → ");
   }
 
-  const option = definition.options?.find(
-    (item) => String(item.value) === String(value)
-  );
+  const option = definition.options?.find((item) => String(item.value) === String(value));
 
   return option?.label ?? String(value);
 }

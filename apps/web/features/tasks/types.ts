@@ -1,11 +1,10 @@
 ﻿export type TaskStatus = "Pending" | "In Progress" | "Completed";
 export type TaskPriority = "Low" | "Medium" | "High";
 
-export type OperatorPosition =
-  | "Crew"
-  | "Senior Barista"
-  | "Lead Barista"
-  | "Head Barista";
+export type TaskPriorityFilter = TaskPriority | "All";
+export type TaskStatusFilter = TaskStatus | "All";
+
+export type OperatorPosition = "Crew" | "Senior Barista" | "Lead Barista" | "Head Barista";
 
 export type TaskEvidenceType = "note" | "url" | "photo" | "document";
 
@@ -17,13 +16,7 @@ export type TaskEvidence = {
   submittedAt: string;
 };
 
-export type TaskFormFieldType =
-  | "text"
-  | "textarea"
-  | "yes_no"
-  | "number"
-  | "photo"
-  | "signature";
+export type TaskFormFieldType = "text" | "textarea" | "yes_no" | "number" | "photo" | "signature";
 
 export type TaskFormField = {
   id: string;

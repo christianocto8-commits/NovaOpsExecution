@@ -8,6 +8,9 @@ type ExportMenuProps = {
   onExportExcel?: () => void;
   onExportPdf?: () => void;
   onExportCsv?: () => void;
+  onCsvExport?: () => void;
+  onExcelExport?: () => void;
+  onPdfExport?: () => void;
   onPrint?: () => void;
   disabled?: boolean;
 };
@@ -18,6 +21,9 @@ export function ExportMenu({
   onExportExcel,
   onExportPdf,
   onExportCsv,
+  onCsvExport,
+  onExcelExport,
+  onPdfExport,
   onPrint,
   disabled = false,
 }: ExportMenuProps) {
@@ -25,6 +31,10 @@ export function ExportMenu({
   const { isPopupOpen, togglePopup, closePopup } = usePopup();
 
   const isOpen = isPopupOpen(POPUP_ID);
+
+  const excelAction = onExportExcel ?? onExcelExport;
+  const pdfAction = onExportPdf ?? onPdfExport;
+  const csvAction = onExportCsv ?? onCsvExport;
 
   const closeMenu = useCallback(() => {
     closePopup(POPUP_ID);
@@ -54,16 +64,32 @@ export function ExportMenu({
 
       {isOpen ? (
         <div className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-          <button type="button" onClick={() => handleAction(onExportExcel)} className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => handleAction(excelAction)}
+            className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             Excel
           </button>
-          <button type="button" onClick={() => handleAction(onExportPdf)} className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => handleAction(pdfAction)}
+            className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             PDF Report
           </button>
-          <button type="button" onClick={() => handleAction(onExportCsv)} className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => handleAction(csvAction)}
+            className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             CSV
           </button>
-          <button type="button" onClick={() => handleAction(onPrint)} className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => handleAction(onPrint)}
+            className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             Print Report
           </button>
         </div>

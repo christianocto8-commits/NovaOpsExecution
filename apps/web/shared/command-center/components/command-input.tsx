@@ -7,11 +7,7 @@ type CommandInputProps = {
   inputRef: RefObject<HTMLInputElement | null>;
 };
 
-export function CommandInput({
-  value,
-  onChange,
-  inputRef,
-}: CommandInputProps) {
+export function CommandInput({ value, onChange, inputRef }: CommandInputProps) {
   return (
     <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4">
       <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700">
@@ -27,8 +23,7 @@ export function CommandInput({
       />
 
       <div className="hidden items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500 sm:flex">
-        <Command className="h-3 w-3" />
-        K
+        <Command className="h-3 w-3" />K
       </div>
     </div>
   );

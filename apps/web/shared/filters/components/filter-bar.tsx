@@ -7,10 +7,7 @@ import {
   EnterpriseFilterValue,
   EnterpriseSavedView,
 } from "../types";
-import {
-  createInitialFilterState,
-  getActiveFilterCount,
-} from "../utils/filter-utils";
+import { createInitialFilterState, getActiveFilterCount } from "../utils/filter-utils";
 import { FilterChipList } from "./filter-chip-list";
 import { SavedViewSelector } from "./saved-view-selector";
 
@@ -45,11 +42,7 @@ export function FilterBar({
     if (!definition) return;
 
     const emptyValue =
-      definition.type === "multi_select"
-        ? []
-        : definition.type === "boolean"
-          ? null
-          : "";
+      definition.type === "multi_select" ? [] : definition.type === "boolean" ? null : "";
 
     updateFilter(key, emptyValue);
   }
@@ -87,14 +80,10 @@ export function FilterBar({
                 {definition.type === "select" ? (
                   <select
                     value={String(currentFilters[definition.key] ?? "")}
-                    onChange={(event) =>
-                      updateFilter(definition.key, event.target.value)
-                    }
+                    onChange={(event) => updateFilter(definition.key, event.target.value)}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                   >
-                    <option value="">
-                      {definition.placeholder ?? `All ${definition.label}`}
-                    </option>
+                    <option value="">{definition.placeholder ?? `All ${definition.label}`}</option>
 
                     {(definition.options ?? []).map((option) => (
                       <option key={option.value} value={option.value}>
@@ -111,10 +100,7 @@ export function FilterBar({
                     }
                     onChange={(event) => {
                       const value = event.target.value;
-                      updateFilter(
-                        definition.key,
-                        value === "" ? null : value === "true"
-                      );
+                      updateFilter(definition.key, value === "" ? null : value === "true");
                     }}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                   >
@@ -126,12 +112,8 @@ export function FilterBar({
                   <input
                     type={definition.type === "number" ? "number" : "text"}
                     value={String(currentFilters[definition.key] ?? "")}
-                    onChange={(event) =>
-                      updateFilter(definition.key, event.target.value)
-                    }
-                    placeholder={
-                      definition.placeholder ?? `Filter ${definition.label}`
-                    }
+                    onChange={(event) => updateFilter(definition.key, event.target.value)}
+                    placeholder={definition.placeholder ?? `Filter ${definition.label}`}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                   />
                 )}

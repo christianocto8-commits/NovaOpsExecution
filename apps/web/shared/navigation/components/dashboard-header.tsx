@@ -17,13 +17,11 @@ export function DashboardHeader({ workspace }: DashboardHeaderProps) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3D6B49]">
-            {workspace.mode === "outlet"
-              ? "Outlet Operations"
-              : "Operations Command Center"}
+            {workspace.mode === "outlet" ? "Outlet Operations" : "Operations Command Center"}
           </p>
           <h2 className="mt-1 text-lg font-bold text-[#274733]">
             {workspace.mode === "outlet"
-              ? workspace.outletName ?? "Outlet Workspace"
+              ? (workspace.outletName ?? "Outlet Workspace")
               : "NovaOps Workspace"}
           </h2>
         </div>
@@ -31,9 +29,7 @@ export function DashboardHeader({ workspace }: DashboardHeaderProps) {
         <div className="flex items-center gap-3">
           <select
             value={workspace.role}
-            onChange={(event) =>
-              setStoredWorkspaceRole(event.target.value as NovaRole)
-            }
+            onChange={(event) => setStoredWorkspaceRole(event.target.value as NovaRole)}
             className="rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] outline-none transition focus:border-[#3D6B49] focus:ring-2 focus:ring-emerald-100"
             title="Development role switcher"
           >

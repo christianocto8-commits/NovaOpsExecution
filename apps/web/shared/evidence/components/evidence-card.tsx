@@ -31,9 +31,7 @@ export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
           <p className="truncate text-xs font-semibold text-slate-800">
             {item.caption ?? "Evidence"}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">
-            {item.uploadedAt ?? "Saved evidence"}
-          </p>
+          <p className="mt-0.5 text-[11px] text-slate-400">{item.uploadedAt ?? "Saved evidence"}</p>
         </div>
 
         {onRemove ? (
@@ -49,4 +47,3 @@ export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
     </div>
   );
 }
-

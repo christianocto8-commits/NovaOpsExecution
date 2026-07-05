@@ -2,10 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import {
-  EnterpriseColumn,
-  EnterpriseDataTableDensity,
-} from "../types";
+import { EnterpriseColumn, EnterpriseDataTableDensity } from "../types";
 import {
   EnterpriseFilterDefinition,
   EnterpriseFilterState,
@@ -32,20 +29,14 @@ export function useEnterpriseDataTable<T>({
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [density, setDensity] =
-    useState<EnterpriseDataTableDensity>(defaultDensity);
+  const [density, setDensity] = useState<EnterpriseDataTableDensity>(defaultDensity);
 
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>(() =>
-    columns
-      .filter((column) => column.defaultHidden)
-      .map((column) => String(column.key))
+    columns.filter((column) => column.defaultHidden).map((column) => String(column.key))
   );
 
   const visibleColumns = useMemo(
-    () =>
-      columns.filter(
-        (column) => !hiddenColumnKeys.includes(String(column.key))
-      ),
+    () => columns.filter((column) => !hiddenColumnKeys.includes(String(column.key))),
     [columns, hiddenColumnKeys]
   );
 
@@ -97,9 +88,7 @@ export function useEnterpriseDataTable<T>({
     if (!column?.hideable) return;
 
     setHiddenColumnKeys((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
     );
   }
 

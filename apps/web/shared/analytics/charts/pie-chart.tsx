@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { chartTheme } from "../hooks/use-chart-theme";
 import { ChartData } from "../types";
@@ -29,13 +22,7 @@ const colors = [
   chartTheme.secondary,
 ];
 
-export function PieChartCard({
-  title,
-  description,
-  data,
-  nameKey,
-  valueKey,
-}: PieChartCardProps) {
+export function PieChartCard({ title, description, data, nameKey, valueKey }: PieChartCardProps) {
   return (
     <ChartCard title={title} description={description}>
       <ResponsiveContainer width="100%" height="100%">

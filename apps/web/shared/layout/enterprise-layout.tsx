@@ -14,10 +14,7 @@ export function EnterpriseLayout({ children }: EnterpriseLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <EnterpriseSidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((value) => !value)}
-      />
+      <EnterpriseSidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
 
       <div className="flex min-h-screen flex-1 flex-col">
         <EnterpriseTopbar />

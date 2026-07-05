@@ -49,9 +49,7 @@ const reportColumns: EnterpriseColumn<OutletTaskStoreItem>[] = [
               : "bg-amber-50 text-amber-700";
 
       return (
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}
-        >
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
           {getOutletTaskStatusLabel(report.status)}
         </span>
       );
@@ -90,8 +88,7 @@ const initialReportFilters: EnterpriseFilterState = {
 export function ReportsWorkspace() {
   const outletTaskItems = useOutletTaskStore();
 
-  const [filters, setFilters] =
-    useState<EnterpriseFilterState>(initialReportFilters);
+  const [filters, setFilters] = useState<EnterpriseFilterState>(initialReportFilters);
   const [toolbarSearch, setToolbarSearch] = useState("");
 
   const summary = getOutletTaskStoreSummary(outletTaskItems);
@@ -101,13 +98,9 @@ export function ReportsWorkspace() {
   const formBreakdown = getOutletTaskFormBreakdown(outletTaskItems);
 
   const reportFilterDefinitions: EnterpriseFilterDefinition[] = useMemo(() => {
-    const outlets = Array.from(
-      new Set(outletTaskItems.map((report) => report.outlet))
-    );
+    const outlets = Array.from(new Set(outletTaskItems.map((report) => report.outlet)));
 
-    const forms = Array.from(
-      new Set(outletTaskItems.map((report) => report.form))
-    );
+    const forms = Array.from(new Set(outletTaskItems.map((report) => report.form)));
 
     return [
       {
@@ -146,19 +139,12 @@ export function ReportsWorkspace() {
     const query = toolbarSearch.toLowerCase();
 
     return outletTaskItems.filter((report) =>
-      Object.values(report).some((value) =>
-        String(value).toLowerCase().includes(query)
-      )
+      Object.values(report).some((value) => String(value).toLowerCase().includes(query))
     );
   }, [outletTaskItems, toolbarSearch]);
 
   const filteredReports = useMemo(
-    () =>
-      applyEnterpriseFilters(
-        searchedReports,
-        filters,
-        reportFilterDefinitions
-      ),
+    () => applyEnterpriseFilters(searchedReports, filters, reportFilterDefinitions),
     [searchedReports, filters, reportFilterDefinitions]
   );
 
@@ -172,13 +158,10 @@ export function ReportsWorkspace() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Reports</p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            Outlet Task Form Reports
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Form Reports</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Live operational reports based on shared outlet task store, saved
-            drafts, submitted forms, completion percentage, due status, and
-            operator activity.
+            Live operational reports based on shared outlet task store, saved drafts, submitted
+            forms, completion percentage, due status, and operator activity.
           </p>
         </div>
 
@@ -195,9 +178,7 @@ export function ReportsWorkspace() {
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Realtime
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>
             <RealtimeClock />
           </div>
         </div>
@@ -206,9 +187,7 @@ export function ReportsWorkspace() {
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Completion Rate</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {summary.averageProgress}%
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageProgress}%</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -220,32 +199,22 @@ export function ReportsWorkspace() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Draft / In Progress</p>
-          <p className="mt-2 text-2xl font-semibold text-blue-700">
-            {summary.draft}
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">{summary.draft}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Average Score</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {summary.averageScore}%
-          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageScore}%</p>
         </div>
       </div>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-950">
-              Outlet Form Completion
-            </p>
-            <p className="text-xs text-slate-500">
-              Calculated from shared outlet task store.
-            </p>
+            <p className="text-sm font-semibold text-slate-950">Outlet Form Completion</p>
+            <p className="text-xs text-slate-500">Calculated from shared outlet task store.</p>
           </div>
-          <p className="text-sm font-bold text-emerald-700">
-            {summary.averageProgress}%
-          </p>
+          <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
         </div>
 
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -272,7 +241,7 @@ export function ReportsWorkspace() {
           title="Task Form Status Distribution"
           description="Current form lifecycle status across outlets."
           data={statusDistribution}
-          dataKey="value"
+          valueKey="value"
           nameKey="name"
         />
 
@@ -288,7 +257,7 @@ export function ReportsWorkspace() {
           title="Form Template Breakdown"
           description="Task form distribution by template."
           data={formBreakdown}
-          dataKey="value"
+          valueKey="value"
           nameKey="name"
         />
       </div>

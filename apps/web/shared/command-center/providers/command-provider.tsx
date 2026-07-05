@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type CommandCenterContextValue = {
   open: boolean;
@@ -15,8 +8,7 @@ type CommandCenterContextValue = {
   toggle: () => void;
 };
 
-export const CommandCenterContext =
-  createContext<CommandCenterContextValue | null>(null);
+export const CommandCenterContext = createContext<CommandCenterContextValue | null>(null);
 
 export function CommandCenterProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -51,9 +43,5 @@ export function CommandCenterProvider({ children }: { children: ReactNode }) {
     [open, toggle]
   );
 
-  return (
-    <CommandCenterContext.Provider value={value}>
-      {children}
-    </CommandCenterContext.Provider>
-  );
+  return <CommandCenterContext.Provider value={value}>{children}</CommandCenterContext.Provider>;
 }

@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
-import {
-  getRuntimeTemplate,
-  type RuntimeTemplate,
-} from "@/services/runtime-template.service";
+import { getRuntimeTemplate, type RuntimeTemplate } from "@/services/runtime-template.service";
 import { createExecutionSession } from "@/services/execution-session.service";
 
 type RuntimeField = {
@@ -151,12 +148,8 @@ export default function ExecutionDetailPage() {
         ) : (
           <>
             <div className="mb-8">
-              <p className="text-sm font-medium text-[#3D6B49]">
-                Execution Form
-              </p>
-              <h2 className="text-3xl font-bold text-[#1E1E1E]">
-                {template.title}
-              </h2>
+              <p className="text-sm font-medium text-[#3D6B49]">Execution Form</p>
+              <h2 className="text-3xl font-bold text-[#1E1E1E]">{template.title}</h2>
               <p className="mt-2 text-gray-500">
                 Version {template.version} • {template.status}
               </p>
@@ -165,18 +158,14 @@ export default function ExecutionDetailPage() {
             <div className="space-y-6">
               {sections.map((section) => (
                 <div key={section.id} className="rounded-xl bg-white p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-[#274733]">
-                    {section.title}
-                  </h3>
+                  <h3 className="text-lg font-bold text-[#274733]">{section.title}</h3>
 
                   <div className="mt-5 space-y-4">
                     {section.fields.map((field) => (
                       <div key={field.id} className="rounded-lg border p-4">
                         <label className="mb-2 block text-sm font-semibold">
                           {field.label}
-                          {field.is_required && (
-                            <span className="text-red-500"> *</span>
-                          )}
+                          {field.is_required && <span className="text-red-500"> *</span>}
                         </label>
 
                         <RuntimeInput

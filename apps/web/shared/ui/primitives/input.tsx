@@ -7,22 +7,13 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   helper?: string;
 };
 
-export function Input({
-  label,
-  error,
-  helper,
-  className,
-  id,
-  ...props
-}: InputProps) {
+export function Input({ label, error, helper, className, id, ...props }: InputProps) {
   const inputId = id ?? props.name;
 
   return (
     <label className="block">
       {label ? (
-        <span className="mb-2 block text-sm font-medium text-[#1E1E1E]">
-          {label}
-        </span>
+        <span className="mb-2 block text-sm font-medium text-[#1E1E1E]">{label}</span>
       ) : null}
 
       <input
@@ -36,9 +27,7 @@ export function Input({
       />
 
       {error ? (
-        <span className="mt-2 block text-xs font-medium text-red-600">
-          {error}
-        </span>
+        <span className="mt-2 block text-xs font-medium text-red-600">{error}</span>
       ) : helper ? (
         <span className="mt-2 block text-xs text-gray-500">{helper}</span>
       ) : null}

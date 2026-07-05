@@ -1,9 +1,4 @@
-﻿export type OutletTaskExecutionStatus =
-  | "pending"
-  | "draft"
-  | "submitted"
-  | "completed"
-  | "overdue";
+﻿export type OutletTaskExecutionStatus = "pending" | "draft" | "submitted" | "completed" | "overdue";
 
 export type OutletTaskStoreItem = {
   id: string;

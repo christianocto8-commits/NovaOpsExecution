@@ -5,12 +5,9 @@ export default function DashboardSettingsPage() {
     <div className="space-y-6">
       <div>
         <p className="text-sm font-medium text-slate-500">System Module</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-          Settings
-        </h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Settings</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Platform configuration, workspace preferences, and enterprise system
-          controls.
+          Platform configuration, workspace preferences, and enterprise system controls.
         </p>
       </div>
 

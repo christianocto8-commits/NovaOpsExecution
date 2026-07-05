@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 
-import {
-  EnterpriseFilterState,
-  EnterpriseSavedView,
-} from "../types";
+import { EnterpriseFilterState, EnterpriseSavedView } from "../types";
 import { useSavedFilterViews } from "../hooks/use-saved-filter-views";
 
 type SavedViewSelectorProps = {
@@ -54,9 +51,7 @@ export function SavedViewSelector({
         <select
           value=""
           onChange={(event) => {
-            const selected = savedViews.views.find(
-              (view) => view.id === event.target.value
-            );
+            const selected = savedViews.views.find((view) => view.id === event.target.value);
 
             if (selected) onApplyView(selected);
           }}

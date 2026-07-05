@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+﻿import { ChevronRight } from "lucide-react";
 
 import { CommandItem as CommandItemType } from "../types";
 import { ShortcutBadge } from "./shortcut-badge";
@@ -9,11 +9,10 @@ type CommandItemProps = {
   onSelect: () => void;
 };
 
-export function CommandItem({
-  command,
-  isActive,
-  onSelect,
-}: CommandItemProps) {
+export function CommandItem({ command, isActive, onSelect }: CommandItemProps) {
+  const Icon = command.icon;
+  const subtitle = command.description;
+
   return (
     <button
       type="button"
@@ -34,32 +33,25 @@ export function CommandItem({
               : "border-slate-200 bg-white text-slate-500 group-hover:border-slate-300",
           ].join(" ")}
         >
-          {command.icon ?? command.title.charAt(0)}
+          {Icon ? <Icon className="h-4 w-4" /> : command.title.charAt(0)}
         </span>
 
         <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold">
-            {command.title}
-          </span>
+          <span className="block truncate text-sm font-semibold">{command.title}</span>
 
-          {command.subtitle ? (
-            <span className="mt-0.5 block truncate text-xs text-slate-500">
-              {command.subtitle}
-            </span>
+          {subtitle ? (
+            <span className="mt-0.5 block truncate text-xs text-slate-500">{subtitle}</span>
           ) : null}
         </span>
       </span>
 
       <span className="flex shrink-0 items-center gap-2">
-        {command.shortcut ? (
-          <ShortcutBadge>{command.shortcut}</ShortcutBadge>
-        ) : null}
+        {command.shortcut ? <ShortcutBadge>{command.shortcut}</ShortcutBadge> : null}
 
         <ChevronRight
-          className={[
-            "h-4 w-4 transition",
-            isActive ? "text-emerald-500" : "text-slate-300",
-          ].join(" ")}
+          className={["h-4 w-4 transition", isActive ? "text-emerald-500" : "text-slate-300"].join(
+            " "
+          )}
         />
       </span>
     </button>

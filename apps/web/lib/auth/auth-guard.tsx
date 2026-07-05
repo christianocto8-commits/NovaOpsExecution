@@ -31,9 +31,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8]">
         <div className="rounded-2xl border border-[#DDE8E1] bg-white px-6 py-5 shadow-sm">
-          <p className="text-sm font-medium text-[#274733]">
-            Loading NovaOps Workspace...
-          </p>
+          <p className="text-sm font-medium text-[#274733]">Loading NovaOps Workspace...</p>
         </div>
       </main>
     );

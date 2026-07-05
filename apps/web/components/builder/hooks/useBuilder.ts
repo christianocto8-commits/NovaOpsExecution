@@ -1,11 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
-import type {
-  BuilderDocument,
-  BuilderField,
-  BuilderSection,
-} from "../types/builder";
+import type { BuilderDocument, BuilderField, BuilderSection } from "../types/builder";
 
 export const fieldTypes = [
   "text",
@@ -50,13 +46,9 @@ function createInitialDocument(): BuilderDocument {
 }
 
 export function useBuilder() {
-  const [builderDocumentId, setBuilderDocumentId] = useState<number | null>(
-    null
-  );
+  const [builderDocumentId, setBuilderDocumentId] = useState<number | null>(null);
 
-  const [document, setDocument] = useState<BuilderDocument>(
-    createInitialDocument
-  );
+  const [document, setDocument] = useState<BuilderDocument>(createInitialDocument);
 
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
     () => document.sections[0]?.id ?? null
@@ -64,18 +56,13 @@ export function useBuilder() {
 
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
 
-  const selectedSection = document.sections.find(
-    (section) => section.id === selectedSectionId
-  );
+  const selectedSection = document.sections.find((section) => section.id === selectedSectionId);
 
   const selectedField = document.sections
     .flatMap((section) => section.fields)
     .find((field) => field.id === selectedFieldId);
 
-  function updateMetadata(
-    key: keyof BuilderDocument["metadata"],
-    value: string | number
-  ) {
+  function updateMetadata(key: keyof BuilderDocument["metadata"], value: string | number) {
     setDocument((current) => ({
       ...current,
       metadata: {
@@ -112,11 +99,7 @@ export function useBuilder() {
     setSelectedFieldId(null);
   }
 
-  function updateSection(
-    sectionId: number,
-    key: keyof BuilderSection,
-    value: string
-  ) {
+  function updateSection(sectionId: number, key: keyof BuilderSection, value: string) {
     setDocument((current) => ({
       ...current,
       sections: current.sections.map((section) =>
@@ -157,11 +140,7 @@ export function useBuilder() {
     setSelectedFieldId(newField.id);
   }
 
-  function updateField(
-    id: number,
-    key: keyof BuilderField,
-    value: string | boolean
-  ) {
+  function updateField(id: number, key: keyof BuilderField, value: string | boolean) {
     setDocument((current) => ({
       ...current,
       sections: current.sections.map((section) => ({

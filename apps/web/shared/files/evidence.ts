@@ -18,10 +18,7 @@ export function createMockEvidence(params: {
 export function detectEvidenceType(value: string): TaskEvidenceType {
   const normalizedValue = value.trim().toLowerCase();
 
-  if (
-    normalizedValue.startsWith("http://") ||
-    normalizedValue.startsWith("https://")
-  ) {
+  if (normalizedValue.startsWith("http://") || normalizedValue.startsWith("https://")) {
     return "url";
   }
 
