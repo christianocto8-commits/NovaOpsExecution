@@ -1,26 +1,28 @@
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+﻿from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
+from app.core.config import settings
 from app.core.database import Base
 
-from app.models import (
-    role,
-    user,
-    outlet,
-    form_template,
+from app.models import (  # noqa: F401
+    builder_document,
+    execution_session,
+    form_answer,
     form_field,
     form_schedule,
     form_submission,
-    form_answer,
-    task,
-    task_comment,
-    builder_document,
+    form_template,
+    outlet,
+    role,
     runtime_template,
-    execution_session,
+    task,
+    task_assignment,
+    task_comment,
+    task_draft,
+    user,
+    user_outlet_role,
 )
 
 config = context.config
@@ -28,14 +30,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
-
     context.configure(
-        url=url,
+        url=settings.DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
