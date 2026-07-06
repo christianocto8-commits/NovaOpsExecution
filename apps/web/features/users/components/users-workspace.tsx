@@ -55,6 +55,7 @@ export function UsersWorkspace() {
         form={usersWorkspace.form}
         onClose={handleCloseForm}
         onFormChange={usersWorkspace.setForm}
+        outletOptions={usersWorkspace.outlets.map((outlet) => ({ id: outlet.id, name: outlet.name }))}
         onSave={usersWorkspace.saveUser}
       />
 
@@ -65,3 +66,5 @@ export function UsersWorkspace() {
     </main>
   );
 }
+
+

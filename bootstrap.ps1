@@ -99,9 +99,8 @@ if (Test-Path "alembic.ini") {
 }
 
 $SeedFiles = @(
-  "seed_admin.py",
+  "app\scripts\seed_identity.py",
   "seed.py",
-  "scripts\seed_admin.py",
   "scripts\seed.py",
   "app\seed.py",
   "app\db\seed.py"
@@ -110,7 +109,11 @@ $SeedFiles = @(
 $SeedFile = $SeedFiles | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($SeedFile) {
+  if ($SeedFile -eq "app\scripts\seed_identity.py") {
+  Run-External "Running seed module app.scripts.seed_identity" $PythonCmd @("-m", "app.scripts.seed_identity")
+} else {
   Run-External "Running seed file $SeedFile" $PythonCmd @($SeedFile)
+}
 } else {
   Warn "Seed file not detected. Skipping seed."
 }
@@ -124,3 +127,6 @@ Write-Host ""
 Write-Host "NovaOps bootstrap completed." -ForegroundColor Green
 Write-Host "Run development stack with:"
 Write-Host ".\novaops.ps1 dev"
+
+
+

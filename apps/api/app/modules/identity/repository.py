@@ -18,6 +18,7 @@ def user_load_options():
     return (
         selectinload(User.role).selectinload(Role.permissions),
         selectinload(User.outlet),
+        selectinload(User.assigned_outlets),
     )
 
 
@@ -193,3 +194,4 @@ class OutletRepository:
         self.db.flush()
         self.db.refresh(outlet)
         return outlet
+

@@ -37,13 +37,23 @@ function getStatus(isActive: boolean): UserStatus {
 
 function mapIdentityUser(user: IdentityUser): User {
   const role = getRoleLabel(user.role.slug);
+  const assignedOutletNames = user.assigned_outlets?.map((outlet) => outlet.name) ?? [];
+  const assignedOutletIds = user.assigned_outlets?.map((outlet) => outlet.id) ?? [];
 
   return {
     id: user.id,
     name: user.full_name,
     email: user.email,
     role,
-    outlet: user.outlet?.name ?? "All Outlets",
+    outlet:
+      role === "Owner/Admin"
+        ? "All Outlets"
+        : role === "Area Manager"
+          ? assignedOutletNames.length
+            ? assignedOutletNames.join(", ")
+            : "No outlets assigned"
+          : user.outlet?.name ?? "No outlet assigned",
+    outletIds: role === "Area Manager" ? assignedOutletIds : [],
     outletScope: getScopeByRole(role),
     status: getStatus(user.is_active),
     lastActive: user.last_login ? new Date(user.last_login).toLocaleString() : "Never",
@@ -58,7 +68,6 @@ function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
 }
 
 function getOutletIdByName(outlets: IdentityOutlet[], outletName: string) {
-  if (outletName === "All Outlets") return null;
   return outlets.find((outlet) => outlet.name === outletName)?.id ?? null;
 }
 
@@ -90,9 +99,9 @@ export function useUsersWorkspace() {
     queryFn: getIdentityOutlets,
   });
 
-  const identityUsers = usersQuery.data ?? [];
-  const roles = rolesQuery.data ?? [];
-  const outlets = outletsQuery.data ?? [];
+  const identityUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+  const roles = useMemo(() => rolesQuery.data ?? [], [rolesQuery.data]);
+  const outlets = useMemo(() => outletsQuery.data ?? [], [outletsQuery.data]);
 
   const users = useMemo(() => identityUsers.map(mapIdentityUser), [identityUsers]);
 
@@ -116,12 +125,13 @@ export function useUsersWorkspace() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ userId, payload }: Parameters<typeof updateIdentityUser>[1] extends never
-      ? never
-      : {
-          userId: string;
-          payload: Parameters<typeof updateIdentityUser>[1];
-        }) => updateIdentityUser(userId, payload),
+    mutationFn: ({
+      userId,
+      payload,
+    }: {
+      userId: string;
+      payload: Parameters<typeof updateIdentityUser>[1];
+    }) => updateIdentityUser(userId, payload),
     onSuccess: invalidateIdentityUsers,
   });
 
@@ -160,12 +170,49 @@ export function useUsersWorkspace() {
       name: user.name,
       email: user.email,
       role: user.role,
-      outlet: user.outlet,
+      outlet:
+        user.role === "Outlet"
+          ? user.outlet
+          : user.role === "Area Manager"
+            ? "Multiple Outlets"
+            : "All Outlets",
+      outletIds: user.outletIds,
       outletScope: user.outletScope,
       status: user.status,
     });
     setError("");
     setModalOpen(true);
+  }
+
+  function resolveAccessPayload(normalizedForm: UserFormState) {
+    if (normalizedForm.role === "Owner/Admin") {
+      return {
+        outlet_id: null,
+        outlet_ids: [],
+      };
+    }
+
+    if (normalizedForm.role === "Area Manager") {
+      if (normalizedForm.outletIds.length === 0) {
+        throw new Error("Area Manager must manage at least one outlet");
+      }
+
+      return {
+        outlet_id: null,
+        outlet_ids: normalizedForm.outletIds,
+      };
+    }
+
+    const outletId = getOutletIdByName(outlets, normalizedForm.outlet);
+
+    if (!outletId) {
+      throw new Error("Outlet account must be assigned to one specific outlet");
+    }
+
+    return {
+      outlet_id: outletId,
+      outlet_ids: [],
+    };
   }
 
   async function saveUser() {
@@ -177,14 +224,15 @@ export function useUsersWorkspace() {
       return;
     }
 
-    const outletId = getOutletIdByName(outlets, form.outlet);
-    const normalizedForm = {
+    const normalizedForm: UserFormState = {
       ...form,
       outletScope: getScopeByRole(form.role),
     };
 
     try {
       setError("");
+
+      const accessPayload = resolveAccessPayload(normalizedForm);
 
       if (editingUserId) {
         await updateMutation.mutateAsync({
@@ -193,7 +241,7 @@ export function useUsersWorkspace() {
             email: normalizedForm.email,
             full_name: normalizedForm.name,
             role_id: roleId,
-            outlet_id: normalizedForm.role === "Outlet" ? outletId : null,
+            ...accessPayload,
             is_active: normalizedForm.status === "Active",
           },
         });
@@ -204,7 +252,7 @@ export function useUsersWorkspace() {
           full_name: normalizedForm.name,
           password: "User12345!",
           role_id: roleId,
-          outlet_id: normalizedForm.role === "Outlet" ? outletId : null,
+          ...accessPayload,
           is_active: normalizedForm.status === "Active",
         });
       }

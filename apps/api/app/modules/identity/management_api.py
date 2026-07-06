@@ -29,6 +29,51 @@ from app.modules.identity.security import hash_password
 router = APIRouter(prefix="/identity", tags=["Identity"])
 
 
+def resolve_user_outlet_access(
+    *,
+    role_slug: str,
+    outlet_id: UUID | None,
+    outlet_ids: list[UUID] | None,
+    outlets: OutletRepository,
+) -> tuple[UUID | None, list[Outlet]]:
+    if role_slug in {"owner", "admin"}:
+        return None, []
+
+    if role_slug == "outlet":
+        if not outlet_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Outlet account must be assigned to one outlet",
+            )
+
+        outlet = outlets.find_by_id(outlet_id)
+        if not outlet:
+            raise HTTPException(status_code=404, detail="Outlet not found")
+
+        return outlet.id, []
+
+    if role_slug == "area_manager":
+        selected_ids = outlet_ids or []
+
+        if not selected_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Area manager must manage at least one outlet",
+            )
+
+        selected_outlets: list[Outlet] = []
+
+        for selected_id in selected_ids:
+            outlet = outlets.find_by_id(selected_id)
+            if not outlet:
+                raise HTTPException(status_code=404, detail="Outlet not found")
+            selected_outlets.append(outlet)
+
+        return None, selected_outlets
+
+    return None, []
+
+
 @router.get("/roles", response_model=list[RoleRead])
 def list_roles(
     db: Session = Depends(get_db),
@@ -185,8 +230,12 @@ def create_user(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    if payload.outlet_id and not outlets.find_by_id(payload.outlet_id):
-        raise HTTPException(status_code=404, detail="Outlet not found")
+    resolved_outlet_id, assigned_outlets = resolve_user_outlet_access(
+        role_slug=role.slug,
+        outlet_id=payload.outlet_id,
+        outlet_ids=payload.outlet_ids,
+        outlets=outlets,
+    )
 
     user = User(
         email=email,
@@ -194,9 +243,11 @@ def create_user(
         full_name=payload.full_name.strip(),
         password_hash=hash_password(payload.password),
         role_id=payload.role_id,
-        outlet_id=payload.outlet_id,
+        outlet_id=resolved_outlet_id,
         is_active=payload.is_active,
     )
+
+    user.assigned_outlets = assigned_outlets
 
     created = users.create(user)
     db.commit()
@@ -243,17 +294,32 @@ def update_user(
     if "password" in update_data:
         user.password_hash = hash_password(str(update_data["password"]))
 
-    if "role_id" in update_data:
-        role_id = update_data["role_id"]
-        if not roles.find_by_id(role_id):
-            raise HTTPException(status_code=404, detail="Role not found")
-        user.role_id = role_id
+    next_role_id = update_data.get("role_id", user.role_id)
+    next_role = roles.find_by_id(next_role_id)
 
-    if "outlet_id" in update_data:
-        outlet_id = update_data["outlet_id"]
-        if outlet_id and not outlets.find_by_id(outlet_id):
-            raise HTTPException(status_code=404, detail="Outlet not found")
-        user.outlet_id = outlet_id
+    if not next_role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    should_resolve_access = (
+        "role_id" in update_data
+        or "outlet_id" in update_data
+        or "outlet_ids" in update_data
+    )
+
+    if should_resolve_access:
+        resolved_outlet_id, assigned_outlets = resolve_user_outlet_access(
+            role_slug=next_role.slug,
+            outlet_id=update_data.get("outlet_id", user.outlet_id),
+            outlet_ids=update_data.get(
+                "outlet_ids",
+                [outlet.id for outlet in user.assigned_outlets],
+            ),
+            outlets=outlets,
+        )
+
+        user.role_id = next_role.id
+        user.outlet_id = resolved_outlet_id
+        user.assigned_outlets = assigned_outlets
 
     if "is_active" in update_data:
         user.is_active = bool(update_data["is_active"])
@@ -286,4 +352,7 @@ def deactivate_user(
     db.commit()
 
     return MessageResponse(message="User deactivated")
+
+
+
 

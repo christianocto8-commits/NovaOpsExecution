@@ -79,6 +79,7 @@ class UserRead(BaseModel):
     last_login: datetime | None = None
     role: RoleRead
     outlet: OutletRead | None = None
+    assigned_outlets: list[OutletRead] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -90,6 +91,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     role_id: UUID
     outlet_id: UUID | None = None
+    outlet_ids: list[UUID] = []
     is_active: bool = True
 
 
@@ -100,6 +102,7 @@ class UserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=128)
     role_id: UUID | None = None
     outlet_id: UUID | None = None
+    outlet_ids: list[UUID] | None = None
     is_active: bool | None = None
 
 
@@ -124,3 +127,4 @@ class AuthContextResponse(BaseModel):
     outlet_id: str | None
     permissions: list[str]
     token_version: int
+

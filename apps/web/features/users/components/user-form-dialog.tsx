@@ -1,25 +1,21 @@
 ﻿import { UserFormState, UserRole, UserStatus } from "../types";
 
+type OutletOption = {
+  id: string;
+  name: string;
+};
+
 type UserFormDialogProps = {
   open: boolean;
   editingUserId: string | null;
   form: UserFormState;
+  outletOptions: OutletOption[];
   onClose: () => void;
   onFormChange: (form: UserFormState) => void;
   onSave: () => void;
 };
 
 const roles: UserRole[] = ["Owner/Admin", "Area Manager", "Outlet"];
-
-const outletOptions = [
-  "All Outlets",
-  "KOV Montre",
-  "KOV Heritage",
-  "KOV Sultan Agung",
-  "KOV Sula",
-  "KOV Montre, KOV Heritage, KOV Sultan Agung",
-];
-
 const statuses: UserStatus[] = ["Active", "Pending", "Suspended"];
 
 function getScopeLabel(role: UserRole) {
@@ -41,6 +37,7 @@ export function UserFormDialog({
   open,
   editingUserId,
   form,
+  outletOptions,
   onClose,
   onFormChange,
   onSave,
@@ -48,6 +45,18 @@ export function UserFormDialog({
   if (!open) return null;
 
   const scopeLabel = getScopeLabel(form.role);
+
+  function toggleAreaOutlet(outletId: string) {
+    const exists = form.outletIds.includes(outletId);
+
+    onFormChange({
+      ...form,
+      outletIds: exists
+        ? form.outletIds.filter((id) => id !== outletId)
+        : [...form.outletIds, outletId],
+      outlet: "Multiple Outlets",
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
@@ -65,7 +74,8 @@ export function UserFormDialog({
             {editingUserId ? "Edit Account" : "Create Account"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Manage Owner/Admin, Area Manager, and Outlet account access.
+            Owner/Admin gets all outlets, Area Manager can manage selected outlets, and Outlet
+            account is restricted to one outlet.
           </p>
         </div>
 
@@ -94,11 +104,19 @@ export function UserFormDialog({
                 value={form.role}
                 onChange={(event) => {
                   const role = event.target.value as UserRole;
+                  const firstOutlet = outletOptions[0];
+
                   onFormChange({
                     ...form,
                     role,
                     outletScope: getScopeLabel(role),
-                    outlet: role === "Owner/Admin" ? "All Outlets" : form.outlet,
+                    outlet:
+                      role === "Owner/Admin"
+                        ? "All Outlets"
+                        : role === "Area Manager"
+                          ? "Multiple Outlets"
+                          : firstOutlet?.name ?? "",
+                    outletIds: [],
                   });
                 }}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
@@ -135,17 +153,59 @@ export function UserFormDialog({
             />
           </Field>
 
-          <Field label="Outlet Access">
-            <select
-              value={form.outlet}
-              onChange={(event) => onFormChange({ ...form, outlet: event.target.value })}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              {outletOptions.map((outlet) => (
-                <option key={outlet}>{outlet}</option>
-              ))}
-            </select>
-          </Field>
+          {form.role === "Owner/Admin" ? (
+            <Field label="Outlet Access">
+              <input
+                value="All Outlets"
+                readOnly
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 outline-none"
+              />
+            </Field>
+          ) : null}
+
+          {form.role === "Outlet" ? (
+            <Field label="Outlet Access">
+              <select
+                value={form.outlet}
+                onChange={(event) =>
+                  onFormChange({
+                    ...form,
+                    outlet: event.target.value,
+                    outletIds: [],
+                  })
+                }
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              >
+                {outletOptions.map((outlet) => (
+                  <option key={outlet.id} value={outlet.name}>
+                    {outlet.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+
+          {form.role === "Area Manager" ? (
+            <div className="grid gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Managed Outlets
+              </span>
+
+              <div className="max-h-48 space-y-2 overflow-auto rounded-xl border border-slate-200 p-3">
+                {outletOptions.map((outlet) => (
+                  <label key={outlet.id} className="flex items-center gap-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={form.outletIds.includes(outlet.id)}
+                      onChange={() => toggleAreaOutlet(outlet.id)}
+                      className="h-4 w-4 rounded border-slate-300 accent-emerald-700"
+                    />
+                    {outlet.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-200 p-6">

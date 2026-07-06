@@ -33,6 +33,7 @@ export type IdentityUser = {
   last_login: string | null;
   role: IdentityRole;
   outlet: IdentityOutlet | null;
+  assigned_outlets: IdentityOutlet[];
 };
 
 export type CreateIdentityUserPayload = {
@@ -42,6 +43,7 @@ export type CreateIdentityUserPayload = {
   password: string;
   role_id: string;
   outlet_id?: string | null;
+  outlet_ids?: string[];
   is_active?: boolean;
 };
 
@@ -111,3 +113,4 @@ export async function deactivateIdentityOutlet(outletId: string) {
     method: "DELETE",
   });
 }
+

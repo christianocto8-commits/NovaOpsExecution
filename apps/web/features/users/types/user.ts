@@ -10,6 +10,7 @@ export type User = {
   email: string;
   role: UserRole;
   outlet: string;
+  outletIds: string[];
   outletScope: OutletScope;
   status: UserStatus;
   lastActive: string;
@@ -20,6 +21,7 @@ export type UserFormState = {
   email: string;
   role: UserRole;
   outlet: string;
+  outletIds: string[];
   outletScope: OutletScope;
   status: UserStatus;
 };

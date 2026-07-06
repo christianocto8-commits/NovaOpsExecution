@@ -16,6 +16,12 @@ role_permissions = Table(
     Column("permission_id", PG_UUID(as_uuid=True), ForeignKey("identity_permissions.id"), primary_key=True),
 )
 
+user_outlets = Table(
+    "identity_user_outlets",
+    Base.metadata,
+    Column("user_id", PG_UUID(as_uuid=True), ForeignKey("identity_users.id", ondelete="CASCADE"), primary_key=True),
+    Column("outlet_id", PG_UUID(as_uuid=True), ForeignKey("identity_outlets.id", ondelete="CASCADE"), primary_key=True),
+)
 
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "identity_organizations"
@@ -44,7 +50,7 @@ class Outlet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
 
     organization: Mapped["Organization"] = relationship(back_populates="outlets")
-    users: Mapped[list["User"]] = relationship(back_populates="outlet")
+    users: Mapped[list["User"]] = relationship(back_populates="outlet", foreign_keys="User.outlet_id")
 
 
 class Permission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -93,7 +99,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     role: Mapped[Role] = relationship(lazy="selectin")
-    outlet: Mapped[Outlet | None] = relationship(back_populates="users")
+    outlet: Mapped[Outlet | None] = relationship(back_populates="users", foreign_keys=[outlet_id])
+    assigned_outlets: Mapped[list[Outlet]] = relationship(
+        secondary=user_outlets,
+        lazy="selectin",
+    )
 
 
 class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -140,3 +150,4 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resource_type: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
