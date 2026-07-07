@@ -33,3 +33,6 @@ api_router.include_router(workflow_escalation_processor_router)
 from app.modules.notifications.api import router as notification_router
 api_router.include_router(notification_router)
 
+
+from app.modules.workflow_notifications.api import router as workflow_notifications_router
+api_router.include_router(workflow_notifications_router)

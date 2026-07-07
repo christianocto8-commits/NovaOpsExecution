@@ -13,3 +13,5 @@ from app.modules.workflows.models import WorkflowActionType, WorkflowApprovalHis
 
 
 
+
+from app.modules.workflow_notifications.models import NotificationTemplate
