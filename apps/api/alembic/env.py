@@ -1,4 +1,4 @@
-﻿from logging.config import fileConfig
+from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -20,7 +20,11 @@ target_metadata = Base.metadata
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == "table":
-        return name.startswith("identity_") or name == "alembic_version"
+        return (
+            name.startswith("identity_")
+            or name.startswith("workflow_")
+            or name == "alembic_version"
+        )
     return True
 
 
@@ -64,3 +68,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+

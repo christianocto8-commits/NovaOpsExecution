@@ -1,4 +1,4 @@
-﻿OWNER_ROLE = "owner"
+OWNER_ROLE = "owner"
 ADMIN_ROLE = "admin"
 AREA_MANAGER_ROLE = "area_manager"
 OUTLET_ROLE = "outlet"
@@ -25,6 +25,9 @@ DEFAULT_PERMISSIONS = [
 
     "workflow.read",
     "workflow.create",
+    "workflow.edit",
+    "workflow.delete",
+    "workflow.publish",
     "workflow.approve",
     "workflow.escalate",
 
@@ -72,3 +75,4 @@ ROLE_PERMISSION_MAP = {
         "notification.read",
     ],
 }
+
