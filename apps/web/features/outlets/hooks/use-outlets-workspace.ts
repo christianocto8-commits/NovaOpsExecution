@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query/keys";
+import { useConfirmation } from "@/shared/confirmation";
 import {
   createIdentityOutlet,
   deactivateIdentityOutlet,
@@ -57,6 +58,7 @@ function makeOutletCode(name: string) {
 
 export function useOutletsWorkspace() {
   const queryClient = useQueryClient();
+  const confirm = useConfirmation();
 
   const [operators, setOperators] = useState<OutletOperator[]>(mockOutletOperators);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
@@ -187,13 +189,35 @@ export function useOutletsWorkspace() {
   }
 
   async function deleteOutlet(id: string) {
+    const outlet = outlets.find((item) => item.id === id);
+
+    const confirmed = await confirm({
+      title: "Deactivate Outlet",
+      description: `Are you sure you want to deactivate ${
+        outlet?.name ?? "this outlet"
+      }?\n\nThe outlet will be removed from active operations, but historical records will remain available.`,
+      variant: "danger",
+      confirmText: "Deactivate",
+      cancelText: "Cancel",
+      loadingText: "Deactivating...",
+    });
+
+    if (!confirmed) return;
+
     try {
       setError("");
       await deleteMutation.mutateAsync(id);
       setOperators((current) => current.filter((operator) => operator.outletId !== id));
-      if (selectedOutlet?.id === id) setSelectedOutlet(null);
+
+      if (selectedOutlet?.id === id) {
+        setSelectedOutlet(null);
+      }
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to deactivate outlet");
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Failed to deactivate outlet"
+      );
     }
   }
 
@@ -237,7 +261,22 @@ export function useOutletsWorkspace() {
     setOperatorModalOpen(false);
   }
 
-  function deleteOperator(id: string) {
+  async function deleteOperator(id: string) {
+    const operator = operators.find((item) => item.id === id);
+
+    const confirmed = await confirm({
+      title: "Delete Operator",
+      description: `Are you sure you want to delete ${
+        operator?.name ?? "this operator"
+      }?\n\nThis operator will no longer be available for task execution audit selection.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed) return;
+
     setOperators((current) => current.filter((operator) => operator.id !== id));
   }
 
@@ -274,3 +313,6 @@ export function useOutletsWorkspace() {
     deleteOperator,
   };
 }
+
+
+

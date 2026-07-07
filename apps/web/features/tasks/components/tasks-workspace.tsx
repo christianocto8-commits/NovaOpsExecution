@@ -121,6 +121,7 @@ export function TasksWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
+    deleteTask,
     executionForm,
     setExecutionForm,
     isExecutionOpen,
@@ -285,6 +286,17 @@ export function TasksWorkspace() {
             >
               Edit
             </button>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                void deleteTask(task.id);
+              }}
+              className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
           </div>
         ),
     },
@@ -448,3 +460,4 @@ export function TasksWorkspace() {
     </main>
   );
 }
+

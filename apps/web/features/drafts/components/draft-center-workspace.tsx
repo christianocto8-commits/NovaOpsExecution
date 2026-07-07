@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
+import { useConfirmation } from "@/shared/confirmation";
 import { Task } from "@/features/tasks/types";
 
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
@@ -55,10 +56,12 @@ function loadTaskDrafts(): OperationalDraft[] {
 }
 
 export function DraftCenterWorkspace() {
+  const confirm = useConfirmation();
+
   const [mode, setMode] = useState<DraftCenterMode>("operational");
   const [search, setSearch] = useState("");
 
-  const operationalDrafts = useMemo(() => loadTaskDrafts(), []);
+  const [operationalDrafts, setOperationalDrafts] = useState<OperationalDraft[]>(loadTaskDrafts);
   const filteredOperationalDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
 
@@ -71,6 +74,47 @@ export function DraftCenterWorkspace() {
       );
     });
   }, [operationalDrafts, search]);
+
+  async function handleDeleteOperationalDraft(draftId: string) {
+    const draft = operationalDrafts.find((item) => item.id === draftId);
+
+    const confirmed = await confirm({
+      title: "Delete Operational Draft",
+      description: `Are you sure you want to delete ${
+        draft?.title ?? "this operational draft"
+      }?\n\nThe saved execution draft will be removed from this task.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed || !draft) return;
+
+    const raw = window.localStorage.getItem(TASK_STORAGE_KEY);
+
+    if (raw) {
+      try {
+        const tasks = JSON.parse(raw) as Task[];
+
+        const nextTasks = tasks.map((task) =>
+          task.id === draft.taskId
+            ? {
+                ...task,
+                executionDraft: undefined,
+              }
+            : task
+        );
+
+        window.localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(nextTasks));
+      } catch {
+        // Keep UI stable if local storage contains invalid task data.
+      }
+    }
+
+    setOperationalDrafts((current) => current.filter((item) => item.id !== draftId));
+  }
+
 
   return (
     <main className="space-y-6 p-6">
@@ -171,12 +215,22 @@ export function DraftCenterWorkspace() {
                     <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
 
                     <td className="px-5 py-4 text-right">
-                      <a
-                        href={`/dashboard/tasks?mode=outlet&continueDraft=${draft.taskId}`}
-                        className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
-                      >
-                        Continue
-                      </a>
+                      <div className="flex justify-end gap-2">
+                        <a
+                          href={`/dashboard/tasks?mode=outlet&continueDraft=${draft.taskId}`}
+                          className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                        >
+                          Continue
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteOperationalDraft(draft.id)}
+                          className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -208,3 +262,4 @@ export function DraftCenterWorkspace() {
     </main>
   );
 }
+

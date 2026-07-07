@@ -18,6 +18,7 @@ import {
   EnterpriseSelect,
   EnterpriseTextarea,
 } from "@/shared/form";
+import { useConfirmation } from "@/shared/confirmation";
 
 const priorities = ["low", "medium", "high", "critical"] as const;
 
@@ -36,6 +37,8 @@ type DraftResourceState = {
 };
 
 export function DraftCenter() {
+  const confirm = useConfirmation();
+
   const [resource, setResource] = useState<DraftResourceState>({
     drafts: [],
     isLoading: false,
@@ -132,6 +135,21 @@ export function DraftCenter() {
   }
 
   async function handleDelete(draftId: number) {
+    const draft = resource.drafts.find((item) => item.id === draftId);
+
+    const confirmed = await confirm({
+      title: "Delete Draft",
+      description: `Are you sure you want to delete ${
+        draft?.title ?? "this draft"
+      }?\n\nThis draft will be permanently removed from the draft queue.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed) return;
+
     try {
       setResource((current) => ({
         ...current,
@@ -278,3 +296,4 @@ export function DraftCenter() {
     </div>
   );
 }
+

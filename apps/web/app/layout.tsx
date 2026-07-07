@@ -1,6 +1,8 @@
 ﻿import type { Metadata } from "next";
 
 import { AppProvider } from "@/providers/AppProvider";
+import { ConfirmationProvider } from "@/shared/confirmation";
+import { ToastProvider } from "@/shared/toast";
 
 import "./globals.css";
 import "./print.css";
@@ -14,8 +16,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <AppProvider>{children}</AppProvider>
+        <AppProvider>
+          <ToastProvider>
+            <ConfirmationProvider>{children}</ConfirmationProvider>
+          </ToastProvider>
+        </AppProvider>
       </body>
     </html>
   );
 }
+

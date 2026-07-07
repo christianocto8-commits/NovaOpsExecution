@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
+import { useConfirmation } from "@/shared/confirmation";
 import { Task, TaskExecutionForm, TaskFormState } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
 
@@ -38,6 +39,8 @@ function persistTasks(tasks: Task[]) {
 }
 
 export function useTaskWorkspace() {
+  const confirm = useConfirmation();
+
   const [tasks, setTasksState] = useState<Task[]>(loadInitialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("owner");
@@ -163,6 +166,30 @@ export function useTaskWorkspace() {
     setSelectedTask(null);
   }
 
+  async function deleteTask(id: string) {
+    const task = tasks.find((item) => item.id === id);
+
+    const confirmed = await confirm({
+      title: "Delete Task",
+      description: `Are you sure you want to delete ${
+        task?.title ?? "this task"
+      }?\n\nThis task will be removed from the workspace and local task store.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed) return;
+
+    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
+
+    if (selectedTask?.id === id) {
+      setSelectedTask(null);
+    }
+  }
+
+
   function openExecution(task: Task) {
     const normalizedTask = normalizeTask(task);
 
@@ -275,6 +302,7 @@ export function useTaskWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
+    deleteTask,
     executionForm,
     setExecutionForm,
     isExecutionOpen,
@@ -285,3 +313,4 @@ export function useTaskWorkspace() {
     submitTaskExecution,
   };
 }
+

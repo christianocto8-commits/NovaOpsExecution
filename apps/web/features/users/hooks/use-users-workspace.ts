@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query/keys";
+import { useDeleteAction, useStatusAction } from "@/shared/actions";
+import { useToast } from "@/shared/toast";
 import {
   createIdentityUser,
   deactivateIdentityUser,
@@ -77,6 +79,7 @@ function makeUsername(email: string) {
 
 export function useUsersWorkspace() {
   const queryClient = useQueryClient();
+const toast = useToast();
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -257,37 +260,56 @@ export function useUsersWorkspace() {
         });
       }
 
+      toast.success(editingUserId ? "Account updated successfully." : "Account created successfully.");
+
       setForm(emptyUserForm);
       setEditingUserId(null);
       setModalOpen(false);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to save user");
+      const message = nextError instanceof Error ? nextError.message : "Failed to save user";
+      setError(message);
+      toast.error(message);
     }
   }
 
-  async function deleteUser(id: string) {
-    try {
+  const deleteUser = useDeleteAction<string>({
+    entityName: "Account",
+    actionName: "Deactivate",
+    getEntityLabel: (id) => users.find((item) => item.id === id)?.name,
+    confirmationDescription: (label) =>
+      `Are you sure you want to deactivate ${label}?\n\nThe account will lose access to NovaOPS but historical audit records will remain available.`,
+    confirmText: "Deactivate",
+    loadingText: "Deactivating...",
+    successMessage: "Account deactivated successfully.",
+    errorMessage: "Failed to deactivate user",
+    onDelete: async (id) => {
       setError("");
       await deleteMutation.mutateAsync(id);
-      if (selectedUser?.id === id) setSelectedUser(null);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to deactivate user");
-    }
-  }
+    },
+    onAfterDelete: (id) => {
+      if (selectedUser?.id === id) {
+        setSelectedUser(null);
+      }
+    },
+  }).deleteItem;
 
-  async function updateStatus(id: string, status: UserStatus) {
-    try {
+  const statusAction = useStatusAction<string, UserStatus>({
+    entityName: "Account",
+    getSuccessMessage: () => "Account status updated successfully.",
+    errorMessage: "Failed to update status",
+    onStatusChange: async (id, status) => {
       setError("");
+
       await updateMutation.mutateAsync({
         userId: id,
         payload: {
           is_active: status === "Active",
         },
       });
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to update status");
-    }
-  }
+    },
+  });
+
+  const updateStatus = statusAction.updateStatus;
 
   return {
     users,
@@ -311,3 +333,17 @@ export function useUsersWorkspace() {
     updateStatus,
   };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

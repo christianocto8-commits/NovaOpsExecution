@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 
+import { useConfirmation } from "@/shared/confirmation";
 import { Button, PageHeader } from "@/shared/ui";
 
 import { useUsersWorkspace } from "../hooks";
@@ -12,9 +13,29 @@ import { UserTable } from "./user-table";
 
 export function UsersWorkspace() {
   const usersWorkspace = useUsersWorkspace();
+  const confirm = useConfirmation();
 
   function handleCloseForm() {
     usersWorkspace.setModalOpen(false);
+  }
+
+  async function handleDeleteUser(id: string) {
+    const user = usersWorkspace.users.find((item) => item.id === id);
+
+    const confirmed = await confirm({
+      title: "Delete Account",
+      description: `Are you sure you want to delete ${
+        user?.name ?? "this account"
+      }?\n\nThis action cannot be undone.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed) return;
+
+    usersWorkspace.deleteUser(id);
   }
 
   return (
@@ -66,5 +87,4 @@ export function UsersWorkspace() {
     </main>
   );
 }
-
 
