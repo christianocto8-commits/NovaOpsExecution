@@ -106,6 +106,23 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
+class OutletOperator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "identity_outlet_operators"
+
+    outlet_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_outlets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    position: Mapped[str] = mapped_column(String(80), nullable=False)
+    pin: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    outlet: Mapped[Outlet] = relationship()
+
+
 class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "identity_refresh_tokens"
 
@@ -150,4 +167,5 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resource_type: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
 

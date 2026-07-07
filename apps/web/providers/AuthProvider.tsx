@@ -1,7 +1,12 @@
 ﻿"use client";
 
 import { createContext, ReactNode, useCallback, useMemo, useState } from "react";
-import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
+
+import {
+  getMe,
+  logout as logoutService,
+  type AuthUser,
+} from "@/services/auth.service";
 
 type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
 
@@ -13,6 +18,7 @@ type AuthContextValue = {
   restoreSession: () => Promise<AuthUser | null>;
   logout: () => void;
   can: (permission: string) => boolean;
+  hasRole: (...roles: string[]) => boolean;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -20,6 +26,13 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 function getStoredToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
+}
+
+function hasPermission(permissions: string[], permission: string) {
+  if (permissions.includes(permission)) return true;
+
+  const [resource] = permission.split(".");
+  return permissions.includes(`${resource}.*`);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -57,7 +70,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   }, []);
 
-  const can = useCallback((permission: string) => true, [user]);
+  const can = useCallback(
+    (permission: string) => {
+      if (!user) return false;
+      return hasPermission(user.permissions, permission);
+    },
+    [user]
+  );
+
+  const hasRole = useCallback(
+    (...roles: string[]) => {
+      if (!user) return false;
+      return roles.includes(user.role.slug);
+    },
+    [user]
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -68,8 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       restoreSession,
       logout,
       can,
+      hasRole,
     }),
-    [user, status, restoreSession, logout, can]
+    [user, status, restoreSession, logout, can, hasRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

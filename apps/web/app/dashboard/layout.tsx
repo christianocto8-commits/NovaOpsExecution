@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore, type ReactNode } from "react";
 
+import { useAuth } from "@/hooks/useAuth";
 import { AuthGuard } from "@/lib/auth/auth-guard";
 import {
   DashboardHeader,
@@ -42,15 +43,16 @@ function AccessDenied() {
           You do not have permission to access this page.
         </h1>
         <p className="mt-2 text-sm text-red-700">
-          This route is restricted by NovaOps role-based access control.
+          This route is restricted by NovaOps permission-based access control.
         </p>
       </div>
     </main>
   );
 }
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { can } = useAuth();
 
   const collapsed = useSyncExternalStore(
     subscribeSidebarStorage,
@@ -64,7 +66,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     getServerWorkspaceSnapshot
   );
 
-  const canAccess = canAccessPath(workspace.role, pathname);
+  const canAccess = canAccessPath(can, pathname);
 
   function toggleSidebar() {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(!collapsed));
@@ -72,21 +74,27 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-[#F7FAF8]">
-        <EnterpriseSidebar collapsed={collapsed} workspace={workspace} onToggle={toggleSidebar} />
+    <div className="min-h-screen bg-[#F7FAF8]">
+      <EnterpriseSidebar collapsed={collapsed} workspace={workspace} onToggle={toggleSidebar} />
 
-        <div
-          className={[
-            "transition-all duration-300 ease-out",
-            collapsed ? "lg:pl-24" : "lg:pl-72",
-          ].join(" ")}
-        >
-          <DashboardHeader workspace={workspace} />
+      <div
+        className={[
+          "transition-all duration-300 ease-out",
+          collapsed ? "lg:pl-24" : "lg:pl-72",
+        ].join(" ")}
+      >
+        <DashboardHeader workspace={workspace} />
 
-          {canAccess ? children : <AccessDenied />}
-        </div>
+        {canAccess ? children : <AccessDenied />}
       </div>
+    </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
     </AuthGuard>
   );
 }

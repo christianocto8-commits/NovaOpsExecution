@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { getNavigationForRole, navigationSectionLabels, NavigationItem } from "@/shared/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  getNavigationForPermissions,
+  navigationSectionLabels,
+  type NavigationItem,
+} from "@/shared/navigation";
 import { CurrentWorkspace } from "../role-config";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarFooter } from "./sidebar-footer";
@@ -31,7 +36,8 @@ function groupNavigation(items: NavigationItem[]) {
 
 export function EnterpriseSidebar({ collapsed, workspace, onToggle }: EnterpriseSidebarProps) {
   const pathname = usePathname();
-  const groupedItems = groupNavigation(getNavigationForRole(workspace.role));
+  const { can } = useAuth();
+  const groupedItems = groupNavigation(getNavigationForPermissions(can));
 
   return (
     <aside

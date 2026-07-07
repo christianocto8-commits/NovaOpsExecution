@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.modules.identity.models import (
     Organization,
     Outlet,
+    OutletOperator,
     Permission,
     RefreshToken,
     Role,
@@ -195,3 +196,36 @@ class OutletRepository:
         self.db.refresh(outlet)
         return outlet
 
+
+
+class OutletOperatorRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list(self) -> list[OutletOperator]:
+        statement = select(OutletOperator).order_by(OutletOperator.created_at.desc())
+        return list(self.db.scalars(statement).all())
+
+    def list_by_outlet(self, outlet_id: UUID) -> list[OutletOperator]:
+        statement = (
+            select(OutletOperator)
+            .where(OutletOperator.outlet_id == outlet_id)
+            .order_by(OutletOperator.name.asc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def find_by_id(self, operator_id: UUID) -> OutletOperator | None:
+        statement = select(OutletOperator).where(OutletOperator.id == operator_id)
+        return self.db.scalar(statement)
+
+    def create(self, operator: OutletOperator) -> OutletOperator:
+        self.db.add(operator)
+        self.db.flush()
+        self.db.refresh(operator)
+        return operator
+
+    def update(self, operator: OutletOperator) -> OutletOperator:
+        self.db.add(operator)
+        self.db.flush()
+        self.db.refresh(operator)
+        return operator

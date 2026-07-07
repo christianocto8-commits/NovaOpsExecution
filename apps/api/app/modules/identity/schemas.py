@@ -84,6 +84,42 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class OutletMetricsRead(BaseModel):
+    outlet_id: UUID
+    open_tasks: int = 0
+    completed_today: int = 0
+    compliance: float = 0
+    last_audit: datetime | None = None
+    active_operators: int = 0
+
+
+class OutletOperatorRead(BaseModel):
+    id: UUID
+    outlet_id: UUID
+    name: str
+    position: str
+    pin: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OutletOperatorCreate(BaseModel):
+    outlet_id: UUID
+    name: str = Field(min_length=2, max_length=160)
+    position: str = Field(min_length=2, max_length=80)
+    pin: str = Field(min_length=3, max_length=20)
+    is_active: bool = True
+
+
+class OutletOperatorUpdate(BaseModel):
+    outlet_id: UUID | None = None
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    position: str | None = Field(default=None, min_length=2, max_length=80)
+    pin: str | None = Field(default=None, min_length=3, max_length=20)
+    is_active: bool | None = None
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=80)
@@ -119,12 +155,33 @@ class UserMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AuthContextResponse(BaseModel):
-    user_id: UUID
+class AuthContextUserResponse(BaseModel):
+    id: UUID
     username: str
     email: str
-    role: str
-    outlet_id: str | None
+    full_name: str
+    is_active: bool
+
+
+class AuthContextRoleResponse(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+
+
+class AuthContextOutletAccessResponse(BaseModel):
+    scope: str
+    outlet_id: UUID | None = None
+    outlet_ids: list[UUID] = []
+
+
+class AuthContextResponse(BaseModel):
+    user: AuthContextUserResponse
+    role: AuthContextRoleResponse
+    outlet_access: AuthContextOutletAccessResponse
     permissions: list[str]
     token_version: int
+
+
+
 

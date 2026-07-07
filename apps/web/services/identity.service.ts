@@ -114,3 +114,67 @@ export async function deactivateIdentityOutlet(outletId: string) {
   });
 }
 
+
+export type IdentityOutletOperator = {
+  id: string;
+  outlet_id: string;
+  name: string;
+  position: string;
+  pin: string;
+  is_active: boolean;
+};
+
+export type CreateIdentityOutletOperatorPayload = {
+  outlet_id: string;
+  name: string;
+  position: string;
+  pin: string;
+  is_active?: boolean;
+};
+
+export type UpdateIdentityOutletOperatorPayload =
+  Partial<CreateIdentityOutletOperatorPayload>;
+
+export async function getIdentityOutletOperators(outletId?: string) {
+  const query = outletId ? `?outlet_id=${outletId}` : "";
+
+  return api<IdentityOutletOperator[]>(`/api/v1/identity/operators${query}`);
+}
+
+export async function createIdentityOutletOperator(
+  payload: CreateIdentityOutletOperatorPayload
+) {
+  return api<IdentityOutletOperator>("/api/v1/identity/operators", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateIdentityOutletOperator(
+  operatorId: string,
+  payload: UpdateIdentityOutletOperatorPayload
+) {
+  return api<IdentityOutletOperator>(`/api/v1/identity/operators/${operatorId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteIdentityOutletOperator(operatorId: string) {
+  return api<{ message: string }>(`/api/v1/identity/operators/${operatorId}`, {
+    method: "DELETE",
+  });
+}
+
+export type IdentityOutletMetrics = {
+  outlet_id: string;
+  open_tasks: number;
+  completed_today: number;
+  compliance: number;
+  last_audit: string | null;
+  active_operators: number;
+};
+
+export async function getIdentityOutletMetrics() {
+  return api<IdentityOutletMetrics[]>("/api/v1/identity/outlets/metrics");
+}

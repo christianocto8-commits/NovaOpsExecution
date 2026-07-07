@@ -4,19 +4,26 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query/keys";
-import { useConfirmation } from "@/shared/confirmation";
+import { useDeleteAction, useStatusAction } from "@/shared/actions";
+import { useToast } from "@/shared/toast";
 import {
   createIdentityOutlet,
+  createIdentityOutletOperator,
   deactivateIdentityOutlet,
+  deleteIdentityOutletOperator,
+  getIdentityOutletMetrics,
+  getIdentityOutletOperators,
   getIdentityOutlets,
   IdentityOutlet,
+  IdentityOutletMetrics,
+  IdentityOutletOperator,
   updateIdentityOutlet,
+  updateIdentityOutletOperator,
 } from "@/services/identity.service";
 
 import {
   emptyOperatorForm,
   emptyOutletForm,
-  mockOutletOperators,
 } from "../data/outlets-data";
 import { OperatorFormState, Outlet, OutletFormState, OutletOperator, OutletStatus } from "../types";
 
@@ -32,16 +39,36 @@ function toApiStatus(status: OutletStatus) {
   return "active";
 }
 
-function mapIdentityOutlet(outlet: IdentityOutlet): Outlet {
+function mapIdentityOperator(operator: IdentityOutletOperator): OutletOperator {
+  return {
+    id: operator.id,
+    outletId: operator.outlet_id,
+    name: operator.name,
+    position: operator.position as OutletOperator["position"],
+    pin: operator.pin,
+    active: operator.is_active,
+  };
+}
+
+function formatLastAudit(value: string | null) {
+  if (!value) return "Not audited";
+
+  return new Date(value).toLocaleString();
+}
+
+function mapIdentityOutlet(
+  outlet: IdentityOutlet,
+  metrics?: IdentityOutletMetrics
+): Outlet {
   return {
     id: outlet.id,
     name: outlet.name,
     area: outlet.address ?? "-",
     status: toUiStatus(outlet.status),
     tier: "Standard",
-    compliance: "0%",
-    openTasks: 0,
-    lastAudit: "Not audited",
+    compliance: `${Math.round(metrics?.compliance ?? 0)}%`,
+    openTasks: metrics?.open_tasks ?? 0,
+    lastAudit: formatLastAudit(metrics?.last_audit ?? null),
     accountEmail: `${outlet.code.toLowerCase()}@novaops.local`,
   };
 }
@@ -58,9 +85,8 @@ function makeOutletCode(name: string) {
 
 export function useOutletsWorkspace() {
   const queryClient = useQueryClient();
-  const confirm = useConfirmation();
+  const toast = useToast();
 
-  const [operators, setOperators] = useState<OutletOperator[]>(mockOutletOperators);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
 
   const [outletModalOpen, setOutletModalOpen] = useState(false);
@@ -78,8 +104,35 @@ export function useOutletsWorkspace() {
     queryFn: getIdentityOutlets,
   });
 
+  const operatorsQuery = useQuery({
+    queryKey: queryKeys.identity.operators,
+    queryFn: () => getIdentityOutletOperators(),
+  });
+
+  const outletMetricsQuery = useQuery({
+    queryKey: queryKeys.identity.outletMetrics,
+    queryFn: getIdentityOutletMetrics,
+  });
+
   const identityOutlets = outletsQuery.data ?? [];
-  const outlets = useMemo(() => identityOutlets.map(mapIdentityOutlet), [identityOutlets]);
+  const identityOperators = operatorsQuery.data ?? [];
+  const outletMetrics = outletMetricsQuery.data ?? [];
+
+  const metricsByOutletId = useMemo(() => {
+    return new Map(outletMetrics.map((item) => [item.outlet_id, item]));
+  }, [outletMetrics]);
+
+  const outlets = useMemo(
+    () =>
+      identityOutlets.map((outlet) =>
+        mapIdentityOutlet(outlet, metricsByOutletId.get(outlet.id))
+      ),
+    [identityOutlets, metricsByOutletId]
+  );
+  const operators = useMemo(
+    () => identityOperators.map(mapIdentityOperator),
+    [identityOperators]
+  );
 
   const metrics = useMemo(() => {
     return {
@@ -95,8 +148,10 @@ export function useOutletsWorkspace() {
     return operators.filter((operator) => operator.outletId === selectedOutlet.id);
   }, [operators, selectedOutlet]);
 
-  function invalidateOutlets() {
-    return queryClient.invalidateQueries({ queryKey: queryKeys.identity.outlets });
+  async function invalidateOutlets() {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.identity.outlets });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.identity.operators });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.identity.outletMetrics });
   }
 
   const createMutation = useMutation({
@@ -115,13 +170,43 @@ export function useOutletsWorkspace() {
     onSuccess: invalidateOutlets,
   });
 
+  const createOperatorMutation = useMutation({
+    mutationFn: createIdentityOutletOperator,
+    onSuccess: invalidateOutlets,
+  });
+
+  const updateOperatorMutation = useMutation({
+    mutationFn: ({
+      operatorId,
+      payload,
+    }: {
+      operatorId: string;
+      payload: Parameters<typeof updateIdentityOutletOperator>[1];
+    }) => updateIdentityOutletOperator(operatorId, payload),
+    onSuccess: invalidateOutlets,
+  });
+
+  const deleteOperatorMutation = useMutation({
+    mutationFn: deleteIdentityOutletOperator,
+    onSuccess: invalidateOutlets,
+  });
+
   const loading =
     outletsQuery.isLoading ||
     createMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending;
+    deleteMutation.isPending ||
+    operatorsQuery.isLoading ||
+    outletMetricsQuery.isLoading;
 
-  const queryError = outletsQuery.error instanceof Error ? outletsQuery.error.message : "";
+  const queryError =
+    outletsQuery.error instanceof Error
+      ? outletsQuery.error.message
+      : operatorsQuery.error instanceof Error
+        ? operatorsQuery.error.message
+        : outletMetricsQuery.error instanceof Error
+          ? outletMetricsQuery.error.message
+          : "";
 
   function openCreateOutletDialog() {
     setEditingOutletId(null);
@@ -168,58 +253,54 @@ export function useOutletsWorkspace() {
         });
       }
 
+      toast.success(editingOutletId ? "Outlet updated successfully." : "Outlet created successfully.");
+
       setOutletForm(emptyOutletForm);
       setEditingOutletId(null);
       setOutletModalOpen(false);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to save outlet");
+      const message = nextError instanceof Error ? nextError.message : "Failed to save outlet";
+      setError(message);
+      toast.error(message);
     }
   }
 
-  async function updateOutletStatus(id: string, status: OutletStatus) {
-    try {
+  const statusAction = useStatusAction<string, OutletStatus>({
+    entityName: "Outlet",
+    getSuccessMessage: () => "Outlet status updated successfully.",
+    errorMessage: "Failed to update outlet status",
+    onStatusChange: async (id, status) => {
       setError("");
+
       await updateMutation.mutateAsync({
         outletId: id,
         payload: { status: toApiStatus(status) },
       });
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to update outlet status");
-    }
-  }
+    },
+  });
 
-  async function deleteOutlet(id: string) {
-    const outlet = outlets.find((item) => item.id === id);
+  const updateOutletStatus = statusAction.updateStatus;
 
-    const confirmed = await confirm({
-      title: "Deactivate Outlet",
-      description: `Are you sure you want to deactivate ${
-        outlet?.name ?? "this outlet"
-      }?\n\nThe outlet will be removed from active operations, but historical records will remain available.`,
-      variant: "danger",
-      confirmText: "Deactivate",
-      cancelText: "Cancel",
-      loadingText: "Deactivating...",
-    });
-
-    if (!confirmed) return;
-
-    try {
+  const deleteOutlet = useDeleteAction<string>({
+    entityName: "Outlet",
+    actionName: "Deactivate",
+    getEntityLabel: (id) => outlets.find((item) => item.id === id)?.name,
+    confirmationDescription: (label) =>
+      `Are you sure you want to deactivate ${label}?\n\nThe outlet will be removed from active operations, but historical records will remain available.`,
+    confirmText: "Deactivate",
+    loadingText: "Deactivating...",
+    successMessage: "Outlet deactivated successfully.",
+    errorMessage: "Failed to deactivate outlet",
+    onDelete: async (id) => {
       setError("");
       await deleteMutation.mutateAsync(id);
-      setOperators((current) => current.filter((operator) => operator.outletId !== id));
-
+    },
+    onAfterDelete: (id) => {
       if (selectedOutlet?.id === id) {
         setSelectedOutlet(null);
       }
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Failed to deactivate outlet"
-      );
-    }
-  }
+    },
+  }).deleteItem;
 
   function openCreateOperatorDialog(outletId: string) {
     setEditingOperatorId(null);
@@ -239,46 +320,63 @@ export function useOutletsWorkspace() {
     setOperatorModalOpen(true);
   }
 
-  function saveOperator() {
+  async function saveOperator() {
     if (!operatorForm.outletId || !operatorForm.name.trim()) return;
 
-    if (editingOperatorId) {
-      setOperators((current) =>
-        current.map((operator) =>
-          operator.id === editingOperatorId ? { ...operator, ...operatorForm } : operator
-        )
+    try {
+      setError("");
+
+      if (editingOperatorId) {
+        await updateOperatorMutation.mutateAsync({
+          operatorId: editingOperatorId,
+          payload: {
+            outlet_id: operatorForm.outletId,
+            name: operatorForm.name,
+            position: operatorForm.position,
+            pin: operatorForm.pin,
+            is_active: operatorForm.active,
+          },
+        });
+      } else {
+        await createOperatorMutation.mutateAsync({
+          outlet_id: operatorForm.outletId,
+          name: operatorForm.name,
+          position: operatorForm.position,
+          pin: operatorForm.pin,
+          is_active: operatorForm.active,
+        });
+      }
+
+      toast.success(
+        editingOperatorId
+          ? "Operator updated successfully."
+          : "Operator created successfully."
       );
-    } else {
-      const nextOperator: OutletOperator = {
-        id: `OPR-${String(operators.length + 1).padStart(3, "0")}`,
-        ...operatorForm,
-      };
-      setOperators((current) => [nextOperator, ...current]);
+
+      setOperatorForm(emptyOperatorForm);
+      setEditingOperatorId(null);
+      setOperatorModalOpen(false);
+    } catch (nextError) {
+      const message =
+        nextError instanceof Error ? nextError.message : "Failed to save operator";
+      setError(message);
+      toast.error(message);
     }
-
-    setOperatorForm(emptyOperatorForm);
-    setEditingOperatorId(null);
-    setOperatorModalOpen(false);
   }
 
-  async function deleteOperator(id: string) {
-    const operator = operators.find((item) => item.id === id);
-
-    const confirmed = await confirm({
-      title: "Delete Operator",
-      description: `Are you sure you want to delete ${
-        operator?.name ?? "this operator"
-      }?\n\nThis operator will no longer be available for task execution audit selection.`,
-      variant: "danger",
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      loadingText: "Deleting...",
-    });
-
-    if (!confirmed) return;
-
-    setOperators((current) => current.filter((operator) => operator.id !== id));
-  }
+  const deleteOperator = useDeleteAction<string>({
+    entityName: "Operator",
+    getEntityLabel: (id) => operators.find((item) => item.id === id)?.name,
+    confirmationDescription: (label) =>
+      `Are you sure you want to delete ${label}?\n\nThis operator will no longer be available for task execution audit selection.`,
+    confirmText: "Delete",
+    loadingText: "Deleting...",
+    successMessage: "Operator deleted successfully.",
+    errorMessage: "Failed to delete operator",
+    onDelete: async (id) => {
+      await deleteOperatorMutation.mutateAsync(id);
+    },
+  }).deleteItem;
 
   return {
     outlets,
@@ -313,6 +411,10 @@ export function useOutletsWorkspace() {
     deleteOperator,
   };
 }
+
+
+
+
 
 
 

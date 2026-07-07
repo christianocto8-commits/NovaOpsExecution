@@ -1,22 +1,28 @@
-﻿import { navigationItems } from "./navigation-config";
-import { NovaRole } from "./role-config";
+﻿import { navigationItems, type NavigationItem } from "./navigation-config";
 
-export function canAccessNavigationItem(role: NovaRole, itemId: string) {
+type PermissionChecker = (permission: string) => boolean;
+
+function canAccessItem(can: PermissionChecker, item: NavigationItem) {
+  if (item.requiredPermissions.length === 0) return true;
+  return item.requiredPermissions.every((permission) => can(permission));
+}
+
+export function canAccessNavigationItem(can: PermissionChecker, itemId: string) {
   const item = navigationItems.find((navItem) => navItem.id === itemId);
   if (!item) return false;
 
-  return item.allowedRoles.includes(role);
+  return canAccessItem(can, item);
 }
 
-export function getNavigationForRole(role: NovaRole) {
-  return navigationItems.filter((item) => item.allowedRoles.includes(role));
+export function getNavigationForPermissions(can: PermissionChecker) {
+  return navigationItems.filter((item) => canAccessItem(can, item));
 }
 
-export function canAccessPath(role: NovaRole, pathname: string) {
+export function canAccessPath(can: PermissionChecker, pathname: string) {
   const exactMatch = navigationItems.find((item) => item.href === pathname);
 
   if (exactMatch) {
-    return exactMatch.allowedRoles.includes(role);
+    return canAccessItem(can, exactMatch);
   }
 
   const parentMatch = navigationItems.find(
@@ -25,5 +31,5 @@ export function canAccessPath(role: NovaRole, pathname: string) {
 
   if (!parentMatch) return true;
 
-  return parentMatch.allowedRoles.includes(role);
+  return canAccessItem(can, parentMatch);
 }

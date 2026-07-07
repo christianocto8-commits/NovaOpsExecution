@@ -11,14 +11,12 @@
   Users,
 } from "lucide-react";
 
-import { NovaRole } from "./role-config";
-
 export type NavigationItem = {
   id: string;
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
-  allowedRoles: NovaRole[];
+  requiredPermissions: string[];
   section: "enterprise" | "operations" | "administration" | "configuration";
 };
 
@@ -28,7 +26,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    requiredPermissions: ["report.read"],
     section: "enterprise",
   },
   {
@@ -36,7 +34,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Home",
     href: "/dashboard",
     icon: Home,
-    allowedRoles: ["OUTLET"],
+    requiredPermissions: ["task.read"],
     section: "operations",
   },
   {
@@ -44,7 +42,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Tasks",
     href: "/dashboard/tasks",
     icon: ClipboardCheck,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    requiredPermissions: ["task.read"],
     section: "operations",
   },
   {
@@ -52,7 +50,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Draft Center",
     href: "/dashboard/drafts",
     icon: FileText,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    requiredPermissions: ["task.execute"],
     section: "operations",
   },
   {
@@ -60,7 +58,7 @@ export const navigationItems: NavigationItem[] = [
     label: "History",
     href: "/dashboard/history",
     icon: History,
-    allowedRoles: ["OUTLET"],
+    requiredPermissions: ["task.execute"],
     section: "operations",
   },
   {
@@ -68,7 +66,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Reports",
     href: "/dashboard/reports",
     icon: BarChart3,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    requiredPermissions: ["report.read"],
     section: "operations",
   },
   {
@@ -76,7 +74,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Accounts",
     href: "/dashboard/users",
     icon: Users,
-    allowedRoles: ["OWNER_ADMIN"],
+    requiredPermissions: ["user.read"],
     section: "administration",
   },
   {
@@ -84,7 +82,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Outlets",
     href: "/dashboard/outlets",
     icon: Building2,
-    allowedRoles: ["OWNER_ADMIN"],
+    requiredPermissions: ["outlet.read"],
     section: "administration",
   },
   {
@@ -92,7 +90,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Outlet Profile",
     href: "/dashboard/outlet-profile",
     icon: Store,
-    allowedRoles: ["OUTLET"],
+    requiredPermissions: ["outlet.read"],
     section: "administration",
   },
   {
@@ -100,7 +98,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
-    allowedRoles: ["OWNER_ADMIN"],
+    requiredPermissions: ["user.edit"],
     section: "configuration",
   },
 ];

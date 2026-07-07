@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.identity.dependencies import require_permission
-from app.modules.identity.models import Outlet, User
+from app.modules.identity.models import Outlet, OutletOperator, User
 from app.modules.identity.repository import (
     OrganizationRepository,
     OutletRepository,
+    OutletOperatorRepository,
     PermissionRepository,
     RoleRepository,
     UserRepository,
@@ -18,6 +19,10 @@ from app.modules.identity.schemas import (
     OutletCreate,
     OutletRead,
     OutletUpdate,
+    OutletOperatorCreate,
+    OutletMetricsRead,
+    OutletOperatorRead,
+    OutletOperatorUpdate,
     PermissionRead,
     RoleRead,
     UserCreate,
@@ -356,3 +361,128 @@ def deactivate_user(
 
 
 
+
+@router.get("/operators", response_model=list[OutletOperatorRead])
+def list_operators(
+    outlet_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.read")),
+):
+    operators = OutletOperatorRepository(db)
+
+    if outlet_id:
+        return operators.list_by_outlet(outlet_id)
+
+    return operators.list()
+
+
+@router.post("/operators", response_model=OutletOperatorRead, status_code=status.HTTP_201_CREATED)
+def create_operator(
+    payload: OutletOperatorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.edit")),
+):
+    outlets = OutletRepository(db)
+
+    outlet = outlets.find_by_id(payload.outlet_id)
+    if not outlet:
+        raise HTTPException(status_code=404, detail="Outlet not found")
+
+    operator = OutletOperator(
+        outlet_id=payload.outlet_id,
+        name=payload.name.strip(),
+        position=payload.position.strip(),
+        pin=payload.pin.strip(),
+        is_active=payload.is_active,
+    )
+
+    created = OutletOperatorRepository(db).create(operator)
+    db.commit()
+    return created
+
+
+@router.patch("/operators/{operator_id}", response_model=OutletOperatorRead)
+def update_operator(
+    operator_id: UUID,
+    payload: OutletOperatorUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.edit")),
+):
+    operators = OutletOperatorRepository(db)
+    outlets = OutletRepository(db)
+
+    operator = operators.find_by_id(operator_id)
+    if not operator:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    if "outlet_id" in update_data and update_data["outlet_id"]:
+        outlet = outlets.find_by_id(update_data["outlet_id"])
+        if not outlet:
+            raise HTTPException(status_code=404, detail="Outlet not found")
+        operator.outlet_id = update_data["outlet_id"]
+
+    if "name" in update_data and update_data["name"]:
+        operator.name = str(update_data["name"]).strip()
+
+    if "position" in update_data and update_data["position"]:
+        operator.position = str(update_data["position"]).strip()
+
+    if "pin" in update_data and update_data["pin"]:
+        operator.pin = str(update_data["pin"]).strip()
+
+    if "is_active" in update_data:
+        operator.is_active = bool(update_data["is_active"])
+
+    updated = operators.update(operator)
+    db.commit()
+    return updated
+
+
+@router.delete("/operators/{operator_id}", response_model=MessageResponse)
+def delete_operator(
+    operator_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.edit")),
+):
+    operators = OutletOperatorRepository(db)
+
+    operator = operators.find_by_id(operator_id)
+    if not operator:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    db.delete(operator)
+    db.commit()
+
+    return MessageResponse(message="Operator deleted")
+
+@router.get("/outlets/metrics", response_model=list[OutletMetricsRead])
+def list_outlet_metrics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.read")),
+):
+    outlets = OutletRepository(db).list()
+    operators = OutletOperatorRepository(db).list()
+
+    active_operator_count_by_outlet: dict[UUID, int] = {}
+
+    for operator in operators:
+        if not operator.is_active:
+            continue
+
+        active_operator_count_by_outlet[operator.outlet_id] = (
+            active_operator_count_by_outlet.get(operator.outlet_id, 0) + 1
+        )
+
+    return [
+        OutletMetricsRead(
+            outlet_id=outlet.id,
+            open_tasks=0,
+            completed_today=0,
+            compliance=0,
+            last_audit=None,
+            active_operators=active_operator_count_by_outlet.get(outlet.id, 0),
+        )
+        for outlet in outlets
+    ]
