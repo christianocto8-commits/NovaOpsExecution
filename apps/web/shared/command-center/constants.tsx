@@ -52,8 +52,8 @@ export const commandItems: CommandItem[] = [
   },
   {
     id: "go-forms",
-    title: "Go to SOP Forms",
-    description: "Open checklist and audit template builder",
+    title: "Go to My Form",
+    description: "Open reusable form template library",
     href: "/dashboard/forms",
     group: "Navigation",
     type: "navigation",

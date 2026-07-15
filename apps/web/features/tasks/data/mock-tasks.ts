@@ -9,6 +9,10 @@ export const emptyTaskForm: TaskFormState = {
   due: "2026-07-04T09:00",
   description: "",
   formTemplateId: "FORM-OPENING",
+  recurrence: "once",
+  shifts: ["morning"],
+  targetOutlets: ["KOV Montre"],
+  autoPublish: false,
 };
 
 export const emptyTaskExecutionForm: TaskExecutionForm = {
@@ -30,6 +34,10 @@ export const mockTasks: Task[] = [
     due: "2026-07-04T09:00",
     description: "Test task untuk mencoba isi form, save draft, continue, dan submit final.",
     formTemplateId: "FORM-OPENING",
+    recurrence: "daily",
+    shifts: ["morning"],
+    targetOutlets: ["KOV Montre"],
+    autoPublish: true,
     activity: [
       {
         id: "ACT-001-created",
@@ -51,5 +59,9 @@ export const mockTasks: Task[] = [
     due: "2026-07-04T17:00",
     description: "Audit espresso machine cleaning and backflush compliance.",
     formTemplateId: "FORM-CLEANING",
+    recurrence: "daily",
+    shifts: ["evening"],
+    targetOutlets: ["KOV Heritage"],
+    autoPublish: true,
   },
 ];

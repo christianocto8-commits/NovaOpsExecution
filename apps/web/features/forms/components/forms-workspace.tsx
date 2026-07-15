@@ -2,62 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CalendarClock, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { formTemplates } from "@/features/forms/data/mock-form-templates";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
-import { mockOutlets } from "@/features/outlets/data/outlets-data";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
-import { getIdentityOutlets } from "@/services/identity.service";
-
-type ShiftId = "morning" | "evening" | "midnight";
 
 const DRAFT_STORAGE_KEY = "novaops_template_builder_draft";
-const SCHEDULE_STORAGE_KEY = "novaops_template_publish_schedule";
-
-const shiftOptions: Array<{
-  id: ShiftId;
-  label: string;
-  time: string;
-}> = [
-  { id: "morning", label: "Morning", time: "07:00" },
-  { id: "evening", label: "Evening", time: "15:00" },
-  { id: "midnight", label: "Midnight", time: "23:00" },
-];
-
-type TemplatePublishSchedule = {
-  enabled: boolean;
-  outletNames: string[];
-  shifts: Record<ShiftId, boolean>;
-};
-
-function getFallbackOutletNames() {
-  return mockOutlets.map((outlet) => outlet.name);
-}
-
-function createDefaultSchedule(outletNames = getFallbackOutletNames()): TemplatePublishSchedule {
-  return {
-    enabled: true,
-    outletNames,
-    shifts: {
-      morning: true,
-      evening: true,
-      midnight: true,
-    },
-  };
-}
-
-function reconcileOutletNames(selectedOutletNames: string[], existingOutletNames: string[]) {
-  const selected = new Set(selectedOutletNames);
-  const existing = new Set(existingOutletNames);
-
-  return [
-    ...selectedOutletNames.filter((outletName) => existing.has(outletName)),
-    ...existingOutletNames.filter((outletName) => !selected.has(outletName)),
-  ];
-}
 
 const fieldTypeOptions: Array<{
   value: FormFieldType;
@@ -71,7 +24,7 @@ const fieldTypeOptions: Array<{
   { value: "signature", label: "Signature" },
 ];
 
-const taskTypeOptions = [
+const formTypeOptions = [
   "Daily",
   "Checklist",
   "Audit",
@@ -83,13 +36,6 @@ const taskTypeOptions = [
   "Quality Check",
   "Maintenance",
   "Custom",
-];
-
-const urgencyOptions: Array<NonNullable<FormTemplate["urgency"]>> = [
-  "Low",
-  "Medium",
-  "High",
-  "Critical",
 ];
 
 const fieldTypeLabel: Record<FormFieldType, string> = {
@@ -104,7 +50,7 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
 function createField(): FormField {
   return {
     id: `field-${crypto.randomUUID()}`,
-    label: "Task step",
+    label: "Form field",
     type: "yes_no",
     required: true,
   };
@@ -126,27 +72,6 @@ function loadDraftTemplates() {
   }
 }
 
-function loadPublishSchedule(): TemplatePublishSchedule {
-  const rawSchedule = localStorage.getItem(SCHEDULE_STORAGE_KEY);
-
-  if (!rawSchedule) return createDefaultSchedule();
-
-  try {
-    const parsedSchedule = JSON.parse(rawSchedule) as TemplatePublishSchedule;
-
-    return {
-      ...createDefaultSchedule(),
-      ...parsedSchedule,
-      shifts: {
-        ...createDefaultSchedule().shifts,
-        ...(parsedSchedule.shifts ?? {}),
-      },
-    };
-  } catch {
-    return createDefaultSchedule();
-  }
-}
-
 const columns: EnterpriseColumn<FormTemplate>[] = [
   {
     key: "name",
@@ -164,15 +89,6 @@ const columns: EnterpriseColumn<FormTemplate>[] = [
     render: (form) => (
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold capitalize text-slate-700">
         {form.category}
-      </span>
-    ),
-  },
-  {
-    key: "urgency",
-    header: "Urgency",
-    render: (form) => (
-      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-        {form.urgency ?? "Medium"}
       </span>
     ),
   },
@@ -199,11 +115,6 @@ export function FormsWorkspace() {
     queryFn: formTemplateService.list,
     retry: false,
   });
-  const identityOutletsQuery = useQuery({
-    queryKey: queryKeys.identity.outlets,
-    queryFn: getIdentityOutlets,
-    retry: false,
-  });
   const syncTemplateMutation = useMutation({
     mutationFn: formTemplateService.create,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() }),
@@ -220,14 +131,6 @@ export function FormsWorkspace() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialDraft.selectedTemplateId);
   const [query, setQuery] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [publishSchedule, setPublishSchedule] =
-    useState<TemplatePublishSchedule>(loadPublishSchedule);
-  const outletOptions = useMemo(() => {
-    const identityOutlets = identityOutletsQuery.data ?? [];
-    const sourceOutlets = identityOutlets.length > 0 ? identityOutlets : mockOutlets;
-
-    return sourceOutlets.map((outlet) => outlet.name);
-  }, [identityOutletsQuery.data]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -238,17 +141,13 @@ export function FormsWorkspace() {
     return () => window.clearTimeout(timer);
   }, [templates]);
 
-  useEffect(() => {
-    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(publishSchedule));
-  }, [publishSchedule]);
-
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
       const normalizedQuery = query.trim().toLowerCase();
 
       if (!normalizedQuery) return true;
 
-      return [template.name, template.category, template.description, template.urgency ?? ""]
+      return [template.name, template.category, template.description]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery);
@@ -264,17 +163,6 @@ export function FormsWorkspace() {
   const evidenceItems = selectedTemplate.fields.filter((field) =>
     ["photo", "signature"].includes(field.type)
   ).length;
-  const selectedShiftCount = shiftOptions.filter(
-    (shift) => publishSchedule.shifts[shift.id]
-  ).length;
-  const scheduledOutletNames = useMemo(
-    () => reconcileOutletNames(publishSchedule.outletNames, outletOptions),
-    [publishSchedule.outletNames, outletOptions]
-  );
-  const dailyTaskCount = publishSchedule.enabled
-    ? scheduledOutletNames.length * selectedShiftCount
-    : 0;
-
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
     setTemplates((currentTemplates) =>
       currentTemplates.map((template) =>
@@ -316,15 +204,14 @@ export function FormsWorkspace() {
   function createTemplate() {
     const newTemplate: FormTemplate = {
       id: `FORM-${Date.now()}`,
-      name: "New Task Template",
+      name: "New Form Template",
       category: "Daily",
-      urgency: "Medium",
-      description: "Reusable task template for outlet teams.",
+      description: "Reusable form template for SOP task execution.",
       status: "Draft",
       fields: [
         {
           id: `field-${crypto.randomUUID()}`,
-          label: "Checklist item",
+          label: "Form field",
           type: "yes_no",
           required: true,
         },
@@ -352,36 +239,8 @@ export function FormsWorkspace() {
     setSelectedTemplateId(nextTemplates[0]?.id ?? "");
   }
 
-  function toggleOutlet(outletName: string) {
-    setPublishSchedule((currentSchedule) => {
-      const currentOutletNames = reconcileOutletNames(currentSchedule.outletNames, outletOptions);
-      const selected = currentOutletNames.includes(outletName);
-
-      return {
-        ...currentSchedule,
-        outletNames: selected
-          ? currentOutletNames.filter((name) => name !== outletName)
-          : [...currentOutletNames, outletName],
-      };
-    });
-  }
-
-  function toggleShift(shiftId: ShiftId) {
-    setPublishSchedule((currentSchedule) => ({
-      ...currentSchedule,
-      shifts: {
-        ...currentSchedule.shifts,
-        [shiftId]: !currentSchedule.shifts[shiftId],
-      },
-    }));
-  }
-
   function saveDraftNow() {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(templates));
-    localStorage.setItem(
-      SCHEDULE_STORAGE_KEY,
-      JSON.stringify({ ...publishSchedule, outletNames: scheduledOutletNames })
-    );
     setLastSavedAt(new Date().toISOString());
   }
 
@@ -393,11 +252,11 @@ export function FormsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Admin / Owner Task Library</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Task Template Builder</h1>
+          <p className="text-sm font-medium text-emerald-700">Form Library</p>
+          <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Create one reusable task template, choose its type and urgency, then publish it to every
-            outlet by shift.
+            Create reusable form templates for SOP Tasks. Scheduling and auto-publish live inside
+            SOP Task.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -428,7 +287,7 @@ export function FormsWorkspace() {
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
           >
             <Plus className="size-4" />
-            New Task Template
+            New Form
           </button>
 
           <button
@@ -648,7 +507,7 @@ export function FormsWorkspace() {
 
           <div className="mt-5 space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-700">Task Type</label>
+              <label className="text-xs font-semibold text-slate-700">Form Type</label>
               <select
                 value={selectedTemplate.category}
                 onChange={(event) =>
@@ -658,28 +517,9 @@ export function FormsWorkspace() {
                 }
                 className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                {taskTypeOptions.map((taskType) => (
+                {formTypeOptions.map((taskType) => (
                   <option key={taskType} value={taskType}>
                     {taskType}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Urgency</label>
-              <select
-                value={selectedTemplate.urgency ?? "Medium"}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    urgency: event.target.value as NonNullable<FormTemplate["urgency"]>,
-                  })
-                }
-                className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              >
-                {urgencyOptions.map((urgency) => (
-                  <option key={urgency} value={urgency}>
-                    {urgency}
                   </option>
                 ))}
               </select>
@@ -702,107 +542,12 @@ export function FormsWorkspace() {
               </select>
             </div>
           </div>
-
-          <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700">
-                <CalendarClock className="size-4" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-950">Daily Auto Publish</p>
-                <p className="mt-1 text-xs leading-5 text-emerald-700">
-                  Publish this template every day for selected outlets and shifts.
-                </p>
-              </div>
-            </div>
-
-            <label className="mt-4 flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800">
-              Enable schedule
-              <input
-                type="checkbox"
-                checked={publishSchedule.enabled}
-                onChange={(event) =>
-                  setPublishSchedule((currentSchedule) => ({
-                    ...currentSchedule,
-                    enabled: event.target.checked,
-                  }))
-                }
-                className="size-4 accent-emerald-700"
-              />
-            </label>
-
-            <div className="mt-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
-              <div className="mt-2 space-y-2">
-                {shiftOptions.map((shift) => (
-                  <label
-                    key={shift.id}
-                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm"
-                  >
-                    <span>
-                      <span className="font-semibold text-slate-900">{shift.label}</span>
-                      <span className="ml-2 text-xs text-slate-500">{shift.time}</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={publishSchedule.shifts[shift.id]}
-                      onChange={() => toggleShift(shift.id)}
-                      className="size-4 accent-emerald-700"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                  Outlets
-                </p>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
-                  {outletOptions.length} existing
-                </span>
-              </div>
-              <div className="mt-2 space-y-2">
-                {outletOptions.map((outletName) => (
-                  <label
-                    key={outletName}
-                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800"
-                  >
-                    {outletName}
-                    <input
-                      type="checkbox"
-                      checked={scheduledOutletNames.includes(outletName)}
-                      onChange={() => toggleOutlet(outletName)}
-                      className="size-4 accent-emerald-700"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl bg-white p-3 text-xs leading-5 text-slate-600">
-              Auto publish will create daily tasks for{" "}
-              <span className="font-bold text-slate-900">
-                {scheduledOutletNames.length} outlets
-              </span>{" "}
-              across <span className="font-bold text-slate-900">{selectedShiftCount} shifts</span>.
-            </div>
-
-            <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                Daily task output
-              </p>
-              <p className="mt-1 text-2xl font-bold text-emerald-950">{dailyTaskCount}</p>
-              <p className="text-xs text-slate-500">tasks generated every day from this template</p>
-            </div>
-          </div>
         </aside>
       </div>
 
       <EnterpriseDataTable
-        title="Task Template Library"
-        description="Reusable task templates for daily work, cleaning audits, checklists, and outlet operations."
+        title="My Form Library"
+        description="Reusable form templates that can be selected inside SOP Task."
         columns={columns}
         data={templates}
         getRowId={(form) => form.id}

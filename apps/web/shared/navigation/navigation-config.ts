@@ -58,7 +58,7 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "forms",
-    label: "SOP Forms",
+    label: "My Form",
     href: "/dashboard/forms",
     icon: FileText,
     requiredPermissions: ["task.read"],

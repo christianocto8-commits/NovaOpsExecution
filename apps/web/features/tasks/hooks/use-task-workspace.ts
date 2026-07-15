@@ -20,6 +20,10 @@ function normalizeTask(task: Task): Task {
   return {
     ...task,
     formTemplateId: task.formTemplateId ?? "FORM-OPENING",
+    recurrence: task.recurrence ?? "once",
+    shifts: task.shifts ?? ["morning"],
+    targetOutlets: task.targetOutlets ?? [task.outlet],
+    autoPublish: task.autoPublish ?? false,
   };
 }
 
@@ -219,6 +223,10 @@ export function useTaskWorkspace() {
       due: task.due,
       description: task.description,
       formTemplateId: task.formTemplateId ?? "FORM-OPENING",
+      recurrence: task.recurrence ?? "once",
+      shifts: task.shifts ?? ["morning"],
+      targetOutlets: task.targetOutlets ?? [task.outlet],
+      autoPublish: task.autoPublish ?? false,
     });
     setIsFormOpen(true);
   }
@@ -262,13 +270,17 @@ export function useTaskWorkspace() {
     const newTask: Task = {
       id: `TASK-${String(localTasks.length + 1).padStart(3, "0")}`,
       title: taskForm.title,
-      outlet: taskForm.outlet,
+      outlet: taskForm.targetOutlets[0] ?? taskForm.outlet,
       status: taskForm.status,
       priority: taskForm.priority,
       assignee: taskForm.assignee,
       due: taskForm.due,
       description: taskForm.description,
       formTemplateId: taskForm.formTemplateId,
+      recurrence: taskForm.recurrence,
+      shifts: taskForm.shifts,
+      targetOutlets: taskForm.targetOutlets,
+      autoPublish: taskForm.autoPublish,
       activity: [
         {
           id: `ACT-${Date.now()}-created`,

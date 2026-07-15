@@ -33,7 +33,9 @@ type BackendTaskCreate = {
   source_id: number | null;
 };
 
-type BackendTaskUpdate = Partial<Pick<BackendTaskCreate, "title" | "description" | "assigned_to" | "priority" | "due_date">>;
+type BackendTaskUpdate = Partial<
+  Pick<BackendTaskCreate, "title" | "description" | "assigned_to" | "priority" | "due_date">
+>;
 
 function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
   if (status === "completed") return "Completed";
@@ -42,13 +44,15 @@ function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
 }
 
 function toBackendPriority(priority: TaskPriority): BackendTaskPriority {
+  if (priority === "Critical") return "urgent";
   if (priority === "High") return "high";
   if (priority === "Low") return "low";
   return "medium";
 }
 
 function toFrontendPriority(priority: BackendTaskPriority): TaskPriority {
-  if (priority === "high" || priority === "urgent") return "High";
+  if (priority === "urgent") return "Critical";
+  if (priority === "high") return "High";
   if (priority === "low") return "Low";
   return "Medium";
 }
@@ -74,6 +78,10 @@ export function mapBackendTask(task: BackendTask): Task {
     due: formatDueDate(task.due_date),
     description: task.description ?? "",
     formTemplateId: parseSourceFormTemplateId(task),
+    recurrence: "once",
+    shifts: ["morning"],
+    targetOutlets: [`Outlet ${task.outlet_id}`],
+    autoPublish: false,
     activity: [
       {
         id: `ACT-${task.id}-backend`,

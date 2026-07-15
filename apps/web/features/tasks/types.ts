@@ -1,5 +1,7 @@
 ﻿export type TaskStatus = "Pending" | "In Progress" | "Completed";
-export type TaskPriority = "Low" | "Medium" | "High";
+export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
+export type TaskRecurrence = "once" | "daily" | "weekly";
+export type TaskShift = "morning" | "evening" | "midnight";
 
 export type TaskPriorityFilter = TaskPriority | "All";
 export type TaskStatusFilter = TaskStatus | "All";
@@ -91,6 +93,10 @@ export type Task = {
   due: string;
   description: string;
   formTemplateId?: string;
+  recurrence?: TaskRecurrence;
+  shifts?: TaskShift[];
+  targetOutlets?: string[];
+  autoPublish?: boolean;
   activity?: TaskActivity[];
   executionDraft?: TaskExecutionForm;
   execution?: TaskExecution;
@@ -105,4 +111,8 @@ export type TaskFormState = {
   due: string;
   description: string;
   formTemplateId: string;
+  recurrence: TaskRecurrence;
+  shifts: TaskShift[];
+  targetOutlets: string[];
+  autoPublish: boolean;
 };
