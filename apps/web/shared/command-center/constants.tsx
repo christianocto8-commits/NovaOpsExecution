@@ -8,6 +8,7 @@ import {
   Plus,
   Search,
   Settings,
+  Smartphone,
   Users,
 } from "lucide-react";
 import { CommandItem } from "./types";
@@ -39,6 +40,15 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: ClipboardCheck,
+  },
+  {
+    id: "go-operator",
+    title: "Go to Operator View",
+    description: "Open mobile SOP execution queue",
+    href: "/dashboard/operator",
+    group: "Navigation",
+    type: "navigation",
+    icon: Smartphone,
   },
   {
     id: "go-forms",
@@ -113,4 +123,3 @@ export const commandItems: CommandItem[] = [
     icon: Search,
   },
 ];
-

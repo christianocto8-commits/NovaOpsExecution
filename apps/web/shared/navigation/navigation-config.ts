@@ -8,6 +8,7 @@ import {
   History,
   LayoutDashboard,
   Settings,
+  Smartphone,
   Store,
   Users,
   Wrench,
@@ -45,6 +46,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/tasks",
     icon: ClipboardCheck,
     requiredPermissions: ["task.read"],
+    section: "sop",
+  },
+  {
+    id: "operator",
+    label: "Operator View",
+    href: "/dashboard/operator",
+    icon: Smartphone,
+    requiredPermissions: ["task.execute"],
     section: "sop",
   },
   {
