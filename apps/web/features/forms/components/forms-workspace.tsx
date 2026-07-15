@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import {
+  getAvailableFormTemplates,
   loadFormTemplateWorkspaceTemplates,
   saveFormTemplateWorkspaceTemplates,
 } from "@/features/forms/data/form-template-store";
+import { SectionedFormRenderer } from "@/features/forms/renderer/sectioned-form-renderer";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
+import { TaskFormResponses } from "@/features/tasks/types";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
 
@@ -93,7 +101,131 @@ const columns: EnterpriseColumn<FormTemplate>[] = [
   },
 ];
 
+function OutletManualFormsWorkspace() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const availableTemplates = useMemo(
+    () => getAvailableFormTemplates().filter((template) => template.status === "Active"),
+    []
+  );
+  const [selectedTemplateId, setSelectedTemplateId] = useState(availableTemplates[0]?.id ?? "");
+  const [responses, setResponses] = useState<TaskFormResponses>({});
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const selectedTemplate =
+    availableTemplates.find((template) => template.id === selectedTemplateId) ??
+    availableTemplates[0];
+
+  function submitManualForm() {
+    if (!selectedTemplate) return;
+
+    const missingRequiredFields = selectedTemplate.fields.filter(
+      (field) => field.required && !responses[field.id]?.trim()
+    );
+
+    if (missingRequiredFields.length > 0) {
+      setNotice(`Please complete ${missingRequiredFields.length} required field(s) before submit.`);
+      return;
+    }
+
+    const submissions = JSON.parse(
+      localStorage.getItem("novaops_manual_form_submissions") ?? "[]"
+    ) as unknown[];
+
+    localStorage.setItem(
+      "novaops_manual_form_submissions",
+      JSON.stringify([
+        {
+          id: `MANUAL-${Date.now()}`,
+          outlet: workspace.outletName ?? "Outlet",
+          templateId: selectedTemplate.id,
+          templateName: selectedTemplate.name,
+          responses,
+          submittedAt: new Date().toISOString(),
+        },
+        ...submissions,
+      ])
+    );
+
+    setResponses({});
+    setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+  }
+
+  return (
+    <main className="space-y-6 p-6">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Manual Form</p>
+          <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Submit manual outlet forms anytime for incidents, maintenance notes, or other events
+            that are not available as scheduled tasks.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={submitManualForm}
+          disabled={!selectedTemplate}
+          className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          Submit Form
+        </button>
+      </div>
+
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+          {notice}
+        </div>
+      ) : null}
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <label className="text-sm font-semibold text-slate-700">Form Template</label>
+        <select
+          value={selectedTemplateId}
+          onChange={(event) => {
+            setSelectedTemplateId(event.target.value);
+            setResponses({});
+            setNotice(null);
+          }}
+          className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-emerald-600 lg:max-w-xl"
+        >
+          {availableTemplates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+
+        {selectedTemplate ? (
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            {selectedTemplate.description}
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">No active form templates available.</p>
+        )}
+      </section>
+
+      {selectedTemplate ? (
+        <SectionedFormRenderer
+          fields={selectedTemplate.fields}
+          responses={responses}
+          onChange={setResponses}
+        />
+      ) : null}
+    </main>
+  );
+}
+
 export function FormsWorkspace() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const queryClient = useQueryClient();
   const backendTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -256,6 +388,10 @@ export function FormsWorkspace() {
 
   async function syncSelectedTemplate() {
     await syncTemplateMutation.mutateAsync(selectedTemplate);
+  }
+
+  if (workspace.mode === "outlet") {
+    return <OutletManualFormsWorkspace />;
   }
 
   return (

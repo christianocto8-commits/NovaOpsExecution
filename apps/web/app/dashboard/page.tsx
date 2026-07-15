@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 
 import {
   getOutletTaskStoreSummary,
@@ -8,6 +9,11 @@ import {
   OutletTaskStoreItem,
   useOutletTaskStore,
 } from "@/shared/outlet-task-store";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { RealtimeClock } from "@/shared/realtime";
 
 function getComplianceRate(items: OutletTaskStoreItem[]) {
@@ -39,11 +45,130 @@ function getUrgentQueue(items: OutletTaskStoreItem[]) {
 }
 
 export default function DashboardPage() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const items = useOutletTaskStore();
-  const summary = getOutletTaskStoreSummary(items);
-  const complianceRate = getComplianceRate(items);
-  const openActions = getOpenActionCount(items);
-  const urgentQueue = getUrgentQueue(items);
+  const visibleItems =
+    workspace.mode === "outlet"
+      ? items.filter((item) => item.outlet === (workspace.outletName ?? ""))
+      : items;
+  const summary = getOutletTaskStoreSummary(visibleItems);
+  const complianceRate = getComplianceRate(visibleItems);
+  const openActions = getOpenActionCount(visibleItems);
+  const urgentQueue = getUrgentQueue(visibleItems);
+
+  if (workspace.mode === "outlet") {
+    return (
+      <main className="space-y-6 p-6">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+          <div>
+            <p className="text-sm font-medium text-emerald-700">Outlet Dashboard</p>
+            <h1 className="text-2xl font-semibold text-slate-950">
+              {workspace.outletName ?? "Outlet"} Operations
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-500">
+              Focused view for your outlet tasks, saved drafts, and urgent follow-up.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/dashboard/tasks"
+              className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+            >
+              Open Tasks
+            </Link>
+            <Link
+              href="/dashboard/forms"
+              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              Manual Form
+            </Link>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Realtime
+              </p>
+              <RealtimeClock />
+            </div>
+          </div>
+        </div>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Completion</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">{complianceRate}%</p>
+            <p className="mt-3 text-xs text-slate-500">Submitted or completed work.</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Open Tasks</p>
+            <p className="mt-2 text-3xl font-semibold text-amber-700">
+              {summary.pending + summary.overdue}
+            </p>
+            <p className="mt-3 text-xs text-slate-500">Need outlet action.</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Draft / In Progress</p>
+            <p className="mt-2 text-3xl font-semibold text-blue-700">{summary.draft}</p>
+            <p className="mt-3 text-xs text-slate-500">Saved work to continue.</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Open Corrective Actions</p>
+            <p className="mt-2 text-3xl font-semibold text-red-700">{openActions}</p>
+            <p className="mt-3 text-xs text-slate-500">Follow-up assigned to outlet.</p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Outlet Priority Queue</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Tasks that need attention before closing.
+              </p>
+            </div>
+            <Link href="/dashboard/tasks" className="text-sm font-bold text-emerald-700">
+              View tasks
+            </Link>
+          </div>
+
+          <div className="mt-5 divide-y divide-slate-100">
+            {urgentQueue.length > 0 ? (
+              urgentQueue.map((item) => (
+                <div key={item.id} className="grid gap-3 py-4 md:grid-cols-[1fr_160px_120px]">
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.task}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {item.form} - Due {item.due}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Status</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {getOutletTaskStatusLabel(item.status)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Score</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">{item.score}%</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                No urgent outlet tasks right now.
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="space-y-6 p-6">

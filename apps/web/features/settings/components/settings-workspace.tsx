@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,11 @@ import { useSettings } from "@/features/settings/hooks/use-settings";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import {
   EnterpriseCheckbox,
   EnterpriseField,
@@ -59,6 +64,99 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
+function OutletSettingsWorkspace() {
+  const [language, setLanguage] = useState("id");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+
+  function saveOutletSettings() {
+    if (newPassword || confirmPassword || currentPassword) {
+      if (!currentPassword || !newPassword || newPassword !== confirmPassword) {
+        setNotice("Please complete password fields and make sure confirmation matches.");
+        return;
+      }
+    }
+
+    localStorage.setItem("novaops_outlet_language", language);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setNotice("Outlet settings saved.");
+  }
+
+  return (
+    <main className="space-y-6 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Outlet Settings</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Settings</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Manage outlet account preferences needed for daily operation.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={saveOutletSettings}
+          className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+        >
+          Save Settings
+        </button>
+      </div>
+
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {notice}
+        </div>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard title="Language" description="Choose outlet interface language.">
+          <EnterpriseField label="Language">
+            <EnterpriseSelect
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+            >
+              <option value="id">Bahasa Indonesia</option>
+              <option value="en">English</option>
+            </EnterpriseSelect>
+          </EnterpriseField>
+        </SectionCard>
+
+        <SectionCard title="Password" description="Change outlet account password.">
+          <div className="space-y-4">
+            <EnterpriseField label="Current Password">
+              <EnterpriseInput
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+              />
+            </EnterpriseField>
+
+            <EnterpriseField label="New Password">
+              <EnterpriseInput
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            </EnterpriseField>
+
+            <EnterpriseField label="Confirm New Password">
+              <EnterpriseInput
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </EnterpriseField>
+          </div>
+        </SectionCard>
+      </div>
+    </main>
+  );
+}
+
 function getSettingsFormValues(
   settings: Partial<SettingsFormValues> | null | undefined
 ): SettingsFormValues {
@@ -79,6 +177,11 @@ function getSettingsFormValues(
 }
 
 export function SettingsWorkspace() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const { settings, isLoading, error, reload } = useSettings();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("organization");
@@ -129,6 +232,10 @@ export function SettingsWorkspace() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  if (workspace.mode === "outlet") {
+    return <OutletSettingsWorkspace />;
   }
 
   if (isLoading) {

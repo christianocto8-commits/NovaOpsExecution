@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { getMe, login } from "@/services/auth.service";
+import type { NovaRole } from "@/shared/navigation/role-config";
+import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
 const REMEMBER_KEY = "novaops_remember_identifier";
 
@@ -16,6 +18,12 @@ function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["out
   if (preferredOutletId) {
     localStorage.setItem("novaops_outlet_id", preferredOutletId);
   }
+}
+
+function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
+  if (roleSlug === "area_manager") return "AREA_MANAGER";
+  if (roleSlug === "outlet") return "OUTLET";
+  return "OWNER_ADMIN";
 }
 
 export default function LoginPage() {
@@ -55,6 +63,7 @@ export default function LoginPage() {
 
       const currentUser = await getMe();
       storeOutletContext(currentUser.outlet_access);
+      setStoredWorkspaceRole(getWorkspaceRoleFromSlug(currentUser.role.slug));
 
       setMessage("Login success. Redirecting...");
       window.location.assign("/dashboard");

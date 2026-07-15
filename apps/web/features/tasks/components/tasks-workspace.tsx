@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
@@ -14,6 +14,11 @@ import { Task } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import {
   setCorrectiveAction,
   updateOutletTaskStoreItem,
@@ -115,6 +120,11 @@ function syncTaskToOutletTaskStore(task: Task) {
 export function TasksWorkspace() {
   const searchParams = useSearchParams();
   const continuedDraftRef = useRef<string | null>(null);
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
@@ -182,16 +192,25 @@ export function TasksWorkspace() {
     }, 3500);
   }, [searchParams, tasks, setCurrentRole, openExecution]);
 
-  const isOutletRole = currentRole === "outlet";
+  const isOutletWorkspace = workspace.mode === "outlet";
+  const isOutletRole = isOutletWorkspace || currentRole === "outlet";
   const canCreateTask = !isOutletRole;
+  const visibleTasks = useMemo(() => {
+    if (!isOutletWorkspace) return tasks;
 
-  const outletTaskMetrics = useMemo(() => getOutletTaskExecutionMetrics(tasks), [tasks]);
+    return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
+  }, [isOutletWorkspace, tasks, workspace.outletName]);
+
+  const outletTaskMetrics = useMemo(
+    () => getOutletTaskExecutionMetrics(visibleTasks),
+    [visibleTasks]
+  );
 
   useEffect(() => {
-    tasks.forEach((task) => {
+    visibleTasks.forEach((task) => {
       syncTaskToOutletTaskStore(task);
     });
-  }, [tasks]);
+  }, [visibleTasks]);
 
   const columns: EnterpriseColumn<Task>[] = [
     {
@@ -335,9 +354,13 @@ export function TasksWorkspace() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Task Execution</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Task</h1>
+          <h1 className="text-2xl font-semibold text-slate-950">
+            {isOutletWorkspace ? `${workspace.outletName ?? "Outlet"} Tasks` : "Task"}
+          </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Assign, execute, and verify outlet work, evidence, and corrective actions.
+            {isOutletWorkspace
+              ? "Complete assigned outlet tasks or continue saved drafts."
+              : "Assign, execute, and verify outlet work, evidence, and corrective actions."}
           </p>
           <div className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -354,41 +377,43 @@ export function TasksWorkspace() {
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setCurrentRole("owner")}
-            className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-              currentRole === "owner"
-                ? "bg-emerald-700 text-white"
-                : "border border-slate-200 bg-white text-slate-600"
-            }`}
-          >
-            Owner Mode
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCurrentRole("outlet")}
-            className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-              currentRole === "outlet"
-                ? "bg-emerald-700 text-white"
-                : "border border-slate-200 bg-white text-slate-600"
-            }`}
-          >
-            Outlet Mode
-          </button>
-
-          {canCreateTask ? (
+        {!isOutletWorkspace ? (
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={openCreateTask}
-              className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+              onClick={() => setCurrentRole("owner")}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                currentRole === "owner"
+                  ? "bg-emerald-700 text-white"
+                  : "border border-slate-200 bg-white text-slate-600"
+              }`}
             >
-              Create Task
+              Owner Mode
             </button>
-          ) : null}
-        </div>
+
+            <button
+              type="button"
+              onClick={() => setCurrentRole("outlet")}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                currentRole === "outlet"
+                  ? "bg-emerald-700 text-white"
+                  : "border border-slate-200 bg-white text-slate-600"
+              }`}
+            >
+              Outlet Mode
+            </button>
+
+            {canCreateTask ? (
+              <button
+                type="button"
+                onClick={openCreateTask}
+                className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+              >
+                Create Task
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -434,7 +459,7 @@ export function TasksWorkspace() {
             : "Owner mode: assign tasks, review evidence, and monitor compliance."
         }
         columns={columns}
-        data={tasks}
+        data={visibleTasks}
         getRowId={(task) => task.id}
         onRowClick={handleOpenTask}
       />

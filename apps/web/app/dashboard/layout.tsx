@@ -66,7 +66,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
     getServerWorkspaceSnapshot
   );
 
-  const canAccess = canAccessPath(can, pathname);
+  const canAccess = canAccessPath(can, pathname, workspace);
 
   function toggleSidebar() {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(!collapsed));

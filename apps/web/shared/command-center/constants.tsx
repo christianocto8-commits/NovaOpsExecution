@@ -31,6 +31,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Gauge,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "go-tasks",
@@ -49,6 +50,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Smartphone,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "go-forms",
@@ -67,6 +69,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: BarChart3,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "go-outlets",
@@ -76,6 +79,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Building2,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "go-users",
@@ -85,6 +89,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Users,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "go-settings",
@@ -103,6 +108,7 @@ export const commandItems: CommandItem[] = [
     group: "Quick Actions",
     type: "action",
     icon: Plus,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "create-draft",
@@ -112,6 +118,7 @@ export const commandItems: CommandItem[] = [
     group: "Quick Actions",
     type: "action",
     icon: FileText,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
     id: "search-reports",
@@ -121,5 +128,6 @@ export const commandItems: CommandItem[] = [
     group: "Search",
     type: "report",
     icon: Search,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
 ];

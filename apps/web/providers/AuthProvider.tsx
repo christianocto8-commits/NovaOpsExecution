@@ -2,11 +2,9 @@
 
 import { createContext, ReactNode, useCallback, useMemo, useState } from "react";
 
-import {
-  getMe,
-  logout as logoutService,
-  type AuthUser,
-} from "@/services/auth.service";
+import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
+import type { NovaRole } from "@/shared/navigation/role-config";
+import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
 type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
 
@@ -35,6 +33,12 @@ function hasPermission(permissions: string[], permission: string) {
   return permissions.includes(`${resource}.*`);
 }
 
+function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
+  if (roleSlug === "area_manager") return "AREA_MANAGER";
+  if (roleSlug === "outlet") return "OUTLET";
+  return "OWNER_ADMIN";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("idle");
@@ -53,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const currentUser = await getMe();
       setUser(currentUser);
+      setStoredWorkspaceRole(getWorkspaceRoleFromSlug(currentUser.role.slug));
       setStatus("authenticated");
       return currentUser;
     } catch {

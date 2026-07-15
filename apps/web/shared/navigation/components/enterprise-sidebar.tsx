@@ -39,7 +39,7 @@ function groupNavigation(items: NavigationItem[]) {
 export function EnterpriseSidebar({ collapsed, workspace, onToggle }: EnterpriseSidebarProps) {
   const pathname = usePathname();
   const { can } = useAuth();
-  const groupedItems = groupNavigation(getNavigationForPermissions(can));
+  const groupedItems = groupNavigation(getNavigationForPermissions(can, workspace));
 
   return (
     <aside

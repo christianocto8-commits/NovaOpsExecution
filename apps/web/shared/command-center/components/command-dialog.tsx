@@ -1,18 +1,28 @@
 ﻿"use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { commandItems } from "../constants";
 import { useCommandCenter } from "../hooks/use-command-center";
 import { filterCommandItems, groupCommandItems } from "../utils";
 import { useClickOutside, useEscapeKey } from "@/shared/hooks";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 
 export function CommandDialog() {
   const router = useRouter();
   const { open, setOpen } = useCommandCenter();
   const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
 
   const closeDialog = useCallback(() => {
     setQuery("");
@@ -23,8 +33,12 @@ export function CommandDialog() {
   useEscapeKey(closeDialog, open);
 
   const filteredItems = useMemo(() => {
-    return filterCommandItems(commandItems, query);
-  }, [query]);
+    const roleItems = commandItems.filter(
+      (item) => !item.allowedRoles || item.allowedRoles.includes(workspace.role)
+    );
+
+    return filterCommandItems(roleItems, query);
+  }, [query, workspace.role]);
 
   const groupedItems = useMemo(() => {
     return groupCommandItems(filteredItems);
