@@ -5,9 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   CalendarClock,
-  ClipboardCheck,
-  FileCheck2,
-  ListChecks,
   Plus,
   Save,
   Search,
@@ -21,7 +18,6 @@ import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table"
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
 
-type BuilderMode = "task" | "checklist" | "audit";
 type ShiftId = "morning" | "evening" | "midnight";
 
 const DRAFT_STORAGE_KEY = "novaops_template_builder_draft";
@@ -69,30 +65,25 @@ const fieldTypeOptions: Array<{
   { value: "signature", label: "Signature" },
 ];
 
-const builderModes: Array<{
-  id: BuilderMode;
-  label: string;
-  description: string;
-  icon: typeof ClipboardCheck;
-}> = [
-  {
-    id: "task",
-    label: "Task",
-    description: "One-time or recurring work assigned to outlet teams.",
-    icon: ClipboardCheck,
-  },
-  {
-    id: "checklist",
-    label: "Checklist",
-    description: "Step-by-step operational SOP with evidence capture.",
-    icon: ListChecks,
-  },
-  {
-    id: "audit",
-    label: "Audit",
-    description: "Scored inspection with findings and corrective action.",
-    icon: FileCheck2,
-  },
+const taskTypeOptions = [
+  "Daily",
+  "Checklist",
+  "Audit",
+  "Cleaning",
+  "Cleaning Audit",
+  "Opening",
+  "Closing",
+  "Inventory",
+  "Quality Check",
+  "Maintenance",
+  "Custom",
+];
+
+const urgencyOptions: Array<NonNullable<FormTemplate["urgency"]>> = [
+  "Low",
+  "Medium",
+  "High",
+  "Critical",
 ];
 
 const fieldTypeLabel: Record<FormFieldType, string> = {
@@ -104,20 +95,10 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   signature: "Signature",
 };
 
-function getTemplateMode(template: FormTemplate): BuilderMode {
-  const category = template.category.toLowerCase();
-  const name = template.name.toLowerCase();
-
-  if (category.includes("audit") || name.includes("audit")) return "audit";
-  if (category.includes("task") || name.includes("task")) return "task";
-
-  return "checklist";
-}
-
 function createField(): FormField {
   return {
     id: `field-${crypto.randomUUID()}`,
-    label: "New checklist item",
+    label: "Task step",
     type: "yes_no",
     required: true,
   };
@@ -131,7 +112,7 @@ function loadDraftTemplates() {
   try {
     const parsedDraft = JSON.parse(rawDraft) as FormTemplate[];
 
-    if (!Array.isArray(parsedDraft)) return formTemplates;
+    if (!Array.isArray(parsedDraft) || parsedDraft.length === 0) return formTemplates;
 
     return parsedDraft;
   } catch {
@@ -176,7 +157,16 @@ const columns: EnterpriseColumn<FormTemplate>[] = [
     header: "Type",
     render: (form) => (
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold capitalize text-slate-700">
-        {getTemplateMode(form)}
+        {form.category}
+      </span>
+    ),
+  },
+  {
+    key: "urgency",
+    header: "Urgency",
+    render: (form) => (
+      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+        {form.urgency ?? "Medium"}
       </span>
     ),
   },
@@ -215,7 +205,6 @@ export function FormsWorkspace() {
       selectedTemplateId: draftTemplates[0]?.id ?? "",
     };
   });
-  const [mode, setMode] = useState<BuilderMode>("checklist");
   const [templates, setTemplates] = useState<FormTemplate[]>(initialDraft.templates);
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialDraft.selectedTemplateId);
   const [query, setQuery] = useState("");
@@ -238,20 +227,16 @@ export function FormsWorkspace() {
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
-      const matchesMode = getTemplateMode(template) === mode;
       const normalizedQuery = query.trim().toLowerCase();
 
-      if (!normalizedQuery) return matchesMode;
+      if (!normalizedQuery) return true;
 
-      return (
-        matchesMode &&
-        [template.name, template.category, template.description]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery)
-      );
+      return [template.name, template.category, template.description, template.urgency ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
     });
-  }, [mode, query, templates]);
+  }, [query, templates]);
 
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) ??
@@ -307,22 +292,13 @@ export function FormsWorkspace() {
     });
   }
 
-  function createTemplate(templateMode: BuilderMode) {
-    const label =
-      templateMode === "task"
-        ? "Daily Task Template"
-        : templateMode === "audit"
-          ? "New Audit Template"
-          : "New SOP Form Template";
-
+  function createTemplate() {
     const newTemplate: FormTemplate = {
       id: `FORM-${Date.now()}`,
-      name: label,
-      category: templateMode === "task" ? "Task" : templateMode === "audit" ? "Audit" : "Checklist",
-      description:
-        templateMode === "task"
-          ? "Reusable daily task template for outlet teams."
-          : "Reusable SOP template for outlet execution.",
+      name: "New Task Template",
+      category: "Daily",
+      urgency: "Medium",
+      description: "Reusable task template for outlet teams.",
       status: "Draft",
       fields: [
         {
@@ -335,14 +311,24 @@ export function FormsWorkspace() {
           id: `field-${crypto.randomUUID()}`,
           label: "Photo evidence",
           type: "photo",
-          required: templateMode !== "task",
+          required: false,
         },
       ],
     };
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
-    setMode(templateMode);
     setSelectedTemplateId(newTemplate.id);
+  }
+
+  function deleteSelectedTemplate() {
+    const confirmed = window.confirm(`Delete "${selectedTemplate.name}" template?`);
+
+    if (!confirmed) return;
+
+    const nextTemplates = templates.filter((template) => template.id !== selectedTemplate.id);
+
+    setTemplates(nextTemplates);
+    setSelectedTemplateId(nextTemplates[0]?.id ?? "");
   }
 
   function toggleOutlet(outletName: string) {
@@ -382,11 +368,11 @@ export function FormsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Admin / Owner SOP Library</p>
-          <h1 className="text-2xl font-semibold text-slate-950">SOP Forms & Task Templates</h1>
+          <p className="text-sm font-medium text-emerald-700">Admin / Owner Task Library</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Task Template Builder</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Create reusable forms or daily task templates, then publish them to every outlet by
-            shift.
+            Create one reusable task template, choose its type and urgency, then publish it to every
+            outlet by shift.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -413,19 +399,10 @@ export function FormsWorkspace() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => createTemplate("checklist")}
+            onClick={createTemplate}
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
           >
             <Plus className="size-4" />
-            New Form
-          </button>
-
-          <button
-            type="button"
-            onClick={() => createTemplate("task")}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-100"
-          >
-            <ClipboardCheck className="size-4" />
             New Task Template
           </button>
 
@@ -448,38 +425,6 @@ export function FormsWorkspace() {
             Save Draft
           </button>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">
-        {builderModes.map((item) => {
-          const Icon = item.icon;
-          const active = mode === item.id;
-
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setMode(item.id);
-
-                const nextTemplate = templates.find(
-                  (template) => getTemplateMode(template) === item.id
-                );
-
-                if (nextTemplate) setSelectedTemplateId(nextTemplate.id);
-              }}
-              className={[
-                "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition",
-                active
-                  ? "bg-emerald-700 text-white"
-                  : "bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700",
-              ].join(" ")}
-            >
-              <Icon className="size-4" />
-              {item.label}
-            </button>
-          );
-        })}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -548,6 +493,16 @@ export function FormsWorkspace() {
             >
               <Plus className="size-4" />
               Add Item
+            </button>
+
+            <button
+              type="button"
+              onClick={deleteSelectedTemplate}
+              disabled={templates.length <= 1}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+            >
+              <Trash2 className="size-4" />
+              Delete
             </button>
           </div>
 
@@ -668,8 +623,8 @@ export function FormsWorkspace() {
 
           <div className="mt-5 space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-700">Category</label>
-              <input
+              <label className="text-xs font-semibold text-slate-700">Task Type</label>
+              <select
                 value={selectedTemplate.category}
                 onChange={(event) =>
                   updateSelectedTemplate({
@@ -677,7 +632,32 @@ export function FormsWorkspace() {
                   })
                 }
                 className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              />
+              >
+                {taskTypeOptions.map((taskType) => (
+                  <option key={taskType} value={taskType}>
+                    {taskType}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700">Urgency</label>
+              <select
+                value={selectedTemplate.urgency ?? "Medium"}
+                onChange={(event) =>
+                  updateSelectedTemplate({
+                    urgency: event.target.value as NonNullable<FormTemplate["urgency"]>,
+                  })
+                }
+                className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              >
+                {urgencyOptions.map((urgency) => (
+                  <option key={urgency} value={urgency}>
+                    {urgency}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -789,13 +769,12 @@ export function FormsWorkspace() {
       </div>
 
       <EnterpriseDataTable
-        title="SOP Form Library"
-        description="Reusable checklists, audits, and forms that can be assigned to outlet teams."
+        title="Task Template Library"
+        description="Reusable task templates for daily work, cleaning audits, checklists, and outlet operations."
         columns={columns}
         data={templates}
         getRowId={(form) => form.id}
         onRowClick={(form) => {
-          setMode(getTemplateMode(form));
           setSelectedTemplateId(form.id);
         }}
       />

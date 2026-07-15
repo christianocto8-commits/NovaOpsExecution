@@ -5,6 +5,7 @@ export const formTemplates: FormTemplate[] = [
     id: "FORM-OPENING",
     name: "Daily Opening Checklist",
     category: "Opening",
+    urgency: "High",
     description: "Checklist standar opening outlet harian.",
     status: "Active",
     fields: [
@@ -34,6 +35,7 @@ export const formTemplates: FormTemplate[] = [
     id: "FORM-CLEANING",
     name: "Cleaning Audit",
     category: "Cleaning",
+    urgency: "Medium",
     description: "Audit kebersihan station dan equipment.",
     status: "Active",
     fields: [
@@ -62,6 +64,7 @@ export const formTemplates: FormTemplate[] = [
     id: "FORM-INVENTORY",
     name: "Inventory Variance Check",
     category: "Inventory",
+    urgency: "High",
     description: "Form pengecekan selisih inventory outlet.",
     status: "Active",
     fields: [
@@ -75,6 +78,7 @@ export const formTemplates: FormTemplate[] = [
     id: "FORM-AUDIT",
     name: "Outlet Operational Audit",
     category: "Audit",
+    urgency: "Medium",
     description: "Audit singkat standar operasional outlet.",
     status: "Active",
     fields: [

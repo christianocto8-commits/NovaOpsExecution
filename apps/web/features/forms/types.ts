@@ -11,6 +11,7 @@ export type FormTemplate = {
   id: string;
   name: string;
   category: string;
+  urgency?: "Low" | "Medium" | "High" | "Critical";
   description: string;
   status: "Active" | "Draft" | "Archived";
   fields: FormField[];
