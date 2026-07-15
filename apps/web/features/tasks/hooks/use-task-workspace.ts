@@ -5,8 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
 import { useConfirmation } from "@/shared/confirmation";
-import { Task, TaskExecutionForm, TaskFormState } from "@/features/tasks/types";
+import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
+import { EvidenceItem } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import { createExecutionSession } from "@/services/execution-session.service";
@@ -73,6 +74,47 @@ function buildExecutionAnswers(task: Task, form: TaskExecutionForm) {
     responses: form.formResponses,
     submittedAt: new Date().toISOString(),
   };
+}
+
+function parseEvidenceGallery(value: string): EvidenceItem[] {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(
+      (item): item is EvidenceItem =>
+        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function buildTaskEvidence(value: string, submittedAt: string) {
+  const galleryItems = parseEvidenceGallery(value);
+
+  if (galleryItems.length > 0) {
+    return galleryItems.map((item) =>
+      createMockEvidence({
+        type: detectEvidenceType(item.url),
+        label: item.caption || "Outlet Evidence",
+        value: item.url,
+        submittedAt: item.uploadedAt ?? submittedAt,
+      })
+    );
+  }
+
+  return [
+    createMockEvidence({
+      type: value ? detectEvidenceType(value) : "note",
+      label: value ? "Outlet Evidence" : "Execution Confirmation",
+      value: value || "Execution completed without additional evidence attachment.",
+      submittedAt,
+    }),
+  ];
 }
 
 export function useTaskWorkspace() {
@@ -270,6 +312,95 @@ export function useTaskWorkspace() {
     setSelectedTask(null);
   }
 
+  function reviewTaskExecution(taskId: string, review: TaskReviewStatus, note: string) {
+    const timestamp = "Just now";
+    const approved = review === "approved";
+
+    setLocalTasks((currentTasks) =>
+      currentTasks.map((task) => {
+        if (task.id !== taskId || !task.execution) return task;
+
+        return {
+          ...task,
+          status: approved ? "Completed" : "In Progress",
+          executionDraft: approved
+            ? undefined
+            : {
+                operatorName: task.execution.operatorName,
+                operatorPosition: task.execution.operatorPosition,
+                note: task.execution.note,
+                evidenceText: "",
+                formResponses: task.execution.formResponses,
+              },
+          execution: {
+            ...task.execution,
+            reviewStatus: review,
+            reviewedBy: "Owner/Admin",
+            reviewedAt: timestamp,
+            reviewNote: note,
+          },
+          activity: [
+            ...(task.activity ?? []),
+            {
+              id: `ACT-${Date.now()}-${approved ? "approved" : "rejected"}`,
+              type: approved ? "review_approved" : "review_rejected",
+              title: approved ? "Evidence approved" : "Evidence rejected",
+              description:
+                note ||
+                (approved
+                  ? "Owner approved submitted evidence."
+                  : "Owner requested corrective follow-up."),
+              actor: "Owner/Admin",
+              timestamp,
+            },
+          ],
+        };
+      })
+    );
+
+    setSelectedTask((currentTask) => {
+      if (!currentTask || currentTask.id !== taskId || !currentTask.execution) return currentTask;
+
+      const approvedCurrent = review === "approved";
+
+      return {
+        ...currentTask,
+        status: approvedCurrent ? "Completed" : "In Progress",
+        executionDraft: approvedCurrent
+          ? undefined
+          : {
+              operatorName: currentTask.execution.operatorName,
+              operatorPosition: currentTask.execution.operatorPosition,
+              note: currentTask.execution.note,
+              evidenceText: "",
+              formResponses: currentTask.execution.formResponses,
+            },
+        execution: {
+          ...currentTask.execution,
+          reviewStatus: review,
+          reviewedBy: "Owner/Admin",
+          reviewedAt: timestamp,
+          reviewNote: note,
+        },
+        activity: [
+          ...(currentTask.activity ?? []),
+          {
+            id: `ACT-${Date.now()}-${approvedCurrent ? "approved" : "rejected"}`,
+            type: approvedCurrent ? "review_approved" : "review_rejected",
+            title: approvedCurrent ? "Evidence approved" : "Evidence rejected",
+            description:
+              note ||
+              (approvedCurrent
+                ? "Owner approved submitted evidence."
+                : "Owner requested corrective follow-up."),
+            actor: "Owner/Admin",
+            timestamp,
+          },
+        ],
+      };
+    });
+  }
+
   async function deleteTask(id: string) {
     const task = tasks.find((item) => item.id === id);
 
@@ -364,14 +495,7 @@ export function useTaskWorkspace() {
     const completedAt = "Just now";
     const evidenceValue = executionForm.evidenceText.trim();
 
-    const evidence = [
-      createMockEvidence({
-        type: evidenceValue ? detectEvidenceType(evidenceValue) : "note",
-        label: evidenceValue ? "Outlet Evidence" : "Execution Confirmation",
-        value: evidenceValue || "Execution completed without additional evidence attachment.",
-        submittedAt: completedAt,
-      }),
-    ];
+    const evidence = buildTaskEvidence(evidenceValue, completedAt);
 
     setLocalTasks((currentTasks) =>
       currentTasks.map((task) => {
@@ -388,14 +512,15 @@ export function useTaskWorkspace() {
             evidence,
             formResponses: executionForm.formResponses,
             completedAt,
+            reviewStatus: "pending_review",
           },
           activity: [
             ...(task.activity ?? []),
             {
               id: `ACT-${Date.now()}-completed`,
               type: "completed",
-              title: "Task completed",
-              description: "Outlet task execution completed.",
+              title: "Evidence submitted",
+              description: "Outlet submitted task evidence for owner review.",
               actor: executionForm.operatorName,
               timestamp: completedAt,
             },
@@ -423,6 +548,7 @@ export function useTaskWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
+    reviewTaskExecution,
     deleteTask,
     executionForm,
     setExecutionForm,

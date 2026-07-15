@@ -45,7 +45,11 @@ export type TaskActivityType =
   | "draft_saved"
   | "form_submitted"
   | "evidence_submitted"
+  | "review_approved"
+  | "review_rejected"
   | "completed";
+
+export type TaskReviewStatus = "pending_review" | "approved" | "rejected";
 
 export type TaskActivity = {
   id: string;
@@ -71,6 +75,10 @@ export type TaskExecution = {
   evidence: TaskEvidence[];
   formResponses: TaskFormResponses;
   completedAt: string;
+  reviewStatus?: TaskReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
 };
 
 export type Task = {

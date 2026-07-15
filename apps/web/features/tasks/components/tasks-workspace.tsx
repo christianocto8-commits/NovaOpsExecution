@@ -14,7 +14,11 @@ import { Task } from "@/features/tasks/types";
 import { formatTaskDue } from "@/features/tasks/utils";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
-import { updateOutletTaskStoreItem, upsertOutletTaskStoreItem } from "@/shared/outlet-task-store";
+import {
+  setCorrectiveAction,
+  updateOutletTaskStoreItem,
+  upsertOutletTaskStoreItem,
+} from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
 
 function getTaskDraftProgress(task: Task) {
@@ -97,6 +101,14 @@ function syncTaskToOutletTaskStore(task: Task) {
     due: formatTaskDue(task.due),
     submittedAt: status === "submitted" ? "Realtime" : hasDraft ? "Saved Draft" : "-",
     updatedAt: "Realtime",
+    correctiveActionStatus: task.execution?.reviewStatus === "rejected" ? "open" : undefined,
+    correctiveActionOwner:
+      task.execution?.reviewStatus === "rejected" ? "Store Manager" : undefined,
+    correctiveActionDue: task.execution?.reviewStatus === "rejected" ? "Today 18:00" : undefined,
+    correctiveActionNote:
+      task.execution?.reviewStatus === "rejected"
+        ? (task.execution.reviewNote ?? "Evidence rejected. Correct and resubmit SOP evidence.")
+        : undefined,
   });
 }
 
@@ -121,6 +133,7 @@ export function TasksWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
+    reviewTaskExecution,
     deleteTask,
     executionForm,
     setExecutionForm,
@@ -334,9 +347,7 @@ export function TasksWorkspace() {
           </div>
           <span
             className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
-              isBackendConnected
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-amber-50 text-amber-700"
+              isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
             }`}
           >
             {isBackendConnected ? "Backend synced" : "Demo fallback"}
@@ -440,7 +451,40 @@ export function TasksWorkspace() {
       ) : null}
 
       {!isOutletRole ? (
-        <TaskDetailDrawer task={selectedTask} onClose={closeDetail} onEdit={openEditTask} />
+        <TaskDetailDrawer
+          task={selectedTask}
+          onClose={closeDetail}
+          onEdit={openEditTask}
+          onReview={(taskId, review, note) => {
+            reviewTaskExecution(taskId, review, note);
+
+            if (review === "approved") {
+              updateOutletTaskStoreItem(taskId, {
+                status: "completed",
+                progress: 100,
+                score: 100,
+                correctiveActionStatus: "resolved",
+                correctiveActionResolvedAt: "Realtime",
+              });
+              return;
+            }
+
+            updateOutletTaskStoreItem(taskId, {
+              status: "draft",
+              score: 55,
+              correctiveActionStatus: "open",
+              correctiveActionOwner: "Store Manager",
+              correctiveActionDue: "Today 18:00",
+              correctiveActionNote: note,
+            });
+            setCorrectiveAction(taskId, {
+              status: "open",
+              owner: "Store Manager",
+              due: "Today 18:00",
+              note,
+            });
+          }}
+        />
       ) : null}
 
       {isOutletRole ? (
@@ -470,5 +514,3 @@ export function TasksWorkspace() {
     </main>
   );
 }
-
-

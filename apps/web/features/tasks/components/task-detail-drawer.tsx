@@ -1,4 +1,7 @@
-﻿import {
+﻿"use client";
+
+import {
+  AlertTriangle,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -8,14 +11,16 @@
   UserCheck,
   X,
 } from "lucide-react";
+import { useState } from "react";
 
-import { Task, TaskActivityType, TaskEvidenceType } from "../types";
+import { Task, TaskActivityType, TaskEvidenceType, TaskReviewStatus } from "../types";
 import { formatTaskDue } from "../utils";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
   onClose: () => void;
   onEdit?: (task: Task) => void;
+  onReview?: (taskId: string, review: TaskReviewStatus, note: string) => void;
 };
 
 function getStatusClass(status: string) {
@@ -59,15 +64,54 @@ function getActivityStyle(type: TaskActivityType) {
     return { icon: UserCheck, className: "border-blue-100 bg-blue-50 text-blue-700" };
   if (type === "evidence_submitted" || type === "draft_saved")
     return { icon: FileText, className: "border-violet-100 bg-violet-50 text-violet-700" };
+  if (type === "review_approved")
+    return { icon: CheckCircle2, className: "border-emerald-100 bg-emerald-50 text-emerald-700" };
+  if (type === "review_rejected")
+    return { icon: AlertTriangle, className: "border-red-100 bg-red-50 text-red-700" };
   return { icon: ClipboardList, className: "border-slate-200 bg-white text-slate-600" };
 }
 
-export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProps) {
+function getReviewStatusLabel(status?: TaskReviewStatus) {
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+  return "Pending Review";
+}
+
+function getReviewStatusClass(status?: TaskReviewStatus) {
+  if (status === "approved") return "border-emerald-100 bg-emerald-50 text-emerald-700";
+  if (status === "rejected") return "border-red-100 bg-red-50 text-red-700";
+  return "border-amber-100 bg-amber-50 text-amber-700";
+}
+
+export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetailDrawerProps) {
+  const [reviewNote, setReviewNote] = useState("");
+
   if (!task) return null;
 
   const hasExecution = Boolean(task.execution);
   const hasDraft = Boolean(task.executionDraft);
   const activities = task.activity ?? [];
+  const reviewStatus = task.execution?.reviewStatus;
+  const canReview = Boolean(onReview && task.execution && reviewStatus !== "approved");
+
+  function submitReview(review: TaskReviewStatus) {
+    if (!task || !onReview) return;
+
+    if (review === "rejected" && !reviewNote.trim()) {
+      window.alert("Review note wajib diisi saat evidence ditolak.");
+      return;
+    }
+
+    onReview(
+      task.id,
+      review,
+      reviewNote.trim() ||
+        (review === "approved"
+          ? "Evidence reviewed and accepted."
+          : "Evidence rejected. Corrective follow-up required.")
+    );
+    setReviewNote("");
+  }
 
   return (
     <div
@@ -193,14 +237,14 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
               <span
                 className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                   hasExecution
-                    ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                    ? getReviewStatusClass(reviewStatus)
                     : hasDraft
                       ? "border-blue-100 bg-blue-50 text-blue-700"
                       : "border-slate-200 bg-white text-slate-500"
                 }`}
               >
                 {hasExecution
-                  ? "Evidence submitted"
+                  ? getReviewStatusLabel(reviewStatus)
                   : hasDraft
                     ? "Draft saved"
                     : "Waiting evidence"}
@@ -236,6 +280,23 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                   </p>
                   <p className="mt-2 leading-6 text-slate-700">{task.execution.note}</p>
                 </div>
+
+                {task.execution.reviewedAt ? (
+                  <div
+                    className={`rounded-2xl border p-4 ${getReviewStatusClass(
+                      task.execution.reviewStatus
+                    )}`}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide">Owner Review</p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {getReviewStatusLabel(task.execution.reviewStatus)} by{" "}
+                      {task.execution.reviewedBy} at {task.execution.reviewedAt}
+                    </p>
+                    <p className="mt-1 text-sm leading-6">
+                      {task.execution.reviewNote || "No review note."}
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -290,6 +351,39 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                     );
                   })}
                 </div>
+
+                {canReview ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-bold text-slate-950">Evidence Review Decision</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Approve evidence when SOP execution is acceptable. Reject it when the outlet
+                      needs to correct and resubmit.
+                    </p>
+                    <textarea
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                      rows={3}
+                      placeholder="Review note for outlet or corrective action"
+                      className="mt-3 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => submitReview("rejected")}
+                        className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
+                      >
+                        Reject & Request Fix
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => submitReview("approved")}
+                        className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
+                      >
+                        Approve Evidence
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
