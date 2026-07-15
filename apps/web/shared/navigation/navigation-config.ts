@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardCheck,
   FileText,
+  Gauge,
   History,
   LayoutDashboard,
   Settings,
@@ -24,9 +25,17 @@ export type NavigationItem = {
 export const navigationItems: NavigationItem[] = [
   {
     id: "dashboard",
-    label: "Compliance Center",
+    label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    requiredPermissions: ["report.read"],
+    section: "sop",
+  },
+  {
+    id: "compliance",
+    label: "Compliance Center",
+    href: "/dashboard/compliance",
+    icon: Gauge,
     requiredPermissions: ["report.read"],
     section: "sop",
   },

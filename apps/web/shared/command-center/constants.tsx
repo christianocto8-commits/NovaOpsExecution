@@ -3,6 +3,7 @@ import {
   Building2,
   ClipboardCheck,
   FileText,
+  Gauge,
   Home,
   Plus,
   Search,
@@ -15,11 +16,20 @@ export const commandItems: CommandItem[] = [
   {
     id: "go-dashboard",
     title: "Go to Dashboard",
-    description: "Open enterprise dashboard",
+    description: "Open executive operations snapshot",
     href: "/dashboard",
     group: "Navigation",
     type: "navigation",
     icon: Home,
+  },
+  {
+    id: "go-compliance",
+    title: "Go to Compliance Center",
+    description: "Open SOP audit and corrective action workspace",
+    href: "/dashboard/compliance",
+    group: "Navigation",
+    type: "navigation",
+    icon: Gauge,
   },
   {
     id: "go-tasks",
@@ -103,5 +113,4 @@ export const commandItems: CommandItem[] = [
     icon: Search,
   },
 ];
-
 
