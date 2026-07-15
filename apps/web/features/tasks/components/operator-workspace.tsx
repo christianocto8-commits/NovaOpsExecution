@@ -6,7 +6,7 @@ import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
 import { OutletTaskExecutionDrawer } from "@/features/tasks/components/outlet-task-execution-drawer";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
 import { Task } from "@/features/tasks/types";
-import { formatTaskDue } from "@/features/tasks/utils";
+import { formatTaskSchedule } from "@/features/tasks/utils";
 import { calculateFormProgress } from "@/shared/form-progress";
 import { updateOutletTaskStoreItem } from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
@@ -131,7 +131,7 @@ export function OperatorWorkspace() {
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-100">Next up</p>
             <h2 className="mt-2 text-xl font-bold">{nextTask.title}</h2>
             <p className="mt-2 text-sm text-emerald-50">
-              {nextTask.outlet} - Due {formatTaskDue(nextTask.due)}
+              {nextTask.outlet} - Due {formatTaskSchedule(nextTask)}
             </p>
             <button
               type="button"
@@ -167,7 +167,7 @@ export function OperatorWorkspace() {
                   <div className="min-w-0">
                     <p className="font-bold text-slate-950">{task.title}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {task.outlet} - {formatTaskDue(task.due)}
+                      {task.outlet} - {formatTaskSchedule(task)}
                     </p>
                   </div>
                   <span

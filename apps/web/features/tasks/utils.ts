@@ -1,4 +1,16 @@
-﻿export function formatTaskDue(value: string) {
+import { Task } from "@/features/tasks/types";
+
+const weeklyDayLabels: Record<string, string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
+
+export function formatTaskDue(value: string) {
   if (!value) return "-";
 
   const parsedDate = new Date(value);
@@ -14,6 +26,20 @@
     hour: "2-digit",
     minute: "2-digit",
   }).format(parsedDate);
+}
+
+export function formatTaskSchedule(
+  task: Pick<Task, "due" | "dueTime" | "recurrence" | "weeklyPublishDay">
+) {
+  if (task.recurrence === "daily") return `Daily at ${task.dueTime || task.due || "-"}`;
+
+  if (task.recurrence === "weekly") {
+    const publishDay = weeklyDayLabels[task.weeklyPublishDay ?? "sunday"] ?? "Sunday";
+
+    return `Weekly ${publishDay} at ${task.dueTime || task.due || "-"}`;
+  }
+
+  return formatTaskDue(task.due);
 }
 
 export function getPriorityClass(priority: string) {

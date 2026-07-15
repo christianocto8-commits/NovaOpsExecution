@@ -2,6 +2,8 @@
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 export type TaskRecurrence = "once" | "daily" | "weekly";
 export type TaskShift = "morning" | "evening" | "midnight";
+export type TaskWeeklyPublishDay =
+  "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 
 export type TaskPriorityFilter = TaskPriority | "All";
 export type TaskStatusFilter = TaskStatus | "All";
@@ -97,6 +99,8 @@ export type Task = {
   shifts?: TaskShift[];
   targetOutlets?: string[];
   autoPublish?: boolean;
+  dueTime?: string;
+  weeklyPublishDay?: TaskWeeklyPublishDay;
   activity?: TaskActivity[];
   executionDraft?: TaskExecutionForm;
   execution?: TaskExecution;
@@ -115,4 +119,6 @@ export type TaskFormState = {
   shifts: TaskShift[];
   targetOutlets: string[];
   autoPublish: boolean;
+  dueTime: string;
+  weeklyPublishDay: TaskWeeklyPublishDay;
 };

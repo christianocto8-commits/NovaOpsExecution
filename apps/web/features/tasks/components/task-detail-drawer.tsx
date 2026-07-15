@@ -14,7 +14,7 @@ import {
 import { useState } from "react";
 
 import { Task, TaskActivityType, TaskEvidenceType, TaskReviewStatus } from "../types";
-import { formatTaskDue } from "../utils";
+import { formatTaskSchedule } from "../utils";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
@@ -172,8 +172,8 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetail
                 <p className="font-semibold text-slate-800">{task.assignee}</p>
               </div>
               <div>
-                <p className="text-slate-400">Due Date & Time</p>
-                <p className="font-semibold text-slate-800">{formatTaskDue(task.due)}</p>
+                <p className="text-slate-400">Schedule</p>
+                <p className="font-semibold text-slate-800">{formatTaskSchedule(task)}</p>
               </div>
               <div>
                 <p className="text-slate-400">Execution Status</p>

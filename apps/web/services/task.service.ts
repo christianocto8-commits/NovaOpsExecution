@@ -82,6 +82,8 @@ export function mapBackendTask(task: BackendTask): Task {
     shifts: ["morning"],
     targetOutlets: [`Outlet ${task.outlet_id}`],
     autoPublish: false,
+    dueTime: formatDueDate(task.due_date).slice(11, 16) || "09:00",
+    weeklyPublishDay: "sunday",
     activity: [
       {
         id: `ACT-${task.id}-backend`,
@@ -103,8 +105,8 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
     description: form.description.trim() || null,
     assigned_to: null,
     priority: toBackendPriority(form.priority),
-    due_date: form.due ? new Date(form.due).toISOString() : null,
-    source_type: Number.isFinite(numericTemplateId) ? "form_template" : "sop_form",
+    due_date: form.recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
+    source_type: "form_template",
     source_id: Number.isFinite(numericTemplateId) ? numericTemplateId : null,
   };
 }

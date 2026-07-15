@@ -15,6 +15,7 @@ import {
   TaskRecurrence,
   TaskShift,
   TaskStatus,
+  TaskWeeklyPublishDay,
 } from "@/features/tasks/types";
 
 type TaskFormDrawerProps = {
@@ -37,6 +38,15 @@ const shiftOptions: Array<{ value: TaskShift; label: string; time: string }> = [
   { value: "morning", label: "Morning", time: "07:00" },
   { value: "evening", label: "Evening", time: "15:00" },
   { value: "midnight", label: "Midnight", time: "23:00" },
+];
+const weeklyPublishDayOptions: Array<{ value: TaskWeeklyPublishDay; label: string }> = [
+  { value: "sunday", label: "Sunday" },
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
 ];
 
 export function TaskFormDrawer({
@@ -77,6 +87,7 @@ export function TaskFormDrawer({
   const selectedTargetOutlets =
     form.targetOutlets.length > 0 ? form.targetOutlets : [form.outlet ?? outletOptions[0] ?? ""];
   const selectedShiftCount = form.shifts.length;
+  const isRecurringTask = form.recurrence !== "once";
   const autoPublishTaskCount = form.autoPublish
     ? selectedTargetOutlets.length * selectedShiftCount
     : 0;
@@ -84,9 +95,12 @@ export function TaskFormDrawer({
   const canSubmit =
     Boolean(form.title?.trim()) &&
     Boolean(form.assignee?.trim()) &&
-    Boolean(form.due?.trim()) &&
+    (form.recurrence === "once"
+      ? Boolean(form.due?.trim())
+      : Boolean(form.dueTime?.trim()) &&
+        (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay))) &&
     Boolean(safeFormTemplateId.trim()) &&
-    (!form.autoPublish || (selectedTargetOutlets.length > 0 && selectedShiftCount > 0));
+    (!isRecurringTask || (selectedTargetOutlets.length > 0 && selectedShiftCount > 0));
 
   function toggleTargetOutlet(outletName: string) {
     const selected = selectedTargetOutlets.includes(outletName);
@@ -246,55 +260,37 @@ export function TaskFormDrawer({
             />
           </div>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Due Date & Time</label>
-            <input
-              type="datetime-local"
-              value={form.due ?? ""}
-              onChange={(event) => onChange({ ...form, due: event.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-            />
-          </div>
-
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-emerald-950">Auto Publish</p>
+                <p className="text-sm font-bold text-emerald-950">Schedule</p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  Schedule daily or weekly tasks for selected outlet shifts.
+                  Once uses a full due date. Daily and weekly auto publish use due time only.
                 </p>
               </div>
-              <label className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800">
-                <input
-                  type="checkbox"
-                  checked={form.autoPublish}
-                  onChange={(event) =>
-                    onChange({
-                      ...form,
-                      autoPublish: event.target.checked,
-                      recurrence: event.target.checked ? form.recurrence : "once",
-                    })
-                  }
-                  className="size-4 accent-emerald-700"
-                />
-                Enabled
-              </label>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                {isRecurringTask ? "Auto Publish" : "One-time"}
+              </span>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                  Frequency
+                  Schedule Type
                 </label>
                 <select
                   value={form.recurrence}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const recurrence = event.target.value as TaskRecurrence;
+
                     onChange({
                       ...form,
-                      recurrence: event.target.value as TaskRecurrence,
-                      autoPublish: event.target.value !== "once" ? true : form.autoPublish,
-                    })
-                  }
+                      recurrence,
+                      autoPublish: recurrence !== "once",
+                      dueTime: form.dueTime || "09:00",
+                      weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
+                    });
+                  }}
                   className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
                 >
                   {recurrences.map((recurrence) => (
@@ -305,64 +301,145 @@ export function TaskFormDrawer({
                 </select>
               </div>
 
-              <div className="rounded-xl bg-white p-3">
+              {form.recurrence === "once" ? (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Due Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.due ?? ""}
+                    onChange={(event) => onChange({ ...form, due: event.target.value })}
+                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Due Time
+                  </label>
+                  <input
+                    type="time"
+                    value={form.dueTime ?? "09:00"}
+                    onChange={(event) => onChange({ ...form, dueTime: event.target.value })}
+                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                  />
+                </div>
+              )}
+            </div>
+
+            {form.recurrence === "weekly" ? (
+              <div className="mt-4">
+                <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                  Publish Day
+                </label>
+                <select
+                  value={form.weeklyPublishDay ?? "sunday"}
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      weeklyPublishDay: event.target.value as TaskWeeklyPublishDay,
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                >
+                  {weeklyPublishDayOptions.map((day) => (
+                    <option key={day.value} value={day.value}>
+                      {day.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {!isRecurringTask ? (
+              <div className="mt-4">
+                <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                  Outlet
+                </label>
+                <select
+                  value={form.outlet || outletOptions[0] || ""}
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      outlet: event.target.value,
+                      targetOutlets: [event.target.value],
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                >
+                  {outletOptions.map((outlet) => (
+                    <option key={outlet} value={outlet}>
+                      {outlet}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {isRecurringTask ? (
+              <div className="mt-4 rounded-xl bg-white p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                  Daily output
+                  Publish output
                 </p>
                 <p className="mt-1 text-2xl font-bold text-emerald-950">{autoPublishTaskCount}</p>
                 <p className="text-xs text-slate-500">tasks per scheduled publish</p>
               </div>
-            </div>
+            ) : null}
 
-            <div className="mt-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                {shiftOptions.map((shift) => (
-                  <label
-                    key={shift.value}
-                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm"
-                  >
-                    <span>
-                      <span className="font-semibold text-slate-900">{shift.label}</span>
-                      <span className="ml-2 text-xs text-slate-500">{shift.time}</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={form.shifts.includes(shift.value)}
-                      onChange={() => toggleShift(shift.value)}
-                      className="size-4 accent-emerald-700"
-                    />
-                  </label>
-                ))}
+            {isRecurringTask ? (
+              <div className="mt-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {shiftOptions.map((shift) => (
+                    <label
+                      key={shift.value}
+                      className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm"
+                    >
+                      <span>
+                        <span className="font-semibold text-slate-900">{shift.label}</span>
+                        <span className="ml-2 text-xs text-slate-500">{shift.time}</span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={form.shifts.includes(shift.value)}
+                        onChange={() => toggleShift(shift.value)}
+                        className="size-4 accent-emerald-700"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
 
-            <div className="mt-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                  Target Outlets
-                </p>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
-                  {outletOptions.length} existing
-                </span>
+            {isRecurringTask ? (
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Target Outlets
+                  </p>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
+                    {outletOptions.length} existing
+                  </span>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {outletOptions.map((outlet) => (
+                    <label
+                      key={outlet}
+                      className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+                    >
+                      {outlet}
+                      <input
+                        type="checkbox"
+                        checked={selectedTargetOutlets.includes(outlet)}
+                        onChange={() => toggleTargetOutlet(outlet)}
+                        className="size-4 accent-emerald-700"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="mt-2 space-y-2">
-                {outletOptions.map((outlet) => (
-                  <label
-                    key={outlet}
-                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800"
-                  >
-                    {outlet}
-                    <input
-                      type="checkbox"
-                      checked={selectedTargetOutlets.includes(outlet)}
-                      onChange={() => toggleTargetOutlet(outlet)}
-                      className="size-4 accent-emerald-700"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
+            ) : null}
           </section>
 
           <div>

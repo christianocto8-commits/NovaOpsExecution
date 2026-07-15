@@ -16,6 +16,14 @@ type WorkspaceRole = "owner" | "outlet";
 
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
 
+function getTimeFromDue(value?: string) {
+  if (!value) return "09:00";
+
+  const timeMatch = value.match(/(\d{2}):(\d{2})/);
+
+  return timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : "09:00";
+}
+
 function normalizeTask(task: Task): Task {
   return {
     ...task,
@@ -24,6 +32,8 @@ function normalizeTask(task: Task): Task {
     shifts: task.shifts ?? ["morning"],
     targetOutlets: task.targetOutlets ?? [task.outlet],
     autoPublish: task.autoPublish ?? false,
+    dueTime: task.dueTime ?? getTimeFromDue(task.due),
+    weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
   };
 }
 
@@ -227,6 +237,8 @@ export function useTaskWorkspace() {
       shifts: task.shifts ?? ["morning"],
       targetOutlets: task.targetOutlets ?? [task.outlet],
       autoPublish: task.autoPublish ?? false,
+      dueTime: task.dueTime ?? getTimeFromDue(task.due),
+      weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
     });
     setIsFormOpen(true);
   }
@@ -249,6 +261,7 @@ export function useTaskWorkspace() {
             ...task,
             ...taskForm,
             formTemplateId: taskForm.formTemplateId,
+            due: taskForm.recurrence === "once" ? taskForm.due : taskForm.dueTime,
             activity: [
               ...(task.activity ?? []),
               {
@@ -274,7 +287,9 @@ export function useTaskWorkspace() {
       status: taskForm.status,
       priority: taskForm.priority,
       assignee: taskForm.assignee,
-      due: taskForm.due,
+      due: taskForm.recurrence === "once" ? taskForm.due : taskForm.dueTime,
+      dueTime: taskForm.dueTime,
+      weeklyPublishDay: taskForm.weeklyPublishDay,
       description: taskForm.description,
       formTemplateId: taskForm.formTemplateId,
       recurrence: taskForm.recurrence,

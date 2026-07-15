@@ -11,7 +11,7 @@ import {
 } from "@/features/tasks/components";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
 import { Task } from "@/features/tasks/types";
-import { formatTaskDue } from "@/features/tasks/utils";
+import { formatTaskSchedule } from "@/features/tasks/utils";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
 import {
@@ -98,7 +98,7 @@ function syncTaskToOutletTaskStore(task: Task) {
     progress,
     score: progress,
     operator: hasDraft ? "Outlet Operator" : "-",
-    due: formatTaskDue(task.due),
+    due: formatTaskSchedule(task),
     submittedAt: status === "submitted" ? "Realtime" : hasDraft ? "Saved Draft" : "-",
     updatedAt: "Realtime",
     correctiveActionStatus: task.execution?.reviewStatus === "rejected" ? "open" : undefined,
@@ -255,7 +255,7 @@ export function TasksWorkspace() {
     {
       key: "due",
       header: "Due",
-      render: (task) => formatTaskDue(task.due),
+      render: (task) => formatTaskSchedule(task),
     },
     {
       key: "id",
