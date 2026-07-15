@@ -54,7 +54,7 @@ function mapIdentityUser(user: IdentityUser): User {
           ? assignedOutletNames.length
             ? assignedOutletNames.join(", ")
             : "No outlets assigned"
-          : user.outlet?.name ?? "No outlet assigned",
+          : (user.outlet?.name ?? "No outlet assigned"),
     outletIds: role === "Area Manager" ? assignedOutletIds : [],
     outletScope: getScopeByRole(role),
     status: getStatus(user.is_active),
@@ -74,12 +74,18 @@ function getOutletIdByName(outlets: IdentityOutlet[], outletName: string) {
 }
 
 function makeUsername(email: string) {
-  return email.split("@")[0]?.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") || "user";
+  return (
+    email
+      .split("@")[0]
+      ?.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "") || "user"
+  );
 }
 
 export function useUsersWorkspace() {
   const queryClient = useQueryClient();
-const toast = useToast();
+  const toast = useToast();
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -172,6 +178,7 @@ const toast = useToast();
     setForm({
       name: user.name,
       email: user.email,
+      password: "",
       role: user.role,
       outlet:
         user.role === "Outlet"
@@ -220,6 +227,10 @@ const toast = useToast();
 
   async function saveUser() {
     if (!form.name.trim() || !form.email.trim()) return;
+    if (!editingUserId && form.password.trim().length < 8) {
+      setError("Initial password must be at least 8 characters");
+      return;
+    }
 
     const roleId = getRoleIdByFormRole(roles, form.role);
     if (!roleId) {
@@ -253,14 +264,16 @@ const toast = useToast();
           email: normalizedForm.email,
           username: makeUsername(normalizedForm.email),
           full_name: normalizedForm.name,
-          password: "User12345!",
+          password: normalizedForm.password.trim(),
           role_id: roleId,
           ...accessPayload,
           is_active: normalizedForm.status === "Active",
         });
       }
 
-      toast.success(editingUserId ? "Account updated successfully." : "Account created successfully.");
+      toast.success(
+        editingUserId ? "Account updated successfully." : "Account created successfully."
+      );
 
       setForm(emptyUserForm);
       setEditingUserId(null);
@@ -333,17 +346,3 @@ const toast = useToast();
     updateStatus,
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

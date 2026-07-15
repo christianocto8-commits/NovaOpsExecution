@@ -19,6 +19,7 @@ export type User = {
 export type UserFormState = {
   name: string;
   email: string;
+  password: string;
   role: UserRole;
   outlet: string;
   outletIds: string[];

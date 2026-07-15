@@ -3,6 +3,7 @@
 export const emptyUserForm: UserFormState = {
   name: "",
   email: "",
+  password: "User12345!",
   role: "Outlet",
   outlet: "",
   outletIds: [],

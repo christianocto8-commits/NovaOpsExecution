@@ -98,6 +98,18 @@ export function UserFormDialog({
             />
           </Field>
 
+          {!editingUserId ? (
+            <Field label="Initial Password">
+              <input
+                type="text"
+                value={form.password}
+                onChange={(event) => onFormChange({ ...form, password: event.target.value })}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                placeholder="Minimum 8 characters"
+              />
+            </Field>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Role">
               <select
@@ -115,7 +127,7 @@ export function UserFormDialog({
                         ? "All Outlets"
                         : role === "Area Manager"
                           ? "Multiple Outlets"
-                          : firstOutlet?.name ?? "",
+                          : (firstOutlet?.name ?? ""),
                     outletIds: [],
                   });
                 }}
