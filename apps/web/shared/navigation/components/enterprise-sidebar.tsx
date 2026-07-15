@@ -4,11 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/hooks/useAuth";
-import {
-  getNavigationForPermissions,
-  navigationSectionLabels,
-  type NavigationItem,
-} from "@/shared/navigation";
+import { useLanguage } from "@/shared/i18n";
+import { getNavigationForPermissions, type NavigationItem } from "@/shared/navigation";
 import { CurrentWorkspace } from "../role-config";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarFooter } from "./sidebar-footer";
@@ -39,6 +36,7 @@ function groupNavigation(items: NavigationItem[]) {
 export function EnterpriseSidebar({ collapsed, workspace, onToggle }: EnterpriseSidebarProps) {
   const pathname = usePathname();
   const { can } = useAuth();
+  const { t } = useLanguage();
   const groupedItems = groupNavigation(getNavigationForPermissions(can, workspace));
 
   return (
@@ -58,7 +56,7 @@ export function EnterpriseSidebar({ collapsed, workspace, onToggle }: Enterprise
             <div key={section} className="mb-5 last:mb-0">
               {!collapsed ? (
                 <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  {navigationSectionLabels[section as NavigationItem["section"]]}
+                  {t(`section.${section}`)}
                 </p>
               ) : null}
 
@@ -73,7 +71,7 @@ export function EnterpriseSidebar({ collapsed, workspace, onToggle }: Enterprise
                     <Link
                       key={item.href}
                       href={item.href}
-                      title={collapsed ? item.label : undefined}
+                      title={collapsed ? t(`navigation.${item.id}`) : undefined}
                       className={[
                         "group flex items-center rounded-2xl text-sm font-semibold transition",
                         collapsed ? "justify-center px-3 py-3" : "gap-3 px-4 py-3",
@@ -93,7 +91,7 @@ export function EnterpriseSidebar({ collapsed, workspace, onToggle }: Enterprise
                         <Icon className="h-4 w-4" />
                       </span>
 
-                      {!collapsed ? <span>{item.label}</span> : null}
+                      {!collapsed ? <span>{t(`navigation.${item.id}`)}</span> : null}
                     </Link>
                   );
                 })}

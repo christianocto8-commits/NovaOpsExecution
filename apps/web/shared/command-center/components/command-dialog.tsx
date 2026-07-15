@@ -7,6 +7,7 @@ import { commandItems } from "../constants";
 import { useCommandCenter } from "../hooks/use-command-center";
 import { filterCommandItems, groupCommandItems } from "../utils";
 import { useClickOutside, useEscapeKey } from "@/shared/hooks";
+import { useLanguage } from "@/shared/i18n";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -16,6 +17,7 @@ import {
 export function CommandDialog() {
   const router = useRouter();
   const { open, setOpen } = useCommandCenter();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const workspace = useSyncExternalStore(
@@ -111,7 +113,9 @@ export function CommandDialog() {
 
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold text-slate-950">
-                              {item.title}
+                              {item.href?.startsWith("/dashboard")
+                                ? t(`navigation.${item.id.replace("go-", "")}`)
+                                : item.title}
                             </span>
                             {item.description ? (
                               <span className="block truncate text-xs text-slate-500">

@@ -10,6 +10,7 @@ import { useSettings } from "@/features/settings/hooks/use-settings";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
+import { Language, useLanguage } from "@/shared/i18n";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -24,28 +25,7 @@ import {
 
 type SettingsTab = "organization" | "operations" | "notifications" | "security";
 
-const tabs: { id: SettingsTab; label: string; description: string }[] = [
-  {
-    id: "organization",
-    label: "Organization",
-    description: "Company identity, timezone, and workspace profile.",
-  },
-  {
-    id: "operations",
-    label: "Operations",
-    description: "Outlet standards, task rules, and approval behavior.",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    description: "Email, dashboard, and operational alert preferences.",
-  },
-  {
-    id: "security",
-    label: "Security",
-    description: "Session, role, and access control configuration.",
-  },
-];
+const tabs: SettingsTab[] = ["organization", "operations", "notifications", "security"];
 
 const settingsSchema = z.object({
   organization_name: z.string(),
@@ -65,7 +45,7 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 function OutletSettingsWorkspace() {
-  const [language, setLanguage] = useState("id");
+  const { language, setLanguage, t } = useLanguage();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -74,27 +54,25 @@ function OutletSettingsWorkspace() {
   function saveOutletSettings() {
     if (newPassword || confirmPassword || currentPassword) {
       if (!currentPassword || !newPassword || newPassword !== confirmPassword) {
-        setNotice("Please complete password fields and make sure confirmation matches.");
+        setNotice(t("settings.passwordMismatch"));
         return;
       }
     }
 
-    localStorage.setItem("novaops_outlet_language", language);
+    setLanguage(language);
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setNotice("Outlet settings saved.");
+    setNotice(t("settings.outletSaved"));
   }
 
   return (
     <main className="space-y-6 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Outlet Settings</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Settings</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Manage outlet account preferences needed for daily operation.
-          </p>
+          <p className="text-sm font-medium text-emerald-700">{t("settings.outletEyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("settings.title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("settings.outletDescription")}</p>
         </div>
 
         <button
@@ -102,7 +80,7 @@ function OutletSettingsWorkspace() {
           onClick={saveOutletSettings}
           className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
         >
-          Save Settings
+          {t("common.saveSettings")}
         </button>
       </div>
 
@@ -113,21 +91,27 @@ function OutletSettingsWorkspace() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Language" description="Choose outlet interface language.">
-          <EnterpriseField label="Language">
+        <SectionCard
+          title={t("common.language")}
+          description={t("settings.outletLanguageDescription")}
+        >
+          <EnterpriseField label={t("common.language")}>
             <EnterpriseSelect
               value={language}
-              onChange={(event) => setLanguage(event.target.value)}
+              onChange={(event) => {
+                setLanguage(event.target.value as Language);
+                setNotice(null);
+              }}
             >
-              <option value="id">Bahasa Indonesia</option>
-              <option value="en">English</option>
+              <option value="id">{t("common.indonesian")}</option>
+              <option value="en">{t("common.english")}</option>
             </EnterpriseSelect>
           </EnterpriseField>
         </SectionCard>
 
-        <SectionCard title="Password" description="Change outlet account password.">
+        <SectionCard title={t("common.password")} description={t("settings.passwordDescription")}>
           <div className="space-y-4">
-            <EnterpriseField label="Current Password">
+            <EnterpriseField label={t("common.currentPassword")}>
               <EnterpriseInput
                 type="password"
                 value={currentPassword}
@@ -135,7 +119,7 @@ function OutletSettingsWorkspace() {
               />
             </EnterpriseField>
 
-            <EnterpriseField label="New Password">
+            <EnterpriseField label={t("common.newPassword")}>
               <EnterpriseInput
                 type="password"
                 value={newPassword}
@@ -143,7 +127,7 @@ function OutletSettingsWorkspace() {
               />
             </EnterpriseField>
 
-            <EnterpriseField label="Confirm New Password">
+            <EnterpriseField label={t("common.confirmNewPassword")}>
               <EnterpriseInput
                 type="password"
                 value={confirmPassword}
@@ -177,6 +161,7 @@ function getSettingsFormValues(
 }
 
 export function SettingsWorkspace() {
+  const { setLanguage, t } = useLanguage();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -199,6 +184,7 @@ export function SettingsWorkspace() {
     resolver: zodResolver(settingsSchema) as never,
     values: formValues,
   });
+  const languageRegister = register("default_language");
 
   const watchedForm = useWatch<SettingsFormValues>({ control });
   const form: SettingsFormValues = {
@@ -226,9 +212,10 @@ export function SettingsWorkspace() {
       setNotice(null);
 
       await updateSettings(values);
+      setLanguage((values.default_language === "id" ? "id" : "en") as Language);
       await reload();
 
-      setNotice("Settings saved successfully.");
+      setNotice(t("settings.saved"));
     } finally {
       setIsSaving(false);
     }
@@ -242,8 +229,8 @@ export function SettingsWorkspace() {
     return (
       <main className="space-y-6 p-6">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Settings</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Loading workspace settings...</h1>
+          <p className="text-sm font-medium text-emerald-700">{t("settings.title")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("settings.loading")}</h1>
         </div>
       </main>
     );
@@ -253,12 +240,9 @@ export function SettingsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Admin Settings</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Settings Workspace</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Configure NovaOps organization standards, outlet operation rules, notifications, and
-            enterprise access behavior.
-          </p>
+          <p className="text-sm font-medium text-emerald-700">{t("settings.adminEyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("settings.workspaceTitle")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("settings.adminDescription")}</p>
         </div>
 
         <button
@@ -267,7 +251,7 @@ export function SettingsWorkspace() {
           disabled={isSaving}
           className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSaving ? "Saving..." : "Save Settings"}
+          {isSaving ? t("common.saving") : t("common.saveSettings")}
         </button>
       </div>
 
@@ -284,30 +268,32 @@ export function SettingsWorkspace() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Setup Score" value={`${completionScore}%`} />
-        <MetricCard label="Timezone" value={form.timezone ?? "-"} />
+        <MetricCard label={t("settings.setupScore")} value={`${completionScore}%`} />
+        <MetricCard label={t("settings.timezone")} value={form.timezone ?? "-"} />
         <MetricCard
-          label="Security"
-          value={form.enforce_role_permissions ? "Enabled" : "Limited"}
+          label={t("settings.security")}
+          value={form.enforce_role_permissions ? t("settings.enabled") : t("settings.limited")}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <SectionCard title="Settings Menu">
+        <SectionCard title={t("settings.menu")}>
           <nav className="space-y-2">
             {tabs.map((tab) => (
               <button
-                key={tab.id}
+                key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab)}
                 className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                  activeTab === tab.id
+                  activeTab === tab
                     ? "border-emerald-600 bg-emerald-50"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                <div className="font-medium text-slate-900">{tab.label}</div>
-                <div className="mt-1 text-xs text-slate-500">{tab.description}</div>
+                <div className="font-medium text-slate-900">
+                  {t(`settings.${tab === "security" ? "securityTab" : tab}`)}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{t(`settings.${tab}Description`)}</div>
               </button>
             ))}
           </nav>
@@ -316,22 +302,25 @@ export function SettingsWorkspace() {
         <form id="settings-form" onSubmit={handleSubmit(handleSave as never)} className="space-y-6">
           {activeTab === "organization" ? (
             <SectionCard
-              title="Organization Settings"
-              description="Basic organization profile and regional defaults."
+              title={t("settings.organizationSettings")}
+              description={t("settings.organizationSettingsDescription")}
             >
               <div className="grid gap-5 md:grid-cols-2">
                 <EnterpriseField
-                  label="Organization Name"
+                  label={t("settings.organizationName")}
                   error={errors.organization_name?.message}
                 >
                   <EnterpriseInput {...register("organization_name")} />
                 </EnterpriseField>
 
-                <EnterpriseField label="Workspace Name" error={errors.workspace_name?.message}>
+                <EnterpriseField
+                  label={t("settings.workspaceName")}
+                  error={errors.workspace_name?.message}
+                >
                   <EnterpriseInput {...register("workspace_name")} />
                 </EnterpriseField>
 
-                <EnterpriseField label="Timezone" error={errors.timezone?.message}>
+                <EnterpriseField label={t("settings.timezone")} error={errors.timezone?.message}>
                   <EnterpriseSelect {...register("timezone")}>
                     <option value="Asia/Jakarta">Asia/Jakarta</option>
                     <option value="Asia/Makassar">Asia/Makassar</option>
@@ -340,10 +329,19 @@ export function SettingsWorkspace() {
                   </EnterpriseSelect>
                 </EnterpriseField>
 
-                <EnterpriseField label="Language" error={errors.default_language?.message}>
-                  <EnterpriseSelect {...register("default_language")}>
-                    <option value="en">English</option>
-                    <option value="id">Bahasa Indonesia</option>
+                <EnterpriseField
+                  label={t("common.language")}
+                  error={errors.default_language?.message}
+                >
+                  <EnterpriseSelect
+                    {...languageRegister}
+                    onChange={(event) => {
+                      void languageRegister.onChange(event);
+                      setLanguage(event.target.value as Language);
+                    }}
+                  >
+                    <option value="en">{t("common.english")}</option>
+                    <option value="id">{t("common.indonesian")}</option>
                   </EnterpriseSelect>
                 </EnterpriseField>
               </div>
@@ -351,10 +349,13 @@ export function SettingsWorkspace() {
           ) : null}
 
           {activeTab === "operations" ? (
-            <SectionCard title="Operations Settings" description="Enterprise operational defaults.">
+            <SectionCard
+              title={t("settings.operationsSettings")}
+              description={t("settings.operationsSettingsDescription")}
+            >
               <div className="grid gap-5 md:grid-cols-2">
                 <EnterpriseField
-                  label="Auto Archive (days)"
+                  label={t("settings.autoArchiveDays")}
                   error={errors.task_auto_archive_days?.message}
                 >
                   <EnterpriseInput
@@ -367,14 +368,14 @@ export function SettingsWorkspace() {
 
                 <div className="space-y-4">
                   <ActionCard
-                    title="Evidence Required"
-                    description="Task cannot be completed without evidence."
+                    title={t("settings.evidenceRequired")}
+                    description={t("settings.evidenceRequiredDescription")}
                     action={<EnterpriseCheckbox {...register("evidence_required")} />}
                   />
 
                   <ActionCard
-                    title="Approval Required"
-                    description="Require supervisor approval."
+                    title={t("settings.approvalRequired")}
+                    description={t("settings.approvalRequiredDescription")}
                     action={<EnterpriseCheckbox {...register("approval_required")} />}
                   />
                 </div>
@@ -384,25 +385,25 @@ export function SettingsWorkspace() {
 
           {activeTab === "notifications" ? (
             <SectionCard
-              title="Notification Settings"
-              description="Control operational notifications."
+              title={t("settings.notificationSettings")}
+              description={t("settings.notificationSettingsDescription")}
             >
               <div className="space-y-4">
                 <ActionCard
-                  title="Email Notifications"
-                  description="Send operational emails."
+                  title={t("settings.emailNotifications")}
+                  description={t("settings.emailNotificationsDescription")}
                   action={<EnterpriseCheckbox {...register("email_notifications")} />}
                 />
 
                 <ActionCard
-                  title="Dashboard Alerts"
-                  description="Show alerts inside dashboard."
+                  title={t("settings.dashboardAlerts")}
+                  description={t("settings.dashboardAlertsDescription")}
                   action={<EnterpriseCheckbox {...register("dashboard_alerts")} />}
                 />
 
                 <ActionCard
-                  title="Overdue Alerts"
-                  description="Notify overdue operational tasks."
+                  title={t("settings.overdueAlerts")}
+                  description={t("settings.overdueAlertsDescription")}
                   action={<EnterpriseCheckbox {...register("overdue_alerts")} />}
                 />
               </div>
@@ -411,12 +412,12 @@ export function SettingsWorkspace() {
 
           {activeTab === "security" ? (
             <SectionCard
-              title="Security Settings"
-              description="Session and permission configuration."
+              title={t("settings.securitySettings")}
+              description={t("settings.securityDescription")}
             >
               <div className="grid gap-5 md:grid-cols-2">
                 <EnterpriseField
-                  label="Session Timeout (minutes)"
+                  label={t("settings.sessionTimeout")}
                   error={errors.session_timeout_minutes?.message}
                 >
                   <EnterpriseInput
@@ -428,8 +429,8 @@ export function SettingsWorkspace() {
                 </EnterpriseField>
 
                 <ActionCard
-                  title="Role Permission Enforcement"
-                  description="Strict enterprise RBAC."
+                  title={t("settings.rolePermissionEnforcement")}
+                  description={t("settings.rolePermissionEnforcementDescription")}
                   action={<EnterpriseCheckbox {...register("enforce_role_permissions")} />}
                 />
               </div>

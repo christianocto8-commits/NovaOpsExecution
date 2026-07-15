@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { NovaRole } from "@/shared/navigation";
+import type { NovaRole } from "@/shared/navigation/role-config";
 
 export type CommandItemType =
   "navigation" | "action" | "task" | "report" | "outlet" | "user" | "setting";

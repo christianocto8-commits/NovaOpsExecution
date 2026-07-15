@@ -3,6 +3,7 @@
 import { useContext } from "react";
 
 import { AuthContext } from "@/providers/AuthProvider";
+import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
 
 type DashboardHeaderProps = {
@@ -11,18 +12,21 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ workspace }: DashboardHeaderProps) {
   const auth = useContext(AuthContext);
+  const { t } = useLanguage();
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/85 px-6 py-4 backdrop-blur-xl">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3D6B49]">
-            {workspace.mode === "outlet" ? "Outlet Operations" : "Operations Command Center"}
+            {workspace.mode === "outlet"
+              ? t("header.outletOperations")
+              : t("header.operationsCommandCenter")}
           </p>
           <h2 className="mt-1 text-lg font-bold text-[#274733]">
             {workspace.mode === "outlet"
-              ? (workspace.outletName ?? "Outlet Workspace")
-              : "NovaOps Workspace"}
+              ? (workspace.outletName ?? t("header.outletWorkspace"))
+              : t("header.workspace")}
           </h2>
         </div>
 
@@ -36,7 +40,7 @@ export function DashboardHeader({ workspace }: DashboardHeaderProps) {
             onClick={() => auth?.logout()}
             className="rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
           >
-            Logout
+            {t("common.logout")}
           </button>
         </div>
       </div>
