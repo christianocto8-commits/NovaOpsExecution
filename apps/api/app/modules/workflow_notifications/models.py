@@ -9,7 +9,7 @@ from app.db.base import Base
 
 
 class NotificationTemplate(Base):
-    __tablename__ = "notification_templates"
+    __tablename__ = "workflow_notification_templates"
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),

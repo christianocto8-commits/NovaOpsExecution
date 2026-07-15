@@ -1,11 +1,15 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
 import { useConfirmation } from "@/shared/confirmation";
 import { Task, TaskExecutionForm, TaskFormState } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
+import { queryKeys } from "@/lib/query/keys";
+import { taskService } from "@/services/task.service";
+import { createExecutionSession } from "@/services/execution-session.service";
 
 type WorkspaceRole = "owner" | "outlet";
 
@@ -38,10 +42,90 @@ function persistTasks(tasks: Task[]) {
   window.localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
 }
 
+function isBackendTaskId(id: string) {
+  return /^\d+$/.test(id);
+}
+
+function getNumericFormTemplateId(formTemplateId?: string) {
+  if (!formTemplateId) return null;
+
+  const numericId = Number(formTemplateId);
+
+  return Number.isFinite(numericId) ? numericId : null;
+}
+
+function buildExecutionAnswers(task: Task, form: TaskExecutionForm) {
+  return {
+    task: {
+      id: task.id,
+      title: task.title,
+      outlet: task.outlet,
+      priority: task.priority,
+      due: task.due,
+      formTemplateId: task.formTemplateId ?? null,
+    },
+    operator: {
+      name: form.operatorName,
+      position: form.operatorPosition,
+    },
+    note: form.note,
+    evidence: form.evidenceText,
+    responses: form.formResponses,
+    submittedAt: new Date().toISOString(),
+  };
+}
+
 export function useTaskWorkspace() {
   const confirm = useConfirmation();
+  const queryClient = useQueryClient();
 
-  const [tasks, setTasksState] = useState<Task[]>(loadInitialTasks);
+  const backendTasksQuery = useQuery({
+    queryKey: queryKeys.sop.tasks(),
+    queryFn: taskService.list,
+    retry: false,
+  });
+
+  const backendConnected = backendTasksQuery.isSuccess;
+
+  const createTaskMutation = useMutation({
+    mutationFn: taskService.create,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ taskId, form }: { taskId: string; form: TaskFormState }) =>
+      taskService.update(taskId, form),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: taskService.remove,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+  });
+
+  const completeTaskMutation = useMutation({
+    mutationFn: async ({ task, form }: { task: Task; form: TaskExecutionForm }) => {
+      if (!isBackendTaskId(task.id)) return;
+
+      await createExecutionSession({
+        task_id: Number(task.id),
+        form_template_id: getNumericFormTemplateId(task.formTemplateId),
+        source_type: "sop_task",
+        status: "completed",
+        answers_json: buildExecutionAnswers(task, form),
+        submitted_by: null,
+      });
+
+      if (task.status === "Pending") {
+        await taskService.updateStatus(task.id, "in_progress");
+      }
+
+      await taskService.updateStatus(task.id, "completed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+  });
+
+  const [localTasks, setLocalTasksState] = useState<Task[]>(loadInitialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("owner");
 
@@ -52,8 +136,10 @@ export function useTaskWorkspace() {
   const [taskForm, setTaskForm] = useState<TaskFormState>(emptyTaskForm);
   const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(emptyTaskExecutionForm);
 
-  function setTasks(next: Task[] | ((currentTasks: Task[]) => Task[])) {
-    setTasksState((currentTasks) => {
+  const tasks = backendTasksQuery.data ?? localTasks;
+
+  function setLocalTasks(next: Task[] | ((currentTasks: Task[]) => Task[])) {
+    setLocalTasksState((currentTasks) => {
       const resolvedTasks = typeof next === "function" ? next(currentTasks) : next;
 
       const normalizedTasks = resolvedTasks.map(normalizeTask);
@@ -101,11 +187,11 @@ export function useTaskWorkspace() {
     setTaskForm(emptyTaskForm);
   }
 
-  function submitTaskForm() {
+  function upsertLocalTaskFromForm() {
     const timestamp = "Just now";
 
     if (editingTaskId) {
-      setTasks((currentTasks) =>
+      setLocalTasks((currentTasks) =>
         currentTasks.map((task) => {
           if (task.id !== editingTaskId) return task;
 
@@ -128,12 +214,11 @@ export function useTaskWorkspace() {
         })
       );
 
-      closeTaskForm();
       return;
     }
 
     const newTask: Task = {
-      id: `TASK-${String(tasks.length + 1).padStart(3, "0")}`,
+      id: `TASK-${String(localTasks.length + 1).padStart(3, "0")}`,
       title: taskForm.title,
       outlet: taskForm.outlet,
       status: taskForm.status,
@@ -154,7 +239,26 @@ export function useTaskWorkspace() {
       ],
     };
 
-    setTasks((currentTasks) => [newTask, ...currentTasks]);
+    setLocalTasks((currentTasks) => [newTask, ...currentTasks]);
+  }
+
+  async function submitTaskForm() {
+    if (backendConnected) {
+      try {
+        if (editingTaskId && isBackendTaskId(editingTaskId)) {
+          await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: taskForm });
+        } else {
+          await createTaskMutation.mutateAsync(taskForm);
+        }
+
+        closeTaskForm();
+        return;
+      } catch {
+        // Keep the workspace usable when the backend session expires or outlet context is missing.
+      }
+    }
+
+    upsertLocalTaskFromForm();
     closeTaskForm();
   }
 
@@ -173,7 +277,7 @@ export function useTaskWorkspace() {
       title: "Delete Task",
       description: `Are you sure you want to delete ${
         task?.title ?? "this task"
-      }?\n\nThis task will be removed from the workspace and local task store.`,
+      }?\n\nThis task will be removed from the workspace${backendConnected ? " and backend" : " and local task store"}.`,
       variant: "danger",
       confirmText: "Delete",
       cancelText: "Cancel",
@@ -182,13 +286,20 @@ export function useTaskWorkspace() {
 
     if (!confirmed) return;
 
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
+    if (backendConnected && isBackendTaskId(id)) {
+      try {
+        await deleteTaskMutation.mutateAsync(id);
+      } catch {
+        return;
+      }
+    } else {
+      setLocalTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
+    }
 
     if (selectedTask?.id === id) {
       setSelectedTask(null);
     }
   }
-
 
   function openExecution(task: Task) {
     const normalizedTask = normalizeTask(task);
@@ -209,7 +320,7 @@ export function useTaskWorkspace() {
 
     const timestamp = "Just now";
 
-    setTasks((currentTasks) =>
+    setLocalTasks((currentTasks) =>
       currentTasks.map((task) => {
         if (task.id !== selectedTask.id) return task;
 
@@ -237,8 +348,18 @@ export function useTaskWorkspace() {
     closeExecution();
   }
 
-  function submitTaskExecution() {
+  async function submitTaskExecution() {
     if (!selectedTask) return;
+
+    if (backendConnected && isBackendTaskId(selectedTask.id)) {
+      try {
+        await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
+        closeExecution();
+        return;
+      } catch {
+        // Fall through to local completion if API status transition fails.
+      }
+    }
 
     const completedAt = "Just now";
     const evidenceValue = executionForm.evidenceText.trim();
@@ -252,7 +373,7 @@ export function useTaskWorkspace() {
       }),
     ];
 
-    setTasks((currentTasks) =>
+    setLocalTasks((currentTasks) =>
       currentTasks.map((task) => {
         if (task.id !== selectedTask.id) return task;
 
@@ -311,6 +432,7 @@ export function useTaskWorkspace() {
     cancelExecutionChanges: closeExecution,
     saveExecutionDraft,
     submitTaskExecution,
+    isBackendConnected: backendConnected,
+    backendError: backendTasksQuery.error,
   };
 }
-

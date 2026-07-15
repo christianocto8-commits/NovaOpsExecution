@@ -1,5 +1,5 @@
-import { Builder } from "@/components/builder/Builder";
+import { redirect } from "next/navigation";
 
 export default function CreateFormPage() {
-  return <Builder />;
+  redirect("/dashboard/forms");
 }

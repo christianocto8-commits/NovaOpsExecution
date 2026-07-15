@@ -8,7 +8,10 @@ class ExecutionSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    runtime_template_id = Column(Integer, ForeignKey("runtime_templates.id"), nullable=False)
+    runtime_template_id = Column(Integer, ForeignKey("runtime_templates.id"), nullable=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    form_template_id = Column(Integer, ForeignKey("form_templates.id"), nullable=True, index=True)
+    source_type = Column(String(50), nullable=True)
 
     status = Column(String(50), nullable=False, default="completed")
     answers_json = Column(JSON, nullable=False)

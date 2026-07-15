@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -6,9 +8,29 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.modules.identity.models import User as IdentityUser
 
 # Standard Enterprise Bearer Authentication
 bearer_scheme = HTTPBearer(auto_error=True)
+
+
+def _resolve_legacy_user(db: Session, subject: str) -> User | None:
+    try:
+        return db.query(User).filter(User.id == int(subject)).first()
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        identity_user_id = UUID(subject)
+    except (TypeError, ValueError):
+        return None
+
+    identity_user = db.query(IdentityUser).filter(IdentityUser.id == identity_user_id).first()
+
+    if not identity_user:
+        return None
+
+    return db.query(User).filter(User.email == identity_user.email).first()
 
 
 def get_current_user(
@@ -16,7 +38,9 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """
-    Get authenticated user from JWT Bearer Token.
+    Get authenticated legacy task-engine user from JWT Bearer Token.
+    The current login system issues UUID identity tokens; task APIs still use
+    integer legacy users, so this safely bridges by matching email.
     """
 
     token = credentials.credentials
@@ -36,12 +60,12 @@ def get_current_user(
                 detail="Invalid authentication credentials",
             )
 
-        user = db.query(User).filter(User.id == int(user_id)).first()
+        user = _resolve_legacy_user(db, str(user_id))
 
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
+                detail="Matching task user not found for current identity",
             )
 
         return user

@@ -1,4 +1,4 @@
-﻿import os
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -45,3 +45,23 @@ def get_settings() -> Settings:
             os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
         ),
     )
+
+class LegacySettingsAdapter:
+    @property
+    def DATABASE_URL(self) -> str:
+        return get_settings().database_url
+
+    @property
+    def SECRET_KEY(self) -> str:
+        return get_settings().jwt_secret_key
+
+    @property
+    def ALGORITHM(self) -> str:
+        return get_settings().jwt_algorithm
+
+    @property
+    def ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
+        return get_settings().access_token_expire_minutes
+
+
+settings = LegacySettingsAdapter()

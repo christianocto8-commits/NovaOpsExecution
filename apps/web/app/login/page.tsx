@@ -1,13 +1,22 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000";
+import { getMe, login } from "@/services/auth.service";
 
 const REMEMBER_KEY = "novaops_remember_identifier";
+
+function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["outlet_access"]) {
+  localStorage.removeItem("novaops_outlet_id");
+  localStorage.removeItem("current_outlet_id");
+  localStorage.removeItem("outlet_id");
+
+  const preferredOutletId = outletAccess.outlet_id ?? outletAccess.outlet_ids[0];
+
+  if (preferredOutletId) {
+    localStorage.setItem("novaops_outlet_id", preferredOutletId);
+  }
+}
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState(() => {
@@ -23,51 +32,35 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-
   async function handleLogin() {
+    if (loading) return;
+
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier,
-          password,
-        }),
+      const data = await login({
+        identifier: identifier.trim(),
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setMessage(
-          data.detail
-            ? typeof data.detail === "string"
-              ? data.detail
-              : JSON.stringify(data.detail)
-            : "Login failed"
-        );
-        return;
-      }
-
       localStorage.setItem("novaops_token", data.access_token);
-      localStorage.removeItem("novaops_outlet_id");
+      localStorage.setItem("novaops_refresh_token", data.refresh_token);
 
       if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, identifier);
+        localStorage.setItem(REMEMBER_KEY, identifier.trim());
       } else {
         localStorage.removeItem(REMEMBER_KEY);
       }
 
+      const currentUser = await getMe();
+      storeOutletContext(currentUser.outlet_access);
+
       setMessage("Login success. Redirecting...");
-      window.location.replace("/dashboard");
+      window.location.assign("/dashboard");
     } catch (error) {
       console.error(error);
       setMessage(error instanceof Error ? error.message : "Unable to connect to API");
-    } finally {
       setLoading(false);
     }
   }
@@ -91,6 +84,7 @@ export default function LoginPage() {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Username or email"
+            autoComplete="username"
           />
 
           <div className="relative">
@@ -100,6 +94,10 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
+              autoComplete="current-password"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void handleLogin();
+              }}
             />
 
             <button
@@ -123,9 +121,9 @@ export default function LoginPage() {
 
           <button
             type="button"
-            disabled={loading}
-            onClick={handleLogin}
-            className="w-full rounded-2xl bg-[#274733] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#1F3A2A] disabled:opacity-60"
+            disabled={loading || !identifier.trim() || !password.trim()}
+            onClick={() => void handleLogin()}
+            className="w-full rounded-2xl bg-[#274733] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#1F3A2A] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Signing in..." : "Login"}
           </button>
@@ -140,4 +138,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

@@ -1,8 +1,12 @@
-﻿"use client";
+"use client";
 
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import { formTemplates } from "@/features/forms/data/mock-form-templates";
+import { queryKeys } from "@/lib/query/keys";
+import { formTemplateService } from "@/services/form-template.service";
 import { TaskFormState, TaskPriority, TaskStatus } from "@/features/tasks/types";
 
 type TaskFormDrawerProps = {
@@ -26,17 +30,31 @@ export function TaskFormDrawer({
   onChange,
   onSubmit,
 }: TaskFormDrawerProps) {
-  if (!open) return null;
-
   const isEditMode = mode === "edit";
-  const safeFormTemplateId = form.formTemplateId || formTemplates[0]?.id || "";
-  const selectedTemplate = formTemplates.find((template) => template.id === safeFormTemplateId);
+  const backendTemplatesQuery = useQuery({
+    queryKey: queryKeys.sop.formTemplates(),
+    queryFn: formTemplateService.list,
+    retry: false,
+  });
+  const availableTemplates = useMemo(() => {
+    const backendTemplates = backendTemplatesQuery.data ?? [];
+    const backendTemplateIds = new Set(backendTemplates.map((template) => template.id));
+
+    return [
+      ...backendTemplates,
+      ...formTemplates.filter((template) => !backendTemplateIds.has(template.id)),
+    ];
+  }, [backendTemplatesQuery.data]);
+  const safeFormTemplateId = form.formTemplateId || availableTemplates[0]?.id || "";
+  const selectedTemplate = availableTemplates.find((template) => template.id === safeFormTemplateId);
 
   const canSubmit =
     Boolean(form.title?.trim()) &&
     Boolean(form.assignee?.trim()) &&
     Boolean(form.due?.trim()) &&
     Boolean(safeFormTemplateId.trim());
+
+  if (!open) return null;
 
   return (
     <div
@@ -51,13 +69,13 @@ export function TaskFormDrawer({
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                {isEditMode ? "Task Update" : "Task Creation"}
+                {isEditMode ? "SOP Task Update" : "SOP Task Creation"}
               </p>
               <h2 className="mt-1 text-xl font-bold text-slate-950">
-                {isEditMode ? "Edit Operational Task" : "Create Operational Task"}
+                {isEditMode ? "Edit SOP Task" : "Create SOP Task"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Assign reusable My Forms into outlet operational tasks.
+                Assign reusable checklists, audits, and evidence forms to outlet teams.
               </p>
             </div>
 
@@ -73,11 +91,11 @@ export function TaskFormDrawer({
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <div>
-            <label className="text-sm font-semibold text-slate-700">My Form Template</label>
+            <label className="text-sm font-semibold text-slate-700">SOP Form Template</label>
             <select
               value={safeFormTemplateId}
               onChange={(event) => {
-                const template = formTemplates.find((item) => item.id === event.target.value);
+                const template = availableTemplates.find((item) => item.id === event.target.value);
 
                 onChange({
                   ...form,
@@ -88,7 +106,7 @@ export function TaskFormDrawer({
               }}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600"
             >
-              {formTemplates.map((template) => (
+              {availableTemplates.map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.name}
                 </option>
@@ -98,7 +116,7 @@ export function TaskFormDrawer({
             {selectedTemplate ? (
               <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-sm font-semibold text-emerald-900">
-                  {selectedTemplate.category} • {selectedTemplate.fields.length} fields
+                  {selectedTemplate.category} - {selectedTemplate.fields.length} fields
                 </p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
                   {selectedTemplate.description}
@@ -108,7 +126,7 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">Task Title</label>
+            <label className="text-sm font-semibold text-slate-700">SOP Task Title</label>
             <input
               value={form.title ?? ""}
               onChange={(event) => onChange({ ...form, title: event.target.value })}
@@ -199,7 +217,7 @@ export function TaskFormDrawer({
             <textarea
               value={form.description ?? ""}
               onChange={(event) => onChange({ ...form, description: event.target.value })}
-              placeholder="Detail instruksi task untuk outlet."
+              placeholder="Detail instruksi SOP untuk outlet."
               rows={4}
               className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />
@@ -213,10 +231,11 @@ export function TaskFormDrawer({
             disabled={!canSubmit}
             className="w-full rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isEditMode ? "Save Changes" : "Create Task"}
+            {isEditMode ? "Save Changes" : "Create SOP Task"}
           </button>
         </div>
       </div>
     </div>
   );
 }
+

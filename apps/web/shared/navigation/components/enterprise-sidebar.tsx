@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,10 +26,12 @@ function groupNavigation(items: NavigationItem[]) {
       return groups;
     },
     {
-      enterprise: [],
+      sop: [],
       operations: [],
+      analytics: [],
       administration: [],
       configuration: [],
+      enterprise: [],
     }
   );
 }

@@ -1,0 +1,166 @@
+import type { WorkflowFormState } from "@/features/workflows/hooks/use-workflows-workspace";
+
+type WorkflowFormDialogProps = {
+  open: boolean;
+  mode: "create" | "edit";
+  form: WorkflowFormState;
+  error?: string;
+  saving?: boolean;
+  onChange: (form: WorkflowFormState) => void;
+  onClose: () => void;
+  onSave: () => void;
+};
+
+export function WorkflowFormDialog({
+  open,
+  mode,
+  form,
+  error,
+  saving,
+  onChange,
+  onClose,
+  onSave,
+}: WorkflowFormDialogProps) {
+  if (!open) return null;
+
+  function updateField<K extends keyof WorkflowFormState>(
+    key: K,
+    value: WorkflowFormState[K],
+  ) {
+    onChange({
+      ...form,
+      [key]: value,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
+      <button
+        type="button"
+        aria-label="Close workflow form"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+
+      <section className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-emerald-700">
+              {mode === "edit" ? "Edit Workflow" : "Create Workflow"}
+            </p>
+
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">
+              {mode === "edit" ? "Update workflow definition" : "New workflow definition"}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Configure the workflow definition before attaching approval, escalation, and notification rules.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Close
+          </button>
+        </div>
+
+        {error ? (
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-6 grid gap-4">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold text-slate-700">Workflow Name</span>
+            <input
+              value={form.name}
+              onChange={(event) => updateField("name", event.target.value)}
+              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+              placeholder="Example: Purchase Approval"
+            />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-700">Code</span>
+              <input
+                value={form.code}
+                onChange={(event) => updateField("code", event.target.value)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                placeholder="purchase_approval"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-700">Module</span>
+              <input
+                value={form.module}
+                onChange={(event) => updateField("module", event.target.value)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                placeholder="operations"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-bold text-slate-700">Status</span>
+            <select
+              value={form.status}
+              onChange={(event) => updateField("status", event.target.value)}
+              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-bold text-slate-700">Description</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => updateField("description", event.target.value)}
+              className="min-h-24 rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+              placeholder="Describe when this workflow should be used."
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-bold text-slate-700">Metadata JSON</span>
+            <textarea
+              value={form.metadataText}
+              onChange={(event) => updateField("metadataText", event.target.value)}
+              className="min-h-40 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+              spellCheck={false}
+            />
+          </label>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : mode === "edit" ? "Save Changes" : "Create Workflow"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}

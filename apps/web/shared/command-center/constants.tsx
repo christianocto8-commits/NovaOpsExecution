@@ -23,12 +23,21 @@ export const commandItems: CommandItem[] = [
   },
   {
     id: "go-tasks",
-    title: "Go to Tasks",
-    description: "Open task management workspace",
+    title: "Go to SOP Tasks",
+    description: "Open SOP execution workspace",
     href: "/dashboard/tasks",
     group: "Navigation",
     type: "navigation",
     icon: ClipboardCheck,
+  },
+  {
+    id: "go-forms",
+    title: "Go to SOP Forms",
+    description: "Open checklist and audit template builder",
+    href: "/dashboard/forms",
+    group: "Navigation",
+    type: "navigation",
+    icon: FileText,
   },
   {
     id: "go-reports",
@@ -68,8 +77,8 @@ export const commandItems: CommandItem[] = [
   },
   {
     id: "create-task",
-    title: "Create New Task",
-    description: "Start a new operational assignment",
+    title: "Create SOP Task",
+    description: "Assign a checklist or audit to an outlet",
     href: "/dashboard/tasks",
     group: "Quick Actions",
     type: "action",
@@ -94,3 +103,5 @@ export const commandItems: CommandItem[] = [
     icon: Search,
   },
 ];
+
+

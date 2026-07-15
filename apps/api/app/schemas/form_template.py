@@ -7,7 +7,7 @@ class FormTemplateCreate(BaseModel):
     description: Optional[str] = None
     form_type: str
     outlet_id: Optional[int] = None
-    created_by: int
+    created_by: Optional[int] = None
 
 
 class FormTemplateResponse(BaseModel):

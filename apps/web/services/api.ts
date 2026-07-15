@@ -3,6 +3,8 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:8000";
 
+const DEFAULT_TIMEOUT_MS = 12000;
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -58,35 +60,48 @@ function normalizeErrorMessage(errorBody: unknown): string {
 export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   const outletId = getOutletId();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      signal: options?.signal ?? controller.signal,
+      headers: {
+        "Content-Type": "application/json",
 
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
 
-      ...(outletId ? { "X-Outlet-Id": outletId } : {}),
+        ...(outletId ? { "X-Outlet-Id": outletId } : {}),
 
-      ...(options?.headers ?? {}),
-    },
-  });
+        ...(options?.headers ?? {}),
+      },
+    });
 
-  if (!response.ok) {
-    let errorBody: unknown = null;
+    if (!response.ok) {
+      let errorBody: unknown = null;
 
-    try {
-      errorBody = await response.json();
-    } catch {
-      errorBody = await response.text();
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = await response.text();
+      }
+
+      throw new Error(normalizeErrorMessage(errorBody));
     }
 
-    throw new Error(normalizeErrorMessage(errorBody));
-  }
+    if (response.status === 204) {
+      return undefined as T;
+    }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("API tidak merespons. Pastikan backend NovaOps berjalan di http://localhost:8000.");
+    }
 
-  return response.json() as Promise<T>;
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }

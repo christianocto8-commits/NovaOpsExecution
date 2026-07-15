@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -130,6 +130,7 @@ export function TasksWorkspace() {
     cancelExecutionChanges,
     saveExecutionDraft,
     submitTaskExecution,
+    isBackendConnected,
   } = useTaskWorkspace();
 
   useEffect(() => {
@@ -320,10 +321,10 @@ export function TasksWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Tasks</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Task Management</h1>
+          <p className="text-sm font-medium text-emerald-700">SOP Execution</p>
+          <h1 className="text-2xl font-semibold text-slate-950">SOP Tasks</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Operational task execution plus real NovaOps project progress.
+            Assign, execute, and verify outlet SOP checklists, audits, and corrective actions.
           </p>
           <div className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -331,6 +332,15 @@ export function TasksWorkspace() {
             </span>
             <RealtimeClock />
           </div>
+          <span
+            className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
+              isBackendConnected
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            {isBackendConnected ? "Backend synced" : "Demo fallback"}
+          </span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -372,7 +382,7 @@ export function TasksWorkspace() {
 
       <div className="grid gap-4 md:grid-cols-5">
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Total Outlet Tasks</p>
+          <p className="text-sm text-slate-500">Total SOP Tasks</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">{outletTaskMetrics.total}</p>
         </div>
 
@@ -392,7 +402,7 @@ export function TasksWorkspace() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Form Completion</p>
+          <p className="text-sm text-slate-500">Compliance Completion</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {outletTaskMetrics.averageProgress}%
           </p>
@@ -406,11 +416,11 @@ export function TasksWorkspace() {
       </div>
 
       <EnterpriseDataTable
-        title="Operational Tasks"
+        title="Outlet SOP Queue"
         description={
           isOutletRole
-            ? "Outlet mode: execute or continue draft."
-            : "Owner mode: create, view, and edit tasks."
+            ? "Outlet mode: complete required SOP evidence or continue saved drafts."
+            : "Owner mode: assign SOP tasks, review evidence, and monitor compliance."
         }
         columns={columns}
         data={tasks}
@@ -460,4 +470,5 @@ export function TasksWorkspace() {
     </main>
   );
 }
+
 

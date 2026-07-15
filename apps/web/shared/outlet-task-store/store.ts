@@ -1,9 +1,14 @@
-﻿"use client";
+"use client";
 
 import { useSyncExternalStore } from "react";
 
 import { initialOutletTaskStoreItems } from "./data";
-import { OutletTaskExecutionStatus, OutletTaskStoreItem, OutletTaskStoreSummary } from "./types";
+import {
+  CorrectiveActionStatus,
+  OutletTaskExecutionStatus,
+  OutletTaskStoreItem,
+  OutletTaskStoreSummary,
+} from "./types";
 
 let outletTaskItems: OutletTaskStoreItem[] = initialOutletTaskStoreItems;
 
@@ -80,6 +85,32 @@ export function upsertOutletTaskStoreItem(item: OutletTaskStoreItem) {
   emitChange();
 }
 
+export function setCorrectiveAction(
+  id: string,
+  patch: {
+    status: CorrectiveActionStatus;
+    owner?: string;
+    due?: string;
+    note?: string;
+  }
+) {
+  outletTaskItems = outletTaskItems.map((item) =>
+    item.id === id
+      ? {
+          ...item,
+          correctiveActionStatus: patch.status,
+          correctiveActionOwner: patch.owner ?? item.correctiveActionOwner,
+          correctiveActionDue: patch.due ?? item.correctiveActionDue,
+          correctiveActionNote: patch.note ?? item.correctiveActionNote,
+          correctiveActionResolvedAt:
+            patch.status === "resolved" ? "Realtime" : item.correctiveActionResolvedAt,
+          updatedAt: "Realtime",
+        }
+      : item
+  );
+
+  emitChange();
+}
 export function clearOutletTaskStore() {
   outletTaskItems = [];
   emitChange();

@@ -1,14 +1,15 @@
-﻿import {
+import {
   BarChart3,
+  Bell,
   Building2,
   ClipboardCheck,
   FileText,
   History,
-  Home,
   LayoutDashboard,
   Settings,
   Store,
   Users,
+  Wrench,
 } from "lucide-react";
 
 export type NavigationItem = {
@@ -17,33 +18,41 @@ export type NavigationItem = {
   href: string;
   icon: typeof LayoutDashboard;
   requiredPermissions: string[];
-  section: "enterprise" | "operations" | "administration" | "configuration";
+  section: "enterprise" | "sop" | "operations" | "analytics" | "administration" | "configuration";
 };
 
 export const navigationItems: NavigationItem[] = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Compliance Center",
     href: "/dashboard",
     icon: LayoutDashboard,
     requiredPermissions: ["report.read"],
-    section: "enterprise",
-  },
-  {
-    id: "outlet-home",
-    label: "Home",
-    href: "/dashboard",
-    icon: Home,
-    requiredPermissions: ["task.read"],
-    section: "operations",
+    section: "sop",
   },
   {
     id: "tasks",
-    label: "Tasks",
+    label: "SOP Tasks",
     href: "/dashboard/tasks",
     icon: ClipboardCheck,
     requiredPermissions: ["task.read"],
-    section: "operations",
+    section: "sop",
+  },
+  {
+    id: "forms",
+    label: "SOP Forms",
+    href: "/dashboard/forms",
+    icon: FileText,
+    requiredPermissions: ["task.read"],
+    section: "sop",
+  },
+  {
+    id: "corrective-actions",
+    label: "Corrective Actions",
+    href: "/dashboard/corrective-actions",
+    icon: Wrench,
+    requiredPermissions: ["task.read"],
+    section: "sop",
   },
   {
     id: "drafts",
@@ -51,14 +60,31 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/drafts",
     icon: FileText,
     requiredPermissions: ["task.execute"],
+    section: "sop",
+  },
+
+  {
+    id: "outlets",
+    label: "Outlets",
+    href: "/dashboard/outlets",
+    icon: Building2,
+    requiredPermissions: ["outlet.read"],
     section: "operations",
   },
   {
-    id: "history",
-    label: "History",
-    href: "/dashboard/history",
-    icon: History,
-    requiredPermissions: ["task.execute"],
+    id: "outlet-profile",
+    label: "Outlet Profile",
+    href: "/dashboard/outlet-profile",
+    icon: Store,
+    requiredPermissions: ["outlet.read"],
+    section: "operations",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    href: "/dashboard/notifications",
+    icon: Bell,
+    requiredPermissions: ["notification.read"],
     section: "operations",
   },
   {
@@ -67,7 +93,15 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/reports",
     icon: BarChart3,
     requiredPermissions: ["report.read"],
-    section: "operations",
+    section: "analytics",
+  },
+  {
+    id: "history",
+    label: "History",
+    href: "/dashboard/history",
+    icon: History,
+    requiredPermissions: ["task.execute"],
+    section: "analytics",
   },
   {
     id: "accounts",
@@ -75,22 +109,6 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/users",
     icon: Users,
     requiredPermissions: ["user.read"],
-    section: "administration",
-  },
-  {
-    id: "outlets",
-    label: "Outlets",
-    href: "/dashboard/outlets",
-    icon: Building2,
-    requiredPermissions: ["outlet.read"],
-    section: "administration",
-  },
-  {
-    id: "outlet-profile",
-    label: "Outlet Profile",
-    href: "/dashboard/outlet-profile",
-    icon: Store,
-    requiredPermissions: ["outlet.read"],
     section: "administration",
   },
   {
@@ -105,7 +123,9 @@ export const navigationItems: NavigationItem[] = [
 
 export const navigationSectionLabels: Record<NavigationItem["section"], string> = {
   enterprise: "Enterprise",
+  sop: "SOP Execution",
   operations: "Operations",
+  analytics: "Analytics",
   administration: "Administration",
   configuration: "Configuration",
 };

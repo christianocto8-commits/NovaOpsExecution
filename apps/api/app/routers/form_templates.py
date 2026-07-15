@@ -2,15 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.form_template import FormTemplate
+from app.models.user import User
 from app.schemas.form_template import FormTemplateCreate, FormTemplateResponse
 
 router = APIRouter(prefix="/form-templates", tags=["Form Templates"])
 
 
 @router.post("", response_model=FormTemplateResponse)
-def create_form_template(payload: FormTemplateCreate, db: Session = Depends(get_db)):
-    form_template = FormTemplate(**payload.model_dump())
+def create_form_template(
+    payload: FormTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    form_template = FormTemplate(
+        **{
+            **payload.model_dump(exclude={"created_by"}),
+            "created_by": current_user.id,
+        }
+    )
     db.add(form_template)
     db.commit()
     db.refresh(form_template)
