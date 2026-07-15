@@ -2,28 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Check,
-  CalendarClock,
-  Plus,
-  Save,
-  Search,
-  Settings2,
-  Trash2,
-} from "lucide-react";
+import { Check, CalendarClock, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { formTemplates } from "@/features/forms/data/mock-form-templates";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
+import { mockOutlets } from "@/features/outlets/data/outlets-data";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
+import { getIdentityOutlets } from "@/services/identity.service";
 
 type ShiftId = "morning" | "evening" | "midnight";
 
 const DRAFT_STORAGE_KEY = "novaops_template_builder_draft";
 const SCHEDULE_STORAGE_KEY = "novaops_template_publish_schedule";
-
-const outletOptions = ["KOV Montre", "KOV Heritage", "KOV Sultan Agung", "KOV Sula"];
 
 const shiftOptions: Array<{
   id: ShiftId;
@@ -41,16 +33,30 @@ type TemplatePublishSchedule = {
   shifts: Record<ShiftId, boolean>;
 };
 
-function createDefaultSchedule(): TemplatePublishSchedule {
+function getFallbackOutletNames() {
+  return mockOutlets.map((outlet) => outlet.name);
+}
+
+function createDefaultSchedule(outletNames = getFallbackOutletNames()): TemplatePublishSchedule {
   return {
     enabled: true,
-    outletNames: outletOptions,
+    outletNames,
     shifts: {
       morning: true,
       evening: true,
       midnight: true,
     },
   };
+}
+
+function reconcileOutletNames(selectedOutletNames: string[], existingOutletNames: string[]) {
+  const selected = new Set(selectedOutletNames);
+  const existing = new Set(existingOutletNames);
+
+  return [
+    ...selectedOutletNames.filter((outletName) => existing.has(outletName)),
+    ...existingOutletNames.filter((outletName) => !selected.has(outletName)),
+  ];
 }
 
 const fieldTypeOptions: Array<{
@@ -193,6 +199,11 @@ export function FormsWorkspace() {
     queryFn: formTemplateService.list,
     retry: false,
   });
+  const identityOutletsQuery = useQuery({
+    queryKey: queryKeys.identity.outlets,
+    queryFn: getIdentityOutlets,
+    retry: false,
+  });
   const syncTemplateMutation = useMutation({
     mutationFn: formTemplateService.create,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() }),
@@ -211,6 +222,12 @@ export function FormsWorkspace() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [publishSchedule, setPublishSchedule] =
     useState<TemplatePublishSchedule>(loadPublishSchedule);
+  const outletOptions = useMemo(() => {
+    const identityOutlets = identityOutletsQuery.data ?? [];
+    const sourceOutlets = identityOutlets.length > 0 ? identityOutlets : mockOutlets;
+
+    return sourceOutlets.map((outlet) => outlet.name);
+  }, [identityOutletsQuery.data]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -250,8 +267,12 @@ export function FormsWorkspace() {
   const selectedShiftCount = shiftOptions.filter(
     (shift) => publishSchedule.shifts[shift.id]
   ).length;
+  const scheduledOutletNames = useMemo(
+    () => reconcileOutletNames(publishSchedule.outletNames, outletOptions),
+    [publishSchedule.outletNames, outletOptions]
+  );
   const dailyTaskCount = publishSchedule.enabled
-    ? publishSchedule.outletNames.length * selectedShiftCount
+    ? scheduledOutletNames.length * selectedShiftCount
     : 0;
 
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
@@ -333,13 +354,14 @@ export function FormsWorkspace() {
 
   function toggleOutlet(outletName: string) {
     setPublishSchedule((currentSchedule) => {
-      const selected = currentSchedule.outletNames.includes(outletName);
+      const currentOutletNames = reconcileOutletNames(currentSchedule.outletNames, outletOptions);
+      const selected = currentOutletNames.includes(outletName);
 
       return {
         ...currentSchedule,
         outletNames: selected
-          ? currentSchedule.outletNames.filter((name) => name !== outletName)
-          : [...currentSchedule.outletNames, outletName],
+          ? currentOutletNames.filter((name) => name !== outletName)
+          : [...currentOutletNames, outletName],
       };
     });
   }
@@ -356,7 +378,10 @@ export function FormsWorkspace() {
 
   function saveDraftNow() {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(templates));
-    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(publishSchedule));
+    localStorage.setItem(
+      SCHEDULE_STORAGE_KEY,
+      JSON.stringify({ ...publishSchedule, outletNames: scheduledOutletNames })
+    );
     setLastSavedAt(new Date().toISOString());
   }
 
@@ -730,7 +755,14 @@ export function FormsWorkspace() {
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Outlets</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                  Outlets
+                </p>
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
+                  {outletOptions.length} existing
+                </span>
+              </div>
               <div className="mt-2 space-y-2">
                 {outletOptions.map((outletName) => (
                   <label
@@ -740,7 +772,7 @@ export function FormsWorkspace() {
                     {outletName}
                     <input
                       type="checkbox"
-                      checked={publishSchedule.outletNames.includes(outletName)}
+                      checked={scheduledOutletNames.includes(outletName)}
                       onChange={() => toggleOutlet(outletName)}
                       className="size-4 accent-emerald-700"
                     />
@@ -752,7 +784,7 @@ export function FormsWorkspace() {
             <div className="mt-4 rounded-xl bg-white p-3 text-xs leading-5 text-slate-600">
               Auto publish will create daily tasks for{" "}
               <span className="font-bold text-slate-900">
-                {publishSchedule.outletNames.length} outlets
+                {scheduledOutletNames.length} outlets
               </span>{" "}
               across <span className="font-bold text-slate-900">{selectedShiftCount} shifts</span>.
             </div>
