@@ -26,7 +26,7 @@ export const commandItems: CommandItem[] = [
   {
     id: "go-compliance",
     title: "Go to Compliance Center",
-    description: "Open SOP audit and corrective action workspace",
+    description: "Open audit and corrective action workspace",
     href: "/dashboard/compliance",
     group: "Navigation",
     type: "navigation",
@@ -34,8 +34,8 @@ export const commandItems: CommandItem[] = [
   },
   {
     id: "go-tasks",
-    title: "Go to SOP Tasks",
-    description: "Open SOP execution workspace",
+    title: "Go to Task",
+    description: "Open task execution workspace",
     href: "/dashboard/tasks",
     group: "Navigation",
     type: "navigation",
@@ -44,7 +44,7 @@ export const commandItems: CommandItem[] = [
   {
     id: "go-operator",
     title: "Go to Operator View",
-    description: "Open mobile SOP execution queue",
+    description: "Open mobile task execution queue",
     href: "/dashboard/operator",
     group: "Navigation",
     type: "navigation",
@@ -97,8 +97,8 @@ export const commandItems: CommandItem[] = [
   },
   {
     id: "create-task",
-    title: "Create SOP Task",
-    description: "Assign a checklist or audit to an outlet",
+    title: "Create Task",
+    description: "Assign a form template to an outlet",
     href: "/dashboard/tasks",
     group: "Quick Actions",
     type: "action",

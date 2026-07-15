@@ -87,7 +87,7 @@ export function mapBackendTask(task: BackendTask): Task {
         id: `ACT-${task.id}-backend`,
         type: "created",
         title: "Loaded from backend",
-        description: "This SOP task is synced from NovaOps API.",
+        description: "This task is synced from NovaOps API.",
         actor: "NovaOps API",
         timestamp: task.updated_at,
       },

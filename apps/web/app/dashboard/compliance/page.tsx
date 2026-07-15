@@ -27,7 +27,7 @@ import { RealtimeClock } from "@/shared/realtime";
 const columns: EnterpriseColumn<OutletTaskStoreItem>[] = [
   { key: "id", header: "SOP ID", sortable: true },
   { key: "outlet", header: "Outlet", sortable: true },
-  { key: "task", header: "SOP Task", sortable: true },
+  { key: "task", header: "Task", sortable: true },
   { key: "form", header: "Form", sortable: true },
   {
     key: "status",
@@ -72,9 +72,7 @@ const columns: EnterpriseColumn<OutletTaskStoreItem>[] = [
 function getComplianceRate(items: OutletTaskStoreItem[]) {
   if (items.length === 0) return 0;
 
-  const compliant = items.filter((item) =>
-    ["submitted", "completed"].includes(item.status)
-  ).length;
+  const compliant = items.filter((item) => ["submitted", "completed"].includes(item.status)).length;
 
   return Math.round((compliant / items.length) * 100);
 }
@@ -134,9 +132,7 @@ function getOutletCompliance(items: OutletTaskStoreItem[]) {
     const outletItems = items.filter((item) => item.outlet === outlet);
     const completion =
       outletItems.length > 0
-        ? Math.round(
-            outletItems.reduce((sum, item) => sum + item.progress, 0) / outletItems.length
-          )
+        ? Math.round(outletItems.reduce((sum, item) => sum + item.progress, 0) / outletItems.length)
         : 0;
     const score =
       outletItems.length > 0
@@ -158,8 +154,9 @@ function getOutletCompliance(items: OutletTaskStoreItem[]) {
 
 export default function ComplianceCenterPage() {
   const outletTaskItems = useOutletTaskStore();
-  const [correctiveActionTarget, setCorrectiveActionTarget] =
-    useState<OutletTaskStoreItem | null>(null);
+  const [correctiveActionTarget, setCorrectiveActionTarget] = useState<OutletTaskStoreItem | null>(
+    null
+  );
   const [correctiveActionOwner, setCorrectiveActionOwner] = useState("Store Manager");
   const [correctiveActionDue, setCorrectiveActionDue] = useState("Today 18:00");
   const [correctiveActionNote, setCorrectiveActionNote] = useState("");
@@ -227,14 +224,14 @@ export default function ComplianceCenterPage() {
             href="/dashboard/tasks"
             className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
           >
-            Open SOP Tasks
+            Open Task
           </Link>
 
           <Link
             href="/dashboard/forms"
             className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"
           >
-            SOP Forms
+            My Form
           </Link>
 
           <button
@@ -251,7 +248,6 @@ export default function ComplianceCenterPage() {
           </div>
         </div>
       </div>
-
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">SOP Compliance</p>
@@ -291,14 +287,13 @@ export default function ComplianceCenterPage() {
           <p className="mt-3 text-xs text-slate-500">Quality score across all forms.</p>
         </div>
       </section>
-
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div>
               <p className="text-sm font-semibold text-slate-950">Owner Action Queue</p>
               <p className="mt-1 text-xs text-slate-500">
-                Start here: these SOPs need follow-up before the day closes.
+                Start here: these tasks need follow-up before the day closes.
               </p>
             </div>
             <Link href="/dashboard/tasks" className="text-sm font-bold text-emerald-700">
@@ -309,10 +304,7 @@ export default function ComplianceCenterPage() {
           <div className="mt-5 space-y-3">
             {ownerActionQueue.length > 0 ? (
               ownerActionQueue.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
+                <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                     <div>
                       <p className="font-semibold text-slate-950">{item.task}</p>
@@ -378,7 +370,7 @@ export default function ComplianceCenterPage() {
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-                No open SOP issues right now.
+                No open task issues right now.
               </div>
             )}
           </div>
@@ -413,13 +405,12 @@ export default function ComplianceCenterPage() {
           </div>
         </div>
       </section>
-
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-950">All Outlet SOP Completion</p>
             <p className="text-xs text-slate-500">
-              Calculated from submitted, draft, pending, and overdue SOP tasks.
+              Calculated from submitted, draft, pending, and overdue tasks.
             </p>
           </div>
           <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
@@ -432,7 +423,6 @@ export default function ComplianceCenterPage() {
           />
         </div>
       </section>
-
       <section className="grid gap-4 xl:grid-cols-2">
         <LineChartCard
           title="SOP Completion Trend"
@@ -462,25 +452,23 @@ export default function ComplianceCenterPage() {
         />
 
         <PieChartCard
-          title="SOP Form Distribution"
-          description="Workload by checklist, audit, and evidence form."
+          title="Form Template Distribution"
+          description="Workload by selected form template."
           data={formDistribution}
           nameKey="name"
           valueKey="value"
         />
       </section>
-
       <EnterpriseDataTable
-        title="SOP Execution Register"
-        description="Realtime SOP tasks by outlet, status, completion, score, due date, and operator."
+        title="Task Execution Register"
+        description="Realtime tasks by outlet, status, completion, score, due date, and operator."
         data={outletTaskItems}
         columns={columns}
-        searchPlaceholder="Search SOP task..."
+        searchPlaceholder="Search task..."
         exportable
         exportFileName="sop-execution-register"
         exportSheetName="SOP Execution"
       />
-
       {correctiveActionTarget ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
@@ -493,11 +481,10 @@ export default function ComplianceCenterPage() {
             <p className="text-xs font-bold uppercase tracking-wide text-red-700">
               Corrective Action
             </p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              {correctiveActionTarget.task}
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">{correctiveActionTarget.task}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {correctiveActionTarget.outlet} - Score {correctiveActionTarget.score}% - Due {correctiveActionTarget.due}
+              {correctiveActionTarget.outlet} - Score {correctiveActionTarget.score}% - Due{" "}
+              {correctiveActionTarget.due}
             </p>
 
             <div className="mt-5 space-y-4">
@@ -548,6 +535,7 @@ export default function ComplianceCenterPage() {
             </div>
           </div>
         </div>
-      ) : null}    </main>
+      ) : null}{" "}
+    </main>
   );
 }

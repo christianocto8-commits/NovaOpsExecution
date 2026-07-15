@@ -42,7 +42,7 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "tasks",
-    label: "SOP Tasks",
+    label: "Task",
     href: "/dashboard/tasks",
     icon: ClipboardCheck,
     requiredPermissions: ["task.read"],
@@ -141,7 +141,7 @@ export const navigationItems: NavigationItem[] = [
 
 export const navigationSectionLabels: Record<NavigationItem["section"], string> = {
   enterprise: "Enterprise",
-  sop: "SOP Execution",
+  sop: "Execution",
   operations: "Operations",
   analytics: "Analytics",
   administration: "Administration",

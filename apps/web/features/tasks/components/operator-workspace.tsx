@@ -83,7 +83,7 @@ export function OperatorWorkspace() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-700">Operator View</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">Today&apos;s SOP Tasks</h1>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">Today&apos;s Tasks</h1>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 Complete checklist fields, attach evidence, and submit for owner review.
               </p>
@@ -148,7 +148,7 @@ export function OperatorWorkspace() {
           <div className="flex items-center justify-between gap-3 px-1">
             <h2 className="text-sm font-bold text-slate-950">Task Queue</h2>
             <span className="text-xs font-semibold text-slate-400">
-              {assignedTasks.length} SOPs
+              {assignedTasks.length} tasks
             </span>
           </div>
 

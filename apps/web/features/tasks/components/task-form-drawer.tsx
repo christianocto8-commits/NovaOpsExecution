@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
-import { formTemplates } from "@/features/forms/data/mock-form-templates";
+import { getAvailableFormTemplates } from "@/features/forms/data/form-template-store";
 import { mockOutlets } from "@/features/outlets/data/outlets-data";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
@@ -58,15 +58,12 @@ export function TaskFormDrawer({
     queryFn: getIdentityOutlets,
     retry: false,
   });
-  const availableTemplates = useMemo(() => {
-    const backendTemplates = backendTemplatesQuery.data ?? [];
-    const backendTemplateIds = new Set(backendTemplates.map((template) => template.id));
-
-    return [
-      ...backendTemplates,
-      ...formTemplates.filter((template) => !backendTemplateIds.has(template.id)),
-    ];
-  }, [backendTemplatesQuery.data]);
+  const backendTemplates = backendTemplatesQuery.data ?? [];
+  const backendTemplateIds = new Set(backendTemplates.map((template) => template.id));
+  const availableTemplates = [
+    ...backendTemplates,
+    ...getAvailableFormTemplates().filter((template) => !backendTemplateIds.has(template.id)),
+  ].filter((template) => template.status !== "Draft");
   const safeFormTemplateId = form.formTemplateId || availableTemplates[0]?.id || "";
   const selectedTemplate = availableTemplates.find(
     (template) => template.id === safeFormTemplateId
@@ -131,13 +128,13 @@ export function TaskFormDrawer({
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                {isEditMode ? "SOP Task Update" : "SOP Task Creation"}
+                {isEditMode ? "Task Update" : "Task Creation"}
               </p>
               <h2 className="mt-1 text-xl font-bold text-slate-950">
-                {isEditMode ? "Edit SOP Task" : "Create SOP Task"}
+                {isEditMode ? "Edit Task" : "Create Task"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Assign reusable checklists, audits, and evidence forms to outlet teams.
+                Assign reusable form templates and evidence requirements to outlet teams.
               </p>
             </div>
 
@@ -153,7 +150,7 @@ export function TaskFormDrawer({
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <div>
-            <label className="text-sm font-semibold text-slate-700">SOP Form Template</label>
+            <label className="text-sm font-semibold text-slate-700">Form Template</label>
             <select
               value={safeFormTemplateId}
               onChange={(event) => {
@@ -188,7 +185,7 @@ export function TaskFormDrawer({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">SOP Task Title</label>
+            <label className="text-sm font-semibold text-slate-700">Task Title</label>
             <input
               value={form.title ?? ""}
               onChange={(event) => onChange({ ...form, title: event.target.value })}
@@ -264,7 +261,7 @@ export function TaskFormDrawer({
               <div>
                 <p className="text-sm font-bold text-emerald-950">Auto Publish</p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  Schedule daily or weekly SOP tasks for selected outlet shifts.
+                  Schedule daily or weekly tasks for selected outlet shifts.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800">
@@ -387,7 +384,7 @@ export function TaskFormDrawer({
             disabled={!canSubmit}
             className="w-full rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isEditMode ? "Save Changes" : "Create SOP Task"}
+            {isEditMode ? "Save Changes" : "Create Task"}
           </button>
         </div>
       </div>

@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
+import {
+  readStoredFormTemplates,
+  writeStoredFormTemplates,
+} from "@/features/forms/data/form-template-storage";
+import { FormTemplate } from "@/features/forms/types";
 import { useConfirmation } from "@/shared/confirmation";
 import { Task } from "@/features/tasks/types";
 
@@ -18,6 +23,16 @@ type OperationalDraft = {
   operatorName: string;
   formName: string;
   progress: string;
+  updatedAt: string;
+};
+
+type ContentDraft = {
+  id: string;
+  templateId: string;
+  title: string;
+  category: string;
+  items: number;
+  description: string;
   updatedAt: string;
 };
 
@@ -55,6 +70,20 @@ function loadTaskDrafts(): OperationalDraft[] {
   }
 }
 
+function loadContentDrafts(): ContentDraft[] {
+  return readStoredFormTemplates()
+    .filter((template) => template.status === "Draft")
+    .map((template) => ({
+      id: `FORM-DRAFT-${template.id}`,
+      templateId: template.id,
+      title: template.name,
+      category: template.category,
+      items: template.fields.length,
+      description: template.description,
+      updatedAt: "Just now",
+    }));
+}
+
 export function DraftCenterWorkspace() {
   const confirm = useConfirmation();
 
@@ -62,6 +91,7 @@ export function DraftCenterWorkspace() {
   const [search, setSearch] = useState("");
 
   const [operationalDrafts, setOperationalDrafts] = useState<OperationalDraft[]>(loadTaskDrafts);
+  const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>(loadContentDrafts);
   const filteredOperationalDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
 
@@ -74,6 +104,17 @@ export function DraftCenterWorkspace() {
       );
     });
   }, [operationalDrafts, search]);
+  const filteredContentDrafts = useMemo(() => {
+    const keyword = search.toLowerCase();
+
+    return contentDrafts.filter((draft) => {
+      return (
+        draft.title.toLowerCase().includes(keyword) ||
+        draft.category.toLowerCase().includes(keyword) ||
+        draft.description.toLowerCase().includes(keyword)
+      );
+    });
+  }, [contentDrafts, search]);
 
   async function handleDeleteOperationalDraft(draftId: string) {
     const draft = operationalDrafts.find((item) => item.id === draftId);
@@ -115,6 +156,29 @@ export function DraftCenterWorkspace() {
     setOperationalDrafts((current) => current.filter((item) => item.id !== draftId));
   }
 
+  async function handleDeleteContentDraft(draftId: string) {
+    const draft = contentDrafts.find((item) => item.id === draftId);
+
+    const confirmed = await confirm({
+      title: "Delete Form Template Draft",
+      description: `Are you sure you want to delete ${
+        draft?.title ?? "this form template draft"
+      }?\n\nThe draft will be removed from My Form too.`,
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      loadingText: "Deleting...",
+    });
+
+    if (!confirmed || !draft) return;
+
+    const nextTemplates: FormTemplate[] = readStoredFormTemplates().filter(
+      (template) => template.id !== draft.templateId
+    );
+
+    writeStoredFormTemplates(nextTemplates);
+    setContentDrafts((current) => current.filter((item) => item.id !== draftId));
+  }
 
   return (
     <main className="space-y-6 p-6">
@@ -252,14 +316,81 @@ export function DraftCenterWorkspace() {
           </div>
         </section>
       ) : (
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-base font-bold text-slate-950">Content Drafts</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            SOP, policy, form template, and announcement drafts will stay here.
-          </p>
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h2 className="text-base font-bold text-slate-950">Content Drafts</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Form template drafts saved from My Form before they become selectable in Task.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Form Template Draft</th>
+                  <th className="px-5 py-3 font-medium">Type</th>
+                  <th className="px-5 py-3 font-medium">Items</th>
+                  <th className="px-5 py-3 font-medium">Updated</th>
+                  <th className="px-5 py-3 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredContentDrafts.map((draft) => (
+                  <tr key={draft.id} className="border-t border-slate-100">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-950">{draft.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{draft.description}</p>
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-600">{draft.category}</td>
+
+                    <td className="px-5 py-4">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {draft.items} items
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
+
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <a
+                          href="/dashboard/forms"
+                          className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                        >
+                          Open
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteContentDraft(draft.id)}
+                          className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredContentDrafts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-slate-500">
+                      No content drafts found. Save a form template draft from My Form first.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
+            Showing {filteredContentDrafts.length} content drafts
+          </div>
         </section>
       )}
     </main>
   );
 }
-

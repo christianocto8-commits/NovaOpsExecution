@@ -13,9 +13,7 @@ import { RealtimeClock } from "@/shared/realtime";
 function getComplianceRate(items: OutletTaskStoreItem[]) {
   if (items.length === 0) return 0;
 
-  const compliant = items.filter((item) =>
-    ["submitted", "completed"].includes(item.status)
-  ).length;
+  const compliant = items.filter((item) => ["submitted", "completed"].includes(item.status)).length;
 
   return Math.round((compliant / items.length) * 100);
 }
@@ -52,7 +50,9 @@ export default function DashboardPage() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Executive Dashboard</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Today&apos;s Operations Snapshot</h1>
+          <h1 className="text-2xl font-semibold text-slate-950">
+            Today&apos;s Operations Snapshot
+          </h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             A focused view of SOP health, open risks, and the work that needs attention now.
           </p>
@@ -69,7 +69,7 @@ export default function DashboardPage() {
             href="/dashboard/tasks"
             className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"
           >
-            SOP Tasks
+            Task
           </Link>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>
@@ -160,19 +160,15 @@ export default function DashboardPage() {
               href="/dashboard/tasks"
               className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100"
             >
-              <p className="font-semibold text-slate-950">SOP Tasks</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Assign, execute, and track outlet SOP work.
-              </p>
+              <p className="font-semibold text-slate-950">Task</p>
+              <p className="mt-1 text-sm text-slate-500">Assign, execute, and track outlet work.</p>
             </Link>
             <Link
               href="/dashboard/reports"
               className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100"
             >
               <p className="font-semibold text-slate-950">Reports</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Review submitted reports and analytics.
-              </p>
+              <p className="mt-1 text-sm text-slate-500">Review submitted reports and analytics.</p>
             </Link>
           </div>
         </div>

@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
-import { formTemplates } from "@/features/forms/data/mock-form-templates";
+import {
+  loadFormTemplateWorkspaceTemplates,
+  saveFormTemplateWorkspaceTemplates,
+} from "@/features/forms/data/form-template-store";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
-
-const DRAFT_STORAGE_KEY = "novaops_template_builder_draft";
 
 const fieldTypeOptions: Array<{
   value: FormFieldType;
@@ -54,22 +55,6 @@ function createField(): FormField {
     type: "yes_no",
     required: true,
   };
-}
-
-function loadDraftTemplates() {
-  const rawDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
-
-  if (!rawDraft) return formTemplates;
-
-  try {
-    const parsedDraft = JSON.parse(rawDraft) as FormTemplate[];
-
-    if (!Array.isArray(parsedDraft) || parsedDraft.length === 0) return formTemplates;
-
-    return parsedDraft;
-  } catch {
-    return formTemplates;
-  }
 }
 
 const columns: EnterpriseColumn<FormTemplate>[] = [
@@ -120,7 +105,7 @@ export function FormsWorkspace() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() }),
   });
   const [initialDraft] = useState(() => {
-    const draftTemplates = loadDraftTemplates();
+    const draftTemplates = loadFormTemplateWorkspaceTemplates();
 
     return {
       templates: draftTemplates,
@@ -134,7 +119,7 @@ export function FormsWorkspace() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(templates));
+      saveFormTemplateWorkspaceTemplates(templates);
       setLastSavedAt(new Date().toISOString());
     }, 500);
 
@@ -206,7 +191,7 @@ export function FormsWorkspace() {
       id: `FORM-${Date.now()}`,
       name: "New Form Template",
       category: "Daily",
-      description: "Reusable form template for SOP task execution.",
+      description: "Reusable form template for task execution.",
       status: "Draft",
       fields: [
         {
@@ -240,7 +225,32 @@ export function FormsWorkspace() {
   }
 
   function saveDraftNow() {
-    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(templates));
+    const nextTemplates = templates.map((template) =>
+      template.id === selectedTemplate.id
+        ? {
+            ...template,
+            status: "Draft" as const,
+          }
+        : template
+    );
+
+    setTemplates(nextTemplates);
+    saveFormTemplateWorkspaceTemplates(nextTemplates);
+    setLastSavedAt(new Date().toISOString());
+  }
+
+  function saveTemplateNow() {
+    const nextTemplates = templates.map((template) =>
+      template.id === selectedTemplate.id
+        ? {
+            ...template,
+            status: "Active" as const,
+          }
+        : template
+    );
+
+    setTemplates(nextTemplates);
+    saveFormTemplateWorkspaceTemplates(nextTemplates);
     setLastSavedAt(new Date().toISOString());
   }
 
@@ -255,8 +265,7 @@ export function FormsWorkspace() {
           <p className="text-sm font-medium text-emerald-700">Form Library</p>
           <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Create reusable form templates for SOP Tasks. Scheduling and auto-publish live inside
-            SOP Task.
+            Create reusable form templates for Task. Scheduling and auto-publish live inside Task.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -303,10 +312,19 @@ export function FormsWorkspace() {
           <button
             type="button"
             onClick={saveDraftNow}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
           >
             <Save className="size-4" />
             Save Draft
+          </button>
+
+          <button
+            type="button"
+            onClick={saveTemplateNow}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+          >
+            <Save className="size-4" />
+            Save Template
           </button>
         </div>
       </div>
@@ -547,7 +565,7 @@ export function FormsWorkspace() {
 
       <EnterpriseDataTable
         title="My Form Library"
-        description="Reusable form templates that can be selected inside SOP Task."
+        description="Reusable form templates that can be selected inside Task."
         columns={columns}
         data={templates}
         getRowId={(form) => form.id}

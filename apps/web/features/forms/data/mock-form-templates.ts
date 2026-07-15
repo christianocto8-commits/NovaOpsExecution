@@ -1,5 +1,7 @@
 ﻿import { FormTemplate } from "@/features/forms/types";
 
+import { readStoredFormTemplates } from "@/features/forms/data/form-template-storage";
+
 export const formTemplates: FormTemplate[] = [
   {
     id: "FORM-OPENING",
@@ -101,5 +103,8 @@ export const formTemplates: FormTemplate[] = [
 ];
 
 export function getFormTemplate(templateId?: string) {
-  return formTemplates.find((template) => template.id === templateId);
+  return (
+    readStoredFormTemplates().find((template) => template.id === templateId) ??
+    formTemplates.find((template) => template.id === templateId)
+  );
 }
