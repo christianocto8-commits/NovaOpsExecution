@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  CalendarClock,
   ClipboardCheck,
   FileCheck2,
   ListChecks,
@@ -15,18 +16,46 @@ import {
 } from "lucide-react";
 
 import { formTemplates } from "@/features/forms/data/mock-form-templates";
-import {
-  FormField,
-  FormFieldType,
-  FormTemplate,
-} from "@/features/forms/types";
+import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
 
 type BuilderMode = "task" | "checklist" | "audit";
+type ShiftId = "morning" | "evening" | "midnight";
 
 const DRAFT_STORAGE_KEY = "novaops_template_builder_draft";
+const SCHEDULE_STORAGE_KEY = "novaops_template_publish_schedule";
+
+const outletOptions = ["KOV Montre", "KOV Heritage", "KOV Sultan Agung", "KOV Sula"];
+
+const shiftOptions: Array<{
+  id: ShiftId;
+  label: string;
+  time: string;
+}> = [
+  { id: "morning", label: "Morning", time: "07:00" },
+  { id: "evening", label: "Evening", time: "15:00" },
+  { id: "midnight", label: "Midnight", time: "23:00" },
+];
+
+type TemplatePublishSchedule = {
+  enabled: boolean;
+  outletNames: string[];
+  shifts: Record<ShiftId, boolean>;
+};
+
+function createDefaultSchedule(): TemplatePublishSchedule {
+  return {
+    enabled: true,
+    outletNames: outletOptions,
+    shifts: {
+      morning: true,
+      evening: true,
+      midnight: true,
+    },
+  };
+}
 
 const fieldTypeOptions: Array<{
   value: FormFieldType;
@@ -110,6 +139,27 @@ function loadDraftTemplates() {
   }
 }
 
+function loadPublishSchedule(): TemplatePublishSchedule {
+  const rawSchedule = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+
+  if (!rawSchedule) return createDefaultSchedule();
+
+  try {
+    const parsedSchedule = JSON.parse(rawSchedule) as TemplatePublishSchedule;
+
+    return {
+      ...createDefaultSchedule(),
+      ...parsedSchedule,
+      shifts: {
+        ...createDefaultSchedule().shifts,
+        ...(parsedSchedule.shifts ?? {}),
+      },
+    };
+  } catch {
+    return createDefaultSchedule();
+  }
+}
+
 const columns: EnterpriseColumn<FormTemplate>[] = [
   {
     key: "name",
@@ -170,6 +220,8 @@ export function FormsWorkspace() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialDraft.selectedTemplateId);
   const [query, setQuery] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [publishSchedule, setPublishSchedule] =
+    useState<TemplatePublishSchedule>(loadPublishSchedule);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -179,6 +231,10 @@ export function FormsWorkspace() {
 
     return () => window.clearTimeout(timer);
   }, [templates]);
+
+  useEffect(() => {
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(publishSchedule));
+  }, [publishSchedule]);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
@@ -206,6 +262,12 @@ export function FormsWorkspace() {
   const evidenceItems = selectedTemplate.fields.filter((field) =>
     ["photo", "signature"].includes(field.type)
   ).length;
+  const selectedShiftCount = shiftOptions.filter(
+    (shift) => publishSchedule.shifts[shift.id]
+  ).length;
+  const dailyTaskCount = publishSchedule.enabled
+    ? publishSchedule.outletNames.length * selectedShiftCount
+    : 0;
 
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
     setTemplates((currentTemplates) =>
@@ -245,8 +307,70 @@ export function FormsWorkspace() {
     });
   }
 
+  function createTemplate(templateMode: BuilderMode) {
+    const label =
+      templateMode === "task"
+        ? "Daily Task Template"
+        : templateMode === "audit"
+          ? "New Audit Template"
+          : "New SOP Form Template";
+
+    const newTemplate: FormTemplate = {
+      id: `FORM-${Date.now()}`,
+      name: label,
+      category: templateMode === "task" ? "Task" : templateMode === "audit" ? "Audit" : "Checklist",
+      description:
+        templateMode === "task"
+          ? "Reusable daily task template for outlet teams."
+          : "Reusable SOP template for outlet execution.",
+      status: "Draft",
+      fields: [
+        {
+          id: `field-${crypto.randomUUID()}`,
+          label: "Checklist item",
+          type: "yes_no",
+          required: true,
+        },
+        {
+          id: `field-${crypto.randomUUID()}`,
+          label: "Photo evidence",
+          type: "photo",
+          required: templateMode !== "task",
+        },
+      ],
+    };
+
+    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
+    setMode(templateMode);
+    setSelectedTemplateId(newTemplate.id);
+  }
+
+  function toggleOutlet(outletName: string) {
+    setPublishSchedule((currentSchedule) => {
+      const selected = currentSchedule.outletNames.includes(outletName);
+
+      return {
+        ...currentSchedule,
+        outletNames: selected
+          ? currentSchedule.outletNames.filter((name) => name !== outletName)
+          : [...currentSchedule.outletNames, outletName],
+      };
+    });
+  }
+
+  function toggleShift(shiftId: ShiftId) {
+    setPublishSchedule((currentSchedule) => ({
+      ...currentSchedule,
+      shifts: {
+        ...currentSchedule.shifts,
+        [shiftId]: !currentSchedule.shifts[shiftId],
+      },
+    }));
+  }
+
   function saveDraftNow() {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(templates));
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(publishSchedule));
     setLastSavedAt(new Date().toISOString());
   }
 
@@ -258,12 +382,11 @@ export function FormsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">SOP Library</p>
-          <h1 className="text-2xl font-semibold text-slate-950">
-            SOP Forms Builder
-          </h1>
+          <p className="text-sm font-medium text-emerald-700">Admin / Owner SOP Library</p>
+          <h1 className="text-2xl font-semibold text-slate-950">SOP Forms & Task Templates</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Build reusable checklists, audits, and evidence forms for outlet SOP execution.
+            Create reusable forms or daily task templates, then publish them to every outlet by
+            shift.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -276,18 +399,36 @@ export function FormsWorkspace() {
               {backendTemplatesQuery.isSuccess ? "Backend templates connected" : "Local form draft"}
             </span>
             <span className="inline-flex items-center gap-1.5">
-            <Check className="size-3.5 text-emerald-600" />
-            {lastSavedAt
-              ? `Draft saved ${new Date(lastSavedAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}`
-              : "Autosave ready"}
+              <Check className="size-3.5 text-emerald-600" />
+              {lastSavedAt
+                ? `Draft saved ${new Date(lastSavedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : "Autosave ready"}
             </span>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => createTemplate("checklist")}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
+          >
+            <Plus className="size-4" />
+            New Form
+          </button>
+
+          <button
+            type="button"
+            onClick={() => createTemplate("task")}
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-100"
+          >
+            <ClipboardCheck className="size-4" />
+            New Task Template
+          </button>
+
           <button
             type="button"
             onClick={() => void syncSelectedTemplate()}
@@ -309,7 +450,7 @@ export function FormsWorkspace() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">
         {builderModes.map((item) => {
           const Icon = item.icon;
           const active = mode === item.id;
@@ -328,21 +469,14 @@ export function FormsWorkspace() {
                 if (nextTemplate) setSelectedTemplateId(nextTemplate.id);
               }}
               className={[
-                "rounded-xl border bg-white p-4 text-left transition",
+                "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition",
                 active
-                  ? "border-emerald-500 ring-4 ring-emerald-100"
-                  : "border-slate-200 hover:border-emerald-300",
+                  ? "bg-emerald-700 text-white"
+                  : "bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700",
               ].join(" ")}
             >
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                  <Icon className="size-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-950">{item.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p>
-                </div>
-              </div>
+              <Icon className="size-4" />
+              {item.label}
             </button>
           );
         })}
@@ -510,15 +644,17 @@ export function FormsWorkspace() {
               <Settings2 className="size-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-950">Inspector</p>
-              <p className="text-xs text-slate-500">Editable builder draft</p>
+              <p className="text-sm font-semibold text-slate-950">Template Settings</p>
+              <p className="text-xs text-slate-500">Publish rules for outlets</p>
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-xs text-slate-500">Items</p>
-              <p className="mt-1 text-xl font-bold text-slate-950">{selectedTemplate.fields.length}</p>
+              <p className="mt-1 text-xl font-bold text-slate-950">
+                {selectedTemplate.fields.length}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-xs text-slate-500">Required</p>
@@ -561,6 +697,94 @@ export function FormsWorkspace() {
               </select>
             </div>
           </div>
+
+          <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700">
+                <CalendarClock className="size-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-emerald-950">Daily Auto Publish</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-700">
+                  Publish this template every day for selected outlets and shifts.
+                </p>
+              </div>
+            </div>
+
+            <label className="mt-4 flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+              Enable schedule
+              <input
+                type="checkbox"
+                checked={publishSchedule.enabled}
+                onChange={(event) =>
+                  setPublishSchedule((currentSchedule) => ({
+                    ...currentSchedule,
+                    enabled: event.target.checked,
+                  }))
+                }
+                className="size-4 accent-emerald-700"
+              />
+            </label>
+
+            <div className="mt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
+              <div className="mt-2 space-y-2">
+                {shiftOptions.map((shift) => (
+                  <label
+                    key={shift.id}
+                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm"
+                  >
+                    <span>
+                      <span className="font-semibold text-slate-900">{shift.label}</span>
+                      <span className="ml-2 text-xs text-slate-500">{shift.time}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={publishSchedule.shifts[shift.id]}
+                      onChange={() => toggleShift(shift.id)}
+                      className="size-4 accent-emerald-700"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Outlets</p>
+              <div className="mt-2 space-y-2">
+                {outletOptions.map((outletName) => (
+                  <label
+                    key={outletName}
+                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+                  >
+                    {outletName}
+                    <input
+                      type="checkbox"
+                      checked={publishSchedule.outletNames.includes(outletName)}
+                      onChange={() => toggleOutlet(outletName)}
+                      className="size-4 accent-emerald-700"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-white p-3 text-xs leading-5 text-slate-600">
+              Auto publish will create daily tasks for{" "}
+              <span className="font-bold text-slate-900">
+                {publishSchedule.outletNames.length} outlets
+              </span>{" "}
+              across <span className="font-bold text-slate-900">{selectedShiftCount} shifts</span>.
+            </div>
+
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                Daily task output
+              </p>
+              <p className="mt-1 text-2xl font-bold text-emerald-950">{dailyTaskCount}</p>
+              <p className="text-xs text-slate-500">tasks generated every day from this template</p>
+            </div>
+          </div>
         </aside>
       </div>
 
@@ -578,5 +802,3 @@ export function FormsWorkspace() {
     </main>
   );
 }
-
-
