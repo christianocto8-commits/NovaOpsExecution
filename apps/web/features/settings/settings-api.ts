@@ -27,3 +27,15 @@ export async function updateSettings(payload: SettingsPayload) {
     body: JSON.stringify(payload),
   });
 }
+
+export type PasswordChangePayload = {
+  current_password: string;
+  new_password: string;
+};
+
+export async function changePassword(payload: PasswordChangePayload) {
+  return api<{ message: string }>("/api/v1/identity/me/password", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}

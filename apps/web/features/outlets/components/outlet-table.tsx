@@ -19,8 +19,7 @@ const outletFilterDefinitions = [
   {
     key: "area",
     label: "Area",
-    type: "select" as const,
-    options: [{ label: "Semarang", value: "Semarang" }],
+    type: "text" as const,
   },
   {
     key: "tier",
@@ -43,8 +42,8 @@ const outletFilterDefinitions = [
     ],
   },
   {
-    key: "accountEmail",
-    label: "Outlet Account",
+    key: "code",
+    label: "Outlet Code",
     type: "text" as const,
   },
 ];
@@ -52,14 +51,15 @@ const outletFilterDefinitions = [
 function getExportRows(outlets: Outlet[]) {
   return outlets.map((outlet) => ({
     ID: outlet.id,
+    Code: outlet.code,
     Outlet: outlet.name,
     Area: outlet.area,
+    Phone: outlet.phone,
     Tier: outlet.tier,
     Status: outlet.status,
     Compliance: outlet.compliance,
     "Open Tasks": outlet.openTasks,
     "Last Audit": outlet.lastAudit,
-    "Outlet Account": outlet.accountEmail,
   }));
 }
 
@@ -79,7 +79,7 @@ export function OutletTable({
         <button type="button" onClick={() => onSelectOutlet(outlet)} className="text-left">
           <span className="block font-semibold text-slate-950">{outlet.name}</span>
           <span className="block text-xs text-slate-500">
-            {outlet.id} • {outlet.area}
+            {outlet.code} • {outlet.area || "No address"}
           </span>
         </button>
       ),
@@ -99,9 +99,15 @@ export function OutletTable({
       ),
     },
     {
-      key: "accountEmail",
-      header: "Outlet Account",
+      key: "code",
+      header: "Code",
       sortable: true,
+    },
+    {
+      key: "phone",
+      header: "Phone",
+      sortable: true,
+      render: (outlet) => outlet.phone || "-",
     },
     {
       key: "compliance",
@@ -147,11 +153,11 @@ export function OutletTable({
   return (
     <EnterpriseDataTable
       title="Outlet Network"
-      description="Manage outlet identity, operational status, outlet account, and compliance visibility."
+      description="Manage real outlet identity, operational status, and compliance visibility."
       columns={columns}
       data={outlets}
       getRowId={(outlet) => outlet.id}
-      searchPlaceholder="Search outlet, area, status, email..."
+      searchPlaceholder="Search outlet, code, area, phone..."
       emptyTitle="No outlets found"
       emptyDescription="Try changing search or filter criteria."
       pageSize={10}

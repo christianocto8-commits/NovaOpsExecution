@@ -47,11 +47,22 @@ export function OutletFormDialog({
             {editingOutletId ? "Edit Outlet" : "Create Outlet"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Manage outlet identity, status, tier, and operational account.
+            Manage real outlet identity saved to the backend.
           </p>
         </div>
 
         <div className="grid gap-4 p-6">
+          <Field label="Outlet Code">
+            <input
+              value={form.code}
+              onChange={(event) =>
+                onFormChange({ ...form, code: event.target.value.toUpperCase() })
+              }
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Example: KOV-HERITAGE"
+            />
+          </Field>
+
           <Field label="Outlet Name">
             <input
               value={form.name}
@@ -67,6 +78,15 @@ export function OutletFormDialog({
               onChange={(event) => onFormChange({ ...form, area: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="Semarang"
+            />
+          </Field>
+
+          <Field label="Phone">
+            <input
+              value={form.phone}
+              onChange={(event) => onFormChange({ ...form, phone: event.target.value })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="+62..."
             />
           </Field>
 
@@ -106,14 +126,10 @@ export function OutletFormDialog({
             </Field>
           </div>
 
-          <Field label="Outlet Account Email">
-            <input
-              value={form.accountEmail}
-              onChange={(event) => onFormChange({ ...form, accountEmail: event.target.value })}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              placeholder="heritage@kov.co.id"
-            />
-          </Field>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+            Outlet account login is created separately from Accounts. After this outlet is saved,
+            create an Outlet role account and assign it to this outlet.
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-200 p-6">

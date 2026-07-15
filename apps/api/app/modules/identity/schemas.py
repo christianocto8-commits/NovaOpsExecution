@@ -142,6 +142,11 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserMeResponse(BaseModel):
     id: UUID
     email: str
@@ -173,6 +178,9 @@ class AuthContextOutletAccessResponse(BaseModel):
     scope: str
     outlet_id: UUID | None = None
     outlet_ids: list[UUID] = []
+    outlet_name: str | None = None
+    outlet_code: str | None = None
+    outlets: list[OutletRead] = []
 
 
 class AuthContextResponse(BaseModel):
@@ -181,7 +189,5 @@ class AuthContextResponse(BaseModel):
     outlet_access: AuthContextOutletAccessResponse
     permissions: list[str]
     token_version: int
-
-
 
 

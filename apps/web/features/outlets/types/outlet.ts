@@ -5,14 +5,15 @@ export type OperatorPosition = "Head Barista" | "Lead Barista" | "Crew";
 
 export type Outlet = {
   id: string;
+  code: string;
   name: string;
   area: string;
+  phone: string;
   status: OutletStatus;
   tier: OutletTier;
   compliance: string;
   openTasks: number;
   lastAudit: string;
-  accountEmail: string;
 };
 
 export type OutletOperator = {
@@ -25,11 +26,12 @@ export type OutletOperator = {
 };
 
 export type OutletFormState = {
+  code: string;
   name: string;
   area: string;
+  phone: string;
   status: OutletStatus;
   tier: OutletTier;
-  accountEmail: string;
 };
 
 export type OperatorFormState = {

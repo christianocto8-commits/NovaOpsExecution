@@ -13,11 +13,24 @@ function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["out
   localStorage.removeItem("current_outlet_id");
   localStorage.removeItem("outlet_id");
 
-  const preferredOutletId = outletAccess.outlet_id ?? outletAccess.outlet_ids[0];
+  const preferredOutletId =
+    outletAccess.scope === "single" ? (outletAccess.outlet_id ?? outletAccess.outlet_ids[0]) : null;
 
   if (preferredOutletId) {
     localStorage.setItem("novaops_outlet_id", preferredOutletId);
   }
+}
+
+function getWorkspaceOutletContext(
+  outletAccess: Awaited<ReturnType<typeof getMe>>["outlet_access"]
+) {
+  const preferredOutlet = outletAccess.outlets?.[0];
+
+  return {
+    outletId: outletAccess.outlet_id ?? outletAccess.outlet_ids?.[0] ?? preferredOutlet?.id,
+    outletName: outletAccess.outlet_name ?? preferredOutlet?.name,
+    outletCode: outletAccess.outlet_code ?? preferredOutlet?.code,
+  };
 }
 
 function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
@@ -63,7 +76,10 @@ export default function LoginPage() {
 
       const currentUser = await getMe();
       storeOutletContext(currentUser.outlet_access);
-      setStoredWorkspaceRole(getWorkspaceRoleFromSlug(currentUser.role.slug));
+      setStoredWorkspaceRole(
+        getWorkspaceRoleFromSlug(currentUser.role.slug),
+        getWorkspaceOutletContext(currentUser.outlet_access)
+      );
 
       setMessage("Login success. Redirecting...");
       window.location.assign("/dashboard");

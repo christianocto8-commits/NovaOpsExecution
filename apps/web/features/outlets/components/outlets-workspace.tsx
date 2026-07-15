@@ -46,6 +46,12 @@ export function OutletsWorkspace() {
         offline={outletsWorkspace.metrics.offline}
       />
 
+      {outletsWorkspace.error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          {outletsWorkspace.error}
+        </div>
+      ) : null}
+
       <OutletTable
         outlets={outletsWorkspace.outlets}
         onSelectOutlet={outletsWorkspace.setSelectedOutlet}

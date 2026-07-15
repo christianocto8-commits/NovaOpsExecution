@@ -15,6 +15,7 @@ export function useNotificationsWorkspace() {
   const inboxQuery = useQuery({
     queryKey: notificationKeys.inbox(),
     queryFn: notificationService.listMine,
+    retry: false,
   });
 
   const processMutation = useMutation({

@@ -3,6 +3,16 @@
 import { CurrentWorkspace, NovaRole } from "./role-config";
 
 const WORKSPACE_STORAGE_KEY = "novaops_workspace_role";
+const WORKSPACE_CONTEXT_KEY = "novaops_workspace_context";
+
+type StoredWorkspaceContext = {
+  outletId?: string;
+  outletName?: string;
+  outletCode?: string;
+};
+
+let cachedSnapshotKey = "";
+let cachedSnapshot: CurrentWorkspace | null = null;
 
 const workspaceMap: Record<NovaRole, CurrentWorkspace> = {
   OWNER_ADMIN: {
@@ -19,9 +29,22 @@ const workspaceMap: Record<NovaRole, CurrentWorkspace> = {
     role: "OUTLET",
     roleLabel: "Outlet",
     mode: "outlet",
-    outletName: "KOV Heritage",
   },
 };
+
+function getStoredWorkspaceContext(): StoredWorkspaceContext {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const storedContext = localStorage.getItem(WORKSPACE_CONTEXT_KEY);
+    if (!storedContext) return {};
+
+    const parsed = JSON.parse(storedContext) as StoredWorkspaceContext;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 export function getStoredWorkspace(): CurrentWorkspace {
   if (typeof window === "undefined") {
@@ -29,16 +52,37 @@ export function getStoredWorkspace(): CurrentWorkspace {
   }
 
   const storedRole = localStorage.getItem(WORKSPACE_STORAGE_KEY) as NovaRole | null;
+  const storedContext = localStorage.getItem(WORKSPACE_CONTEXT_KEY) ?? "";
+  const snapshotKey = `${storedRole ?? ""}:${storedContext}`;
 
-  if (!storedRole || !workspaceMap[storedRole]) {
-    return workspaceMap.OWNER_ADMIN;
+  if (cachedSnapshot && cachedSnapshotKey === snapshotKey) {
+    return cachedSnapshot;
   }
 
-  return workspaceMap[storedRole];
+  if (!storedRole || !workspaceMap[storedRole]) {
+    cachedSnapshotKey = snapshotKey;
+    cachedSnapshot = workspaceMap.OWNER_ADMIN;
+    return cachedSnapshot;
+  }
+
+  cachedSnapshotKey = snapshotKey;
+  cachedSnapshot = {
+    ...workspaceMap[storedRole],
+    ...getStoredWorkspaceContext(),
+  };
+
+  return cachedSnapshot;
 }
 
-export function setStoredWorkspaceRole(role: NovaRole) {
+export function setStoredWorkspaceRole(role: NovaRole, context: StoredWorkspaceContext = {}) {
   localStorage.setItem(WORKSPACE_STORAGE_KEY, role);
+
+  if (role === "OUTLET" || role === "AREA_MANAGER") {
+    localStorage.setItem(WORKSPACE_CONTEXT_KEY, JSON.stringify(context));
+  } else {
+    localStorage.removeItem(WORKSPACE_CONTEXT_KEY);
+  }
+
   window.dispatchEvent(new Event("novaops-workspace-change"));
 }
 

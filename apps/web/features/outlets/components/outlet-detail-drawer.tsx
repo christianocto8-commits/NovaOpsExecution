@@ -38,7 +38,7 @@ export function OutletDetailDrawer({
               <p className="text-sm font-medium text-emerald-700">Outlet Profile</p>
               <h2 className="mt-1 text-xl font-semibold text-slate-950">{outlet.name}</h2>
               <p className="mt-1 text-sm text-slate-500">
-                {outlet.id} • {outlet.area}
+                {outlet.code} • {outlet.area || "No address"}
               </p>
             </div>
 
@@ -93,9 +93,11 @@ export function OutletDetailDrawer({
 
           <div className="rounded-2xl border border-slate-200 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Outlet Account
+              Outlet Contact
             </p>
-            <p className="mt-2 text-sm font-medium text-slate-800">{outlet.accountEmail}</p>
+            <p className="mt-2 text-sm font-medium text-slate-800">
+              {outlet.phone || "No phone set"}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200">

@@ -1,8 +1,14 @@
 "use client";
 
-import { Bell, RefreshCw, Send } from "lucide-react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, Bell, CheckCircle2, RefreshCw, Send } from "lucide-react";
 
 import { useNotificationsWorkspace } from "@/features/notifications/hooks/use-notifications-workspace";
+import type { Task } from "@/features/tasks/types";
+import { useAuth } from "@/hooks/useAuth";
+import { queryKeys } from "@/lib/query/keys";
+import { taskService } from "@/services/task.service";
 import type { NotificationDelivery } from "@/features/workflows/types";
 
 function formatDate(value?: string | null) {
@@ -27,6 +33,43 @@ function getStatusTone(status: string) {
     default:
       return "bg-amber-50 text-amber-700";
   }
+}
+
+function isOverdue(task: Task) {
+  if (!task.due || task.status === "Completed") return false;
+
+  const dueDate = new Date(task.due);
+  if (Number.isNaN(dueDate.getTime())) return false;
+
+  return dueDate.getTime() < Date.now();
+}
+
+function getOperationalAlerts(tasks: Task[]) {
+  return tasks
+    .filter(
+      (task) =>
+        task.status !== "Completed" &&
+        (isOverdue(task) || task.priority === "Critical" || task.priority === "High")
+    )
+    .sort((first, second) => {
+      const firstTime = first.due ? new Date(first.due).getTime() : Number.MAX_SAFE_INTEGER;
+      const secondTime = second.due ? new Date(second.due).getTime() : Number.MAX_SAFE_INTEGER;
+      return firstTime - secondTime;
+    });
+}
+
+function getTaskActivityTime(task: Task) {
+  const timestamp = task.activity?.[0]?.timestamp ?? task.due ?? "0";
+  const time = new Date(timestamp).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function getCompletionUpdates(tasks: Task[]) {
+  return tasks
+    .filter((task) => task.status === "Completed")
+    .sort((first, second) => getTaskActivityTime(second) - getTaskActivityTime(first))
+    .slice(0, 12);
 }
 
 function NotificationCard({
@@ -92,6 +135,23 @@ function NotificationCard({
 
 export function NotificationsWorkspace() {
   const workspace = useNotificationsWorkspace();
+  const { hasRole } = useAuth();
+  const tasksQuery = useQuery({
+    queryKey: queryKeys.sop.tasks(),
+    queryFn: taskService.list,
+    retry: false,
+  });
+
+  const operationalAlerts = useMemo(
+    () => getOperationalAlerts(tasksQuery.data ?? []),
+    [tasksQuery.data]
+  );
+  const completionUpdates = useMemo(
+    () => getCompletionUpdates(tasksQuery.data ?? []),
+    [tasksQuery.data]
+  );
+
+  const canProcessNotifications = !hasRole("outlet");
 
   async function processPending() {
     try {
@@ -118,22 +178,27 @@ export function NotificationsWorkspace() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void workspace.refetch()}
+            onClick={() => {
+              void workspace.refetch();
+              void tasksQuery.refetch();
+            }}
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
 
-          <button
-            type="button"
-            onClick={() => void processPending()}
-            disabled={workspace.isProcessing}
-            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-            {workspace.isProcessing ? "Processing..." : "Process Pending"}
-          </button>
+          {canProcessNotifications ? (
+            <button
+              type="button"
+              onClick={() => void processPending()}
+              disabled={workspace.isProcessing}
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {workspace.isProcessing ? "Processing..." : "Process Pending"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -149,9 +214,176 @@ export function NotificationsWorkspace() {
       ) : null}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5">
-        <p className="text-sm font-bold text-slate-950">
-          Total deliveries: {workspace.notifications.length}
-        </p>
+        <div className="grid gap-4 md:grid-cols-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              Delivery Inbox
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
+              {workspace.notifications.length}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              Operational Alerts
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
+              {operationalAlerts.length}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              Completed Updates
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
+              {completionUpdates.length}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              Source
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-700">
+              Server notifications and live task data
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {tasksQuery.isError ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+          <p className="font-bold text-amber-800">Task alert data unavailable</p>
+          <p className="mt-1 text-sm text-amber-700">
+            Notification deliveries can still be reviewed, but task-based alerts could not be
+            loaded for this account.
+          </p>
+        </div>
+      ) : null}
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-slate-950">Outlet Completion Updates</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Completed outlet tasks from the live backend task status.
+            </p>
+          </div>
+        </div>
+
+        {tasksQuery.isLoading ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+            Loading completion updates...
+          </div>
+        ) : completionUpdates.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-3 font-bold text-slate-800">No completed outlet tasks yet</p>
+            <p className="mt-1 text-sm text-slate-500">
+              When an outlet completes a task, the update will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {completionUpdates.map((task) => (
+              <article
+                key={task.id}
+                className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5"
+              >
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                      <p className="font-bold text-slate-950">{task.title}</p>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {task.outlet} completed this task.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800">
+                    Completed
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-3">
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-emerald-700">Outlet</p>
+                    <p className="mt-1">{task.outlet}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-emerald-700">Priority</p>
+                    <p className="mt-1">{task.priority}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-emerald-700">Due</p>
+                    <p className="mt-1">{task.due || "-"}</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-slate-950">Operational Alerts</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Generated from real open tasks that are overdue or high urgency.
+            </p>
+          </div>
+        </div>
+
+        {tasksQuery.isLoading ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+            Loading task alerts...
+          </div>
+        ) : operationalAlerts.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500" />
+            <p className="mt-3 font-bold text-slate-800">No task alerts right now</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Overdue, critical, and high priority tasks will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {operationalAlerts.map((task) => (
+              <article
+                key={task.id}
+                className="rounded-3xl border border-amber-200 bg-amber-50 p-5"
+              >
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-700" />
+                      <p className="font-bold text-slate-950">{task.title}</p>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {task.outlet} - {task.description || "Task needs attention."}
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-amber-800">
+                    {isOverdue(task) ? "Overdue" : task.priority}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-3">
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-amber-700">Status</p>
+                    <p className="mt-1">{task.status}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-amber-700">Priority</p>
+                    <p className="mt-1">{task.priority}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-amber-700">Due</p>
+                    <p className="mt-1">{task.due || "-"}</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {workspace.isLoading ? (

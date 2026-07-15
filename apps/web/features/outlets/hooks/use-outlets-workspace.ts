@@ -62,24 +62,26 @@ function mapIdentityOutlet(
 ): Outlet {
   return {
     id: outlet.id,
+    code: outlet.code,
     name: outlet.name,
-    area: outlet.address ?? "-",
+    area: outlet.address ?? "",
+    phone: outlet.phone ?? "",
     status: toUiStatus(outlet.status),
     tier: "Standard",
     compliance: `${Math.round(metrics?.compliance ?? 0)}%`,
     openTasks: metrics?.open_tasks ?? 0,
     lastAudit: formatLastAudit(metrics?.last_audit ?? null),
-    accountEmail: `${outlet.code.toLowerCase()}@novaops.local`,
   };
 }
 
-function makeOutletCode(name: string) {
+function makeOutletCode(value: string) {
   return (
-    name
+    value
       .trim()
       .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "")
-      .slice(0, 12) || "OUTLET"
+      .replace(/[^A-Z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40)
   );
 }
 
@@ -218,18 +220,30 @@ export function useOutletsWorkspace() {
   function openEditOutletDialog(outlet: Outlet) {
     setEditingOutletId(outlet.id);
     setOutletForm({
+      code: outlet.code,
       name: outlet.name,
       area: outlet.area,
+      phone: outlet.phone,
       status: outlet.status,
       tier: outlet.tier,
-      accountEmail: outlet.accountEmail,
     });
     setError("");
     setOutletModalOpen(true);
   }
 
   async function saveOutlet() {
-    if (!outletForm.name.trim()) return;
+    const code = makeOutletCode(outletForm.code || outletForm.name);
+    const name = outletForm.name.trim();
+
+    if (!code || code.length < 2) {
+      setError("Outlet code must be at least 2 characters");
+      return;
+    }
+
+    if (!name) {
+      setError("Outlet name is required");
+      return;
+    }
 
     try {
       setError("");
@@ -238,17 +252,19 @@ export function useOutletsWorkspace() {
         await updateMutation.mutateAsync({
           outletId: editingOutletId,
           payload: {
-            name: outletForm.name,
-            address: outletForm.area,
+            code,
+            name,
+            address: outletForm.area.trim() || null,
+            phone: outletForm.phone.trim() || null,
             status: toApiStatus(outletForm.status),
           },
         });
       } else {
         await createMutation.mutateAsync({
-          code: makeOutletCode(outletForm.name),
-          name: outletForm.name,
-          address: outletForm.area,
-          phone: null,
+          code,
+          name,
+          address: outletForm.area.trim() || null,
+          phone: outletForm.phone.trim() || null,
           status: toApiStatus(outletForm.status),
         });
       }
@@ -411,7 +427,6 @@ export function useOutletsWorkspace() {
     deleteOperator,
   };
 }
-
 
 
 

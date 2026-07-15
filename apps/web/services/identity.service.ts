@@ -85,7 +85,7 @@ export async function updateIdentityUser(userId: string, payload: UpdateIdentity
   });
 }
 
-export async function deactivateIdentityUser(userId: string) {
+export async function deleteIdentityUser(userId: string) {
   return api<{ message: string }>(`/api/v1/identity/users/${userId}`, {
     method: "DELETE",
   });

@@ -6,7 +6,9 @@ export type CurrentWorkspace = {
   role: NovaRole;
   roleLabel: string;
   mode: NavigationMode;
+  outletId?: string;
   outletName?: string;
+  outletCode?: string;
 };
 
 export const defaultWorkspace: CurrentWorkspace = {

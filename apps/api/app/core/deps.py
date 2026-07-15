@@ -9,6 +9,11 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
 from app.modules.identity.models import User as IdentityUser
+from app.modules.tasks.identity_bridge import (
+    get_default_identity_outlet,
+    get_or_create_legacy_outlet,
+    sync_legacy_user,
+)
 
 # Standard Enterprise Bearer Authentication
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -30,7 +35,11 @@ def _resolve_legacy_user(db: Session, subject: str) -> User | None:
     if not identity_user:
         return None
 
-    return db.query(User).filter(User.email == identity_user.email).first()
+    identity_outlet = get_default_identity_outlet(identity_user)
+    legacy_outlet = get_or_create_legacy_outlet(db, identity_outlet) if identity_outlet else None
+    legacy_user = sync_legacy_user(db, identity_user, legacy_outlet)
+    db.commit()
+    return legacy_user
 
 
 def get_current_user(

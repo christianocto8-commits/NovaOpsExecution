@@ -3,7 +3,14 @@ import { CurrentWorkspace } from "./role-config";
 
 type PermissionChecker = (permission: string) => boolean;
 
-const outletNavigationItemIds = new Set(["dashboard", "tasks", "forms", "settings"]);
+const outletNavigationItemIds = new Set([
+  "dashboard",
+  "tasks",
+  "forms",
+  "notifications",
+  "history",
+  "settings",
+]);
 
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!workspace) return true;

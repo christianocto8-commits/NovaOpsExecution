@@ -110,6 +110,7 @@ class TaskResponse(BaseModel):
     description: str | None
 
     outlet_id: int
+    outlet_name: str | None = None
     assigned_to: int | None
     created_by: int
 

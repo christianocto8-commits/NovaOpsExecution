@@ -1,8 +1,12 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.task import Task
+from app.modules.identity.models import User as IdentityUser
 from app.modules.tasks.schemas import (
     OutletMemberResponse,
     TaskAssignmentCreate,
@@ -14,6 +18,14 @@ from app.modules.tasks.schemas import (
     TaskResponse,
     TaskStatusUpdate,
     TaskUpdate,
+)
+from app.modules.tasks.identity_bridge import (
+    get_identity_user_by_email,
+    get_identity_outlet,
+    get_or_create_legacy_outlet,
+    resolve_legacy_outlet_id,
+    sync_identity_access,
+    sync_legacy_user,
 )
 from app.modules.tasks.service import TaskService
 from app.repositories.outlet_repository import OutletRepository
@@ -34,36 +46,142 @@ def ensure_outlet_access(db: Session, user_id: int, outlet_id: int):
     return membership
 
 
+def get_task_outlet_id(db: Session, task_id: int) -> int:
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    return task.outlet_id
+
+
+def resolve_task_outlet_access(
+    db: Session,
+    current_user,
+    x_outlet_id: str | None,
+    task_id: int | None = None,
+) -> tuple[int | None, int, list[int] | None, bool]:
+    actor_id = current_user.id
+
+    if not x_outlet_id:
+        identity_user = get_identity_user_by_email(db, current_user.email)
+
+        if identity_user:
+            legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+            db.commit()
+            actor_id = legacy_user.id
+
+            if task_id is not None:
+                outlet_id = get_task_outlet_id(db, task_id)
+                if full_access or outlet_id in outlet_ids:
+                    return outlet_id, actor_id, outlet_ids, full_access
+
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User has no access to this task outlet",
+                )
+
+            if full_access:
+                return None, actor_id, outlet_ids, True
+
+            if len(outlet_ids) == 1:
+                return outlet_ids[0], actor_id, outlet_ids, False
+
+            return None, actor_id, outlet_ids, False
+
+        if task_id is not None:
+            outlet_id = get_task_outlet_id(db, task_id)
+            ensure_outlet_access(db, actor_id, outlet_id)
+            return outlet_id, actor_id, [outlet_id], False
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Outlet context is required for this task action",
+        )
+
+    try:
+        identity_outlet_id = UUID(x_outlet_id)
+    except (TypeError, ValueError):
+        identity_outlet_id = None
+
+    if identity_outlet_id:
+        identity_user = db.query(IdentityUser).filter(IdentityUser.email == current_user.email).first()
+        identity_outlet = get_identity_outlet(db, identity_outlet_id)
+
+        if identity_user and identity_outlet:
+            legacy_outlet = get_or_create_legacy_outlet(db, identity_outlet)
+            legacy_user = sync_legacy_user(db, identity_user, legacy_outlet)
+            db.commit()
+            actor_id = legacy_user.id
+            outlet_id = legacy_outlet.id
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet is not connected to task engine",
+            )
+    else:
+        try:
+            outlet_id = resolve_legacy_outlet_id(db, x_outlet_id)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet is not connected to task engine",
+            )
+
+    ensure_outlet_access(db, actor_id, outlet_id)
+    return outlet_id, actor_id, [outlet_id], False
+
+
 @router.get("", response_model=list[TaskResponse])
 def list_tasks(
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
     service = TaskService(db)
-    return service.list_tasks(outlet_id=x_outlet_id)
+    return service.list_tasks(
+        outlet_id=x_outlet_id,
+        outlet_ids=None if x_outlet_id else outlet_ids,
+        all_outlets=full_access and x_outlet_id is None,
+    )
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(
     payload: TaskCreate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    if x_outlet_id is None:
+        if full_access or not outlet_ids or len(outlet_ids) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Select an outlet before creating a task",
+            )
+        x_outlet_id = outlet_ids[0]
     service = TaskService(db)
-    return service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=current_user.id)
+    return service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=actor_id)
 
 
 @router.get("/outlet-members", response_model=list[OutletMemberResponse])
 def list_outlet_members(
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    if x_outlet_id is None:
+        if full_access or not outlet_ids or len(outlet_ids) != 1:
+            return []
+        x_outlet_id = outlet_ids[0]
     service = TaskService(db)
 
     members = service.list_outlet_members(outlet_id=x_outlet_id)
@@ -82,11 +200,13 @@ def list_outlet_members(
 @router.get("/{task_id}", response_model=TaskDetailResponse)
 def get_task(
     task_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.get_task(task_id=task_id, outlet_id=x_outlet_id)
 
@@ -95,16 +215,18 @@ def get_task(
 def update_task(
     task_id: int,
     payload: TaskUpdate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.update_task(
         task_id=task_id,
         outlet_id=x_outlet_id,
-        actor_id=current_user.id,
+        actor_id=actor_id,
         payload=payload,
     )
 
@@ -113,16 +235,18 @@ def update_task(
 def update_task_status(
     task_id: int,
     payload: TaskStatusUpdate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.update_status(
         task_id=task_id,
         outlet_id=x_outlet_id,
-        actor_id=current_user.id,
+        actor_id=actor_id,
         payload=payload,
     )
 
@@ -131,16 +255,18 @@ def update_task_status(
 def add_task_comment(
     task_id: int,
     payload: TaskCommentCreate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.add_comment(
         task_id=task_id,
         outlet_id=x_outlet_id,
-        actor_id=current_user.id,
+        actor_id=actor_id,
         payload=payload,
     )
 
@@ -148,11 +274,13 @@ def add_task_comment(
 @router.get("/{task_id}/assignments", response_model=list[TaskAssignmentResponse])
 def list_task_assignments(
     task_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.list_assignments(task_id=task_id, outlet_id=x_outlet_id)
 
@@ -165,16 +293,18 @@ def list_task_assignments(
 def assign_task_user(
     task_id: int,
     payload: TaskAssignmentCreate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     return service.assign_user(
         task_id=task_id,
         outlet_id=x_outlet_id,
-        actor_id=current_user.id,
+        actor_id=actor_id,
         payload=payload,
     )
 
@@ -183,16 +313,18 @@ def assign_task_user(
 def remove_task_assignment(
     task_id: int,
     assignment_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     service.remove_assignment(
         task_id=task_id,
         outlet_id=x_outlet_id,
-        actor_id=current_user.id,
+        actor_id=actor_id,
         assignment_id=assignment_id,
     )
     return None
@@ -201,11 +333,13 @@ def remove_task_assignment(
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
     task_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
     service = TaskService(db)
     service.delete_task(task_id=task_id, outlet_id=x_outlet_id)
     return None

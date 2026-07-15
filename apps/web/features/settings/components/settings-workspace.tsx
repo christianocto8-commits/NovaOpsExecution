@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { updateSettings } from "@/features/settings/settings-api";
+import { changePassword, updateSettings } from "@/features/settings/settings-api";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
@@ -50,12 +50,28 @@ function OutletSettingsWorkspace() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-  function saveOutletSettings() {
+  async function saveOutletSettings() {
+    setNotice(null);
+
     if (newPassword || confirmPassword || currentPassword) {
       if (!currentPassword || !newPassword || newPassword !== confirmPassword) {
         setNotice(t("settings.passwordMismatch"));
         return;
+      }
+
+      try {
+        setIsSavingPassword(true);
+        await changePassword({
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Failed to update password.");
+        return;
+      } finally {
+        setIsSavingPassword(false);
       }
     }
 
@@ -77,10 +93,11 @@ function OutletSettingsWorkspace() {
 
         <button
           type="button"
-          onClick={saveOutletSettings}
-          className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+          onClick={() => void saveOutletSettings()}
+          disabled={isSavingPassword}
+          className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {t("common.saveSettings")}
+          {isSavingPassword ? t("common.saving") : t("common.saveSettings")}
         </button>
       </div>
 
@@ -172,6 +189,11 @@ export function SettingsWorkspace() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("organization");
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   const formValues = useMemo(() => getSettingsFormValues(settings), [settings]);
 
@@ -218,6 +240,31 @@ export function SettingsWorkspace() {
       setNotice(t("settings.saved"));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handlePasswordChange() {
+    setPasswordNotice(null);
+
+    if (!currentPassword || !newPassword || newPassword !== confirmPassword) {
+      setPasswordNotice(t("settings.passwordMismatch"));
+      return;
+    }
+
+    try {
+      setIsSavingPassword(true);
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordNotice(t("settings.passwordUpdated"));
+    } catch (error) {
+      setPasswordNotice(error instanceof Error ? error.message : "Failed to update password.");
+    } finally {
+      setIsSavingPassword(false);
     }
   }
 
@@ -433,6 +480,56 @@ export function SettingsWorkspace() {
                   description={t("settings.rolePermissionEnforcementDescription")}
                   action={<EnterpriseCheckbox {...register("enforce_role_permissions")} />}
                 />
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-slate-950">{t("common.password")}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t("settings.passwordDescription")}
+                  </p>
+                </div>
+
+                {passwordNotice ? (
+                  <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+                    {passwordNotice}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-5 md:grid-cols-3">
+                  <EnterpriseField label={t("common.currentPassword")}>
+                    <EnterpriseInput
+                      type="password"
+                      value={currentPassword}
+                      onChange={(event) => setCurrentPassword(event.target.value)}
+                    />
+                  </EnterpriseField>
+
+                  <EnterpriseField label={t("common.newPassword")}>
+                    <EnterpriseInput
+                      type="password"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                    />
+                  </EnterpriseField>
+
+                  <EnterpriseField label={t("common.confirmNewPassword")}>
+                    <EnterpriseInput
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                    />
+                  </EnterpriseField>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handlePasswordChange()}
+                  disabled={isSavingPassword}
+                  className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingPassword ? t("common.saving") : t("common.savePassword")}
+                </button>
               </div>
             </SectionCard>
           ) : null}

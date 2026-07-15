@@ -18,6 +18,23 @@ class TaskRepository:
             .all()
         )
 
+    def list_by_outlets(self, outlet_ids: list[int]) -> list[Task]:
+        if not outlet_ids:
+            return []
+
+        return (
+            self.db.query(Task)
+            .filter(Task.outlet_id.in_(outlet_ids))
+            .order_by(Task.created_at.desc())
+            .all()
+        )
+
+    def list_all(self) -> list[Task]:
+        return self.db.query(Task).order_by(Task.created_at.desc()).all()
+
+    def get_any_by_id(self, task_id: int) -> Task | None:
+        return self.db.query(Task).filter(Task.id == task_id).first()
+
     def get_by_id(self, task_id: int, outlet_id: int) -> Task | None:
         return (
             self.db.query(Task)

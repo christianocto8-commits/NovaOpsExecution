@@ -47,3 +47,9 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
     )
+
+    outlet = relationship("Outlet")
+
+    @property
+    def outlet_name(self):
+        return self.outlet.name if self.outlet else None

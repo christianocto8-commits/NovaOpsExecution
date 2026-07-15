@@ -8,11 +8,10 @@ import { useDeleteAction, useStatusAction } from "@/shared/actions";
 import { useToast } from "@/shared/toast";
 import {
   createIdentityUser,
-  deactivateIdentityUser,
+  deleteIdentityUser,
   getIdentityOutlets,
   getIdentityRoles,
   getIdentityUsers,
-  IdentityOutlet,
   IdentityRole,
   IdentityUser,
   updateIdentityUser,
@@ -41,6 +40,7 @@ function mapIdentityUser(user: IdentityUser): User {
   const role = getRoleLabel(user.role.slug);
   const assignedOutletNames = user.assigned_outlets?.map((outlet) => outlet.name) ?? [];
   const assignedOutletIds = user.assigned_outlets?.map((outlet) => outlet.id) ?? [];
+  const outletIds = role === "Outlet" && user.outlet?.id ? [user.outlet.id] : assignedOutletIds;
 
   return {
     id: user.id,
@@ -55,7 +55,7 @@ function mapIdentityUser(user: IdentityUser): User {
             ? assignedOutletNames.join(", ")
             : "No outlets assigned"
           : (user.outlet?.name ?? "No outlet assigned"),
-    outletIds: role === "Area Manager" ? assignedOutletIds : [],
+    outletIds,
     outletScope: getScopeByRole(role),
     status: getStatus(user.is_active),
     lastActive: user.last_login ? new Date(user.last_login).toLocaleString() : "Never",
@@ -69,14 +69,9 @@ function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
   return roles.find((item) => item.slug === slug)?.id ?? "";
 }
 
-function getOutletIdByName(outlets: IdentityOutlet[], outletName: string) {
-  return outlets.find((outlet) => outlet.name === outletName)?.id ?? null;
-}
-
 function makeUsername(email: string) {
   return (
-    email
-      .split("@")[0]
+    `u_${email}`
       ?.trim()
       .toLowerCase()
       .replace(/[^a-z0-9._-]/g, "") || "user"
@@ -145,7 +140,7 @@ export function useUsersWorkspace() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deactivateIdentityUser,
+    mutationFn: deleteIdentityUser,
     onSuccess: invalidateIdentityUsers,
   });
 
@@ -168,7 +163,10 @@ export function useUsersWorkspace() {
 
   function openCreateDialog() {
     setEditingUserId(null);
-    setForm(emptyUserForm);
+    setForm({
+      ...emptyUserForm,
+      outlet: outlets[0]?.id ?? "",
+    });
     setError("");
     setModalOpen(true);
   }
@@ -182,7 +180,7 @@ export function useUsersWorkspace() {
       role: user.role,
       outlet:
         user.role === "Outlet"
-          ? user.outlet
+          ? (user.outletIds[0] ?? "")
           : user.role === "Area Manager"
             ? "Multiple Outlets"
             : "All Outlets",
@@ -213,9 +211,9 @@ export function useUsersWorkspace() {
       };
     }
 
-    const outletId = getOutletIdByName(outlets, normalizedForm.outlet);
+    const outletId = normalizedForm.outlet;
 
-    if (!outletId) {
+    if (!outletId || !outlets.some((outlet) => outlet.id === outletId)) {
       throw new Error("Outlet account must be assigned to one specific outlet");
     }
 
@@ -287,14 +285,14 @@ export function useUsersWorkspace() {
 
   const deleteUser = useDeleteAction<string>({
     entityName: "Account",
-    actionName: "Deactivate",
+    actionName: "Delete",
     getEntityLabel: (id) => users.find((item) => item.id === id)?.name,
     confirmationDescription: (label) =>
-      `Are you sure you want to deactivate ${label}?\n\nThe account will lose access to NovaOPS but historical audit records will remain available.`,
-    confirmText: "Deactivate",
-    loadingText: "Deactivating...",
-    successMessage: "Account deactivated successfully.",
-    errorMessage: "Failed to deactivate user",
+      `Are you sure you want to delete ${label}?\n\nThis account will be removed from NovaOps. Use the Status field when you only want to suspend access.`,
+    confirmText: "Delete",
+    loadingText: "Deleting...",
+    successMessage: "Account deleted successfully.",
+    errorMessage: "Failed to delete account",
     onDelete: async (id) => {
       setError("");
       await deleteMutation.mutateAsync(id);

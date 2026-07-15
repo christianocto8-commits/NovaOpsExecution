@@ -127,7 +127,7 @@ export function UserFormDialog({
                         ? "All Outlets"
                         : role === "Area Manager"
                           ? "Multiple Outlets"
-                          : (firstOutlet?.name ?? ""),
+                          : (firstOutlet?.id ?? ""),
                     outletIds: [],
                   });
                 }}
@@ -189,7 +189,7 @@ export function UserFormDialog({
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               >
                 {outletOptions.map((outlet) => (
-                  <option key={outlet.id} value={outlet.name}>
+                  <option key={outlet.id} value={outlet.id}>
                     {outlet.name}
                   </option>
                 ))}

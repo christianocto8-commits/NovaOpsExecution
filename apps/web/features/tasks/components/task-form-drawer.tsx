@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import { getAvailableFormTemplates } from "@/features/forms/data/form-template-store";
-import { mockOutlets } from "@/features/outlets/data/outlets-data";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
 import { getIdentityOutlets } from "@/services/identity.service";
@@ -80,9 +79,8 @@ export function TaskFormDrawer({
   );
   const outletOptions = useMemo(() => {
     const identityOutlets = identityOutletsQuery.data ?? [];
-    const sourceOutlets = identityOutlets.length > 0 ? identityOutlets : mockOutlets;
 
-    return sourceOutlets.map((outlet) => outlet.name);
+    return identityOutlets.map((outlet) => outlet.name);
   }, [identityOutletsQuery.data]);
   const selectedTargetOutlets =
     form.targetOutlets.length > 0 ? form.targetOutlets : [form.outlet ?? outletOptions[0] ?? ""];

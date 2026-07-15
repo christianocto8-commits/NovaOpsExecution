@@ -31,7 +31,21 @@ class TaskService:
         self.db = db
         self.repo = TaskRepository(db)
 
-    def list_tasks(self, outlet_id: int) -> list[Task]:
+    def list_tasks(
+        self,
+        outlet_id: int | None = None,
+        outlet_ids: list[int] | None = None,
+        all_outlets: bool = False,
+    ) -> list[Task]:
+        if all_outlets:
+            return self.repo.list_all()
+
+        if outlet_ids is not None:
+            return self.repo.list_by_outlets(outlet_ids)
+
+        if outlet_id is None:
+            return []
+
         return self.repo.list_by_outlet(outlet_id)
 
     def list_outlet_members(self, outlet_id: int) -> list[User]:

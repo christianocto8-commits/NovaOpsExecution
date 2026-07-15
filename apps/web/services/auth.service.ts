@@ -19,6 +19,16 @@ export type AuthUser = {
     scope: AuthOutletAccessScope;
     outlet_id: string | null;
     outlet_ids: string[];
+    outlet_name?: string | null;
+    outlet_code?: string | null;
+    outlets?: Array<{
+      id: string;
+      code: string;
+      name: string;
+      status: string;
+      address: string | null;
+      phone: string | null;
+    }>;
   };
   permissions: string[];
   token_version: number;
@@ -57,4 +67,5 @@ export function logout() {
   localStorage.removeItem("novaops_outlet_id");
   localStorage.removeItem("current_outlet_id");
   localStorage.removeItem("outlet_id");
+  localStorage.removeItem("novaops_workspace_context");
 }

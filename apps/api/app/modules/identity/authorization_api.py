@@ -6,6 +6,7 @@ from app.modules.identity.schemas import (
     AuthContextResponse,
     AuthContextRoleResponse,
     AuthContextUserResponse,
+    OutletRead,
 )
 
 router = APIRouter(prefix="/authorization", tags=["Identity"])
@@ -20,6 +21,7 @@ def resolve_outlet_access(auth_context: AuthContext) -> AuthContextOutletAccessR
             scope="all",
             outlet_id=None,
             outlet_ids=[],
+            outlets=[],
         )
 
     if role_slug == "area_manager":
@@ -27,12 +29,16 @@ def resolve_outlet_access(auth_context: AuthContext) -> AuthContextOutletAccessR
             scope="multiple",
             outlet_id=None,
             outlet_ids=[outlet.id for outlet in user.assigned_outlets],
+            outlets=[OutletRead.model_validate(outlet) for outlet in user.assigned_outlets],
         )
 
     return AuthContextOutletAccessResponse(
         scope="single",
         outlet_id=user.outlet_id,
         outlet_ids=[user.outlet_id] if user.outlet_id else [],
+        outlet_name=user.outlet.name if user.outlet else None,
+        outlet_code=user.outlet.code if user.outlet else None,
+        outlets=[OutletRead.model_validate(user.outlet)] if user.outlet else [],
     )
 
 

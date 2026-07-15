@@ -58,6 +58,10 @@ function getTaskExecutionProgressPercentage(task: Task) {
   return 0;
 }
 
+function isTaskCompleted(task: Task) {
+  return String(task.status).toLowerCase() === "completed";
+}
+
 function getOutletTaskExecutionMetrics(tasks: Task[]) {
   const total = tasks.length;
   const completed = tasks.filter((task) => getTaskExecutionProgressPercentage(task) === 100).length;
@@ -195,11 +199,18 @@ export function TasksWorkspace() {
   const isOutletWorkspace = workspace.mode === "outlet";
   const isOutletRole = isOutletWorkspace || currentRole === "outlet";
   const canCreateTask = !isOutletRole;
-  const visibleTasks = useMemo(() => {
+  const outletScopedTasks = useMemo(() => {
     if (!isOutletWorkspace) return tasks;
+    if (isBackendConnected) return tasks;
 
     return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
-  }, [isOutletWorkspace, tasks, workspace.outletName]);
+  }, [isBackendConnected, isOutletWorkspace, tasks, workspace.outletName]);
+
+  const visibleTasks = useMemo(() => {
+    if (!isOutletWorkspace) return outletScopedTasks;
+
+    return outletScopedTasks.filter((task) => !isTaskCompleted(task));
+  }, [isOutletWorkspace, outletScopedTasks]);
 
   const outletTaskMetrics = useMemo(
     () => getOutletTaskExecutionMetrics(visibleTasks),

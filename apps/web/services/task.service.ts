@@ -9,6 +9,7 @@ export type BackendTask = {
   title: string;
   description: string | null;
   outlet_id: number;
+  outlet_name?: string | null;
   assigned_to: number | null;
   created_by: number;
   source_type: string | null;
@@ -68,10 +69,12 @@ function parseSourceFormTemplateId(task: BackendTask) {
 }
 
 export function mapBackendTask(task: BackendTask): Task {
+  const outletName = task.outlet_name ?? `Outlet ${task.outlet_id}`;
+
   return {
     id: String(task.id),
     title: task.title,
-    outlet: `Outlet ${task.outlet_id}`,
+    outlet: outletName,
     status: toFrontendStatus(task.status),
     priority: toFrontendPriority(task.priority),
     assignee: task.assigned_to ? `User ${task.assigned_to}` : "Outlet Team",
@@ -80,7 +83,7 @@ export function mapBackendTask(task: BackendTask): Task {
     formTemplateId: parseSourceFormTemplateId(task),
     recurrence: "once",
     shifts: ["morning"],
-    targetOutlets: [`Outlet ${task.outlet_id}`],
+    targetOutlets: [outletName],
     autoPublish: false,
     dueTime: formatDueDate(task.due_date).slice(11, 16) || "09:00",
     weeklyPublishDay: "sunday",

@@ -1,11 +1,12 @@
 ﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import delete as sa_delete, update as sa_update
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.modules.identity.dependencies import require_permission
-from app.modules.identity.models import Outlet, OutletOperator, User
+from app.modules.identity.dependencies import get_current_active_user, require_permission
+from app.modules.identity.models import AuditLog, Outlet, OutletOperator, RefreshToken, User
 from app.modules.identity.repository import (
     OrganizationRepository,
     OutletRepository,
@@ -23,13 +24,14 @@ from app.modules.identity.schemas import (
     OutletMetricsRead,
     OutletOperatorRead,
     OutletOperatorUpdate,
+    PasswordChangeRequest,
     PermissionRead,
     RoleRead,
     UserCreate,
     UserRead,
     UserUpdate,
 )
-from app.modules.identity.security import hash_password
+from app.modules.identity.security import hash_password, verify_password
 
 router = APIRouter(prefix="/identity", tags=["Identity"])
 
@@ -335,7 +337,7 @@ def update_user(
 
 
 @router.delete("/users/{user_id}", response_model=MessageResponse)
-def deactivate_user(
+def delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("user.delete")),
@@ -349,14 +351,39 @@ def deactivate_user(
     if user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You cannot deactivate your own account",
+            detail="You cannot delete your own account",
         )
 
-    user.is_active = False
-    users.update(user)
+    user.assigned_outlets.clear()
+    db.execute(sa_delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    db.execute(
+        sa_update(AuditLog)
+        .where(AuditLog.actor_user_id == user.id)
+        .values(actor_user_id=None)
+    )
+    db.delete(user)
     db.commit()
 
-    return MessageResponse(message="User deactivated")
+    return MessageResponse(message="User deleted")
+
+
+@router.patch("/me/password", response_model=MessageResponse)
+def change_own_password(
+    payload: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = hash_password(payload.new_password)
+    db.add(current_user)
+    db.commit()
+
+    return MessageResponse(message="Password updated")
 
 
 

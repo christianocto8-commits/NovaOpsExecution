@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   BarChartCard,
@@ -14,21 +15,166 @@ import {
   EnterpriseFilterState,
   applyEnterpriseFilters,
 } from "@/shared/filters";
-import {
-  getOutletTaskCompletionTrend,
-  getOutletTaskFormBreakdown,
-  getOutletTaskPerformance,
-  getOutletTaskStatusDistribution,
-  getOutletTaskStatusLabel,
-  getOutletTaskStoreSummary,
-  OutletTaskStoreItem,
-  resetOutletTaskStore,
-  useOutletTaskStore,
-} from "@/shared/outlet-task-store";
+import { queryKeys } from "@/lib/query/keys";
+import { taskService } from "@/services/task.service";
+import type { Task } from "@/features/tasks/types";
 import { RealtimeClock } from "@/shared/realtime";
 import { EnterpriseToolbar } from "@/shared/toolbar";
 
-const reportColumns: EnterpriseColumn<OutletTaskStoreItem>[] = [
+type ReportStatus = "completed" | "in_progress" | "pending" | "overdue";
+
+type ReportRow = {
+  id: string;
+  outlet: string;
+  task: string;
+  form: string;
+  status: ReportStatus;
+  progress: number;
+  score: number;
+  operator: string;
+  due: string;
+  submittedAt: string;
+};
+
+const initialReportFilters: EnterpriseFilterState = {
+  outlet: "",
+  form: "",
+  status: "",
+};
+
+function isOverdue(task: Task) {
+  if (!task.due || task.status === "Completed") return false;
+
+  const dueDate = new Date(task.due);
+  return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+}
+
+function getTaskProgress(task: Task) {
+  if (task.status === "Completed") return 100;
+  if (task.status === "In Progress") return 50;
+  return 0;
+}
+
+function getReportStatus(task: Task): ReportStatus {
+  if (task.status === "Completed") return "completed";
+  if (isOverdue(task)) return "overdue";
+  if (task.status === "In Progress") return "in_progress";
+  return "pending";
+}
+
+function getStatusLabel(status: ReportStatus) {
+  if (status === "completed") return "Completed";
+  if (status === "in_progress") return "In Progress";
+  if (status === "overdue") return "Overdue";
+  return "Pending";
+}
+
+function getDateLabel(value: string) {
+  if (!value) return "No due date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function toReportRow(task: Task): ReportRow {
+  const progress = getTaskProgress(task);
+
+  return {
+    id: task.id,
+    outlet: task.outlet,
+    task: task.title,
+    form: task.formTemplateId ?? "-",
+    status: getReportStatus(task),
+    progress,
+    score: progress,
+    operator: task.execution?.operatorName ?? task.assignee ?? "Outlet Team",
+    due: getDateLabel(task.due),
+    submittedAt:
+      task.status === "Completed"
+        ? getDateLabel(task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due)
+        : "-",
+  };
+}
+
+function getSummary(rows: ReportRow[]) {
+  const completed = rows.filter((row) => row.status === "completed").length;
+  const inProgress = rows.filter((row) => row.status === "in_progress").length;
+  const overdue = rows.filter((row) => row.status === "overdue").length;
+  const averageProgress =
+    rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.progress, 0) / rows.length) : 0;
+  const averageScore =
+    rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0;
+
+  return {
+    total: rows.length,
+    completed,
+    inProgress,
+    overdue,
+    averageProgress,
+    averageScore,
+  };
+}
+
+function getStatusDistribution(rows: ReportRow[]) {
+  const statusMap = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const label = getStatusLabel(row.status);
+    statusMap.set(label, (statusMap.get(label) ?? 0) + 1);
+  });
+
+  return Array.from(statusMap, ([name, value]) => ({ name, value }));
+}
+
+function getOutletPerformance(rows: ReportRow[]) {
+  const outletMap = new Map<string, ReportRow[]>();
+
+  rows.forEach((row) => {
+    outletMap.set(row.outlet, [...(outletMap.get(row.outlet) ?? []), row]);
+  });
+
+  return Array.from(outletMap, ([outlet, outletRows]) => ({
+    outlet,
+    progress: Math.round(
+      outletRows.reduce((sum, row) => sum + row.progress, 0) / Math.max(outletRows.length, 1)
+    ),
+    completed: outletRows.filter((row) => row.status === "completed").length,
+  })).sort((first, second) => second.progress - first.progress);
+}
+
+function getFormBreakdown(rows: ReportRow[]) {
+  const formMap = new Map<string, number>();
+
+  rows.forEach((row) => {
+    formMap.set(row.form, (formMap.get(row.form) ?? 0) + 1);
+  });
+
+  return Array.from(formMap, ([name, value]) => ({ name, value }));
+}
+
+function getCompletionTrend(rows: ReportRow[]) {
+  const dayMap = new Map<string, ReportRow[]>();
+
+  rows.forEach((row) => {
+    const day = row.due === "No due date" ? "No due" : row.due.slice(0, 11).trim();
+    dayMap.set(day, [...(dayMap.get(day) ?? []), row]);
+  });
+
+  return Array.from(dayMap, ([day, dayRows]) => ({
+    day,
+    completion: Math.round(
+      (dayRows.filter((row) => row.status === "completed").length / Math.max(dayRows.length, 1)) *
+        100
+    ),
+    submitted: dayRows.filter((row) => row.status === "completed").length,
+  })).slice(0, 10);
+}
+
+const reportColumns: EnterpriseColumn<ReportRow>[] = [
   { key: "id", header: "Report ID", sortable: true, hideable: true },
   { key: "outlet", header: "Outlet", sortable: true },
   { key: "task", header: "Task", sortable: true },
@@ -40,9 +186,9 @@ const reportColumns: EnterpriseColumn<OutletTaskStoreItem>[] = [
     hideable: true,
     render: (report) => {
       const statusClass =
-        report.status === "completed" || report.status === "submitted"
+        report.status === "completed"
           ? "bg-emerald-50 text-emerald-700"
-          : report.status === "draft"
+          : report.status === "in_progress"
             ? "bg-blue-50 text-blue-700"
             : report.status === "overdue"
               ? "bg-red-50 text-red-700"
@@ -50,57 +196,37 @@ const reportColumns: EnterpriseColumn<OutletTaskStoreItem>[] = [
 
       return (
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
-          {getOutletTaskStatusLabel(report.status)}
+          {getStatusLabel(report.status)}
         </span>
       );
     },
   },
-  {
-    key: "progress",
-    header: "Progress",
-    sortable: true,
-    hideable: true,
-    render: (report) => `${report.progress}%`,
-  },
-  {
-    key: "score",
-    header: "Score",
-    sortable: true,
-    hideable: true,
-    render: (report) => `${report.score}%`,
-  },
+  { key: "progress", header: "Progress", sortable: true, hideable: true, render: (report) => `${report.progress}%` },
+  { key: "score", header: "Score", sortable: true, hideable: true, render: (report) => `${report.score}%` },
   { key: "operator", header: "Operator", sortable: true, hideable: true },
   { key: "due", header: "Due", sortable: true, hideable: true },
-  {
-    key: "submittedAt",
-    header: "Submitted At",
-    sortable: true,
-    hideable: true,
-  },
+  { key: "submittedAt", header: "Submitted At", sortable: true, hideable: true },
 ];
 
-const initialReportFilters: EnterpriseFilterState = {
-  outlet: "",
-  form: "",
-  status: "",
-};
-
 export function ReportsWorkspace() {
-  const outletTaskItems = useOutletTaskStore();
-
+  const tasksQuery = useQuery({
+    queryKey: queryKeys.sop.tasks(),
+    queryFn: taskService.list,
+    retry: false,
+  });
   const [filters, setFilters] = useState<EnterpriseFilterState>(initialReportFilters);
   const [toolbarSearch, setToolbarSearch] = useState("");
 
-  const summary = getOutletTaskStoreSummary(outletTaskItems);
-  const completionTrend = getOutletTaskCompletionTrend(outletTaskItems);
-  const statusDistribution = getOutletTaskStatusDistribution(outletTaskItems);
-  const outletPerformance = getOutletTaskPerformance(outletTaskItems);
-  const formBreakdown = getOutletTaskFormBreakdown(outletTaskItems);
+  const reportRows = useMemo(() => (tasksQuery.data ?? []).map(toReportRow), [tasksQuery.data]);
+  const summary = useMemo(() => getSummary(reportRows), [reportRows]);
+  const completionTrend = useMemo(() => getCompletionTrend(reportRows), [reportRows]);
+  const statusDistribution = useMemo(() => getStatusDistribution(reportRows), [reportRows]);
+  const outletPerformance = useMemo(() => getOutletPerformance(reportRows), [reportRows]);
+  const formBreakdown = useMemo(() => getFormBreakdown(reportRows), [reportRows]);
 
   const reportFilterDefinitions: EnterpriseFilterDefinition[] = useMemo(() => {
-    const outlets = Array.from(new Set(outletTaskItems.map((report) => report.outlet)));
-
-    const forms = Array.from(new Set(outletTaskItems.map((report) => report.form)));
+    const outlets = Array.from(new Set(reportRows.map((report) => report.outlet)));
+    const forms = Array.from(new Set(reportRows.map((report) => report.form)));
 
     return [
       {
@@ -124,24 +250,22 @@ export function ReportsWorkspace() {
         placeholder: "All status",
         options: [
           { label: "Completed", value: "completed" },
-          { label: "Submitted", value: "submitted" },
-          { label: "Draft", value: "draft" },
+          { label: "In Progress", value: "in_progress" },
           { label: "Pending", value: "pending" },
           { label: "Overdue", value: "overdue" },
         ],
       },
     ];
-  }, [outletTaskItems]);
+  }, [reportRows]);
 
   const searchedReports = useMemo(() => {
-    if (!toolbarSearch.trim()) return outletTaskItems;
+    if (!toolbarSearch.trim()) return reportRows;
 
     const query = toolbarSearch.toLowerCase();
-
-    return outletTaskItems.filter((report) =>
+    return reportRows.filter((report) =>
       Object.values(report).some((value) => String(value).toLowerCase().includes(query))
     );
-  }, [outletTaskItems, toolbarSearch]);
+  }, [reportRows, toolbarSearch]);
 
   const filteredReports = useMemo(
     () => applyEnterpriseFilters(searchedReports, filters, reportFilterDefinitions),
@@ -158,10 +282,9 @@ export function ReportsWorkspace() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Reports</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Form Reports</h1>
+          <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Reports</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Live operational reports based on shared outlet task store, saved drafts, submitted
-            forms, completion percentage, due status, and operator activity.
+            Live reporting from backend tasks synced across owner, area manager, and outlet accounts.
           </p>
         </div>
 
@@ -170,11 +293,11 @@ export function ReportsWorkspace() {
             type="button"
             onClick={() => {
               resetReports();
-              resetOutletTaskStore();
+              void tasksQuery.refetch();
             }}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
           >
-            Reset Store
+            Refresh
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -184,39 +307,39 @@ export function ReportsWorkspace() {
         </div>
       </div>
 
+      {tasksQuery.isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {tasksQuery.error instanceof Error ? tasksQuery.error.message : "Unable to load reports."}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Completion Rate</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageProgress}%</p>
         </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Submitted / Completed</p>
-          <p className="mt-2 text-2xl font-semibold text-emerald-700">
-            {summary.submitted + summary.completed}
-          </p>
+          <p className="text-sm text-slate-500">Completed Tasks</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-700">{summary.completed}</p>
         </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Draft / In Progress</p>
-          <p className="mt-2 text-2xl font-semibold text-blue-700">{summary.draft}</p>
+          <p className="text-sm text-slate-500">In Progress</p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">{summary.inProgress}</p>
         </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Average Score</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageScore}%</p>
+          <p className="text-sm text-slate-500">Overdue</p>
+          <p className="mt-2 text-2xl font-semibold text-red-700">{summary.overdue}</p>
         </div>
       </div>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-950">Outlet Form Completion</p>
-            <p className="text-xs text-slate-500">Calculated from shared outlet task store.</p>
+            <p className="text-sm font-semibold text-slate-950">All Outlet Progress</p>
+            <p className="text-xs text-slate-500">Calculated from backend task status.</p>
           </div>
           <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
         </div>
-
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-emerald-700 transition-all duration-700"
@@ -227,35 +350,32 @@ export function ReportsWorkspace() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <LineChartCard
-          title="Task Form Completion Trend"
-          description="Daily completion percentage and submitted task form count."
+          title="Task Completion Trend"
+          description="Completion percentage and completed task count by due date."
           data={completionTrend}
           xKey="day"
           series={[
             { dataKey: "completion", name: "Completion %" },
-            { dataKey: "submitted", name: "Submitted" },
+            { dataKey: "submitted", name: "Completed" },
           ]}
         />
-
         <DonutChartCard
-          title="Task Form Status Distribution"
-          description="Current form lifecycle status across outlets."
+          title="Task Status Distribution"
+          description="Current backend task lifecycle status."
           data={statusDistribution}
           valueKey="value"
           nameKey="name"
         />
-
         <BarChartCard
-          title="Outlet Form Progress"
-          description="Average task form progress per outlet."
+          title="Outlet Progress"
+          description="Average backend task progress per outlet."
           data={outletPerformance}
           xKey="outlet"
           series={[{ dataKey: "progress", name: "Progress %" }]}
         />
-
         <PieChartCard
           title="Form Template Breakdown"
-          description="Task form distribution by template."
+          description="Backend task distribution by selected form template."
           data={formBreakdown}
           valueKey="value"
           nameKey="name"
@@ -263,33 +383,20 @@ export function ReportsWorkspace() {
       </div>
 
       <EnterpriseToolbar
-        title="Task Form Report Actions"
-        description="Search, refresh, print, and inspect outlet task form reports."
+        title="Report Actions"
+        description="Search, refresh, print, and inspect backend task reports."
         searchValue={toolbarSearch}
-        searchPlaceholder="Search task form reports..."
+        searchPlaceholder="Search task reports..."
         onSearchChange={setToolbarSearch}
         actions={[
-          {
-            label: "Refresh",
-            variant: "secondary",
-            onClick: resetReports,
-          },
-          {
-            label: "Print",
-            variant: "secondary",
-            onClick: () => window.print(),
-          },
-          {
-            label: "Settings",
-            variant: "ghost",
-            onClick: () => {},
-          },
+          { label: "Refresh", variant: "secondary", onClick: () => void tasksQuery.refetch() },
+          { label: "Print", variant: "secondary", onClick: () => window.print() },
         ]}
       />
 
       <EnterpriseDataTable
-        title="Outlet Task Form Register"
-        description="Search, filter, sort, paginate, customize columns, and save outlet task form report views."
+        title="Backend Task Report Register"
+        description="Search, filter, sort, paginate, customize columns, and export synced task reports."
         data={filteredReports}
         columns={reportColumns}
         searchPlaceholder="Search current result..."
@@ -300,12 +407,12 @@ export function ReportsWorkspace() {
         onFiltersChange={setFilters}
         enableFilters
         enableSavedViews
-        savedViewScope="outlet-task-store-reports"
-        emptyTitle="No task form reports found"
-        emptyDescription="Try adjusting task form search or filter criteria."
+        savedViewScope="backend-task-reports"
+        emptyTitle={tasksQuery.isLoading ? "Loading backend reports..." : "No backend task reports found"}
+        emptyDescription="Create or complete backend tasks, then synced reports will appear here."
         exportable
-        exportFileName="outlet-task-form-reports"
-        exportSheetName="Outlet Task Form Reports"
+        exportFileName="backend-task-reports"
+        exportSheetName="Backend Task Reports"
       />
     </main>
   );
