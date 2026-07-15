@@ -88,8 +88,12 @@ export function TaskFormDrawer({
     form.targetOutlets.length > 0 ? form.targetOutlets : [form.outlet ?? outletOptions[0] ?? ""];
   const selectedShiftCount = form.shifts.length;
   const isRecurringTask = form.recurrence !== "once";
+  const isDailyTask = form.recurrence === "daily";
+  const isWeeklyTask = form.recurrence === "weekly";
   const autoPublishTaskCount = form.autoPublish
-    ? selectedTargetOutlets.length * selectedShiftCount
+    ? isWeeklyTask
+      ? selectedTargetOutlets.length
+      : selectedTargetOutlets.length * selectedShiftCount
     : 0;
 
   const canSubmit =
@@ -100,7 +104,8 @@ export function TaskFormDrawer({
       : Boolean(form.dueTime?.trim()) &&
         (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay))) &&
     Boolean(safeFormTemplateId.trim()) &&
-    (!isRecurringTask || (selectedTargetOutlets.length > 0 && selectedShiftCount > 0));
+    (!isRecurringTask ||
+      (selectedTargetOutlets.length > 0 && (!isDailyTask || selectedShiftCount > 0)));
 
   function toggleTargetOutlet(outletName: string) {
     const selected = selectedTargetOutlets.includes(outletName);
@@ -288,6 +293,7 @@ export function TaskFormDrawer({
                       recurrence,
                       autoPublish: recurrence !== "once",
                       dueTime: form.dueTime || "09:00",
+                      shifts: recurrence === "weekly" ? [] : form.shifts,
                       weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
                     });
                   }}
@@ -383,13 +389,18 @@ export function TaskFormDrawer({
                   Publish output
                 </p>
                 <p className="mt-1 text-2xl font-bold text-emerald-950">{autoPublishTaskCount}</p>
-                <p className="text-xs text-slate-500">tasks per scheduled publish</p>
+                <p className="text-xs text-slate-500">
+                  {isWeeklyTask ? "tasks per weekly publish" : "tasks per scheduled shift publish"}
+                </p>
               </div>
             ) : null}
 
-            {isRecurringTask ? (
+            {isDailyTask ? (
               <div className="mt-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
+                <p className="mt-1 text-xs text-emerald-700">
+                  Daily tasks are created for each selected shift.
+                </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {shiftOptions.map((shift) => (
                     <label

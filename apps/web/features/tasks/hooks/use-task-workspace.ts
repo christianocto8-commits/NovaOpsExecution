@@ -25,11 +25,13 @@ function getTimeFromDue(value?: string) {
 }
 
 function normalizeTask(task: Task): Task {
+  const recurrence = task.recurrence ?? "once";
+
   return {
     ...task,
     formTemplateId: task.formTemplateId ?? "FORM-OPENING",
-    recurrence: task.recurrence ?? "once",
-    shifts: task.shifts ?? ["morning"],
+    recurrence,
+    shifts: recurrence === "weekly" ? [] : (task.shifts ?? ["morning"]),
     targetOutlets: task.targetOutlets ?? [task.outlet],
     autoPublish: task.autoPublish ?? false,
     dueTime: task.dueTime ?? getTimeFromDue(task.due),
@@ -251,6 +253,7 @@ export function useTaskWorkspace() {
 
   function upsertLocalTaskFromForm() {
     const timestamp = "Just now";
+    const taskShifts = taskForm.recurrence === "weekly" ? [] : taskForm.shifts;
 
     if (editingTaskId) {
       setLocalTasks((currentTasks) =>
@@ -262,6 +265,7 @@ export function useTaskWorkspace() {
             ...taskForm,
             formTemplateId: taskForm.formTemplateId,
             due: taskForm.recurrence === "once" ? taskForm.due : taskForm.dueTime,
+            shifts: taskShifts,
             activity: [
               ...(task.activity ?? []),
               {
@@ -293,7 +297,7 @@ export function useTaskWorkspace() {
       description: taskForm.description,
       formTemplateId: taskForm.formTemplateId,
       recurrence: taskForm.recurrence,
-      shifts: taskForm.shifts,
+      shifts: taskShifts,
       targetOutlets: taskForm.targetOutlets,
       autoPublish: taskForm.autoPublish,
       activity: [
