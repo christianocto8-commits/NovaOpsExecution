@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
 import {
@@ -194,6 +194,24 @@ export function DraftCenterWorkspace() {
 
   const [operationalDrafts, setOperationalDrafts] = useState<OperationalDraft[]>(loadTaskDrafts);
   const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>(loadContentDrafts);
+
+  useEffect(() => {
+    const syncDrafts = () => {
+      setOperationalDrafts(loadTaskDrafts());
+      setContentDrafts(loadContentDrafts());
+    };
+
+    syncDrafts();
+    window.addEventListener("storage", syncDrafts);
+    window.addEventListener("focus", syncDrafts);
+    window.addEventListener("visibilitychange", syncDrafts);
+
+    return () => {
+      window.removeEventListener("storage", syncDrafts);
+      window.removeEventListener("focus", syncDrafts);
+      window.removeEventListener("visibilitychange", syncDrafts);
+    };
+  }, []);
 
   const filteredOperationalDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -517,3 +535,4 @@ export function DraftCenterWorkspace() {
     </main>
   );
 }
+

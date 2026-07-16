@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
@@ -11,9 +11,16 @@ import { createMockEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
-import { createExecutionSession } from "@/services/execution-session.service";
+import {
+  createExecutionSession,
+  deleteExecutionSession,
+  getExecutionSessions,
+  updateExecutionSession,
+  type ExecutionSessionResponse,
+} from "@/services/execution-session.service";
 
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
+const EXECUTION_DRAFT_QUERY_KEY = ["execution-sessions", "drafts"] as const;
 
 function getTimeFromDue(value?: string, fallback = "09:00") {
   if (!value) return fallback;
@@ -58,6 +65,21 @@ function persistTasks(tasks: Task[]) {
   window.localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
 }
 
+function upsertTask(tasks: Task[], taskId: string, buildTask: (task: Task) => Task, fallbackTask: Task) {
+  let found = false;
+
+  const nextTasks = tasks.map((task) => {
+    if (task.id !== taskId) return task;
+
+    found = true;
+    return normalizeTask(buildTask(task));
+  });
+
+  if (found) return nextTasks;
+
+  return [normalizeTask(buildTask(fallbackTask)), ...nextTasks];
+}
+
 function isBackendTaskId(id: string) {
   return /^\d+$/.test(id);
 }
@@ -89,6 +111,97 @@ function buildExecutionAnswers(task: Task, form: TaskExecutionForm) {
     responses: form.formResponses,
     submittedAt: new Date().toISOString(),
   };
+}
+
+function parseExecutionDraft(session: ExecutionSessionResponse): TaskExecutionForm | null {
+  const payload = session.answers_json;
+
+  if (!payload || typeof payload !== "object") return null;
+
+  const operator = payload.operator as Record<string, unknown> | undefined;
+  const responses = payload.responses as Record<string, unknown> | undefined;
+
+  return {
+    operatorName: typeof operator?.name === "string" ? operator.name : "",
+    operatorPosition:
+      typeof operator?.position === "string"
+        ? (operator.position as TaskExecutionForm["operatorPosition"])
+        : "Crew",
+    note: typeof payload.note === "string" ? payload.note : "",
+    evidenceText: typeof payload.evidence === "string" ? payload.evidence : "",
+    formResponses: Object.fromEntries(
+      Object.entries(responses ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : ""])
+    ),
+  };
+}
+
+function getLatestDraftSessionsByTask(executionSessions: ExecutionSessionResponse[]) {
+  const latestDraftMap = new Map<string, ExecutionSessionResponse>();
+
+  executionSessions.forEach((session) => {
+    if (session.status !== "draft" || session.source_type !== "sop_task" || session.task_id == null) {
+      return;
+    }
+
+    const taskId = String(session.task_id);
+    const current = latestDraftMap.get(taskId);
+
+    if (!current || session.id > current.id) {
+      latestDraftMap.set(taskId, session);
+    }
+  });
+
+  return latestDraftMap;
+}
+
+function mergeBackendTasksWithLocalState(
+  backendTasks: Task[],
+  localTasks: Task[],
+  executionSessions: ExecutionSessionResponse[]
+) {
+  const localTaskMap = new Map(localTasks.map((task) => [task.id, task]));
+  const latestDraftMap = getLatestDraftSessionsByTask(executionSessions);
+
+  return backendTasks.map((task) => {
+    const normalizedTask = normalizeTask(task);
+    const localTask = localTaskMap.get(task.id);
+
+    if (normalizedTask.execution?.reviewStatus === "approved" || normalizedTask.status === "Completed") {
+      return normalizedTask;
+    }
+
+    const draftSession = latestDraftMap.get(task.id);
+    const backendDraft = draftSession ? parseExecutionDraft(draftSession) : null;
+
+    if (backendDraft) {
+      return normalizeTask({
+        ...normalizedTask,
+        status: "In Progress",
+        executionDraft: backendDraft,
+        activity: localTask?.activity ?? normalizedTask.activity,
+      });
+    }
+
+    if (localTask?.executionDraft) {
+      return normalizeTask({
+        ...normalizedTask,
+        status: "In Progress",
+        executionDraft: localTask.executionDraft,
+        activity: localTask.activity ?? normalizedTask.activity,
+      });
+    }
+
+    if (localTask?.execution && !normalizedTask.execution) {
+      return normalizeTask({
+        ...normalizedTask,
+        status: localTask.status,
+        execution: localTask.execution,
+        activity: localTask.activity ?? normalizedTask.activity,
+      });
+    }
+
+    return normalizedTask;
+  });
 }
 
 function parseEvidenceGallery(value: string): EvidenceItem[] {
@@ -145,6 +258,12 @@ export function useTaskWorkspace() {
     retry: false,
   });
 
+  const executionSessionsQuery = useQuery({
+    queryKey: EXECUTION_DRAFT_QUERY_KEY,
+    queryFn: () => getExecutionSessions({ sourceType: "sop_task" }),
+    retry: false,
+  });
+
   const backendConnected = backendTasksQuery.isSuccess;
 
   const createTaskMutation = useMutation({
@@ -182,7 +301,12 @@ export function useTaskWorkspace() {
 
       await taskService.updateStatus(task.id, "completed");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+        queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY }),
+      ]);
+    },
   });
 
   const [localTasks, setLocalTasksState] = useState<Task[]>(loadInitialTasks);
@@ -195,7 +319,22 @@ export function useTaskWorkspace() {
   const [taskForm, setTaskForm] = useState<TaskFormState>(emptyTaskForm);
   const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(emptyTaskExecutionForm);
 
-  const tasks = backendTasksQuery.data ?? localTasks;
+  const draftSessions = executionSessionsQuery.data ?? [];
+  const latestDraftSessionMap = useMemo(
+    () => getLatestDraftSessionsByTask(draftSessions),
+    [draftSessions]
+  );
+
+  const tasks = useMemo(() => {
+    if (!backendTasksQuery.data) return localTasks;
+
+    return mergeBackendTasksWithLocalState(backendTasksQuery.data, localTasks, draftSessions);
+  }, [backendTasksQuery.data, draftSessions, localTasks]);
+
+  useEffect(() => {
+    if (!backendTasksQuery.data) return;
+    persistTasks(tasks);
+  }, [backendTasksQuery.data, tasks]);
 
   function setLocalTasks(next: Task[] | ((currentTasks: Task[]) => Task[])) {
     setLocalTasksState((currentTasks) => {
@@ -210,9 +349,9 @@ export function useTaskWorkspace() {
   const taskSummary = useMemo(() => {
     return {
       total: tasks.length,
-      pending: tasks.filter((task) => task.status === "Pending").length,
-      inProgress: tasks.filter((task) => task.status === "In Progress").length,
-      completed: tasks.filter((task) => task.status === "Completed").length,
+      pending: tasks.filter((task: Task) => task.status === "Pending").length,
+      inProgress: tasks.filter((task: Task) => task.status === "In Progress").length,
+      completed: tasks.filter((task: Task) => task.status === "Completed").length,
     };
   }, [tasks]);
 
@@ -259,7 +398,7 @@ export function useTaskWorkspace() {
 
     if (editingTaskId) {
       setLocalTasks((currentTasks) =>
-        currentTasks.map((task) => {
+        currentTasks.map((task: Task) => {
           if (task.id !== editingTaskId) return task;
 
           return {
@@ -350,7 +489,7 @@ export function useTaskWorkspace() {
     const approved = review === "approved";
 
     setLocalTasks((currentTasks) =>
-      currentTasks.map((task) => {
+      currentTasks.map((task: Task) => {
         if (task.id !== taskId || !task.execution) return task;
 
         return {
@@ -435,7 +574,7 @@ export function useTaskWorkspace() {
   }
 
   async function deleteTask(id: string) {
-    const task = tasks.find((item) => item.id === id);
+    const task = tasks.find((item: Task) => item.id === id);
 
     const confirmed = await confirm({
       title: "Delete Task",
@@ -457,7 +596,7 @@ export function useTaskWorkspace() {
         return;
       }
     } else {
-      setLocalTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
+      setLocalTasks((currentTasks) => currentTasks.filter((task: Task) => task.id !== id));
     }
 
     if (selectedTask?.id === id) {
@@ -479,16 +618,16 @@ export function useTaskWorkspace() {
     setExecutionForm(emptyTaskExecutionForm);
   }
 
-  function saveExecutionDraft() {
+  async function saveExecutionDraft() {
     if (!selectedTask) return;
 
     const timestamp = "Just now";
 
     setLocalTasks((currentTasks) =>
-      currentTasks.map((task) => {
-        if (task.id !== selectedTask.id) return task;
-
-        return {
+      upsertTask(
+        currentTasks,
+        selectedTask.id,
+        (task) => ({
           ...task,
           status: "In Progress",
           executionDraft: executionForm,
@@ -505,9 +644,35 @@ export function useTaskWorkspace() {
               timestamp,
             },
           ],
-        };
-      })
+        }),
+        selectedTask
+      )
     );
+
+    if (backendConnected && isBackendTaskId(selectedTask.id)) {
+      const payload = {
+        task_id: Number(selectedTask.id),
+        form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
+        source_type: "sop_task",
+        status: "draft",
+        answers_json: buildExecutionAnswers(selectedTask, executionForm),
+        submitted_by: null,
+      };
+
+      const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
+
+      try {
+        if (existingDraftSession) {
+          await updateExecutionSession(existingDraftSession.id, payload);
+        } else {
+          await createExecutionSession(payload);
+        }
+
+        await queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY });
+      } catch {
+        // Keep local draft intact when backend draft sync fails.
+      }
+    }
 
     closeExecution();
   }
@@ -517,6 +682,12 @@ export function useTaskWorkspace() {
 
     if (backendConnected && isBackendTaskId(selectedTask.id)) {
       try {
+        const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
+
+        if (existingDraftSession) {
+          await deleteExecutionSession(existingDraftSession.id);
+        }
+
         await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
         closeExecution();
         return;
@@ -531,10 +702,10 @@ export function useTaskWorkspace() {
     const evidence = buildTaskEvidence(evidenceValue, completedAt);
 
     setLocalTasks((currentTasks) =>
-      currentTasks.map((task) => {
-        if (task.id !== selectedTask.id) return task;
-
-        return {
+      upsertTask(
+        currentTasks,
+        selectedTask.id,
+        (task) => ({
           ...task,
           status: approvalRequired ? "In Progress" : "Completed",
           executionDraft: undefined,
@@ -560,8 +731,9 @@ export function useTaskWorkspace() {
               timestamp: completedAt,
             },
           ],
-        };
-      })
+        }),
+        selectedTask
+      )
     );
 
     closeExecution();
@@ -595,8 +767,3 @@ export function useTaskWorkspace() {
     backendError: backendTasksQuery.error,
   };
 }
-
-
-
-
-

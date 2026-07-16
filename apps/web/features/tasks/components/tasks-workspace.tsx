@@ -417,7 +417,18 @@ export function TasksWorkspace() {
     return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
   }, [isBackendConnected, isOutletWorkspace, tasks, workspace.outletName]);
 
-  const visibleTasks = useMemo(() => outletScopedTasks, [outletScopedTasks]);
+  const visibleTasks = useMemo(() => {
+    return [...outletScopedTasks].sort((left, right) => {
+      const leftDraftWeight = left.executionDraft ? 1 : 0;
+      const rightDraftWeight = right.executionDraft ? 1 : 0;
+
+      if (leftDraftWeight !== rightDraftWeight) {
+        return rightDraftWeight - leftDraftWeight;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
+  }, [outletScopedTasks]);
 
   const filteredMobileTasks = useMemo(() => {
     const query = mobileSearch.trim().toLowerCase();
@@ -597,7 +608,7 @@ export function TasksWorkspace() {
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             {isOutletWorkspace
               ? "Kerjakan checklist outlet, simpan draft bila perlu, lalu submit bukti saat selesai."
-              : "Assign, execute, and verify outlet work, evidence, and corrective actions."}
+              : "Assign, execute, review saved drafts, and verify outlet work with evidence and corrective actions."}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
@@ -722,7 +733,7 @@ export function TasksWorkspace() {
           description={
             isOutletRole
               ? "Complete required task evidence or continue saved drafts."
-              : "Assign tasks, review evidence, and monitor compliance."
+              : "Assign tasks, review saved drafts, validate evidence, and monitor compliance."
           }
           columns={columns}
           data={visibleTasks}
@@ -806,3 +817,4 @@ export function TasksWorkspace() {
     </main>
   );
 }
+

@@ -21,6 +21,16 @@ class ExecutionSessionCreate(BaseModel):
         return self
 
 
+class ExecutionSessionUpdate(BaseModel):
+    runtime_template_id: Optional[int] = None
+    task_id: Optional[int] = None
+    form_template_id: Optional[int] = None
+    source_type: Optional[str] = Field(default=None, max_length=50)
+    status: Optional[str] = None
+    answers_json: Optional[dict[str, Any]] = None
+    submitted_by: Optional[int] = None
+
+
 class ExecutionSessionResponse(BaseModel):
     id: int
     runtime_template_id: Optional[int]
