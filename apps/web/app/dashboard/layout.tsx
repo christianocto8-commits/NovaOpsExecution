@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore, type ReactNode } from "react";
 
@@ -53,6 +54,7 @@ function AccessDenied() {
 function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { can } = useAuth();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const collapsed = useSyncExternalStore(
     subscribeSidebarStorage,
@@ -68,6 +70,10 @@ function DashboardShell({ children }: { children: ReactNode }) {
 
   const canAccess = canAccessPath(can, pathname, workspace);
 
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
+
   function toggleSidebar() {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(!collapsed));
     window.dispatchEvent(new Event("novaops-sidebar-change"));
@@ -75,7 +81,13 @@ function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#F7FAF8]">
-      <EnterpriseSidebar collapsed={collapsed} workspace={workspace} onToggle={toggleSidebar} />
+      <EnterpriseSidebar
+        collapsed={collapsed}
+        workspace={workspace}
+        mobileOpen={mobileSidebarOpen}
+        onToggle={toggleSidebar}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
 
       <div
         className={[
@@ -83,7 +95,10 @@ function DashboardShell({ children }: { children: ReactNode }) {
           collapsed ? "lg:pl-24" : "lg:pl-72",
         ].join(" ")}
       >
-        <DashboardHeader workspace={workspace} />
+        <DashboardHeader
+          workspace={workspace}
+          onOpenMobileMenu={() => setMobileSidebarOpen(true)}
+        />
 
         {canAccess ? children : <AccessDenied />}
       </div>

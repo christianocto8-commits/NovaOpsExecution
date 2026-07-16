@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { X } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/shared/i18n";
@@ -13,7 +14,9 @@ import { SidebarFooter } from "./sidebar-footer";
 type EnterpriseSidebarProps = {
   collapsed: boolean;
   workspace: CurrentWorkspace;
+  mobileOpen: boolean;
   onToggle: () => void;
+  onCloseMobile: () => void;
 };
 
 function groupNavigation(items: NavigationItem[]) {
@@ -33,21 +36,22 @@ function groupNavigation(items: NavigationItem[]) {
   );
 }
 
-export function EnterpriseSidebar({ collapsed, workspace, onToggle }: EnterpriseSidebarProps) {
+function SidebarNavigation({
+  collapsed,
+  workspace,
+  onItemClick,
+}: {
+  collapsed: boolean;
+  workspace: CurrentWorkspace;
+  onItemClick?: () => void;
+}) {
   const pathname = usePathname();
   const { can } = useAuth();
   const { t } = useLanguage();
   const groupedItems = groupNavigation(getNavigationForPermissions(can, workspace));
 
   return (
-    <aside
-      className={[
-        "fixed left-0 top-0 z-40 hidden h-screen border-r border-[#DDE8E1] bg-white/95 shadow-sm backdrop-blur-xl transition-all duration-300 ease-out lg:flex lg:flex-col",
-        collapsed ? "w-24" : "w-72",
-      ].join(" ")}
-    >
-      <SidebarBrand collapsed={collapsed} onToggle={onToggle} />
-
+    <>
       <nav className="flex-1 overflow-y-auto px-4 py-5">
         {Object.entries(groupedItems).map(([section, items]) => {
           if (items.length === 0) return null;
@@ -71,6 +75,7 @@ export function EnterpriseSidebar({ collapsed, workspace, onToggle }: Enterprise
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={onItemClick}
                       title={collapsed ? t(`navigation.${item.id}`) : undefined}
                       className={[
                         "group flex items-center rounded-2xl text-sm font-semibold transition",
@@ -102,6 +107,64 @@ export function EnterpriseSidebar({ collapsed, workspace, onToggle }: Enterprise
       </nav>
 
       <SidebarFooter collapsed={collapsed} workspace={workspace} />
-    </aside>
+    </>
   );
 }
+
+export function EnterpriseSidebar({
+  collapsed,
+  workspace,
+  mobileOpen,
+  onToggle,
+  onCloseMobile,
+}: EnterpriseSidebarProps) {
+  return (
+    <>
+      <aside
+        className={[
+          "fixed left-0 top-0 z-40 hidden h-screen border-r border-[#DDE8E1] bg-white/95 shadow-sm backdrop-blur-xl transition-all duration-300 ease-out lg:flex lg:flex-col",
+          collapsed ? "w-24" : "w-72",
+        ].join(" ")}
+      >
+        <SidebarBrand collapsed={collapsed} onToggle={onToggle} />
+        <SidebarNavigation collapsed={collapsed} workspace={workspace} />
+      </aside>
+
+      <div
+        className={[
+          "fixed inset-0 z-50 bg-slate-950/40 transition lg:hidden",
+          mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+        ].join(" ")}
+      >
+        <button
+          type="button"
+          aria-label="Close navigation overlay"
+          onClick={onCloseMobile}
+          className="absolute inset-0"
+        />
+
+        <aside
+          className={[
+            "relative flex h-full w-[88vw] max-w-[320px] flex-col border-r border-[#DDE8E1] bg-white shadow-2xl transition-transform duration-300 ease-out",
+            mobileOpen ? "translate-x-0" : "-translate-x-full",
+          ].join(" ")}
+        >
+          <div className="flex items-center justify-between border-b border-[#DDE8E1] px-4 py-4">
+            <SidebarBrand collapsed={false} onToggle={onToggle} />
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
+            >
+              <X className="size-4" />
+              <span className="sr-only">Close menu</span>
+            </button>
+          </div>
+
+          <SidebarNavigation collapsed={false} workspace={workspace} onItemClick={onCloseMobile} />
+        </aside>
+      </div>
+    </>
+  );
+}
+
