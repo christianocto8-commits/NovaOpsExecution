@@ -38,6 +38,8 @@ type BackendTaskUpdate = Partial<
   Pick<BackendTaskCreate, "title" | "description" | "assigned_to" | "priority" | "due_date">
 >;
 
+const LOCAL_FORM_TEMPLATE_PREFIX = "local_form_template:";
+
 function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
   if (status === "completed") return "Completed";
   if (status === "in_progress" || status === "blocked") return "In Progress";
@@ -64,8 +66,23 @@ function formatDueDate(value: string | null) {
 }
 
 function parseSourceFormTemplateId(task: BackendTask) {
-  if (task.source_type !== "form_template" || !task.source_id) return "FORM-OPENING";
-  return String(task.source_id);
+  if (task.source_type?.startsWith(LOCAL_FORM_TEMPLATE_PREFIX)) {
+    return task.source_type.slice(LOCAL_FORM_TEMPLATE_PREFIX.length);
+  }
+
+  if (task.source_type === "form_template" && task.source_id) {
+    return String(task.source_id);
+  }
+
+  return "FORM-OPENING";
+}
+
+function resolveTaskOutletHeader(form: TaskFormState) {
+  if (form.recurrence === "once") {
+    return form.outletId ?? form.targetOutletIds?.[0] ?? undefined;
+  }
+
+  return form.targetOutletIds?.[0] ?? form.outletId ?? undefined;
 }
 
 export function mapBackendTask(task: BackendTask): Task {
@@ -102,6 +119,7 @@ export function mapBackendTask(task: BackendTask): Task {
 
 function toBackendPayload(form: TaskFormState): BackendTaskCreate {
   const numericTemplateId = Number(form.formTemplateId);
+  const isBackendTemplate = Number.isFinite(numericTemplateId);
 
   return {
     title: form.title.trim(),
@@ -109,8 +127,10 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
     assigned_to: null,
     priority: toBackendPriority(form.priority),
     due_date: form.recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
-    source_type: "form_template",
-    source_id: Number.isFinite(numericTemplateId) ? numericTemplateId : null,
+    source_type: isBackendTemplate
+      ? "form_template"
+      : `${LOCAL_FORM_TEMPLATE_PREFIX}${form.formTemplateId}`,
+    source_id: isBackendTemplate ? numericTemplateId : null,
   };
 }
 
@@ -123,6 +143,9 @@ export const taskService = {
   async create(form: TaskFormState) {
     const task = await api<BackendTask>("/api/v1/tasks", {
       method: "POST",
+      headers: resolveTaskOutletHeader(form)
+        ? { "X-Outlet-Id": resolveTaskOutletHeader(form) as string }
+        : undefined,
       body: JSON.stringify(toBackendPayload(form)),
     });
     return mapBackendTask(task);

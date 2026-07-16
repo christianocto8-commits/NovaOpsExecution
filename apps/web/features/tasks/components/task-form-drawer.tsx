@@ -5,8 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import { getAvailableFormTemplates } from "@/features/forms/data/form-template-store";
-import { queryKeys } from "@/lib/query/keys";
-import { formTemplateService } from "@/services/form-template.service";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
   TaskFormState,
@@ -16,6 +14,8 @@ import {
   TaskStatus,
   TaskWeeklyPublishDay,
 } from "@/features/tasks/types";
+import { queryKeys } from "@/lib/query/keys";
+import { useSettings } from "@/features/settings/hooks/use-settings";
 
 type TaskFormDrawerProps = {
   open: boolean;
@@ -57,22 +57,17 @@ export function TaskFormDrawer({
   onSubmit,
 }: TaskFormDrawerProps) {
   const isEditMode = mode === "edit";
-  const backendTemplatesQuery = useQuery({
-    queryKey: queryKeys.sop.formTemplates(),
-    queryFn: formTemplateService.list,
-    retry: false,
-  });
+  const { settings } = useSettings();
+  const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
   const identityOutletsQuery = useQuery({
     queryKey: queryKeys.identity.outlets,
     queryFn: getIdentityOutlets,
     retry: false,
   });
-  const backendTemplates = backendTemplatesQuery.data ?? [];
-  const backendTemplateIds = new Set(backendTemplates.map((template) => template.id));
-  const availableTemplates = [
-    ...backendTemplates,
-    ...getAvailableFormTemplates().filter((template) => !backendTemplateIds.has(template.id)),
-  ].filter((template) => template.status !== "Draft");
+  const availableTemplates = useMemo(
+    () => getAvailableFormTemplates().filter((template) => template.status === "Active"),
+    []
+  );
   const safeFormTemplateId = form.formTemplateId || availableTemplates[0]?.id || "";
   const selectedTemplate = availableTemplates.find(
     (template) => template.id === safeFormTemplateId
@@ -80,10 +75,23 @@ export function TaskFormDrawer({
   const outletOptions = useMemo(() => {
     const identityOutlets = identityOutletsQuery.data ?? [];
 
-    return identityOutlets.map((outlet) => outlet.name);
+    return identityOutlets.map((outlet) => ({
+      id: outlet.id,
+      name: outlet.name,
+    }));
   }, [identityOutletsQuery.data]);
   const selectedTargetOutlets =
-    form.targetOutlets.length > 0 ? form.targetOutlets : [form.outlet ?? outletOptions[0] ?? ""];
+    form.targetOutlets.length > 0
+      ? form.targetOutlets
+      : [form.outlet ?? outletOptions[0]?.name ?? ""];
+  const selectedTargetOutletIds =
+    form.targetOutletIds && form.targetOutletIds.length > 0
+      ? form.targetOutletIds
+      : form.outletId
+        ? [form.outletId]
+        : outletOptions[0]?.id
+          ? [outletOptions[0].id]
+          : [];
   const selectedShiftCount = form.shifts.length;
   const isRecurringTask = form.recurrence !== "once";
   const isDailyTask = form.recurrence === "daily";
@@ -105,8 +113,11 @@ export function TaskFormDrawer({
     (!isRecurringTask ||
       (selectedTargetOutlets.length > 0 && (!isDailyTask || selectedShiftCount > 0)));
 
-  function toggleTargetOutlet(outletName: string) {
-    const selected = selectedTargetOutlets.includes(outletName);
+  function toggleTargetOutlet(outletId: string, outletName: string) {
+    const selected = selectedTargetOutletIds.includes(outletId);
+    const nextTargetOutletIds = selected
+      ? selectedTargetOutletIds.filter((id) => id !== outletId)
+      : [...selectedTargetOutletIds, outletId];
     const nextTargetOutlets = selected
       ? selectedTargetOutlets.filter((name) => name !== outletName)
       : [...selectedTargetOutlets, outletName];
@@ -114,7 +125,9 @@ export function TaskFormDrawer({
     onChange({
       ...form,
       outlet: nextTargetOutlets[0] ?? outletName,
+      outletId: nextTargetOutletIds[0] ?? outletId,
       targetOutlets: nextTargetOutlets,
+      targetOutletIds: nextTargetOutletIds,
     });
   }
 
@@ -290,7 +303,7 @@ export function TaskFormDrawer({
                       ...form,
                       recurrence,
                       autoPublish: recurrence !== "once",
-                      dueTime: form.dueTime || "09:00",
+                      dueTime: form.dueTime || defaultTaskDueTime,
                       shifts: recurrence === "weekly" ? [] : form.shifts,
                       weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
                     });
@@ -324,7 +337,7 @@ export function TaskFormDrawer({
                   </label>
                   <input
                     type="time"
-                    value={form.dueTime ?? "09:00"}
+                    value={form.dueTime ?? defaultTaskDueTime}
                     onChange={(event) => onChange({ ...form, dueTime: event.target.value })}
                     className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
                   />
@@ -362,19 +375,25 @@ export function TaskFormDrawer({
                   Outlet
                 </label>
                 <select
-                  value={form.outlet || outletOptions[0] || ""}
-                  onChange={(event) =>
+                  value={form.outletId || outletOptions[0]?.id || ""}
+                  onChange={(event) => {
+                    const selectedOutlet = outletOptions.find(
+                      (outlet) => outlet.id === event.target.value
+                    );
+
                     onChange({
                       ...form,
-                      outlet: event.target.value,
-                      targetOutlets: [event.target.value],
-                    })
-                  }
+                      outlet: selectedOutlet?.name ?? "",
+                      outletId: selectedOutlet?.id ?? "",
+                      targetOutlets: selectedOutlet?.name ? [selectedOutlet.name] : [],
+                      targetOutletIds: selectedOutlet?.id ? [selectedOutlet.id] : [],
+                    });
+                  }}
                   className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
                 >
                   {outletOptions.map((outlet) => (
-                    <option key={outlet} value={outlet}>
-                      {outlet}
+                    <option key={outlet.id} value={outlet.id}>
+                      {outlet.name}
                     </option>
                   ))}
                 </select>
@@ -434,14 +453,14 @@ export function TaskFormDrawer({
                 <div className="mt-2 space-y-2">
                   {outletOptions.map((outlet) => (
                     <label
-                      key={outlet}
+                      key={outlet.id}
                       className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800"
                     >
-                      {outlet}
+                      {outlet.name}
                       <input
                         type="checkbox"
-                        checked={selectedTargetOutlets.includes(outlet)}
-                        onChange={() => toggleTargetOutlet(outlet)}
+                        checked={selectedTargetOutletIds.includes(outlet.id)}
+                        onChange={() => toggleTargetOutlet(outlet.id, outlet.name)}
                         className="size-4 accent-emerald-700"
                       />
                     </label>
@@ -477,3 +496,4 @@ export function TaskFormDrawer({
     </div>
   );
 }
+

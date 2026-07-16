@@ -58,9 +58,6 @@ function getTaskExecutionProgressPercentage(task: Task) {
   return 0;
 }
 
-function isTaskCompleted(task: Task) {
-  return String(task.status).toLowerCase() === "completed";
-}
 
 function getOutletTaskExecutionMetrics(tasks: Task[]) {
   const total = tasks.length;
@@ -206,11 +203,7 @@ export function TasksWorkspace() {
     return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
   }, [isBackendConnected, isOutletWorkspace, tasks, workspace.outletName]);
 
-  const visibleTasks = useMemo(() => {
-    if (!isOutletWorkspace) return outletScopedTasks;
-
-    return outletScopedTasks.filter((task) => !isTaskCompleted(task));
-  }, [isOutletWorkspace, outletScopedTasks]);
+  const visibleTasks = useMemo(() => outletScopedTasks, [outletScopedTasks]);
 
   const outletTaskMetrics = useMemo(
     () => getOutletTaskExecutionMetrics(visibleTasks),

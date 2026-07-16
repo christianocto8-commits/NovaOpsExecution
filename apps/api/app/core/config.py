@@ -11,6 +11,16 @@ ENV_FILE = API_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 
+def _parse_cors_origins(raw_value: str | None) -> list[str]:
+    if not raw_value:
+        return [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+
+    return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+
+
 class Settings(BaseSettings):
     app_name: str = "NovaOps Enterprise API"
     app_version: str = "0.7.0"
@@ -20,6 +30,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
+    cors_origins: list[str]
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -44,7 +55,9 @@ def get_settings() -> Settings:
         access_token_expire_minutes=int(
             os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
         ),
+        cors_origins=_parse_cors_origins(os.environ.get("CORS_ORIGINS")),
     )
+
 
 class LegacySettingsAdapter:
     @property

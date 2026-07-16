@@ -97,7 +97,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     return response.json() as Promise<T>;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("API tidak merespons. Pastikan backend NovaOps berjalan di http://localhost:8000.");
+      throw new Error(`API tidak merespons. Pastikan layanan NovaOps API aktif di ${API_URL}.`);
     }
 
     throw error;

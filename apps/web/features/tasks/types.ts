@@ -1,4 +1,4 @@
-﻿export type TaskStatus = "Pending" | "In Progress" | "Completed";
+export type TaskStatus = "Pending" | "In Progress" | "Completed";
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 export type TaskRecurrence = "once" | "daily" | "weekly";
 export type TaskShift = "morning" | "evening" | "midnight";
@@ -89,6 +89,7 @@ export type Task = {
   id: string;
   title: string;
   outlet: string;
+  outletId?: string;
   status: TaskStatus;
   priority: TaskPriority;
   assignee: string;
@@ -98,6 +99,7 @@ export type Task = {
   recurrence?: TaskRecurrence;
   shifts?: TaskShift[];
   targetOutlets?: string[];
+  targetOutletIds?: string[];
   autoPublish?: boolean;
   dueTime?: string;
   weeklyPublishDay?: TaskWeeklyPublishDay;
@@ -109,6 +111,7 @@ export type Task = {
 export type TaskFormState = {
   title: string;
   outlet: string;
+  outletId?: string;
   status: TaskStatus;
   priority: TaskPriority;
   assignee: string;
@@ -118,6 +121,7 @@ export type TaskFormState = {
   recurrence: TaskRecurrence;
   shifts: TaskShift[];
   targetOutlets: string[];
+  targetOutletIds?: string[];
   autoPublish: boolean;
   dueTime: string;
   weeklyPublishDay: TaskWeeklyPublishDay;

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
+import { useSettings } from "@/features/settings/hooks/use-settings";
 import { useConfirmation } from "@/shared/confirmation";
 import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
@@ -16,12 +17,12 @@ type WorkspaceRole = "owner" | "outlet";
 
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
 
-function getTimeFromDue(value?: string) {
-  if (!value) return "09:00";
+function getTimeFromDue(value?: string, fallback = "09:00") {
+  if (!value) return fallback;
 
   const timeMatch = value.match(/(\d{2}):(\d{2})/);
 
-  return timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : "09:00";
+  return timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : fallback;
 }
 
 function normalizeTask(task: Task): Task {
@@ -134,6 +135,9 @@ function buildTaskEvidence(value: string, submittedAt: string) {
 }
 
 export function useTaskWorkspace() {
+  const { settings } = useSettings();
+  const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
+  const approvalRequired = settings?.approval_required ?? true;
   const confirm = useConfirmation();
   const queryClient = useQueryClient();
 
@@ -220,6 +224,7 @@ export function useTaskWorkspace() {
     setTaskForm({
       ...emptyTaskForm,
       assignee: "Outlet Team",
+      dueTime: defaultTaskDueTime,
     });
     setIsFormOpen(true);
   }
@@ -239,7 +244,7 @@ export function useTaskWorkspace() {
       shifts: task.shifts ?? ["morning"],
       targetOutlets: task.targetOutlets ?? [task.outlet],
       autoPublish: task.autoPublish ?? false,
-      dueTime: task.dueTime ?? getTimeFromDue(task.due),
+      dueTime: task.dueTime ?? getTimeFromDue(task.due, defaultTaskDueTime),
       weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
     });
     setIsFormOpen(true);
@@ -534,7 +539,7 @@ export function useTaskWorkspace() {
 
         return {
           ...task,
-          status: "Completed",
+          status: approvalRequired ? "In Progress" : "Completed",
           executionDraft: undefined,
           execution: {
             operatorName: executionForm.operatorName,
@@ -543,7 +548,7 @@ export function useTaskWorkspace() {
             evidence,
             formResponses: executionForm.formResponses,
             completedAt,
-            reviewStatus: "pending_review",
+            reviewStatus: approvalRequired ? "pending_review" : "approved",
           },
           activity: [
             ...(task.activity ?? []),
@@ -551,7 +556,9 @@ export function useTaskWorkspace() {
               id: `ACT-${Date.now()}-completed`,
               type: "completed",
               title: "Evidence submitted",
-              description: "Outlet submitted task evidence for owner review.",
+              description: approvalRequired
+                ? "Outlet submitted task evidence for owner review."
+                : "Outlet submitted task evidence and it was auto-approved by workspace settings.",
               actor: executionForm.operatorName,
               timestamp: completedAt,
             },
@@ -593,3 +600,6 @@ export function useTaskWorkspace() {
     backendError: backendTasksQuery.error,
   };
 }
+
+
+

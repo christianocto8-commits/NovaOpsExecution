@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import { uploadEvidenceFile } from "../upload-evidence";
 import { EvidenceItem } from "../types";
 import { EvidenceCard } from "./evidence-card";
 import { UploadPlaceholder } from "./upload-placeholder";
@@ -12,25 +13,69 @@ type EvidenceGalleryProps = {
   readOnly?: boolean;
 };
 
+function isMobileDevice() {
+  if (typeof window === "undefined") return false;
+
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  const mobilePattern = /android|iphone|ipad|ipod|mobile/;
+
+  return mobilePattern.test(userAgent) || window.matchMedia("(pointer: coarse)").matches;
+}
+
 export function EvidenceGallery({ value, onChange, readOnly = false }: EvidenceGalleryProps) {
-  const [draftUrl, setDraftUrl] = useState("");
   const [draftCaption, setDraftCaption] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [mobileMode, setMobileMode] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  function addEvidence() {
-    const cleanUrl = draftUrl.trim();
+  useEffect(() => {
+    setMobileMode(isMobileDevice());
+  }, []);
 
-    if (!cleanUrl) return;
+  const helperText = useMemo(
+    () =>
+      mobileMode
+        ? "Di HP akan langsung membuka kamera untuk ambil foto bukti."
+        : "Di laptop akan membuka file explorer untuk memilih foto bukti.",
+    [mobileMode]
+  );
 
-    const nextItem: EvidenceItem = {
-      id: `evidence-${Date.now()}`,
-      url: cleanUrl,
-      caption: draftCaption.trim() || "Evidence",
-      uploadedAt: new Date().toLocaleString(),
-    };
+  function openFilePicker() {
+    setUploadError(null);
+    fileInputRef.current?.click();
+  }
 
-    onChange([...value, nextItem]);
-    setDraftUrl("");
-    setDraftCaption("");
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const nextItems = await Promise.all(
+        files.map(async (file, index) => {
+          const uploaded = await uploadEvidenceFile(file);
+
+          return {
+            id: `evidence-${Date.now()}-${index}`,
+            url: uploaded.url,
+            caption: draftCaption.trim() || file.name.replace(/\.[^.]+$/, "") || "Evidence",
+            uploadedAt: new Date(uploaded.uploaded_at).toLocaleString(),
+          } satisfies EvidenceItem;
+        })
+      );
+
+      onChange([...value, ...nextItems]);
+      setDraftCaption("");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload evidence gagal.");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
   }
 
   function removeEvidence(id: string) {
@@ -59,34 +104,48 @@ export function EvidenceGallery({ value, onChange, readOnly = false }: EvidenceG
           />
         ))}
 
-        {!readOnly ? <UploadPlaceholder onAdd={addEvidence} /> : null}
+        {!readOnly ? (
+          <UploadPlaceholder
+            onAdd={openFilePicker}
+            title={mobileMode ? "Ambil Foto Evidence" : "Upload Evidence"}
+            description={mobileMode ? "Kamera HP akan terbuka" : "Pilih foto dari perangkat"}
+          />
+        ) : null}
       </div>
 
       {!readOnly ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+        <>
           <input
-            value={draftUrl}
-            onChange={(event) => setDraftUrl(event.target.value)}
-            placeholder="Image URL / evidence link"
-            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture={mobileMode ? "environment" : undefined}
+            multiple={!mobileMode}
+            onChange={handleFileChange}
+            className="hidden"
           />
 
-          <input
-            value={draftCaption}
-            onChange={(event) => setDraftCaption(event.target.value)}
-            placeholder="Caption"
-            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-          />
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <input
+              value={draftCaption}
+              onChange={(event) => setDraftCaption(event.target.value)}
+              placeholder="Caption evidence"
+              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+            />
 
-          <button
-            type="button"
-            onClick={addEvidence}
-            disabled={!draftUrl.trim()}
-            className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Add
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={openFilePicker}
+              disabled={isUploading}
+              className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {isUploading ? "Uploading..." : mobileMode ? "Buka Kamera" : "Pilih File"}
+            </button>
+          </div>
+
+          <p className="mt-2 text-xs text-slate-500">{helperText}</p>
+          {uploadError ? <p className="mt-2 text-xs text-red-600">{uploadError}</p> : null}
+        </>
       ) : null}
     </section>
   );

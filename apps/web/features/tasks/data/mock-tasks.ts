@@ -1,8 +1,9 @@
-﻿import { Task, TaskExecutionForm, TaskFormState } from "../types";
+import { Task, TaskExecutionForm, TaskFormState } from "../types";
 
 export const emptyTaskForm: TaskFormState = {
   title: "",
   outlet: "KOV Montre",
+  outletId: "",
   status: "Pending",
   priority: "Medium",
   assignee: "",
@@ -14,6 +15,7 @@ export const emptyTaskForm: TaskFormState = {
   recurrence: "once",
   shifts: ["morning"],
   targetOutlets: ["KOV Montre"],
+  targetOutletIds: [],
   autoPublish: false,
 };
 
@@ -30,6 +32,7 @@ export const mockTasks: Task[] = [
     id: "TASK-001",
     title: "Test Form - Daily Opening Checklist",
     outlet: "KOV Montre",
+    outletId: "",
     status: "Pending",
     priority: "High",
     assignee: "Outlet Team",
@@ -41,6 +44,7 @@ export const mockTasks: Task[] = [
     recurrence: "daily",
     shifts: ["morning"],
     targetOutlets: ["KOV Montre"],
+    targetOutletIds: [],
     autoPublish: true,
     activity: [
       {
@@ -57,6 +61,7 @@ export const mockTasks: Task[] = [
     id: "TASK-002",
     title: "Espresso machine cleaning audit",
     outlet: "KOV Heritage",
+    outletId: "",
     status: "Pending",
     priority: "Medium",
     assignee: "Outlet Team",
@@ -68,6 +73,7 @@ export const mockTasks: Task[] = [
     recurrence: "daily",
     shifts: ["evening"],
     targetOutlets: ["KOV Heritage"],
+    targetOutletIds: [],
     autoPublish: true,
   },
 ];

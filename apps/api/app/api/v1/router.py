@@ -16,8 +16,10 @@ from app.modules.workflows.escalation_processor_api import (
 )
 from app.modules.workflows.instance_api import router as workflow_instance_router
 from app.modules.workflows.workflow_api import router as workflow_router
+from app.routers.evidence_uploads import router as evidence_upload_router
 from app.routers.execution_sessions import router as execution_session_router
 from app.routers.form_templates import router as form_template_router
+from app.routers.settings import router as settings_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -30,6 +32,8 @@ api_router.include_router(task_router)
 api_router.include_router(task_draft_router)
 api_router.include_router(form_template_router)
 api_router.include_router(execution_session_router)
+api_router.include_router(settings_router)
+api_router.include_router(evidence_upload_router)
 
 # Static and specialized workflow routes must be registered before
 # the generic /workflows/{workflow_id} routes.
