@@ -13,8 +13,6 @@ import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import { createExecutionSession } from "@/services/execution-session.service";
 
-type WorkspaceRole = "owner" | "outlet";
-
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
 
 function getTimeFromDue(value?: string, fallback = "09:00") {
@@ -189,7 +187,6 @@ export function useTaskWorkspace() {
 
   const [localTasks, setLocalTasksState] = useState<Task[]>(loadInitialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [currentRole, setCurrentRole] = useState<WorkspaceRole>("owner");
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExecutionOpen, setIsExecutionOpen] = useState(false);
@@ -571,8 +568,6 @@ export function useTaskWorkspace() {
   }
 
   return {
-    currentRole,
-    setCurrentRole,
     tasks,
     taskSummary,
     selectedTask,
@@ -600,6 +595,8 @@ export function useTaskWorkspace() {
     backendError: backendTasksQuery.error,
   };
 }
+
+
 
 
 

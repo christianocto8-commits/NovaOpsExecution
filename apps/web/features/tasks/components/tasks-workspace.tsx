@@ -40,6 +40,7 @@ function getTaskDraftProgress(task: Task) {
 
   return calculateFormProgress(progressFields, task.executionDraft.formResponses);
 }
+
 function getTaskExecutionProgressPercentage(task: Task) {
   const draftProgress = getTaskDraftProgress(task);
 
@@ -57,7 +58,6 @@ function getTaskExecutionProgressPercentage(task: Task) {
 
   return 0;
 }
-
 
 function getOutletTaskExecutionMetrics(tasks: Task[]) {
   const total = tasks.length;
@@ -80,6 +80,7 @@ function getOutletTaskExecutionMetrics(tasks: Task[]) {
     averageProgress,
   };
 }
+
 function syncTaskToOutletTaskStore(task: Task) {
   const progress = getTaskExecutionProgressPercentage(task);
   const hasDraft = Boolean(task.executionDraft);
@@ -130,8 +131,6 @@ export function TasksWorkspace() {
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   const {
-    currentRole,
-    setCurrentRole,
     tasks,
     selectedTask,
     isFormOpen,
@@ -157,11 +156,14 @@ export function TasksWorkspace() {
     isBackendConnected,
   } = useTaskWorkspace();
 
+  const isOutletWorkspace = workspace.mode === "outlet";
+  const isOutletRole = isOutletWorkspace;
+  const canCreateTask = !isOutletRole;
+
   useEffect(() => {
-    const mode = searchParams.get("mode");
     const continueDraftTaskId = searchParams.get("continueDraft");
 
-    if (mode !== "outlet" || !continueDraftTaskId) return;
+    if (!isOutletWorkspace || !continueDraftTaskId) return;
     if (continuedDraftRef.current === continueDraftTaskId) return;
 
     const draftTask = tasks.find((task) => task.id === continueDraftTaskId && task.executionDraft);
@@ -172,7 +174,6 @@ export function TasksWorkspace() {
 
     window.setTimeout(() => {
       setHighlightedTaskId(continueDraftTaskId);
-      setCurrentRole("outlet");
     }, 0);
 
     window.setTimeout(() => {
@@ -191,11 +192,8 @@ export function TasksWorkspace() {
     window.setTimeout(() => {
       setHighlightedTaskId(null);
     }, 3500);
-  }, [searchParams, tasks, setCurrentRole, openExecution]);
+  }, [isOutletWorkspace, searchParams, tasks, openExecution]);
 
-  const isOutletWorkspace = workspace.mode === "outlet";
-  const isOutletRole = isOutletWorkspace || currentRole === "outlet";
-  const canCreateTask = !isOutletRole;
   const outletScopedTasks = useMemo(() => {
     if (!isOutletWorkspace) return tasks;
     if (isBackendConnected) return tasks;
@@ -383,30 +381,6 @@ export function TasksWorkspace() {
 
         {!isOutletWorkspace ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setCurrentRole("owner")}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-                currentRole === "owner"
-                  ? "bg-emerald-700 text-white"
-                  : "border border-slate-200 bg-white text-slate-600"
-              }`}
-            >
-              Owner Mode
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCurrentRole("outlet")}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-                currentRole === "outlet"
-                  ? "bg-emerald-700 text-white"
-                  : "border border-slate-200 bg-white text-slate-600"
-              }`}
-            >
-              Outlet Mode
-            </button>
-
             {canCreateTask ? (
               <button
                 type="button"
@@ -459,8 +433,8 @@ export function TasksWorkspace() {
         title="Outlet Task Queue"
         description={
           isOutletRole
-            ? "Outlet mode: complete required task evidence or continue saved drafts."
-            : "Owner mode: assign tasks, review evidence, and monitor compliance."
+            ? "Complete required task evidence or continue saved drafts."
+            : "Assign tasks, review evidence, and monitor compliance."
         }
         columns={columns}
         data={visibleTasks}
