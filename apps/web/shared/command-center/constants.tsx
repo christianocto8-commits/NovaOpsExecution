@@ -8,7 +8,6 @@ import {
   Plus,
   Search,
   Settings,
-  Smartphone,
   Users,
 } from "lucide-react";
 import { CommandItem } from "./types";
@@ -36,13 +35,12 @@ export const commandItems: CommandItem[] = [
   {
     id: "go-tasks",
     title: "Go to Task",
-    description: "Open task execution workspace",
+    description: "Open unified task execution workspace",
     href: "/dashboard/tasks",
     group: "Navigation",
     type: "navigation",
     icon: ClipboardCheck,
   },
-
   {
     id: "go-forms",
     title: "Go to My Form",
@@ -122,4 +120,3 @@ export const commandItems: CommandItem[] = [
     allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
 ];
-

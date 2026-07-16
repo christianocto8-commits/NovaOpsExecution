@@ -8,7 +8,6 @@ import {
   History,
   LayoutDashboard,
   Settings,
-  Smartphone,
   Store,
   Users,
   Wrench,
@@ -48,7 +47,6 @@ export const navigationItems: NavigationItem[] = [
     requiredPermissions: ["task.read"],
     section: "sop",
   },
-
   {
     id: "forms",
     label: "My Form",
@@ -73,7 +71,6 @@ export const navigationItems: NavigationItem[] = [
     requiredPermissions: ["task.execute"],
     section: "sop",
   },
-
   {
     id: "outlets",
     label: "Outlets",
@@ -140,4 +137,3 @@ export const navigationSectionLabels: Record<NavigationItem["section"], string> 
   administration: "Administration",
   configuration: "Configuration",
 };
-

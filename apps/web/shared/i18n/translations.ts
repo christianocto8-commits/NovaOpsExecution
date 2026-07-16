@@ -20,7 +20,6 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.dashboard": "Dashboard",
     "navigation.compliance": "Compliance Center",
     "navigation.tasks": "Task",
-    "navigation.operator": "Operator View",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
     "navigation.drafts": "Draft",
@@ -110,7 +109,6 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.dashboard": "Dashboard",
     "navigation.compliance": "Pusat Compliance",
     "navigation.tasks": "Task",
-    "navigation.operator": "Tampilan Operator",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
     "navigation.drafts": "Draft",
@@ -182,4 +180,6 @@ export const translations: Record<Language, Record<string, string>> = {
     "settings.passwordDescription": "Ubah kata sandi akun outlet.",
   },
 };
+
+
 
