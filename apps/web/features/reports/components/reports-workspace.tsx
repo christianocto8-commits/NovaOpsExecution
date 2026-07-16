@@ -5,7 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Circle,
   CircleAlert,
   Clock3,
@@ -73,6 +75,16 @@ type DailyTrackingSummary = {
   dateLabel: string;
   shortDateLabel: string;
   dayLabel: string;
+  total: number;
+  done: number;
+  overdue: number;
+  open: number;
+  rate: number;
+};
+
+type OutletTrackingGroup = {
+  outlet: string;
+  entries: TaskTrackingEntry[];
   total: number;
   done: number;
   overdue: number;
@@ -349,6 +361,33 @@ function getTrackingStatusIcon(status: TrackingStatus) {
   return <Circle className="h-4 w-4 text-sky-600" />;
 }
 
+function buildOutletTrackingGroups(entries: TaskTrackingEntry[]) {
+  const outletMap = new Map<string, TaskTrackingEntry[]>();
+
+  entries.forEach((entry) => {
+    outletMap.set(entry.outlet, [...(outletMap.get(entry.outlet) ?? []), entry]);
+  });
+
+  return Array.from(outletMap.entries())
+    .map(([outlet, outletEntries]) => {
+      const done = outletEntries.filter((entry) => entry.status === "done").length;
+      const overdue = outletEntries.filter((entry) => entry.status === "overdue").length;
+      const open = outletEntries.filter((entry) => entry.status === "open").length;
+      const total = outletEntries.length;
+
+      return {
+        outlet,
+        entries: outletEntries.sort((first, second) => first.dueTime.localeCompare(second.dueTime)),
+        total,
+        done,
+        overdue,
+        open,
+        rate: total > 0 ? Math.round((done / total) * 100) : 0,
+      } satisfies OutletTrackingGroup;
+    })
+    .sort((first, second) => first.outlet.localeCompare(second.outlet));
+}
+
 const reportColumns: EnterpriseColumn<ReportRow>[] = [
   { key: "id", header: "Report ID", sortable: true, hideable: true },
   { key: "outlet", header: "Outlet", sortable: true },
@@ -429,6 +468,7 @@ export function ReportsWorkspace() {
     [dailySummaries, visibleMonthKey]
   );
   const [selectedDateKey, setSelectedDateKey] = useState("");
+  const [collapsedOutletGroups, setCollapsedOutletGroups] = useState<Record<string, boolean>>({});
   const effectiveSelectedDateKey =
     monthSummaries.find((summaryItem) => summaryItem.dateKey === selectedDateKey)?.dateKey ??
     monthSummaries[0]?.dateKey ??
@@ -438,6 +478,11 @@ export function ReportsWorkspace() {
   );
   const selectedDateEntries = trackingEntries.filter(
     (entry) => entry.dateKey === effectiveSelectedDateKey
+  );
+  const isOutletWorkspace = workspace.mode === "outlet";
+  const outletTrackingGroups = useMemo(
+    () => buildOutletTrackingGroups(selectedDateEntries),
+    [selectedDateEntries]
   );
 
   const reportFilterDefinitions: EnterpriseFilterDefinition[] = useMemo(() => {
@@ -487,6 +532,19 @@ export function ReportsWorkspace() {
     () => applyEnterpriseFilters(searchedReports, filters, reportFilterDefinitions),
     [searchedReports, filters, reportFilterDefinitions]
   );
+
+  function toggleOutletGroup(outlet: string) {
+    const groupKey = `${effectiveSelectedDateKey}:${outlet}`;
+    setCollapsedOutletGroups((current) => ({
+      ...current,
+      [groupKey]: !current[groupKey],
+    }));
+  }
+
+  function isOutletGroupCollapsed(outlet: string) {
+    const groupKey = `${effectiveSelectedDateKey}:${outlet}`;
+    return collapsedOutletGroups[groupKey] ?? false;
+  }
 
   function resetReports() {
     setToolbarSearch("");
@@ -721,7 +779,7 @@ export function ReportsWorkspace() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
                   No scheduled tasks for this date yet.
                 </div>
-              ) : (
+              ) : isOutletWorkspace ? (
                 selectedDateEntries.map((entry) => (
                   <article
                     key={`${entry.id}-${entry.dateKey}`}
@@ -777,6 +835,113 @@ export function ReportsWorkspace() {
                     </div>
                   </article>
                 ))
+              ) : (
+                outletTrackingGroups.map((group) => {
+                  const isCollapsed = isOutletGroupCollapsed(group.outlet);
+
+                  return (
+                    <section
+                      key={`${effectiveSelectedDateKey}-${group.outlet}`}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleOutletGroup(group.outlet)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-slate-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-950">{group.outlet}</p>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                              {group.total} tasks
+                            </span>
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                              {group.done}
+                            </span>
+                            <span className="rounded-full bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-700">
+                              {group.overdue}
+                            </span>
+                            <span className="rounded-full bg-sky-100 px-2 py-1 text-[11px] font-semibold text-sky-700">
+                              {group.open}
+                            </span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all"
+                              style={{ width: `${group.rate}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                          {isCollapsed ? "Expand" : "Minimize"}
+                          {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </div>
+                      </button>
+
+                      {!isCollapsed ? (
+                        <div className="border-t border-slate-100 bg-[#F7FAF8] p-3 sm:p-4">
+                          <div className="space-y-3">
+                            {group.entries.map((entry) => (
+                              <article
+                                key={`${entry.id}-${entry.dateKey}`}
+                                className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4"
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="flex items-start gap-3">
+                                    <div className="min-w-[68px] rounded-2xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-center sm:min-w-[72px] sm:px-3">
+                                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Due</p>
+                                      <p className="mt-1 text-sm font-semibold text-slate-900">{entry.dueTime}</p>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        {getTrackingStatusIcon(entry.status)}
+                                        <p className="font-semibold text-slate-900">{entry.task}</p>
+                                      </div>
+                                      <p className="mt-1 text-sm text-slate-500">{entry.outlet}</p>
+                                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                                          {entry.assignee}
+                                        </span>
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                                          {entry.priority}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <span
+                                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${getTrackingStatusTone(
+                                      entry.status
+                                    )}`}
+                                  >
+                                    {getTrackingStatusLabel(entry.status)}
+                                  </span>
+                                </div>
+
+                                <div className="mt-4 grid gap-3 text-xs text-slate-600 lg:grid-cols-2">
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                    <p className="font-semibold uppercase tracking-wide text-slate-400">Completion</p>
+                                    <p className="mt-1 text-sm text-slate-800">
+                                      {entry.completionTimestamp ? getDateLabel(entry.completionTimestamp) : "Not submitted yet"}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                    <p className="font-semibold uppercase tracking-wide text-slate-400">Action</p>
+                                    <p className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-700">
+                                      Review task flow
+                                      <ChevronRight className="h-4 w-4" />
+                                    </p>
+                                  </div>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </section>
+                  );
+                })
               )}
             </div>
           </section>
