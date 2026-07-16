@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
 import {
@@ -25,6 +26,12 @@ import {
   upsertOutletTaskStoreItem,
 } from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
+
+type MobileTaskSection = {
+  id: string;
+  title: string;
+  tasks: Task[];
+};
 
 function getTaskDraftProgress(task: Task) {
   if (!task.executionDraft || !task.formTemplateId) return null;
@@ -119,7 +126,111 @@ function syncTaskToOutletTaskStore(task: Task) {
   });
 }
 
-function OutletTaskCard({
+function parseTaskDueDate(task: Task) {
+  const parsed = new Date(task.due);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getDayStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getWeekEnd(date: Date) {
+  const end = new Date(date);
+  end.setDate(end.getDate() + 7);
+  return new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+}
+
+function isSameDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function formatMobileDay(task: Task) {
+  const dueDate = parseTaskDueDate(task);
+  if (!dueDate) return "-";
+
+  return dueDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatMobileTime(task: Task) {
+  const dueDate = parseTaskDueDate(task);
+  if (!dueDate) return "-";
+
+  return dueDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).toLowerCase();
+}
+
+function getMobileSections(tasks: Task[], incompleteOnly: boolean) {
+  const now = new Date();
+  const todayStart = getDayStart(now);
+  const weekEnd = getWeekEnd(now);
+
+  const eligibleTasks = incompleteOnly
+    ? tasks.filter((task) => getTaskExecutionProgressPercentage(task) < 100)
+    : tasks;
+
+  const overdue: Task[] = [];
+  const today: Task[] = [];
+  const thisWeek: Task[] = [];
+  const later: Task[] = [];
+  const completed: Task[] = [];
+
+  eligibleTasks.forEach((task) => {
+    const progress = getTaskExecutionProgressPercentage(task);
+    const dueDate = parseTaskDueDate(task);
+
+    if (progress === 100) {
+      completed.push(task);
+      return;
+    }
+
+    if (!dueDate) {
+      later.push(task);
+      return;
+    }
+
+    if (dueDate < todayStart) {
+      overdue.push(task);
+      return;
+    }
+
+    if (isSameDay(dueDate, now)) {
+      today.push(task);
+      return;
+    }
+
+    if (dueDate <= weekEnd) {
+      thisWeek.push(task);
+      return;
+    }
+
+    later.push(task);
+  });
+
+  const sections: MobileTaskSection[] = [
+    { id: "overdue", title: `${overdue.length} Overdue`, tasks: overdue },
+    { id: "today", title: "Today", tasks: today },
+    { id: "due-this-week", title: "Due This Week", tasks: thisWeek },
+    { id: "later", title: "Later", tasks: later },
+  ];
+
+  if (!incompleteOnly) {
+    sections.push({ id: "completed", title: "Completed", tasks: completed });
+  }
+
+  return sections.filter((section) => section.tasks.length > 0);
+}
+
+function MobileTaskRow({
   task,
   highlighted,
   onOpen,
@@ -130,6 +241,10 @@ function OutletTaskCard({
 }) {
   const progress = getTaskExecutionProgressPercentage(task);
   const draftProgress = getTaskDraftProgress(task);
+  const isOverdue = (() => {
+    const dueDate = parseTaskDueDate(task);
+    return dueDate ? dueDate < getDayStart(new Date()) && progress < 100 : false;
+  })();
 
   return (
     <button
@@ -137,46 +252,84 @@ function OutletTaskCard({
       data-task-row-id={task.id}
       onClick={onOpen}
       className={[
-        "w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition",
-        highlighted ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200",
+        "grid w-full grid-cols-[56px_minmax(0,1fr)] gap-3 border-b border-slate-200 px-3 py-4 text-left transition last:border-b-0 hover:bg-slate-50",
+        highlighted ? "bg-emerald-50" : "bg-white",
       ].join(" ")}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-base font-bold text-slate-950">{task.title}</p>
-          <p className="mt-1 text-sm text-slate-500">{task.outlet}</p>
-        </div>
-
-        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-          {task.priority}
-        </span>
+      <div className="text-center">
+        <p className={`text-xs font-semibold ${isOverdue ? "text-red-500" : "text-slate-400"}`}>
+          {formatMobileDay(task)}
+        </p>
+        <p className="mt-2 text-[11px] text-slate-400">{formatMobileTime(task)}</p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
-          <p className="mt-1 text-sm font-medium text-slate-700">{formatTaskSchedule(task)}</p>
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold text-slate-800">{task.title}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {task.executionDraft ? (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                  Draft Saved
+                </span>
+              ) : null}
+              {task.priority === "High" ? (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                  Follow-up Task
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <span className="text-xs font-semibold text-slate-400">{progress}%</span>
         </div>
 
-        <div className="text-right">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Progress</p>
-          <p className="mt-1 text-sm font-bold text-emerald-700">{progress}%</p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            {task.status}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
+          <span className={isOverdue ? "text-red-500" : "text-sky-500"}>
+            {isOverdue ? "Overdue" : task.executionDraft ? "Draft" : "Open"}
           </span>
           {draftProgress ? <ProgressChip percentage={draftProgress.percentage} /> : null}
         </div>
-
-        <span className="rounded-2xl bg-[#274733] px-4 py-2 text-sm font-semibold text-white">
-          {task.executionDraft ? "Continue" : "Open"}
-        </span>
       </div>
     </button>
+  );
+}
+
+function MobileTaskSectionBlock({
+  section,
+  highlightedTaskId,
+  onOpenTask,
+}: {
+  section: MobileTaskSection;
+  highlightedTaskId: string | null;
+  onOpenTask: (task: Task) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 bg-slate-50 px-3 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-slate-700">{section.title}</span>
+        {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+      </button>
+
+      {open ? (
+        <div>
+          {section.tasks.map((task) => (
+            <MobileTaskRow
+              key={task.id}
+              task={task}
+              highlighted={highlightedTaskId === task.id}
+              onOpen={() => onOpenTask(task)}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -190,6 +343,8 @@ export function TasksWorkspace() {
   );
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const [mobileSearch, setMobileSearch] = useState("");
+  const [mobileIncompleteOnly, setMobileIncompleteOnly] = useState(true);
 
   const {
     tasks,
@@ -263,6 +418,25 @@ export function TasksWorkspace() {
   }, [isBackendConnected, isOutletWorkspace, tasks, workspace.outletName]);
 
   const visibleTasks = useMemo(() => outletScopedTasks, [outletScopedTasks]);
+
+  const filteredMobileTasks = useMemo(() => {
+    const query = mobileSearch.trim().toLowerCase();
+
+    if (!query) return visibleTasks;
+
+    return visibleTasks.filter((task) => {
+      const haystack = [task.title, task.outlet, task.formTemplateId ?? "", task.status]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [mobileSearch, visibleTasks]);
+
+  const mobileSections = useMemo(
+    () => getMobileSections(filteredMobileTasks, mobileIncompleteOnly),
+    [filteredMobileTasks, mobileIncompleteOnly]
+  );
 
   const outletTaskMetrics = useMemo(
     () => getOutletTaskExecutionMetrics(visibleTasks),
@@ -494,21 +668,51 @@ export function TasksWorkspace() {
 
       {isOutletRole ? (
         <section className="space-y-3 lg:hidden">
-          <div>
-            <h2 className="text-base font-bold text-slate-950">My Tasks</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Buka task untuk mengerjakan checklist dan upload evidence.
-            </p>
-          </div>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-3 py-3">
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  value={mobileSearch}
+                  onChange={(event) => setMobileSearch(event.target.value)}
+                  placeholder="Search"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMobileIncompleteOnly((current) => !current)}
+                  className={`rounded-lg p-1.5 transition ${
+                    mobileIncompleteOnly ? "bg-sky-50 text-sky-600" : "text-slate-400"
+                  }`}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-          {visibleTasks.map((task) => (
-            <OutletTaskCard
-              key={task.id}
-              task={task}
-              highlighted={highlightedTaskId === task.id}
-              onOpen={() => handleOpenTask(task)}
-            />
-          ))}
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              {mobileIncompleteOnly
+                ? `All Incomplete Tasks at ${workspace.outletName ?? "Outlet"}`
+                : `All Tasks at ${workspace.outletName ?? "Outlet"}`}
+            </div>
+
+            <div className="space-y-3 bg-[#F7FAF8] p-3">
+              {mobileSections.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                  No tasks match this view.
+                </div>
+              ) : (
+                mobileSections.map((section) => (
+                  <MobileTaskSectionBlock
+                    key={section.id}
+                    section={section}
+                    highlightedTaskId={highlightedTaskId}
+                    onOpenTask={handleOpenTask}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </section>
       ) : null}
 
@@ -602,4 +806,3 @@ export function TasksWorkspace() {
     </main>
   );
 }
-
