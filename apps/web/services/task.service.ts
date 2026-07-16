@@ -92,6 +92,7 @@ export function mapBackendTask(task: BackendTask): Task {
     id: String(task.id),
     title: task.title,
     outlet: outletName,
+    outletId: String(task.outlet_id),
     status: toFrontendStatus(task.status),
     priority: toFrontendPriority(task.priority),
     assignee: task.assigned_to ? `User ${task.assigned_to}` : "Outlet Team",
@@ -168,9 +169,10 @@ export const taskService = {
     return mapBackendTask(task);
   },
 
-  async remove(taskId: string) {
+  async remove(taskId: string, outletId?: string) {
     return api<void>(`/api/v1/tasks/${taskId}`, {
       method: "DELETE",
+      headers: outletId ? { "X-Outlet-Id": outletId } : undefined,
     });
   },
 };

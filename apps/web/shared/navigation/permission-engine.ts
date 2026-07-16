@@ -13,16 +13,32 @@ const outletNavigationItemIds = new Set([
   "settings",
 ]);
 
+const areaManagerNavigationItemIds = new Set([
+  "dashboard",
+  "compliance",
+  "corrective-actions",
+  "drafts",
+  "forms",
+  "history",
+  "notifications",
+  "outlets",
+  "reports",
+  "settings",
+  "tasks",
+]);
+
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!workspace) return true;
-  if (workspace.role === "OWNER_ADMIN" || workspace.role === "AREA_MANAGER") return true;
+  if (workspace.role === "OWNER_ADMIN") return true;
+  if (workspace.role === "AREA_MANAGER") return areaManagerNavigationItemIds.has(item.id);
 
   return outletNavigationItemIds.has(item.id);
 }
 
 function canAccessItem(can: PermissionChecker, item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!canAccessItemForWorkspace(item, workspace)) return false;
-  if (workspace?.role === "OWNER_ADMIN" || workspace?.role === "AREA_MANAGER") return true;
+  if (workspace?.role === "OWNER_ADMIN") return true;
+  if (workspace?.role === "AREA_MANAGER") return true;
   if (workspace?.role === "OUTLET") return true;
 
   if (item.requiredPermissions.length === 0) return true;

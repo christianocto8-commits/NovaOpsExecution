@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { emptyTaskExecutionForm, emptyTaskForm, mockTasks } from "@/features/tasks/data/mock-tasks";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { useConfirmation } from "@/shared/confirmation";
+import { useToast } from "@/shared/toast";
 import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/features/tasks/types";
 import { createMockEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
@@ -250,6 +251,7 @@ export function useTaskWorkspace() {
   const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
   const approvalRequired = settings?.approval_required ?? true;
   const confirm = useConfirmation();
+  const toast = useToast();
   const queryClient = useQueryClient();
 
   const backendTasksQuery = useQuery({
@@ -278,7 +280,8 @@ export function useTaskWorkspace() {
   });
 
   const deleteTaskMutation = useMutation({
-    mutationFn: taskService.remove,
+    mutationFn: ({ taskId, outletId }: { taskId: string; outletId?: string }) =>
+      taskService.remove(taskId, outletId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
   });
 
@@ -591,12 +594,19 @@ export function useTaskWorkspace() {
 
     if (backendConnected && isBackendTaskId(id)) {
       try {
-        await deleteTaskMutation.mutateAsync(id);
-      } catch {
+        await deleteTaskMutation.mutateAsync({
+          taskId: id,
+          outletId: task?.outletId,
+        });
+        toast.success("Task berhasil dihapus.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Gagal menghapus task.";
+        toast.error(message);
         return;
       }
     } else {
       setLocalTasks((currentTasks) => currentTasks.filter((task: Task) => task.id !== id));
+      toast.success("Task berhasil dihapus.");
     }
 
     if (selectedTask?.id === id) {
