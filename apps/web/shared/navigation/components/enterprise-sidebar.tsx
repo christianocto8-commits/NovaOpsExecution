@@ -111,6 +111,35 @@ function SidebarNavigation({
   );
 }
 
+function MobileSidebarHeader({ onCloseMobile }: { onCloseMobile: () => void }) {
+  return (
+    <div className="border-b border-[#DDE8E1] px-4 py-5">
+      <div className="rounded-3xl bg-[#274733] p-5 text-white shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#EAF1EC]">
+              NovaOps
+            </p>
+            <h1 className="mt-2 text-xl font-bold">Enterprise</h1>
+            <p className="mt-2 text-xs leading-5 text-[#DDE8E1]">
+              Multi-outlet operations command center.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white transition hover:bg-white/20"
+            aria-label="Close navigation"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EnterpriseSidebar({
   collapsed,
   workspace,
@@ -132,9 +161,10 @@ export function EnterpriseSidebar({
 
       <div
         className={[
-          "fixed inset-0 z-50 bg-slate-950/40 transition lg:hidden",
+          "fixed inset-0 z-[70] bg-slate-950/40 transition lg:hidden",
           mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
         ].join(" ")}
+        aria-hidden={!mobileOpen}
       >
         <button
           type="button"
@@ -149,22 +179,10 @@ export function EnterpriseSidebar({
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between border-b border-[#DDE8E1] px-4 py-4">
-            <SidebarBrand collapsed={false} onToggle={onToggle} />
-            <button
-              type="button"
-              onClick={onCloseMobile}
-              className="flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
-            >
-              <X className="size-4" />
-              <span className="sr-only">Close menu</span>
-            </button>
-          </div>
-
+          <MobileSidebarHeader onCloseMobile={onCloseMobile} />
           <SidebarNavigation collapsed={false} workspace={workspace} onItemClick={onCloseMobile} />
         </aside>
       </div>
     </>
   );
 }
-

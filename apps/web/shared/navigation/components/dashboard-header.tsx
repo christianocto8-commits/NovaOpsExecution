@@ -38,15 +38,15 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
   const showBackButton = pathname !== "/dashboard";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/85 px-4 py-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/90 px-4 py-4 backdrop-blur-xl sm:px-6">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenMobileMenu}
-            className="flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden"
           >
-            <Menu className="size-4" />
+            <Menu className="size-5" />
             <span className="sr-only">Open menu</span>
           </button>
 
@@ -54,15 +54,15 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
             <button
               type="button"
               onClick={() => router.push(parentRoute)}
-              className="flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-5" />
               <span className="sr-only">Back</span>
             </button>
           ) : null}
 
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-[#3D6B49]">
+            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.2em] text-[#3D6B49] sm:text-xs">
               {workspace.mode === "outlet"
                 ? t("header.outletOperations")
                 : t("header.operationsCommandCenter")}

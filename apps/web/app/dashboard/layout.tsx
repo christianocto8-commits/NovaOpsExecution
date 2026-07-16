@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowLeft, Menu } from "lucide-react";
 import { useSyncExternalStore, type ReactNode } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +36,20 @@ function getServerSidebarSnapshot() {
   return false;
 }
 
+function getParentRoute(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.length <= 1) {
+    return "/dashboard";
+  }
+
+  if (segments.length === 2) {
+    return "/dashboard";
+  }
+
+  return `/${segments.slice(0, -1).join("/")}`;
+}
+
 function AccessDenied() {
   return (
     <main className="p-6">
@@ -48,6 +63,42 @@ function AccessDenied() {
         </p>
       </div>
     </main>
+  );
+}
+
+function MobileQuickActions({
+  pathname,
+  onOpenMenu,
+}: {
+  pathname: string;
+  onOpenMenu: () => void;
+}) {
+  const router = useRouter();
+  const showBackButton = pathname !== "/dashboard";
+  const parentRoute = getParentRoute(pathname);
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-[65] flex items-center justify-between gap-3 lg:hidden">
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        className="flex h-12 min-w-[112px] items-center justify-center gap-2 rounded-full bg-[#274733] px-4 text-sm font-semibold text-white shadow-lg"
+      >
+        <Menu className="size-4" />
+        Menu
+      </button>
+
+      {showBackButton ? (
+        <button
+          type="button"
+          onClick={() => router.push(parentRoute)}
+          className="flex h-12 min-w-[112px] items-center justify-center gap-2 rounded-full border border-[#DDE8E1] bg-white px-4 text-sm font-semibold text-[#274733] shadow-lg"
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </button>
+      ) : <div className="h-12 min-w-[112px]" />}
+    </div>
   );
 }
 
@@ -80,7 +131,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7FAF8]">
+    <div className="min-h-screen bg-[#F7FAF8] pb-20 lg:pb-0">
       <EnterpriseSidebar
         collapsed={collapsed}
         workspace={workspace}
@@ -102,6 +153,11 @@ function DashboardShell({ children }: { children: ReactNode }) {
 
         {canAccess ? children : <AccessDenied />}
       </div>
+
+      <MobileQuickActions
+        pathname={pathname}
+        onOpenMenu={() => setMobileSidebarOpen(true)}
+      />
     </div>
   );
 }
