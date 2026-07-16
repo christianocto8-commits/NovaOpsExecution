@@ -1,4 +1,5 @@
-﻿from datetime import UTC, datetime
+from __future__ import annotations
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -229,3 +230,4 @@ class OutletOperatorRepository:
         self.db.flush()
         self.db.refresh(operator)
         return operator
+
