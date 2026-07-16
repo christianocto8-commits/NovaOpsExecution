@@ -64,10 +64,15 @@ function mergeTasks(primaryTasks: Task[], fallbackTasks: Task[]) {
   return Array.from(taskMap.values());
 }
 
+function taskMatchesOutletName(taskOutlet: string | undefined, outletName?: string) {
+  if (!outletName) return false;
+  return taskOutlet === outletName;
+}
+
 function taskMatchesOutlet(task: Task, outletName?: string) {
   if (!outletName) return false;
 
-  return task.outlet === outletName || Boolean(task.targetOutlets?.includes(outletName));
+  return taskMatchesOutletName(task.outlet, outletName) || Boolean(task.targetOutlets?.includes(outletName));
 }
 
 function formatDate(value: string) {
@@ -132,7 +137,9 @@ export default function HistoryPage() {
   const tasks = useMemo(() => {
     const backendTasks = taskQuery.data ?? [];
 
-    if (workspace.mode !== "outlet") return mergeTasks(backendTasks, localTasks);
+    if (workspace.mode !== "outlet") {
+      return backendTasks;
+    }
 
     const localOutletTasks = localTasks.filter((task) =>
       taskMatchesOutlet(task, workspace.outletName)
@@ -145,9 +152,19 @@ export default function HistoryPage() {
     return localOutletTasks;
   }, [localTasks, taskQuery.data, taskQuery.isSuccess, workspace.mode, workspace.outletName]);
 
+  const visibleManualSubmissions = useMemo(() => {
+    if (workspace.mode !== "outlet") {
+      return [];
+    }
+
+    return manualSubmissions.filter((submission) =>
+      taskMatchesOutletName(submission.outlet, workspace.outletName)
+    );
+  }, [manualSubmissions, workspace.mode, workspace.outletName]);
+
   const historyItems = useMemo(
-    () => toHistoryItems(tasks, manualSubmissions),
-    [manualSubmissions, tasks]
+    () => toHistoryItems(tasks, visibleManualSubmissions),
+    [tasks, visibleManualSubmissions]
   );
 
   const completedTasks = tasks.filter((task) => task.status === "Completed").length;
@@ -161,7 +178,7 @@ export default function HistoryPage() {
             Task History
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Completed task and manual form history from the active account data.
+            Completed task history follows backend access rules. Manual form history stays limited to the active outlet account.
           </p>
         </div>
 
@@ -190,7 +207,7 @@ export default function HistoryPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Manual Forms
           </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">{manualSubmissions.length}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">{visibleManualSubmissions.length}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -202,8 +219,8 @@ export default function HistoryPage() {
 
       {taskQuery.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Server history sync is unavailable for this account. Showing local history that matches
-          the active outlet only.
+          Server history sync is unavailable for this account. Showing local outlet history only for
+          the active outlet account.
         </div>
       ) : null}
 
