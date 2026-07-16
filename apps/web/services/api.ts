@@ -3,7 +3,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:8000";
 
-const DEFAULT_TIMEOUT_MS = 12000;
+const DEFAULT_TIMEOUT_MS = 70000;
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -97,7 +97,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     return response.json() as Promise<T>;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(`API tidak merespons. Pastikan layanan NovaOps API aktif di ${API_URL}.`);
+      throw new Error(`API tidak merespons dalam 70 detik. Jika backend Render baru bangun dari sleep, coba tunggu sebentar lalu ulangi.`);
     }
 
     throw error;
@@ -105,3 +105,4 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     window.clearTimeout(timeout);
   }
 }
+
