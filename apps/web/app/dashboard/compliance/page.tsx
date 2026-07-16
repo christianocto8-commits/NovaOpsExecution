@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { BarChartCard, DonutChartCard, LineChartCard } from "@/shared/analytics/charts";
@@ -10,6 +10,11 @@ import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 
 type ComplianceRow = {
   id: string;
@@ -146,6 +151,13 @@ function getSopHealthClass(rate: number) {
 }
 
 export default function ComplianceCenterPage() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const isAreaWorkspace = workspace.mode === "area";
+
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.list,
@@ -167,7 +179,9 @@ export default function ComplianceCenterPage() {
           <p className="text-sm font-medium text-emerald-700">Compliance Center</p>
           <h1 className="text-2xl font-semibold text-slate-950">Task Compliance Workspace</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Compliance is calculated from real tasks loaded from the backend.
+            {isAreaWorkspace
+              ? "Area manager dapat memantau compliance task outlet dari data backend secara read-only."
+              : "Compliance is calculated from real tasks loaded from the backend."}
           </p>
         </div>
 
@@ -243,8 +257,8 @@ export default function ComplianceCenterPage() {
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-950">Owner Action Queue</p>
-              <p className="mt-1 text-xs text-slate-500">Real tasks that are overdue or incomplete.</p>
+              <p className="text-sm font-semibold text-slate-950">{isAreaWorkspace ? "Area Action Queue" : "Owner Action Queue"}</p>
+              <p className="mt-1 text-xs text-slate-500">{isAreaWorkspace ? "Real tasks in your area that need follow-up." : "Real tasks that are overdue or incomplete."}</p>
             </div>
             <Link href="/dashboard/corrective-actions" className="text-sm font-bold text-emerald-700">
               Review all

@@ -1,4 +1,4 @@
-﻿import { Plus, Trash2, Edit3 } from "lucide-react";
+import { Edit3, Plus, Trash2 } from "lucide-react";
 
 import { Outlet, OutletOperator } from "../types";
 import { getOutletStatusClass, getOutletTierClass } from "../utils";
@@ -10,6 +10,7 @@ type OutletDetailDrawerProps = {
   onAddOperator: (outletId: string) => void;
   onEditOperator: (operator: OutletOperator) => void;
   onDeleteOperator: (id: string) => void;
+  canManage: boolean;
 };
 
 export function OutletDetailDrawer({
@@ -19,6 +20,7 @@ export function OutletDetailDrawer({
   onAddOperator,
   onEditOperator,
   onDeleteOperator,
+  canManage,
 }: OutletDetailDrawerProps) {
   if (!outlet) return null;
 
@@ -109,14 +111,20 @@ export function OutletDetailDrawer({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => onAddOperator(outlet.id)}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
-              >
-                <Plus className="h-4 w-4" />
-                Add
-              </button>
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={() => onAddOperator(outlet.id)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </button>
+              ) : (
+                <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                  View only
+                </span>
+              )}
             </div>
 
             <div className="divide-y divide-slate-100">
@@ -142,23 +150,27 @@ export function OutletDetailDrawer({
                         {operator.active ? "Active" : "Inactive"}
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => onEditOperator(operator)}
-                        className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-                        title="Edit operator"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </button>
+                      {canManage ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onEditOperator(operator)}
+                            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+                            title="Edit operator"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => onDeleteOperator(operator.id)}
-                        className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
-                        title="Delete operator"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteOperator(operator.id)}
+                            className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
+                            title="Delete operator"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 ))

@@ -1,7 +1,13 @@
-﻿"use client";
+"use client";
 
 import { Plus } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { Button, PageHeader } from "@/shared/ui";
 
 import { useUsersWorkspace } from "../hooks";
@@ -12,6 +18,13 @@ import { UserTable } from "./user-table";
 
 export function UsersWorkspace() {
   const usersWorkspace = useUsersWorkspace();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const isOwnerAdminWorkspace = workspace.mode === "enterprise";
+  const isAreaWorkspace = workspace.mode === "area";
 
   function handleCloseForm() {
     usersWorkspace.setModalOpen(false);
@@ -22,15 +35,25 @@ export function UsersWorkspace() {
       <PageHeader
         eyebrow="Account Management"
         title="Enterprise Accounts"
-        description="Manage Owner/Admin, Area Manager, and Outlet accounts with locked outlet-based RBAC."
+        description={
+          isAreaWorkspace
+            ? "Area manager dapat melihat struktur akun operasional untuk koordinasi lapangan, tanpa mengubah akun organisasi."
+            : "Manage Owner/Admin, Area Manager, and Outlet accounts with locked outlet-based RBAC."
+        }
         actions={
-          <Button
-            variant="primary"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={usersWorkspace.openCreateDialog}
-          >
-            Create Account
-          </Button>
+          isOwnerAdminWorkspace ? (
+            <Button
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={usersWorkspace.openCreateDialog}
+            >
+              Create Account
+            </Button>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Read only for Area Manager
+            </div>
+          )
         }
       />
 
@@ -53,17 +76,20 @@ export function UsersWorkspace() {
         onEditUser={usersWorkspace.openEditDialog}
         onDeleteUser={usersWorkspace.deleteUser}
         onStatusChange={usersWorkspace.updateStatus}
+        canManage={isOwnerAdminWorkspace}
       />
 
-      <UserFormDialog
-        open={usersWorkspace.modalOpen}
-        editingUserId={usersWorkspace.editingUserId}
-        form={usersWorkspace.form}
-        onClose={handleCloseForm}
-        onFormChange={usersWorkspace.setForm}
-        outletOptions={usersWorkspace.outlets.map((outlet) => ({ id: outlet.id, name: outlet.name }))}
-        onSave={usersWorkspace.saveUser}
-      />
+      {isOwnerAdminWorkspace ? (
+        <UserFormDialog
+          open={usersWorkspace.modalOpen}
+          editingUserId={usersWorkspace.editingUserId}
+          form={usersWorkspace.form}
+          onClose={handleCloseForm}
+          onFormChange={usersWorkspace.setForm}
+          outletOptions={usersWorkspace.outlets.map((outlet) => ({ id: outlet.id, name: outlet.name }))}
+          onSave={usersWorkspace.saveUser}
+        />
+      ) : null}
 
       <UserDetailDrawer
         user={usersWorkspace.selectedUser}

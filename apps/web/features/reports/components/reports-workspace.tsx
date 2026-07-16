@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -19,6 +19,11 @@ import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 import { RealtimeClock } from "@/shared/realtime";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { EnterpriseToolbar } from "@/shared/toolbar";
 
 type ReportStatus = "completed" | "in_progress" | "pending" | "overdue";
@@ -209,6 +214,13 @@ const reportColumns: EnterpriseColumn<ReportRow>[] = [
 ];
 
 export function ReportsWorkspace() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const isAreaWorkspace = workspace.mode === "area";
+
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.list,
@@ -284,7 +296,9 @@ export function ReportsWorkspace() {
           <p className="text-sm font-medium text-emerald-700">Reports</p>
           <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Reports</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Live reporting from backend tasks synced across owner, area manager, and outlet accounts.
+            {isAreaWorkspace
+              ? "Area manager dapat memantau performa task outlet dari laporan backend tanpa mengubah data sumber."
+              : "Live reporting from backend tasks synced across owner, area manager, and outlet accounts."}
           </p>
         </div>
 
@@ -384,7 +398,7 @@ export function ReportsWorkspace() {
 
       <EnterpriseToolbar
         title="Report Actions"
-        description="Search, refresh, print, and inspect backend task reports."
+        description={isAreaWorkspace ? "Search, refresh, print, and inspect backend task reports in read-only mode." : "Search, refresh, print, and inspect backend task reports."}
         searchValue={toolbarSearch}
         searchPlaceholder="Search task reports..."
         onSearchChange={setToolbarSearch}

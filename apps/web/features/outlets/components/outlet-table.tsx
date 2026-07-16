@@ -1,4 +1,4 @@
-﻿import { Edit3, Eye, Trash2 } from "lucide-react";
+import { Edit3, Eye, Trash2 } from "lucide-react";
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
@@ -13,6 +13,7 @@ type OutletTableProps = {
   onEditOutlet: (outlet: Outlet) => void;
   onDeleteOutlet: (id: string) => void;
   onStatusChange: (id: string, status: OutletStatus) => void;
+  canManage: boolean;
 };
 
 const outletFilterDefinitions = [
@@ -69,6 +70,7 @@ export function OutletTable({
   onEditOutlet,
   onDeleteOutlet,
   onStatusChange,
+  canManage,
 }: OutletTableProps) {
   const columns: EnterpriseColumn<Outlet>[] = [
     {
@@ -127,19 +129,28 @@ export function OutletTable({
       key: "status",
       header: "Status",
       sortable: true,
-      render: (outlet) => (
-        <select
-          value={outlet.status}
-          onChange={(event) => onStatusChange(outlet.id, event.target.value as OutletStatus)}
-          className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getOutletStatusClass(
-            outlet.status
-          )}`}
-        >
-          <option>Online</option>
-          <option>Review</option>
-          <option>Offline</option>
-        </select>
-      ),
+      render: (outlet) =>
+        canManage ? (
+          <select
+            value={outlet.status}
+            onChange={(event) => onStatusChange(outlet.id, event.target.value as OutletStatus)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getOutletStatusClass(
+              outlet.status
+            )}`}
+          >
+            <option>Online</option>
+            <option>Review</option>
+            <option>Offline</option>
+          </select>
+        ) : (
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getOutletStatusClass(
+              outlet.status
+            )}`}
+          >
+            {outlet.status}
+          </span>
+        ),
     },
     {
       key: "lastAudit",
@@ -153,7 +164,11 @@ export function OutletTable({
   return (
     <EnterpriseDataTable
       title="Outlet Network"
-      description="Manage real outlet identity, operational status, and compliance visibility."
+      description={
+        canManage
+          ? "Manage real outlet identity, operational status, and compliance visibility."
+          : "Area manager dapat melihat outlet, compliance, dan status operasional tanpa mengubah struktur outlet."
+      }
       columns={columns}
       data={outlets}
       getRowId={(outlet) => outlet.id}
@@ -183,8 +198,34 @@ export function OutletTable({
           }
         />
       }
-      rowActions={(outlet) => (
-        <>
+      rowActions={(outlet) =>
+        canManage ? (
+          <>
+            <button
+              onClick={() => onSelectOutlet(outlet)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+              title="View"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => onEditOutlet(outlet)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+              title="Edit"
+            >
+              <Edit3 className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => onDeleteOutlet(outlet.id)}
+              className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
           <button
             onClick={() => onSelectOutlet(outlet)}
             className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
@@ -192,24 +233,8 @@ export function OutletTable({
           >
             <Eye className="h-4 w-4" />
           </button>
-
-          <button
-            onClick={() => onEditOutlet(outlet)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-            title="Edit"
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={() => onDeleteOutlet(outlet.id)}
-            className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </>
-      )}
+        )
+      }
     />
   );
 }

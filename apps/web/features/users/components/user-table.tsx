@@ -1,4 +1,4 @@
-﻿import { Edit3, Eye, Trash2 } from "lucide-react";
+import { Edit3, Eye, Trash2 } from "lucide-react";
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
@@ -13,6 +13,7 @@ type UserTableProps = {
   onEditUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
   onStatusChange: (id: string, status: UserStatus) => void;
+  canManage: boolean;
 };
 
 const userFilterDefinitions = [
@@ -81,6 +82,7 @@ export function UserTable({
   onEditUser,
   onDeleteUser,
   onStatusChange,
+  canManage,
 }: UserTableProps) {
   const columns: EnterpriseColumn<User>[] = [
     {
@@ -134,19 +136,28 @@ export function UserTable({
       key: "status",
       header: "Status",
       sortable: true,
-      render: (user) => (
-        <select
-          value={user.status}
-          onChange={(event) => onStatusChange(user.id, event.target.value as UserStatus)}
-          className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getUserStatusClass(
-            user.status
-          )}`}
-        >
-          <option>Active</option>
-          <option>Pending</option>
-          <option>Suspended</option>
-        </select>
-      ),
+      render: (user) =>
+        canManage ? (
+          <select
+            value={user.status}
+            onChange={(event) => onStatusChange(user.id, event.target.value as UserStatus)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold outline-none ${getUserStatusClass(
+              user.status
+            )}`}
+          >
+            <option>Active</option>
+            <option>Pending</option>
+            <option>Suspended</option>
+          </select>
+        ) : (
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getUserStatusClass(
+              user.status
+            )}`}
+          >
+            {user.status}
+          </span>
+        ),
     },
     {
       key: "lastActive",
@@ -160,7 +171,11 @@ export function UserTable({
   return (
     <EnterpriseDataTable
       title="Enterprise Account Directory"
-      description="Manage Owner/Admin, Area Manager, and Outlet operational accounts."
+      description={
+        canManage
+          ? "Manage Owner/Admin, Area Manager, and Outlet operational accounts."
+          : "Area manager dapat melihat direktori akun untuk koordinasi, tanpa mengubah status atau akses akun."
+      }
       columns={columns}
       data={users}
       getRowId={(user) => user.id}
@@ -190,8 +205,34 @@ export function UserTable({
           }
         />
       }
-      rowActions={(user) => (
-        <>
+      rowActions={(user) =>
+        canManage ? (
+          <>
+            <button
+              onClick={() => onSelectUser(user)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+              title="View"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => onEditUser(user)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+              title="Edit"
+            >
+              <Edit3 className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => onDeleteUser(user.id)}
+              className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
           <button
             onClick={() => onSelectUser(user)}
             className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
@@ -199,24 +240,8 @@ export function UserTable({
           >
             <Eye className="h-4 w-4" />
           </button>
-
-          <button
-            onClick={() => onEditUser(user)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-            title="Edit"
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={() => onDeleteUser(user.id)}
-            className="rounded-lg border border-red-200 p-2 text-red-500 transition hover:bg-red-50"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </>
-      )}
+        )
+      }
     />
   );
 }
