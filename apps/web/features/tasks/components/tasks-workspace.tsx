@@ -119,6 +119,67 @@ function syncTaskToOutletTaskStore(task: Task) {
   });
 }
 
+function OutletTaskCard({
+  task,
+  highlighted,
+  onOpen,
+}: {
+  task: Task;
+  highlighted: boolean;
+  onOpen: () => void;
+}) {
+  const progress = getTaskExecutionProgressPercentage(task);
+  const draftProgress = getTaskDraftProgress(task);
+
+  return (
+    <button
+      type="button"
+      data-task-row-id={task.id}
+      onClick={onOpen}
+      className={[
+        "w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition",
+        highlighted ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200",
+      ].join(" ")}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-slate-950">{task.title}</p>
+          <p className="mt-1 text-sm text-slate-500">{task.outlet}</p>
+        </div>
+
+        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+          {task.priority}
+        </span>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
+          <p className="mt-1 text-sm font-medium text-slate-700">{formatTaskSchedule(task)}</p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Progress</p>
+          <p className="mt-1 text-sm font-bold text-emerald-700">{progress}%</p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            {task.status}
+          </span>
+          {draftProgress ? <ProgressChip percentage={draftProgress.percentage} /> : null}
+        </div>
+
+        <span className="rounded-2xl bg-[#274733] px-4 py-2 text-sm font-semibold text-white">
+          {task.executionDraft ? "Continue" : "Open"}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export function TasksWorkspace() {
   const searchParams = useSearchParams();
   const continuedDraftRef = useRef<string | null>(null);
@@ -352,7 +413,7 @@ export function TasksWorkspace() {
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className="space-y-5 px-4 py-4 sm:space-y-6 sm:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Task Execution</p>
@@ -361,22 +422,24 @@ export function TasksWorkspace() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             {isOutletWorkspace
-              ? "Complete assigned outlet tasks or continue saved drafts."
+              ? "Kerjakan checklist outlet, simpan draft bila perlu, lalu submit bukti saat selesai."
               : "Assign, execute, and verify outlet work, evidence, and corrective actions."}
           </p>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Realtime
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Realtime
+              </span>
+              <RealtimeClock />
+            </div>
+            <span
+              className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
+                isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              {isBackendConnected ? "Backend synced" : "Demo fallback"}
             </span>
-            <RealtimeClock />
           </div>
-          <span
-            className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
-              isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-            }`}
-          >
-            {isBackendConnected ? "Backend synced" : "Demo fallback"}
-          </span>
         </div>
 
         {!isOutletWorkspace ? (
@@ -394,30 +457,30 @@ export function TasksWorkspace() {
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Total Tasks</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">{outletTaskMetrics.total}</p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+          <p className="text-xs text-slate-500 md:text-sm">Total Tasks</p>
+          <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">{outletTaskMetrics.total}</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Pending</p>
-          <p className="mt-2 text-2xl font-bold text-amber-700">{outletTaskMetrics.pending}</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+          <p className="text-xs text-slate-500 md:text-sm">Pending</p>
+          <p className="mt-2 text-xl font-bold text-amber-700 md:text-2xl">{outletTaskMetrics.pending}</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Draft / In Progress</p>
-          <p className="mt-2 text-2xl font-bold text-blue-700">{outletTaskMetrics.draft}</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+          <p className="text-xs text-slate-500 md:text-sm">Draft</p>
+          <p className="mt-2 text-xl font-bold text-blue-700 md:text-2xl">{outletTaskMetrics.draft}</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Completed / Submitted</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">{outletTaskMetrics.completed}</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+          <p className="text-xs text-slate-500 md:text-sm">Submitted</p>
+          <p className="mt-2 text-xl font-bold text-emerald-700 md:text-2xl">{outletTaskMetrics.completed}</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Compliance Completion</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
+        <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 md:col-span-1 md:rounded-3xl md:p-5">
+          <p className="text-xs text-slate-500 md:text-sm">Completion</p>
+          <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">
             {outletTaskMetrics.averageProgress}%
           </p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -429,18 +492,40 @@ export function TasksWorkspace() {
         </div>
       </div>
 
-      <EnterpriseDataTable
-        title="Outlet Task Queue"
-        description={
-          isOutletRole
-            ? "Complete required task evidence or continue saved drafts."
-            : "Assign tasks, review evidence, and monitor compliance."
-        }
-        columns={columns}
-        data={visibleTasks}
-        getRowId={(task) => task.id}
-        onRowClick={handleOpenTask}
-      />
+      {isOutletRole ? (
+        <section className="space-y-3 md:hidden">
+          <div>
+            <h2 className="text-base font-bold text-slate-950">My Tasks</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Buka task untuk mengerjakan checklist dan upload evidence.
+            </p>
+          </div>
+
+          {visibleTasks.map((task) => (
+            <OutletTaskCard
+              key={task.id}
+              task={task}
+              highlighted={highlightedTaskId === task.id}
+              onOpen={() => handleOpenTask(task)}
+            />
+          ))}
+        </section>
+      ) : null}
+
+      <div className={isOutletRole ? "hidden md:block" : "block"}>
+        <EnterpriseDataTable
+          title="Outlet Task Queue"
+          description={
+            isOutletRole
+              ? "Complete required task evidence or continue saved drafts."
+              : "Assign tasks, review evidence, and monitor compliance."
+          }
+          columns={columns}
+          data={visibleTasks}
+          getRowId={(task) => task.id}
+          onRowClick={handleOpenTask}
+        />
+      </div>
 
       {canCreateTask ? (
         <TaskFormDrawer

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -85,24 +85,23 @@ function SectionCard({
 
   return (
     <section
-      className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-300 ${
+      className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300 sm:rounded-3xl ${
         sectionHasHighlight ? "border-red-200 ring-2 ring-red-100" : "border-slate-200"
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50"
+        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-slate-50 sm:px-5"
       >
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-bold text-slate-950">{section.title}</p>
           <p className="mt-1 text-xs text-slate-500">
-            {section.fields.length} fields · {progress.completed} of {progress.total} required
-            completed
+            {section.fields.length} fields � {progress.completed}/{progress.total} required complete
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ProgressChip percentage={progress.percentage} />
           <ChevronDown
             className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${
@@ -118,7 +117,7 @@ function SectionCard({
         }`}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-slate-100 p-4">
+          <div className="border-t border-slate-100 p-3 sm:p-4">
             <DynamicFormRenderer
               fields={section.fields}
               responses={responses}
@@ -154,7 +153,7 @@ export function SectionedFormRenderer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {sections.map((section) => (
         <SectionCard
           key={section.id}
