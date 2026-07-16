@@ -205,7 +205,7 @@ export function OutletTaskExecutionDrawer({
               </h2>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                 {template
-                  ? `${template.name} • ${progress.completed}/${progress.total} required`
+                  ? `${template.name} - ${progress.completed}/${progress.total} required`
                   : "No form template assigned"}
               </p>
             </div>

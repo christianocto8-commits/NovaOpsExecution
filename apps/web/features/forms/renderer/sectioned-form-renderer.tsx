@@ -97,7 +97,7 @@ function SectionCard({
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-950">{section.title}</p>
           <p className="mt-1 text-xs text-slate-500">
-            {section.fields.length} fields · {progress.completed}/{progress.total} required complete
+            {section.fields.length} fields - {progress.completed}/{progress.total} required complete
           </p>
         </div>
 
