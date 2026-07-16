@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function ExecutionPage() {
-  redirect("/dashboard/operator");
+  redirect("/dashboard/tasks");
 }

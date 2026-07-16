@@ -42,16 +42,7 @@ export const commandItems: CommandItem[] = [
     type: "navigation",
     icon: ClipboardCheck,
   },
-  {
-    id: "go-operator",
-    title: "Go to Operator View",
-    description: "Open mobile task execution queue",
-    href: "/dashboard/operator",
-    group: "Navigation",
-    type: "navigation",
-    icon: Smartphone,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
-  },
+
   {
     id: "go-forms",
     title: "Go to My Form",
@@ -131,3 +122,4 @@ export const commandItems: CommandItem[] = [
     allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
 ];
+

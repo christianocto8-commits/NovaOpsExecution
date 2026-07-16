@@ -1,5 +1,5 @@
-import { OperatorWorkspace } from "@/features/tasks/components";
+import { redirect } from "next/navigation";
 
 export default function OperatorPage() {
-  return <OperatorWorkspace />;
+  redirect("/dashboard/tasks");
 }

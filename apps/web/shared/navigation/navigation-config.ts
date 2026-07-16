@@ -48,14 +48,7 @@ export const navigationItems: NavigationItem[] = [
     requiredPermissions: ["task.read"],
     section: "sop",
   },
-  {
-    id: "operator",
-    label: "Operator View",
-    href: "/dashboard/operator",
-    icon: Smartphone,
-    requiredPermissions: ["task.execute"],
-    section: "sop",
-  },
+
   {
     id: "forms",
     label: "My Form",
@@ -147,3 +140,4 @@ export const navigationSectionLabels: Record<NavigationItem["section"], string> 
   administration: "Administration",
   configuration: "Configuration",
 };
+
