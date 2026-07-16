@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     cors_origins_raw: str = "http://localhost:3000,http://127.0.0.1:3000"
+    bootstrap_admin_enabled: bool = False
+    bootstrap_admin_email: str | None = None
+    bootstrap_admin_username: str | None = None
+    bootstrap_admin_password: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -63,6 +67,14 @@ def get_settings() -> Settings:
             "CORS_ORIGINS",
             "http://localhost:3000,http://127.0.0.1:3000",
         ),
+        bootstrap_admin_enabled=os.environ.get(
+            "BOOTSTRAP_ADMIN_ENABLED",
+            "false",
+        ).lower()
+        in {"1", "true", "yes", "on"},
+        bootstrap_admin_email=os.environ.get("BOOTSTRAP_ADMIN_EMAIL"),
+        bootstrap_admin_username=os.environ.get("BOOTSTRAP_ADMIN_USERNAME"),
+        bootstrap_admin_password=os.environ.get("BOOTSTRAP_ADMIN_PASSWORD"),
     )
 
 
