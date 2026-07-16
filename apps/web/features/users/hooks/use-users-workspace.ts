@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,6 +46,7 @@ function mapIdentityUser(user: IdentityUser): User {
     id: user.id,
     name: user.full_name,
     email: user.email,
+    username: user.username,
     role,
     outlet:
       role === "Owner/Admin"
@@ -67,15 +68,6 @@ function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
     role === "Owner/Admin" ? "owner" : role === "Area Manager" ? "area_manager" : "outlet";
 
   return roles.find((item) => item.slug === slug)?.id ?? "";
-}
-
-function makeUsername(email: string) {
-  return (
-    `u_${email}`
-      ?.trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]/g, "") || "user"
-  );
 }
 
 export function useUsersWorkspace() {
@@ -166,6 +158,7 @@ export function useUsersWorkspace() {
     setForm({
       ...emptyUserForm,
       outlet: outlets[0]?.id ?? "",
+      status: "Active",
     });
     setError("");
     setModalOpen(true);
@@ -176,6 +169,7 @@ export function useUsersWorkspace() {
     setForm({
       name: user.name,
       email: user.email,
+      username: user.username,
       password: "",
       role: user.role,
       outlet:
@@ -224,9 +218,18 @@ export function useUsersWorkspace() {
   }
 
   async function saveUser() {
-    if (!form.name.trim() || !form.email.trim()) return;
+    if (!form.name.trim() || !form.email.trim() || !form.username.trim()) {
+      setError("Name, email, and username are required");
+      return;
+    }
+
     if (!editingUserId && form.password.trim().length < 8) {
       setError("Initial password must be at least 8 characters");
+      return;
+    }
+
+    if (editingUserId && form.password.trim().length > 0 && form.password.trim().length < 8) {
+      setError("Reset password must be at least 8 characters");
       return;
     }
 
@@ -238,6 +241,9 @@ export function useUsersWorkspace() {
 
     const normalizedForm: UserFormState = {
       ...form,
+      email: form.email.trim().toLowerCase(),
+      username: form.username.trim().toLowerCase(),
+      password: form.password.trim(),
       outletScope: getScopeByRole(form.role),
     };
 
@@ -251,7 +257,9 @@ export function useUsersWorkspace() {
           userId: editingUserId,
           payload: {
             email: normalizedForm.email,
+            username: normalizedForm.username,
             full_name: normalizedForm.name,
+            ...(normalizedForm.password ? { password: normalizedForm.password } : {}),
             role_id: roleId,
             ...accessPayload,
             is_active: normalizedForm.status === "Active",
@@ -260,9 +268,9 @@ export function useUsersWorkspace() {
       } else {
         await createMutation.mutateAsync({
           email: normalizedForm.email,
-          username: makeUsername(normalizedForm.email),
+          username: normalizedForm.username,
           full_name: normalizedForm.name,
-          password: normalizedForm.password.trim(),
+          password: normalizedForm.password,
           role_id: roleId,
           ...accessPayload,
           is_active: normalizedForm.status === "Active",

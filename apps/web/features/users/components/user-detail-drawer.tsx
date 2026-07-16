@@ -1,4 +1,4 @@
-﻿import { User } from "../types";
+import { User } from "../types";
 import { getUserRoleClass, getUserStatusClass } from "../utils";
 
 type UserDetailDrawerProps = {
@@ -59,6 +59,11 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
           </div>
 
           <div className="grid gap-4">
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Username</p>
+              <p className="mt-2 text-sm font-medium text-slate-800">{user.username}</p>
+            </div>
+
             <div className="rounded-2xl border border-slate-200 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
               <span

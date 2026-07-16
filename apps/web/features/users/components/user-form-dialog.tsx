@@ -1,4 +1,4 @@
-﻿import { UserFormState, UserRole, UserStatus } from "../types";
+import { UserFormState, UserRole, UserStatus } from "../types";
 
 type OutletOption = {
   id: string;
@@ -89,26 +89,35 @@ export function UserFormDialog({
             />
           </Field>
 
-          <Field label="Email">
-            <input
-              value={form.email}
-              onChange={(event) => onFormChange({ ...form, email: event.target.value })}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              placeholder="heritage@kov.co.id"
-            />
-          </Field>
-
-          {!editingUserId ? (
-            <Field label="Initial Password">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Email">
               <input
-                type="text"
-                value={form.password}
-                onChange={(event) => onFormChange({ ...form, password: event.target.value })}
+                value={form.email}
+                onChange={(event) => onFormChange({ ...form, email: event.target.value })}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Minimum 8 characters"
+                placeholder="heritage@kov.co.id"
               />
             </Field>
-          ) : null}
+
+            <Field label="Username">
+              <input
+                value={form.username}
+                onChange={(event) => onFormChange({ ...form, username: event.target.value })}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                placeholder="heritage01"
+              />
+            </Field>
+          </div>
+
+          <Field label={editingUserId ? "Reset Password" : "Initial Password"}>
+            <input
+              type="text"
+              value={form.password}
+              onChange={(event) => onFormChange({ ...form, password: event.target.value })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder={editingUserId ? "Leave blank to keep current password" : "Minimum 8 characters"}
+            />
+          </Field>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Role">
