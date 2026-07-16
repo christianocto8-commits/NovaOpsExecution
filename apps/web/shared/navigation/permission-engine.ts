@@ -8,6 +8,7 @@ const outletNavigationItemIds = new Set([
   "tasks",
   "forms",
   "notifications",
+  "drafts",
   "history",
   "settings",
 ]);

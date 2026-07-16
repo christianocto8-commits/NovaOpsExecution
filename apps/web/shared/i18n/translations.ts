@@ -23,7 +23,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.operator": "Operator View",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
-    "navigation.drafts": "Draft Center",
+    "navigation.drafts": "Draft",
     "navigation.outlets": "Outlets",
     "navigation.outlet-profile": "Outlet Profile",
     "navigation.notifications": "Notifications",
@@ -113,7 +113,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.operator": "Tampilan Operator",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
-    "navigation.drafts": "Draft Center",
+    "navigation.drafts": "Draft",
     "navigation.outlets": "Outlet",
     "navigation.outlet-profile": "Profil Outlet",
     "navigation.notifications": "Notifikasi",
@@ -182,3 +182,4 @@ export const translations: Record<Language, Record<string, string>> = {
     "settings.passwordDescription": "Ubah kata sandi akun outlet.",
   },
 };
+

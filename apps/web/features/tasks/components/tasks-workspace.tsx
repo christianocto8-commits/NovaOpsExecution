@@ -493,7 +493,7 @@ export function TasksWorkspace() {
       </div>
 
       {isOutletRole ? (
-        <section className="space-y-3 md:hidden">
+        <section className="space-y-3 lg:hidden">
           <div>
             <h2 className="text-base font-bold text-slate-950">My Tasks</h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -512,7 +512,7 @@ export function TasksWorkspace() {
         </section>
       ) : null}
 
-      <div className={isOutletRole ? "hidden md:block" : "block"}>
+      <div className={isOutletRole ? "hidden lg:block" : "block"}>
         <EnterpriseDataTable
           title="Outlet Task Queue"
           description={
@@ -602,3 +602,4 @@ export function TasksWorkspace() {
     </main>
   );
 }
+
