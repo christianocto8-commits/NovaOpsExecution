@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
@@ -8,8 +9,8 @@ import {
   writeStoredFormTemplates,
 } from "@/features/forms/data/form-template-storage";
 import { FormTemplate } from "@/features/forms/types";
-import { useConfirmation } from "@/shared/confirmation";
 import { Task } from "@/features/tasks/types";
+import { useConfirmation } from "@/shared/confirmation";
 
 const TASK_STORAGE_KEY = "novaops_tasks_mock";
 
@@ -84,6 +85,107 @@ function loadContentDrafts(): ContentDraft[] {
     }));
 }
 
+function OperationalDraftCard({
+  draft,
+  onDelete,
+}: {
+  draft: OperationalDraft;
+  onDelete: (draftId: string) => void;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-slate-950">{draft.title}</p>
+          <p className="mt-1 text-sm text-slate-500">{draft.outlet}</p>
+        </div>
+
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          {draft.progress}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm text-slate-600">
+        <p>
+          <span className="font-semibold text-slate-800">Form:</span> {draft.formName}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-800">Operator:</span> {draft.operatorName}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-800">Updated:</span> {draft.updatedAt}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Link
+          href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
+          className="flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
+        >
+          Continue
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => onDelete(draft.id)}
+          className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ContentDraftCard({
+  draft,
+  onDelete,
+}: {
+  draft: ContentDraft;
+  onDelete: (draftId: string) => void;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-slate-950">{draft.title}</p>
+          <p className="mt-1 text-sm text-slate-500">{draft.description}</p>
+        </div>
+
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+          {draft.items} items
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm text-slate-600">
+        <p>
+          <span className="font-semibold text-slate-800">Type:</span> {draft.category}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-800">Updated:</span> {draft.updatedAt}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Link
+          href="/dashboard/forms"
+          className="flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
+        >
+          Open
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => onDelete(draft.id)}
+          className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
 export function DraftCenterWorkspace() {
   const confirm = useConfirmation();
 
@@ -92,6 +194,7 @@ export function DraftCenterWorkspace() {
 
   const [operationalDrafts, setOperationalDrafts] = useState<OperationalDraft[]>(loadTaskDrafts);
   const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>(loadContentDrafts);
+
   const filteredOperationalDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
 
@@ -104,6 +207,7 @@ export function DraftCenterWorkspace() {
       );
     });
   }, [operationalDrafts, search]);
+
   const filteredContentDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
 
@@ -181,18 +285,18 @@ export function DraftCenterWorkspace() {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <main className="space-y-5 px-4 py-4 sm:space-y-6 sm:p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-sm font-medium text-emerald-700">Draft Center</p>
-            <h1 className="text-2xl font-semibold text-slate-950">Enterprise Draft Center</h1>
+            <p className="text-sm font-medium text-emerald-700">Draft</p>
+            <h1 className="text-2xl font-semibold text-slate-950">Draft Center</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              Manage operational execution drafts and content drafts separately.
+              Continue saved task drafts and manage form drafts from one place.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={() => setMode("operational")}
@@ -202,7 +306,7 @@ export function DraftCenterWorkspace() {
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              Operational Drafts
+              Task Drafts
             </button>
 
             <button
@@ -214,35 +318,51 @@ export function DraftCenterWorkspace() {
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              Content Drafts
+              Form Drafts
             </button>
           </div>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={
             mode === "operational"
               ? "Search task drafts, outlets, operators, forms..."
-              : "Search content drafts..."
+              : "Search form drafts..."
           }
           className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-emerald-600 lg:max-w-xl"
         />
       </section>
 
       {mode === "operational" ? (
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-base font-bold text-slate-950">Operational Drafts</h2>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl">
+          <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
+            <h2 className="text-base font-bold text-slate-950">Task Drafts</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Execution drafts saved by outlet users from task forms.
+              Draft pengerjaan task yang disimpan outlet saat belum sempat menyelesaikan semua item.
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-3 lg:hidden">
+            {filteredOperationalDrafts.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                No task drafts found yet.
+              </div>
+            ) : (
+              filteredOperationalDrafts.map((draft) => (
+                <OperationalDraftCard
+                  key={draft.id}
+                  draft={draft}
+                  onDelete={(draftId) => void handleDeleteOperationalDraft(draftId)}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
@@ -263,30 +383,23 @@ export function DraftCenterWorkspace() {
                       <p className="font-semibold text-slate-950">{draft.title}</p>
                       <p className="mt-1 text-xs text-slate-500">{draft.taskId}</p>
                     </td>
-
                     <td className="px-5 py-4 text-slate-600">{draft.formName}</td>
-
                     <td className="px-5 py-4 text-slate-600">{draft.outlet}</td>
-
                     <td className="px-5 py-4 text-slate-600">{draft.operatorName}</td>
-
                     <td className="px-5 py-4">
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                         {draft.progress}
                       </span>
                     </td>
-
                     <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
-
                     <td className="px-5 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <a
-                          href={`/dashboard/tasks?mode=outlet&continueDraft=${draft.taskId}`}
+                        <Link
+                          href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
                           className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
                         >
                           Continue
-                        </a>
-
+                        </Link>
                         <button
                           type="button"
                           onClick={() => void handleDeleteOperationalDraft(draft.id)}
@@ -302,8 +415,7 @@ export function DraftCenterWorkspace() {
                 {filteredOperationalDrafts.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                      No operational drafts found. Save a task execution draft from Outlet Mode
-                      first.
+                      No task drafts found yet.
                     </td>
                   </tr>
                 ) : null}
@@ -311,20 +423,36 @@ export function DraftCenterWorkspace() {
             </table>
           </div>
 
-          <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-            Showing {filteredOperationalDrafts.length} operational drafts
+          <div className="border-t border-slate-200 px-4 py-4 text-sm text-slate-500 sm:px-5">
+            Showing {filteredOperationalDrafts.length} task drafts
           </div>
         </section>
       ) : (
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-base font-bold text-slate-950">Content Drafts</h2>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl">
+          <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
+            <h2 className="text-base font-bold text-slate-950">Form Drafts</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Form template drafts saved from My Form before they become selectable in Task.
+              Draft template form yang disimpan dari My Form sebelum dipakai di task.
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-3 lg:hidden">
+            {filteredContentDrafts.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                No form drafts found yet.
+              </div>
+            ) : (
+              filteredContentDrafts.map((draft) => (
+                <ContentDraftCard
+                  key={draft.id}
+                  draft={draft}
+                  onDelete={(draftId) => void handleDeleteContentDraft(draftId)}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
@@ -343,26 +471,21 @@ export function DraftCenterWorkspace() {
                       <p className="font-semibold text-slate-950">{draft.title}</p>
                       <p className="mt-1 text-xs text-slate-500">{draft.description}</p>
                     </td>
-
                     <td className="px-5 py-4 text-slate-600">{draft.category}</td>
-
                     <td className="px-5 py-4">
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                         {draft.items} items
                       </span>
                     </td>
-
                     <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
-
                     <td className="px-5 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <a
+                        <Link
                           href="/dashboard/forms"
                           className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
                         >
                           Open
-                        </a>
-
+                        </Link>
                         <button
                           type="button"
                           onClick={() => void handleDeleteContentDraft(draft.id)}
@@ -378,7 +501,7 @@ export function DraftCenterWorkspace() {
                 {filteredContentDrafts.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-5 py-12 text-center text-slate-500">
-                      No content drafts found. Save a form template draft from My Form first.
+                      No form drafts found yet.
                     </td>
                   </tr>
                 ) : null}
@@ -386,8 +509,8 @@ export function DraftCenterWorkspace() {
             </table>
           </div>
 
-          <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-            Showing {filteredContentDrafts.length} content drafts
+          <div className="border-t border-slate-200 px-4 py-4 text-sm text-slate-500 sm:px-5">
+            Showing {filteredContentDrafts.length} form drafts
           </div>
         </section>
       )}
