@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
-    cors_origins: list[str]
+    cors_origins_raw: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -38,6 +38,10 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return _parse_cors_origins(self.cors_origins_raw)
 
 
 @lru_cache
@@ -55,7 +59,10 @@ def get_settings() -> Settings:
         access_token_expire_minutes=int(
             os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
         ),
-        cors_origins=_parse_cors_origins(os.environ.get("CORS_ORIGINS")),
+        cors_origins_raw=os.environ.get(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000",
+        ),
     )
 
 
