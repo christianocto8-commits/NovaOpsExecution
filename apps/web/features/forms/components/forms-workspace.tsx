@@ -394,6 +394,8 @@ export function FormsWorkspace() {
     return <OutletManualFormsWorkspace />;
   }
 
+  const isAreaWorkspace = workspace.mode === "area";
+
   return (
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -401,7 +403,9 @@ export function FormsWorkspace() {
           <p className="text-sm font-medium text-emerald-700">Form Library</p>
           <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Create reusable form templates for Task. Scheduling and auto-publish live inside Task.
+            {isAreaWorkspace
+              ? "Area manager dapat melihat template form aktif sebagai referensi operasional, tanpa mengubah library template."
+              : "Create reusable form templates for Task. Scheduling and auto-publish live inside Task."}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -425,44 +429,50 @@ export function FormsWorkspace() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={createTemplate}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
-          >
-            <Plus className="size-4" />
-            New Form
-          </button>
+        {isAreaWorkspace ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Read only for Area Manager
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={createTemplate}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
+            >
+              <Plus className="size-4" />
+              New Form
+            </button>
 
-          <button
-            type="button"
-            onClick={() => void syncSelectedTemplate()}
-            disabled={syncTemplateMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-          >
-            <Save className="size-4" />
-            {syncTemplateMutation.isPending ? "Syncing..." : "Sync to Backend"}
-          </button>
+            <button
+              type="button"
+              onClick={() => void syncSelectedTemplate()}
+              disabled={syncTemplateMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <Save className="size-4" />
+              {syncTemplateMutation.isPending ? "Syncing..." : "Sync to Backend"}
+            </button>
 
-          <button
-            type="button"
-            onClick={saveDraftNow}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            <Save className="size-4" />
-            Save Draft
-          </button>
+            <button
+              type="button"
+              onClick={saveDraftNow}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              <Save className="size-4" />
+              Save Draft
+            </button>
 
-          <button
-            type="button"
-            onClick={saveTemplateNow}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
-          >
-            <Save className="size-4" />
-            Save Template
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={saveTemplateNow}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+            >
+              <Save className="size-4" />
+              Save Template
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -594,6 +604,7 @@ export function FormsWorkspace() {
                     <input
                       type="checkbox"
                       checked={field.required}
+                      disabled={isAreaWorkspace}
                       onChange={(event) =>
                         updateField(field.id, {
                           required: event.target.checked,
@@ -664,6 +675,7 @@ export function FormsWorkspace() {
               <label className="text-xs font-semibold text-slate-700">Form Type</label>
               <select
                 value={selectedTemplate.category}
+                disabled={isAreaWorkspace}
                 onChange={(event) =>
                   updateSelectedTemplate({
                     category: event.target.value,
@@ -683,6 +695,7 @@ export function FormsWorkspace() {
               <label className="text-xs font-semibold text-slate-700">Status</label>
               <select
                 value={selectedTemplate.status}
+                disabled={isAreaWorkspace}
                 onChange={(event) =>
                   updateSelectedTemplate({
                     status: event.target.value as FormTemplate["status"],

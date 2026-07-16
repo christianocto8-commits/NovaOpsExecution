@@ -373,8 +373,10 @@ export function TasksWorkspace() {
   } = useTaskWorkspace();
 
   const isOutletWorkspace = workspace.mode === "outlet";
+  const isAreaWorkspace = workspace.mode === "area";
   const isOutletRole = isOutletWorkspace;
-  const canCreateTask = !isOutletRole;
+  const isOwnerAdminWorkspace = !isOutletWorkspace && !isAreaWorkspace;
+  const canCreateTask = isOwnerAdminWorkspace;
 
   useEffect(() => {
     const continueDraftTaskId = searchParams.get("continueDraft");
@@ -544,7 +546,7 @@ export function TasksWorkspace() {
           >
             {task.executionDraft ? "Continue" : "Execute"}
           </button>
-        ) : (
+        ) : isOwnerAdminWorkspace ? (
           <div className="flex gap-2">
             <button
               type="button"
@@ -579,6 +581,17 @@ export function TasksWorkspace() {
               Delete
             </button>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openTaskDetail(task);
+            }}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+          >
+            View
+          </button>
         ),
     },
   ];
@@ -608,7 +621,9 @@ export function TasksWorkspace() {
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             {isOutletWorkspace
               ? "Kerjakan checklist outlet, simpan draft bila perlu, lalu submit bukti saat selesai."
-              : "Assign, execute, review saved drafts, and verify outlet work with evidence and corrective actions."}
+              : isAreaWorkspace
+                ? "Pantau task outlet, cek progres draft, dan follow up execution tanpa mengubah task inti."
+                : "Assign, execute, review saved drafts, and verify outlet work with evidence and corrective actions."}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
@@ -757,36 +772,40 @@ export function TasksWorkspace() {
         <TaskDetailDrawer
           task={selectedTask}
           onClose={closeDetail}
-          onEdit={openEditTask}
-          onReview={(taskId, review, note) => {
-            reviewTaskExecution(taskId, review, note);
+          onEdit={isOwnerAdminWorkspace ? openEditTask : undefined}
+          onReview={
+            isOwnerAdminWorkspace
+              ? (taskId, review, note) => {
+                  reviewTaskExecution(taskId, review, note);
 
-            if (review === "approved") {
-              updateOutletTaskStoreItem(taskId, {
-                status: "completed",
-                progress: 100,
-                score: 100,
-                correctiveActionStatus: "resolved",
-                correctiveActionResolvedAt: "Realtime",
-              });
-              return;
-            }
+                  if (review === "approved") {
+                    updateOutletTaskStoreItem(taskId, {
+                      status: "completed",
+                      progress: 100,
+                      score: 100,
+                      correctiveActionStatus: "resolved",
+                      correctiveActionResolvedAt: "Realtime",
+                    });
+                    return;
+                  }
 
-            updateOutletTaskStoreItem(taskId, {
-              status: "draft",
-              score: 55,
-              correctiveActionStatus: "open",
-              correctiveActionOwner: "Store Manager",
-              correctiveActionDue: "Today 18:00",
-              correctiveActionNote: note,
-            });
-            setCorrectiveAction(taskId, {
-              status: "open",
-              owner: "Store Manager",
-              due: "Today 18:00",
-              note,
-            });
-          }}
+                  updateOutletTaskStoreItem(taskId, {
+                    status: "draft",
+                    score: 55,
+                    correctiveActionStatus: "open",
+                    correctiveActionOwner: "Store Manager",
+                    correctiveActionDue: "Today 18:00",
+                    correctiveActionNote: note,
+                  });
+                  setCorrectiveAction(taskId, {
+                    status: "open",
+                    owner: "Store Manager",
+                    due: "Today 18:00",
+                    note,
+                  });
+                }
+              : undefined
+          }
         />
       ) : null}
 
