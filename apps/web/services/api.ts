@@ -4,6 +4,7 @@ const API_URL =
   "http://localhost:8000";
 
 const DEFAULT_TIMEOUT_MS = 70000;
+const RETRY_DELAY_MS = 5000;
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -57,9 +58,41 @@ function normalizeErrorMessage(errorBody: unknown): string {
   return String(errorBody);
 }
 
-export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function shouldRetryRequest(endpoint: string, options?: RequestInit) {
+  const method = (options?.method ?? "GET").toUpperCase();
+
+  if (method === "GET" || method === "HEAD") return true;
+  if (endpoint.includes("/auth/login")) return true;
+  if (endpoint.includes("/authorization/context")) return true;
+
+  return false;
+}
+
+function buildHeaders(options?: RequestInit) {
   const token = getToken();
   const outletId = getOutletId();
+  const baseHeaders = new Headers(options?.headers ?? undefined);
+
+  if (!baseHeaders.has("Content-Type") && !(options?.body instanceof FormData)) {
+    baseHeaders.set("Content-Type", "application/json");
+  }
+
+  if (token && !baseHeaders.has("Authorization")) {
+    baseHeaders.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (outletId && !baseHeaders.has("X-Outlet-Id")) {
+    baseHeaders.set("X-Outlet-Id", outletId);
+  }
+
+  return baseHeaders;
+}
+
+async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
@@ -67,15 +100,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       signal: options?.signal ?? controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-
-        ...(outletId ? { "X-Outlet-Id": outletId } : {}),
-
-        ...(options?.headers ?? {}),
-      },
+      headers: buildHeaders(options),
     });
 
     if (!response.ok) {
@@ -95,14 +120,54 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     }
 
     return response.json() as Promise<T>;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(`API tidak merespons dalam 70 detik. Jika backend Render baru bangun dari sleep, coba tunggu sebentar lalu ulangi.`);
-    }
-
-    throw error;
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
+export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  try {
+    return await executeRequest<T>(endpoint, options);
+  } catch (error) {
+    const canRetry = shouldRetryRequest(endpoint, options);
+    const networkLikeFailure =
+      error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "AbortError");
+
+    if (canRetry && networkLikeFailure) {
+      await sleep(RETRY_DELAY_MS);
+
+      try {
+        return await executeRequest<T>(endpoint, options);
+      } catch (retryError) {
+        if (retryError instanceof DOMException && retryError.name === "AbortError") {
+          throw new Error(
+            "API tidak merespons setelah dua percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 10-20 detik lalu coba lagi."
+          );
+        }
+
+        if (retryError instanceof TypeError) {
+          throw new Error(
+            "Koneksi ke backend gagal dijangkau. Pastikan URL API Vercel benar dan CORS_ORIGINS di Render sudah mengizinkan domain frontend."
+          );
+        }
+
+        throw retryError;
+      }
+    }
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        "API tidak merespons dalam 70 detik. Jika backend Render baru bangun dari sleep, coba tunggu sebentar lalu ulangi."
+      );
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(
+        "Koneksi ke backend gagal dijangkau. Pastikan URL API Vercel benar dan CORS_ORIGINS di Render sudah mengizinkan domain frontend."
+      );
+    }
+
+    throw error;
+  }
+}
