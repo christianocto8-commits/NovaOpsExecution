@@ -5,6 +5,8 @@ function normalizeApiUrl(value: string) {
 }
 
 function isLocalApiUrl(value: string) {
+  if (!value) return false;
+
   try {
     const hostname = new URL(value).hostname;
     return hostname === "localhost" || hostname === "127.0.0.1";
@@ -21,6 +23,14 @@ function isHostedFrontend(hostname: string) {
   );
 }
 
+export function buildRequestUrl(apiBase: string, endpoint: string) {
+  if (!apiBase) {
+    return `/api/backend${endpoint.replace(/^\/api/, "")}`;
+  }
+
+  return `${apiBase}${endpoint}`;
+}
+
 export function resolveApiUrl() {
   const configured = normalizeApiUrl(
     process.env.NEXT_PUBLIC_API_URL ??
@@ -28,17 +38,23 @@ export function resolveApiUrl() {
       ""
   );
 
-  if (configured && !isLocalApiUrl(configured)) {
-    return configured;
-  }
-
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
 
     if (isHostedFrontend(hostname)) {
-      return DEFAULT_PRODUCTION_API_URL;
+      // Same-origin proxy via Next.js rewrites — avoids browser CORS failures.
+      return "";
     }
   }
 
+  if (configured && !isLocalApiUrl(configured)) {
+    return configured;
+  }
+
   return configured || "http://localhost:8000";
+}
+
+export function resolveApiUrlLabel() {
+  const resolved = resolveApiUrl();
+  return resolved || DEFAULT_PRODUCTION_API_URL;
 }

@@ -1,7 +1,7 @@
-import { resolveApiUrl } from "@/lib/api-url";
+import { buildRequestUrl, resolveApiUrl, resolveApiUrlLabel } from "@/lib/api-url";
 
-const DEFAULT_TIMEOUT_MS = 70000;
-const RETRY_DELAY_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 90000;
+const RETRY_DELAYS_MS = [5000, 10000, 15000];
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -59,16 +59,8 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function shouldRetryRequest(endpoint: string, options?: RequestInit) {
-  const method = (options?.method ?? "GET").toUpperCase();
-
-  if (method === "GET" || method === "HEAD") return true;
-  if (method === "DELETE" || method === "PUT") return true;
-  if (method === "POST" || method === "PATCH") return true;
-  if (endpoint.includes("/auth/login")) return true;
-  if (endpoint.includes("/authorization/context")) return true;
-
-  return false;
+function shouldRetryRequest() {
+  return true;
 }
 
 function buildHeaders(options?: RequestInit) {
@@ -91,17 +83,25 @@ function buildHeaders(options?: RequestInit) {
   return baseHeaders;
 }
 
-function buildConnectionError(apiUrl: string) {
-  return `Koneksi ke backend gagal (${apiUrl}). Pastikan NEXT_PUBLIC_API_URL di Vercel = https://novaops-api.onrender.com dan CORS_ORIGINS di Render sudah mengizinkan domain frontend Anda.`;
+function buildConnectionError() {
+  return `Koneksi ke backend gagal (${resolveApiUrlLabel()}). Render mungkin masih bangun — tunggu 20 detik lalu coba lagi. Jika masih gagal, cek deploy Render/Vercel.`;
+}
+
+function isNetworkLikeFailure(error: unknown) {
+  return (
+    error instanceof TypeError ||
+    (error instanceof DOMException && error.name === "AbortError")
+  );
 }
 
 async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const apiUrl = resolveApiUrl();
+  const apiBase = resolveApiUrl();
+  const requestUrl = buildRequestUrl(apiBase, endpoint);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${apiUrl}${endpoint}`, {
+    const response = await fetch(requestUrl, {
       ...options,
       signal: options?.signal ?? controller.signal,
       headers: buildHeaders(options),
@@ -130,46 +130,35 @@ async function executeRequest<T>(endpoint: string, options?: RequestInit): Promi
 }
 
 export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const apiUrl = resolveApiUrl();
+  let lastError: unknown;
 
-  try {
-    return await executeRequest<T>(endpoint, options);
-  } catch (error) {
-    const canRetry = shouldRetryRequest(endpoint, options);
-    const networkLikeFailure =
-      error instanceof TypeError ||
-      (error instanceof DOMException && error.name === "AbortError");
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await executeRequest<T>(endpoint, options);
+    } catch (error) {
+      lastError = error;
 
-    if (canRetry && networkLikeFailure) {
-      await sleep(RETRY_DELAY_MS);
-
-      try {
-        return await executeRequest<T>(endpoint, options);
-      } catch (retryError) {
-        if (retryError instanceof DOMException && retryError.name === "AbortError") {
-          throw new Error(
-            "API tidak merespons setelah dua percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 10-20 detik lalu coba lagi."
-          );
-        }
-
-        if (retryError instanceof TypeError) {
-          throw new Error(buildConnectionError(apiUrl));
-        }
-
-        throw retryError;
+      if (!shouldRetryRequest() || !isNetworkLikeFailure(error)) {
+        break;
       }
-    }
 
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "API tidak merespons dalam 70 detik. Jika backend Render baru bangun dari sleep, coba tunggu sebentar lalu ulangi."
-      );
-    }
+      if (attempt >= RETRY_DELAYS_MS.length) {
+        break;
+      }
 
-    if (error instanceof TypeError) {
-      throw new Error(buildConnectionError(apiUrl));
+      await sleep(RETRY_DELAYS_MS[attempt]);
     }
-
-    throw error;
   }
+
+  if (lastError instanceof DOMException && lastError.name === "AbortError") {
+    throw new Error(
+      "API tidak merespons setelah beberapa percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 20-30 detik lalu coba lagi."
+    );
+  }
+
+  if (lastError instanceof TypeError) {
+    throw new Error(buildConnectionError());
+  }
+
+  throw lastError;
 }

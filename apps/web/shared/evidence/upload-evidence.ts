@@ -1,4 +1,4 @@
-import { resolveApiUrl } from "@/lib/api-url";
+import { buildRequestUrl, resolveApiUrl } from "@/lib/api-url";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -17,7 +17,7 @@ export async function uploadEvidenceFile(file: File) {
 
   formData.append("file", file);
 
-  const response = await fetch(`${resolveApiUrl()}/api/v1/evidence-uploads`, {
+  const response = await fetch(buildRequestUrl(resolveApiUrl(), "/api/v1/evidence-uploads"), {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: formData,
