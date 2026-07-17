@@ -1,6 +1,6 @@
 # Sprint 07 — Enterprise Backend Integration
 
-Status: **In Progress**
+Status: **Complete**
 
 ## Completed in this sprint
 
@@ -15,7 +15,4 @@ Status: **In Progress**
 - Task form drawer and task execution load templates from backend
 - History page loads completed tasks, execution sessions, and form submissions from API
 - Workflow builder saves and publishes via builder-documents API
-
-## Remaining
-
-- Remove mock seed files after all consumers migrated
+- Remove mock seed files and localStorage form template storage

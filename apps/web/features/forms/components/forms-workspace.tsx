@@ -7,12 +7,14 @@ import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer } from "@/features/forms/renderer/sectioned-form-renderer";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
+import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { useAuth } from "@/hooks/useAuth";
 import { queryKeys } from "@/lib/query/keys";
 import { formSubmissionService } from "@/services/form-submission.service";
 import {
   createBlankFormTemplate,
+  createMoneySafeCountTemplate,
   formTemplateService,
   isPersistedTemplateId,
 } from "@/services/form-template.service";
@@ -33,6 +35,8 @@ const fieldTypeOptions: Array<{
   { value: "number", label: "Number" },
   { value: "photo", label: "Photo" },
   { value: "signature", label: "Signature" },
+  { value: "money_denomination", label: "Money denomination" },
+  { value: "money_amount", label: "Money amount" },
 ];
 
 const formTypeOptions = [
@@ -56,6 +60,8 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   number: "Number",
   photo: "Photo",
   signature: "Signature",
+  money_denomination: "Money denomination",
+  money_amount: "Money amount",
 };
 
 function createField(): FormField {
@@ -370,14 +376,29 @@ export function FormsWorkspace() {
 
   function updateField(fieldId: string, updates: Partial<FormField>) {
     updateSelectedTemplate({
-      fields: selectedTemplate.fields.map((field) =>
-        field.id === fieldId
-          ? {
-              ...field,
-              ...updates,
-            }
-          : field
-      ),
+      fields: selectedTemplate.fields.map((field) => {
+        if (field.id !== fieldId) return field;
+
+        const nextField = {
+          ...field,
+          ...updates,
+        };
+
+        if (updates.type === "money_denomination" && !nextField.options?.denominations) {
+          nextField.options = {
+            currency: "IDR",
+            denominations: DEFAULT_IDR_DENOMINATIONS,
+          };
+          nextField.section = nextField.section ?? "Penghitungan Setoran";
+        }
+
+        if (updates.type === "money_amount" && !nextField.options) {
+          nextField.options = { currency: "IDR" };
+          nextField.section = nextField.section ?? "Laporan Penjualan";
+        }
+
+        return nextField;
+      }),
     });
   }
 
@@ -395,6 +416,13 @@ export function FormsWorkspace() {
 
   function createTemplate() {
     const newTemplate = createBlankFormTemplate();
+
+    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
+    setSelectedTemplateId(newTemplate.id);
+  }
+
+  function createMoneySafeCountForm() {
+    const newTemplate = createMoneySafeCountTemplate();
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
     setSelectedTemplateId(newTemplate.id);
@@ -466,6 +494,15 @@ export function FormsWorkspace() {
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={createMoneySafeCountForm}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
+            >
+              <Plus className="size-4" />
+              Money Safe Count
+            </button>
+
             <button
               type="button"
               onClick={createTemplate}
@@ -667,6 +704,18 @@ export function FormsWorkspace() {
                   {["photo", "signature"].includes(field.type) ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                       Evidence
+                    </span>
+                  ) : null}
+
+                  {field.type === "money_denomination" ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                      Auto subtotal
+                    </span>
+                  ) : null}
+
+                  {field.type === "money_amount" ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                      IDR format
                     </span>
                   ) : null}
                 </div>

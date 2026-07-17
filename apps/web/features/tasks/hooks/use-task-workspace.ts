@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { emptyTaskExecutionForm, emptyTaskForm } from "@/features/tasks/data/mock-tasks";
+import { emptyTaskExecutionForm, emptyTaskForm } from "@/features/tasks/data/task-form-defaults";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { useConfirmation } from "@/shared/confirmation";
 import { useToast } from "@/shared/toast";
 import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/features/tasks/types";
-import { createMockEvidence, detectEvidenceType } from "@/shared/files";
+import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
@@ -35,7 +35,7 @@ function normalizeTask(task: Task): Task {
 
   return {
     ...task,
-    formTemplateId: task.formTemplateId ?? "FORM-OPENING",
+    formTemplateId: task.formTemplateId ?? "",
     recurrence,
     shifts: recurrence === "weekly" ? [] : (task.shifts ?? ["morning"]),
     targetOutlets: task.targetOutlets ?? [task.outlet],
@@ -169,7 +169,7 @@ function buildTaskEvidence(value: string, submittedAt: string) {
 
   if (galleryItems.length > 0) {
     return galleryItems.map((item) =>
-      createMockEvidence({
+      createTaskEvidence({
         type: detectEvidenceType(item.url),
         label: item.caption || "Outlet Evidence",
         value: item.url,
@@ -179,7 +179,7 @@ function buildTaskEvidence(value: string, submittedAt: string) {
   }
 
   return [
-    createMockEvidence({
+    createTaskEvidence({
       type: value ? detectEvidenceType(value) : "note",
       label: value ? "Outlet Evidence" : "Execution Confirmation",
       value: value || "Execution completed without additional evidence attachment.",
@@ -334,7 +334,7 @@ export function useTaskWorkspace() {
       assignee: task.assignee,
       due: task.due,
       description: task.description,
-      formTemplateId: task.formTemplateId ?? "FORM-OPENING",
+      formTemplateId: task.formTemplateId ?? "",
       recurrence: task.recurrence ?? "once",
       shifts: task.shifts ?? ["morning"],
       targetOutlets: task.targetOutlets ?? [task.outlet],

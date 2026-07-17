@@ -1,6 +1,6 @@
 ﻿import { TaskEvidence, TaskEvidenceType } from "@/features/tasks/types";
 
-export function createMockEvidence(params: {
+export function createTaskEvidence(params: {
   type: TaskEvidenceType;
   value: string;
   label?: string;

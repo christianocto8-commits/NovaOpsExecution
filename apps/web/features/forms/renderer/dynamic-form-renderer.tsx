@@ -3,12 +3,20 @@
 import { FormField } from "@/features/forms/types";
 import { TaskFormResponses } from "@/features/tasks/types";
 
+import { MoneyAmountField } from "./money-amount-field";
+import { MoneyDenominationField } from "./money-denomination-field";
+
 type DynamicFormRendererProps = {
   fields: FormField[];
   responses: TaskFormResponses;
   onChange: (responses: TaskFormResponses) => void;
   readOnly?: boolean;
   highlightedFieldIds?: string[];
+};
+
+const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
+  money_denomination: "Denomination count",
+  money_amount: "Currency amount",
 };
 
 export function DynamicFormRenderer({
@@ -30,6 +38,7 @@ export function DynamicFormRenderer({
       {fields.map((field) => {
         const value = responses[field.id] ?? "";
         const isHighlighted = highlightedFieldIds.includes(field.id);
+        const typeLabel = fieldTypeLabels[field.type] ?? field.type.toUpperCase();
 
         return (
           <div
@@ -43,7 +52,7 @@ export function DynamicFormRenderer({
               <div>
                 <label className="text-sm font-bold text-slate-800">{field.label}</label>
                 <p className="mt-1 text-xs text-slate-400">
-                  {field.type.toUpperCase()}
+                  {typeLabel}
                   {field.required ? " • Required" : " • Optional"}
                 </p>
               </div>
@@ -83,6 +92,19 @@ export function DynamicFormRenderer({
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                />
+              ) : field.type === "money_denomination" ? (
+                <MoneyDenominationField
+                  field={field}
+                  value={value}
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                />
+              ) : field.type === "money_amount" ? (
+                <MoneyAmountField
+                  value={value}
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
               ) : field.type === "photo" ? (
                 <input

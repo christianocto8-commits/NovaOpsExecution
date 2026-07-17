@@ -81,7 +81,7 @@ function parseSourceFormTemplateId(task: BackendTask) {
     return String(task.source_id);
   }
 
-  return "FORM-OPENING";
+  return "";
 }
 
 function resolveTaskOutletHeader(form: TaskFormState) {

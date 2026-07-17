@@ -1,5 +1,11 @@
 import { api } from "@/services/api";
 import type { FormField } from "@/features/forms/types";
+import {
+  isMoneyAmountFilled,
+  isMoneyDenominationFilled,
+  parseDigits,
+  parseMoneyDenomination,
+} from "@/features/forms/utils/money";
 import type { TaskFormResponses } from "@/features/tasks/types";
 
 export type FormSubmissionAnswerPayload = {
@@ -7,6 +13,7 @@ export type FormSubmissionAnswerPayload = {
   answer_text?: string | null;
   answer_number?: number | null;
   answer_boolean?: boolean | null;
+  answer_json?: unknown;
   evidence_url?: string | null;
 };
 
@@ -52,6 +59,23 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
         return {
           form_field_id: fieldId,
           answer_number: raw ? Number(raw) : null,
+        };
+      }
+
+      if (field.type === "money_amount") {
+        return {
+          form_field_id: fieldId,
+          answer_number: isMoneyAmountFilled(raw) ? parseDigits(raw) : null,
+        };
+      }
+
+      if (field.type === "money_denomination") {
+        const parsed = parseMoneyDenomination(raw);
+
+        return {
+          form_field_id: fieldId,
+          answer_json: parsed,
+          answer_number: parsed?.total ?? null,
         };
       }
 

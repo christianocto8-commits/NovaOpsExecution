@@ -1,8 +1,63 @@
 import { api } from "@/services/api";
-import type { FormField, FormTemplate } from "@/features/forms/types";
+import type { FormField, FormFieldOptions, FormTemplate } from "@/features/forms/types";
+import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 
 export function isPersistedTemplateId(templateId: string) {
   return /^\d+$/.test(templateId);
+}
+
+export function createMoneySafeCountTemplate(): FormTemplate {
+  return {
+    id: `local-${crypto.randomUUID()}`,
+    name: "Money Safe Count",
+    category: "Closing",
+    description:
+      "Penghitungan setoran uang tunai per denominasi dan laporan penjualan cash vs EDC.",
+    status: "Draft",
+    fields: [
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Uang Tunai Setoran",
+        type: "money_denomination",
+        required: true,
+        section: "Penghitungan Setoran",
+        options: {
+          currency: "IDR",
+          denominations: DEFAULT_IDR_DENOMINATIONS,
+        },
+      },
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Total Penjualan Cash",
+        type: "money_amount",
+        required: true,
+        section: "Laporan Penjualan",
+        options: { currency: "IDR" },
+      },
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Total Penjualan EDC",
+        type: "money_amount",
+        required: true,
+        section: "Laporan Penjualan",
+        options: { currency: "IDR" },
+      },
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Catatan / Selisih",
+        type: "textarea",
+        required: false,
+        section: "Catatan",
+      },
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Tanda tangan PIC",
+        type: "signature",
+        required: true,
+        section: "Evidence & Sign Off",
+      },
+    ],
+  };
 }
 
 export function createBlankFormTemplate(): FormTemplate {
@@ -72,12 +127,29 @@ export type BackendFormTemplateCreate = {
   }>;
 };
 
+function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
+  if (!optionsJson || typeof optionsJson !== "object") return undefined;
+
+  const options = optionsJson as FormFieldOptions;
+
+  return {
+    currency: typeof options.currency === "string" ? options.currency : undefined,
+    denominations: Array.isArray(options.denominations)
+      ? options.denominations.filter((value): value is number => typeof value === "number")
+      : undefined,
+  };
+}
+
 function mapBackendField(field: BackendFormField): FormField {
+  const options = parseFieldOptions(field.options_json);
+
   return {
     id: String(field.id),
     label: field.label,
     type: field.field_type as FormField["type"],
     required: field.is_required,
+    section: field.help_text ?? undefined,
+    options,
   };
 }
 
@@ -106,9 +178,9 @@ function toBackendFields(fields: FormField[]) {
     label: field.label,
     field_type: field.type,
     placeholder: null,
-    help_text: null,
+    help_text: field.section ?? null,
     is_required: field.required,
-    options_json: null,
+    options_json: field.options ?? null,
     validation_json: null,
     sort_order: index,
   }));

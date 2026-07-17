@@ -20,7 +20,15 @@ export type TaskEvidence = {
   submittedAt: string;
 };
 
-export type TaskFormFieldType = "text" | "textarea" | "yes_no" | "number" | "photo" | "signature";
+export type TaskFormFieldType =
+  | "text"
+  | "textarea"
+  | "yes_no"
+  | "number"
+  | "photo"
+  | "signature"
+  | "money_denomination"
+  | "money_amount";
 
 export type TaskFormField = {
   id: string;

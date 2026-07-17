@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FormField } from "@/features/forms/types";
+import { formatIdr, parseDigits, parseMoneyDenomination } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { ProgressChip, useFormProgress } from "@/shared/form-progress";
 
@@ -42,7 +43,47 @@ function getSectionTitle(field: FormField) {
     return "Evidence & Sign Off";
   }
 
+  if (field.type === "money_denomination") {
+    return "Penghitungan Setoran";
+  }
+
+  if (field.type === "money_amount") {
+    return "Laporan Penjualan";
+  }
+
   return "General Checklist";
+}
+
+function getMoneyReconciliation(fields: FormField[], responses: TaskFormResponses) {
+  let setoranTotal = 0;
+  let cashTotal = 0;
+  let edcTotal = 0;
+
+  fields.forEach((field) => {
+    const raw = responses[field.id] ?? "";
+
+    if (field.type === "money_denomination") {
+      const parsed = parseMoneyDenomination(raw);
+      setoranTotal += parsed?.total ?? 0;
+      return;
+    }
+
+    if (field.type !== "money_amount") return;
+
+    const amount = parseDigits(raw);
+    const normalizedLabel = field.label.toLowerCase();
+
+    if (normalizedLabel.includes("edc")) {
+      edcTotal += amount;
+      return;
+    }
+
+    if (normalizedLabel.includes("cash")) {
+      cashTotal += amount;
+    }
+  });
+
+  return { setoranTotal, cashTotal, edcTotal };
 }
 
 function groupFieldsBySection(fields: FormField[]): FieldSection[] {
@@ -78,6 +119,12 @@ function SectionCard({
   }));
 
   const progress = useFormProgress(progressFields, responses);
+
+  const salesTotal = useMemo(() => {
+    return section.fields
+      .filter((field) => field.type === "money_amount")
+      .reduce((total, field) => total + parseDigits(responses[field.id] ?? ""), 0);
+  }, [responses, section.fields]);
 
   const sectionHasHighlight = section.fields.some((field) =>
     highlightedFieldIds.includes(field.id)
@@ -125,6 +172,13 @@ function SectionCard({
               readOnly={readOnly}
               highlightedFieldIds={highlightedFieldIds}
             />
+
+            {section.title === "Laporan Penjualan" && salesTotal > 0 ? (
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-sm font-bold text-slate-800">Total Penjualan (Cash + EDC)</span>
+                <span className="text-base font-bold text-slate-900">{formatIdr(salesTotal)}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -140,6 +194,14 @@ export function SectionedFormRenderer({
   highlightedFieldIds = [],
 }: SectionedFormRendererProps) {
   const sections = useMemo(() => groupFieldsBySection(fields), [fields]);
+  const reconciliation = useMemo(
+    () => getMoneyReconciliation(fields, responses),
+    [fields, responses]
+  );
+  const hasMoneyFields = fields.some(
+    (field) => field.type === "money_denomination" || field.type === "money_amount"
+  );
+  const variance = reconciliation.setoranTotal - reconciliation.cashTotal;
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, true]))
@@ -166,6 +228,33 @@ export function SectionedFormRenderer({
           onToggle={() => toggleSection(section.id)}
         />
       ))}
+
+      {hasMoneyFields &&
+      (reconciliation.setoranTotal > 0 ||
+        reconciliation.cashTotal > 0 ||
+        reconciliation.edcTotal > 0) ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm sm:rounded-3xl">
+          <p className="text-sm font-bold text-amber-950">Ringkasan Rekonsiliasi</p>
+          <div className="mt-3 grid gap-2 text-sm text-amber-900 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
+              <span>Total Setoran</span>
+              <span className="font-bold">{formatIdr(reconciliation.setoranTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
+              <span>Penjualan Cash</span>
+              <span className="font-bold">{formatIdr(reconciliation.cashTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
+              <span>Penjualan EDC</span>
+              <span className="font-bold">{formatIdr(reconciliation.edcTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
+              <span>Selisih (Setoran - Cash)</span>
+              <span className="font-bold">{formatIdr(variance)}</span>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
