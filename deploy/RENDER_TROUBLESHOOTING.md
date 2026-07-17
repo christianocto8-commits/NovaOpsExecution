@@ -14,7 +14,31 @@ INFO:     Uvicorn running on http://0.0.0.0:10000
 
 Cause: the old container startup ran `alembic upgrade head` **before** uvicorn. Neon connection + migration took ~15 minutes, Render timed out before the API bound to `$PORT`.
 
-Fix (already in latest repo):
+---
+
+## Symptom: `Could not parse SQLAlchemy URL from given URL string`
+
+Cause: `DATABASE_URL` was pasted **with quotes** in Render, for example:
+
+```env
+DATABASE_URL="postgresql://..."
+```
+
+SQLAlchemy reads the `"` characters as part of the URL and fails to parse it.
+
+Fix in Render dashboard:
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
+```
+
+Rules:
+
+- no `"` or `'` around the value
+- remove `channel_binding=require`
+- use Neon **pooler** host (`-pooler` in hostname)
+
+---
 
 - Migrations: `preDeployCommand` only
 - Container start: uvicorn immediately on `$PORT`

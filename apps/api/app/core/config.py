@@ -11,6 +11,15 @@ ENV_FILE = API_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 
+def _sanitize_env_value(value: str) -> str:
+    cleaned = value.strip()
+
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {'"', "'"}:
+        cleaned = cleaned[1:-1].strip()
+
+    return cleaned
+
+
 def _parse_cors_origins(raw_value: str | None) -> list[str]:
     if not raw_value:
         return [
@@ -50,11 +59,15 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    database_url = _sanitize_env_value(os.environ["DATABASE_URL"])
+
     return Settings(
-        database_url=os.environ["DATABASE_URL"],
-        jwt_secret_key=os.environ.get(
-            "JWT_SECRET_KEY",
-            os.environ.get("SECRET_KEY", "novaops-development-secret-key"),
+        database_url=database_url,
+        jwt_secret_key=_sanitize_env_value(
+            os.environ.get(
+                "JWT_SECRET_KEY",
+                os.environ.get("SECRET_KEY", "novaops-development-secret-key"),
+            )
         ),
         jwt_algorithm=os.environ.get(
             "JWT_ALGORITHM",
@@ -63,17 +76,23 @@ def get_settings() -> Settings:
         access_token_expire_minutes=int(
             os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
         ),
-        cors_origins_raw=os.environ.get(
-            "CORS_ORIGINS",
-            "http://localhost:3000,http://127.0.0.1:3000",
+        cors_origins_raw=_sanitize_env_value(
+            os.environ.get(
+                "CORS_ORIGINS",
+                "http://localhost:3000,http://127.0.0.1:3000",
+            )
         ),
         bootstrap_admin_enabled=os.environ.get(
             "BOOTSTRAP_ADMIN_ENABLED",
             "false",
         ).lower()
         in {"1", "true", "yes", "on"},
-        bootstrap_admin_email=os.environ.get("BOOTSTRAP_ADMIN_EMAIL"),
-        bootstrap_admin_username=os.environ.get("BOOTSTRAP_ADMIN_USERNAME"),
+        bootstrap_admin_email=_sanitize_env_value(os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "") or "")
+        or None,
+        bootstrap_admin_username=_sanitize_env_value(
+            os.environ.get("BOOTSTRAP_ADMIN_USERNAME", "") or ""
+        )
+        or None,
         bootstrap_admin_password=os.environ.get("BOOTSTRAP_ADMIN_PASSWORD"),
     )
 
