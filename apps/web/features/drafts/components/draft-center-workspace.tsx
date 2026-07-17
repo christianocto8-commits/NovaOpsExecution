@@ -80,7 +80,7 @@ function buildOperationalDrafts(
         title: taskTitleById.get(taskId) ?? `Task ${taskId}`,
         outlet: taskOutletById.get(taskId) ?? "Outlet",
         operatorName,
-        formName: formNameById.get(formTemplateId) ?? formTemplateId || "No Form",
+        formName: formNameById.get(formTemplateId) ?? (formTemplateId || "No Form"),
         progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
         updatedAt: formatUpdatedAt(session.submitted_at),
       };

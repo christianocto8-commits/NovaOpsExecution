@@ -113,7 +113,7 @@ export function mapBackendTask(task: BackendTask): Task {
     shifts,
     targetOutlets: [outletName],
     autoPublish: task.auto_publish ?? false,
-    dueTime: task.due_time ?? formatDueDate(task.due_date).slice(11, 16) || "09:00",
+    dueTime: task.due_time ?? (formatDueDate(task.due_date).slice(11, 16) || "09:00"),
     weeklyPublishDay: (task.weekly_publish_day as Task["weeklyPublishDay"]) ?? "sunday",
     activity: [
       {
