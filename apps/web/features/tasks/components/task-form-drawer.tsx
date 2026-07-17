@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
-import { getAvailableFormTemplates } from "@/features/forms/data/form-template-store";
+import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
   TaskFormState,
@@ -64,10 +64,7 @@ export function TaskFormDrawer({
     queryFn: getIdentityOutlets,
     retry: false,
   });
-  const availableTemplates = useMemo(
-    () => getAvailableFormTemplates().filter((template) => template.status === "Active"),
-    []
-  );
+  const { activeTemplates: availableTemplates } = useActiveFormTemplates();
   const safeFormTemplateId = form.formTemplateId || availableTemplates[0]?.id || "";
   const selectedTemplate = availableTemplates.find(
     (template) => template.id === safeFormTemplateId

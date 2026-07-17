@@ -2,12 +2,14 @@
 
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { useUnsavedChangesGuard } from "@/features/tasks/hooks/use-unsaved-changes-guard";
 import { Task, TaskExecutionForm } from "@/features/tasks/types";
 import { DraftSaveState } from "@/features/tasks/types/autosave";
+import { queryKeys } from "@/lib/query/keys";
+import { formTemplateService } from "@/services/form-template.service";
 import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { SaveIndicator } from "@/shared/status";
@@ -74,7 +76,12 @@ export function OutletTaskExecutionDrawer({
   const [saveState, setSaveState] = useState<DraftSaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
-  const template = task ? getFormTemplate(task.formTemplateId) : null;
+  const templateQuery = useQuery({
+    queryKey: [...queryKeys.sop.formTemplates(), task?.formTemplateId],
+    queryFn: () => formTemplateService.get(task!.formTemplateId!),
+    enabled: Boolean(task?.formTemplateId),
+  });
+  const template = templateQuery.data ?? null;
 
   const evidenceItems = useMemo(() => parseEvidenceItems(form.evidenceText), [form.evidenceText]);
 

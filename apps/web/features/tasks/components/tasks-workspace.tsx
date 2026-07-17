@@ -4,15 +4,18 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
 
-import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
-import {
-  OutletTaskExecutionDrawer,
+import { useQuery } from "@tanstack/react-query";
+
+import { OutletTaskExecutionDrawer,
   TaskDetailDrawer,
   TaskFormDrawer,
 } from "@/features/tasks/components";
+import type { FormTemplate } from "@/features/forms/types";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
 import { Task } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
+import { queryKeys } from "@/lib/query/keys";
+import { formTemplateService } from "@/services/form-template.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
 import {
@@ -33,10 +36,10 @@ type MobileTaskSection = {
   tasks: Task[];
 };
 
-function getTaskDraftProgress(task: Task) {
+function getTaskDraftProgress(task: Task, templates: FormTemplate[]) {
   if (!task.executionDraft || !task.formTemplateId) return null;
 
-  const template = getFormTemplate(task.formTemplateId);
+  const template = templates.find((item) => item.id === task.formTemplateId);
   if (!template) return null;
 
   const progressFields = template.fields.map((field) => ({
@@ -48,8 +51,8 @@ function getTaskDraftProgress(task: Task) {
   return calculateFormProgress(progressFields, task.executionDraft.formResponses);
 }
 
-function getTaskExecutionProgressPercentage(task: Task) {
-  const draftProgress = getTaskDraftProgress(task);
+function getTaskExecutionProgressPercentage(task: Task, templates: FormTemplate[]) {
+  const draftProgress = getTaskDraftProgress(task, templates);
 
   if (draftProgress) return draftProgress.percentage;
 
@@ -66,16 +69,23 @@ function getTaskExecutionProgressPercentage(task: Task) {
   return 0;
 }
 
-function getOutletTaskExecutionMetrics(tasks: Task[]) {
+function getOutletTaskExecutionMetrics(tasks: Task[], templates: FormTemplate[]) {
   const total = tasks.length;
-  const completed = tasks.filter((task) => getTaskExecutionProgressPercentage(task) === 100).length;
+  const completed = tasks.filter(
+    (task) => getTaskExecutionProgressPercentage(task, templates) === 100
+  ).length;
   const draft = tasks.filter((task) => task.executionDraft).length;
-  const pending = tasks.filter((task) => getTaskExecutionProgressPercentage(task) === 0).length;
+  const pending = tasks.filter(
+    (task) => getTaskExecutionProgressPercentage(task, templates) === 0
+  ).length;
 
   const averageProgress =
     total > 0
       ? Math.round(
-          tasks.reduce((sum, task) => sum + getTaskExecutionProgressPercentage(task), 0) / total
+          tasks.reduce(
+            (sum, task) => sum + getTaskExecutionProgressPercentage(task, templates),
+            0
+          ) / total
         )
       : 0;
 
@@ -88,8 +98,8 @@ function getOutletTaskExecutionMetrics(tasks: Task[]) {
   };
 }
 
-function syncTaskToOutletTaskStore(task: Task) {
-  const progress = getTaskExecutionProgressPercentage(task);
+function syncTaskToOutletTaskStore(task: Task, templates: FormTemplate[]) {
+  const progress = getTaskExecutionProgressPercentage(task, templates);
   const hasDraft = Boolean(task.executionDraft);
 
   const normalizedStatus = String(task.status).toLowerCase();
@@ -169,13 +179,13 @@ function formatMobileTime(task: Task) {
   }).toLowerCase();
 }
 
-function getMobileSections(tasks: Task[], incompleteOnly: boolean) {
+function getMobileSections(tasks: Task[], incompleteOnly: boolean, templates: FormTemplate[]) {
   const now = new Date();
   const todayStart = getDayStart(now);
   const weekEnd = getWeekEnd(now);
 
   const eligibleTasks = incompleteOnly
-    ? tasks.filter((task) => getTaskExecutionProgressPercentage(task) < 100)
+    ? tasks.filter((task) => getTaskExecutionProgressPercentage(task, templates) < 100)
     : tasks;
 
   const overdue: Task[] = [];
@@ -185,7 +195,7 @@ function getMobileSections(tasks: Task[], incompleteOnly: boolean) {
   const completed: Task[] = [];
 
   eligibleTasks.forEach((task) => {
-    const progress = getTaskExecutionProgressPercentage(task);
+    const progress = getTaskExecutionProgressPercentage(task, templates);
     const dueDate = parseTaskDueDate(task);
 
     if (progress === 100) {
@@ -234,13 +244,15 @@ function MobileTaskRow({
   task,
   highlighted,
   onOpen,
+  formTemplates,
 }: {
   task: Task;
   highlighted: boolean;
   onOpen: () => void;
+  formTemplates: FormTemplate[];
 }) {
-  const progress = getTaskExecutionProgressPercentage(task);
-  const draftProgress = getTaskDraftProgress(task);
+  const progress = getTaskExecutionProgressPercentage(task, formTemplates);
+  const draftProgress = getTaskDraftProgress(task, formTemplates);
   const isOverdue = (() => {
     const dueDate = parseTaskDueDate(task);
     return dueDate ? dueDate < getDayStart(new Date()) && progress < 100 : false;
@@ -299,10 +311,12 @@ function MobileTaskSectionBlock({
   section,
   highlightedTaskId,
   onOpenTask,
+  formTemplates,
 }: {
   section: MobileTaskSection;
   highlightedTaskId: string | null;
   onOpenTask: (task: Task) => void;
+  formTemplates: FormTemplate[];
 }) {
   const [open, setOpen] = useState(true);
 
@@ -325,6 +339,7 @@ function MobileTaskSectionBlock({
               task={task}
               highlighted={highlightedTaskId === task.id}
               onOpen={() => onOpenTask(task)}
+              formTemplates={formTemplates}
             />
           ))}
         </div>
@@ -371,6 +386,12 @@ export function TasksWorkspace() {
     submitTaskExecution,
     isBackendConnected,
   } = useTaskWorkspace();
+
+  const formTemplatesQuery = useQuery({
+    queryKey: queryKeys.sop.formTemplates(),
+    queryFn: formTemplateService.list,
+  });
+  const formTemplates = formTemplatesQuery.data ?? [];
 
   const isOutletWorkspace = workspace.mode === "outlet";
   const isAreaWorkspace = workspace.mode === "area";
@@ -447,20 +468,20 @@ export function TasksWorkspace() {
   }, [mobileSearch, visibleTasks]);
 
   const mobileSections = useMemo(
-    () => getMobileSections(filteredMobileTasks, mobileIncompleteOnly),
-    [filteredMobileTasks, mobileIncompleteOnly]
+    () => getMobileSections(filteredMobileTasks, mobileIncompleteOnly, formTemplates),
+    [filteredMobileTasks, mobileIncompleteOnly, formTemplates]
   );
 
   const outletTaskMetrics = useMemo(
-    () => getOutletTaskExecutionMetrics(visibleTasks),
-    [visibleTasks]
+    () => getOutletTaskExecutionMetrics(visibleTasks, formTemplates),
+    [visibleTasks, formTemplates]
   );
 
   useEffect(() => {
     visibleTasks.forEach((task) => {
-      syncTaskToOutletTaskStore(task);
+      syncTaskToOutletTaskStore(task, formTemplates);
     });
-  }, [visibleTasks]);
+  }, [visibleTasks, formTemplates]);
 
   const columns: EnterpriseColumn<Task>[] = [
     {
@@ -496,7 +517,7 @@ export function TasksWorkspace() {
       key: "status",
       header: "Status",
       render: (task) => {
-        const draftProgress = getTaskDraftProgress(task);
+        const draftProgress = getTaskDraftProgress(task, formTemplates);
 
         return (
           <div className="flex flex-wrap items-center gap-2">
@@ -734,6 +755,7 @@ export function TasksWorkspace() {
                     section={section}
                     highlightedTaskId={highlightedTaskId}
                     onOpenTask={handleOpenTask}
+                    formTemplates={formTemplates}
                   />
                 ))
               )}
@@ -821,8 +843,8 @@ export function TasksWorkspace() {
             if (selectedTask) {
               updateOutletTaskStoreItem(selectedTask.id, {
                 status: "draft",
-                progress: getTaskExecutionProgressPercentage(selectedTask),
-                score: getTaskExecutionProgressPercentage(selectedTask),
+                progress: getTaskExecutionProgressPercentage(selectedTask, formTemplates),
+                score: getTaskExecutionProgressPercentage(selectedTask, formTemplates),
                 operator: "Outlet Operator",
                 submittedAt: "Saved Draft",
               });

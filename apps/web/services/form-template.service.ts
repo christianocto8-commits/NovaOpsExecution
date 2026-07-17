@@ -1,6 +1,34 @@
 import { api } from "@/services/api";
 import type { FormField, FormTemplate } from "@/features/forms/types";
 
+export function isPersistedTemplateId(templateId: string) {
+  return /^\d+$/.test(templateId);
+}
+
+export function createBlankFormTemplate(): FormTemplate {
+  return {
+    id: `local-${crypto.randomUUID()}`,
+    name: "New Form Template",
+    category: "Daily",
+    description: "Reusable form template for task execution.",
+    status: "Draft",
+    fields: [
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Form field",
+        type: "yes_no",
+        required: true,
+      },
+      {
+        id: `local-field-${crypto.randomUUID()}`,
+        label: "Photo evidence",
+        type: "photo",
+        required: false,
+      },
+    ],
+  };
+}
+
 export type BackendFormField = {
   id: number;
   form_template_id: number;

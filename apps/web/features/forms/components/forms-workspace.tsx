@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
-import {
-  getAvailableFormTemplates,
-  loadFormTemplateWorkspaceTemplates,
-  saveFormTemplateWorkspaceTemplates,
-} from "@/features/forms/data/form-template-store";
+import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer } from "@/features/forms/renderer/sectioned-form-renderer";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
 import { TaskFormResponses } from "@/features/tasks/types";
+import { useAuth } from "@/hooks/useAuth";
+import { queryKeys } from "@/lib/query/keys";
+import { formSubmissionService } from "@/services/form-submission.service";
+import {
+  createBlankFormTemplate,
+  formTemplateService,
+  isPersistedTemplateId,
+} from "@/services/form-template.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { queryKeys } from "@/lib/query/keys";
-import { formTemplateService } from "@/services/form-template.service";
 
 const fieldTypeOptions: Array<{
   value: FormFieldType;
@@ -58,7 +60,7 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
 
 function createField(): FormField {
   return {
-    id: `field-${crypto.randomUUID()}`,
+    id: `local-field-${crypto.randomUUID()}`,
     label: "Form field",
     type: "yes_no",
     required: true,
@@ -107,20 +109,35 @@ function OutletManualFormsWorkspace() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
-  const availableTemplates = useMemo(
-    () => getAvailableFormTemplates().filter((template) => template.status === "Active"),
-    []
-  );
-  const [selectedTemplateId, setSelectedTemplateId] = useState(availableTemplates[0]?.id ?? "");
+  const { user } = useAuth();
+  const { activeTemplates, isLoading, isError } = useActiveFormTemplates();
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [responses, setResponses] = useState<TaskFormResponses>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const submitMutation = useMutation({
+    mutationFn: formSubmissionService.submitManualForm,
+  });
+
+  useEffect(() => {
+    if (!selectedTemplateId && activeTemplates[0]?.id) {
+      setSelectedTemplateId(activeTemplates[0].id);
+    }
+  }, [activeTemplates, selectedTemplateId]);
 
   const selectedTemplate =
-    availableTemplates.find((template) => template.id === selectedTemplateId) ??
-    availableTemplates[0];
+    activeTemplates.find((template) => template.id === selectedTemplateId) ??
+    activeTemplates[0];
 
-  function submitManualForm() {
-    if (!selectedTemplate) return;
+  async function submitManualForm() {
+    if (!selectedTemplate || !user) return;
+
+    const outletId = Number(workspace.outletId ?? user.outlet_access.outlet_id);
+    const submittedBy = Number(user.user.id);
+
+    if (!Number.isFinite(outletId)) {
+      setNotice("Outlet context belum tersedia. Login ulang sebagai operator outlet.");
+      return;
+    }
 
     const missingRequiredFields = selectedTemplate.fields.filter(
       (field) => field.required && !responses[field.id]?.trim()
@@ -131,27 +148,20 @@ function OutletManualFormsWorkspace() {
       return;
     }
 
-    const submissions = JSON.parse(
-      localStorage.getItem("novaops_manual_form_submissions") ?? "[]"
-    ) as unknown[];
+    try {
+      await submitMutation.mutateAsync({
+        templateId: selectedTemplate.id,
+        outletId,
+        submittedBy,
+        fields: selectedTemplate.fields,
+        responses,
+      });
 
-    localStorage.setItem(
-      "novaops_manual_form_submissions",
-      JSON.stringify([
-        {
-          id: `MANUAL-${Date.now()}`,
-          outlet: workspace.outletName ?? "Outlet",
-          templateId: selectedTemplate.id,
-          templateName: selectedTemplate.name,
-          responses,
-          submittedAt: new Date().toISOString(),
-        },
-        ...submissions,
-      ])
-    );
-
-    setResponses({});
-    setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+      setResponses({});
+      setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+    } catch {
+      setNotice("Submit form gagal. Periksa koneksi API dan coba lagi.");
+    }
   }
 
   return (
@@ -168,17 +178,29 @@ function OutletManualFormsWorkspace() {
 
         <button
           type="button"
-          onClick={submitManualForm}
-          disabled={!selectedTemplate}
+          onClick={() => void submitManualForm()}
+          disabled={!selectedTemplate || submitMutation.isPending}
           className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          Submit Form
+          {submitMutation.isPending ? "Submitting..." : "Submit Form"}
         </button>
       </div>
 
       {notice ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
           {notice}
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          Loading active form templates...
+        </div>
+      ) : null}
+
+      {isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+          Failed to load form templates from backend.
         </div>
       ) : null}
 
@@ -193,7 +215,7 @@ function OutletManualFormsWorkspace() {
           }}
           className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-emerald-600 lg:max-w-xl"
         >
-          {availableTemplates.map((template) => (
+          {activeTemplates.map((template) => (
             <option key={template.id} value={template.id}>
               {template.name}
             </option>
@@ -227,36 +249,71 @@ export function FormsWorkspace() {
     getServerWorkspaceSnapshot
   );
   const queryClient = useQueryClient();
-  const backendTemplatesQuery = useQuery({
-    queryKey: queryKeys.sop.formTemplates(),
-    queryFn: formTemplateService.list,
-    retry: false,
-  });
-  const syncTemplateMutation = useMutation({
-    mutationFn: formTemplateService.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() }),
-  });
-  const [initialDraft] = useState(() => {
-    const draftTemplates = loadFormTemplateWorkspaceTemplates();
-
-    return {
-      templates: draftTemplates,
-      selectedTemplateId: draftTemplates[0]?.id ?? "",
-    };
-  });
-  const [templates, setTemplates] = useState<FormTemplate[]>(initialDraft.templates);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(initialDraft.selectedTemplateId);
+  const templatesQuery = useFormTemplates();
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [query, setQuery] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saveMutation = useMutation({
+    mutationFn: async (template: FormTemplate) => {
+      if (isPersistedTemplateId(template.id)) {
+        return formTemplateService.update(template.id, template);
+      }
+
+      return formTemplateService.create(template);
+    },
+    onSuccess: (savedTemplate, submittedTemplate) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() });
+      setTemplates((currentTemplates) => {
+        const withoutSubmitted = currentTemplates.filter(
+          (template) => template.id !== submittedTemplate.id
+        );
+
+        return [savedTemplate, ...withoutSubmitted.filter((template) => template.id !== savedTemplate.id)];
+      });
+      setSelectedTemplateId(savedTemplate.id);
+      setLastSavedAt(new Date().toISOString());
+      setSaveError(null);
+    },
+    onError: () => {
+      setSaveError("Failed to save template to backend.");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: formTemplateService.remove,
+    onSuccess: (_, deletedTemplateId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() });
+      setTemplates((currentTemplates) => {
+        const nextTemplates = currentTemplates.filter(
+          (template) => template.id !== deletedTemplateId
+        );
+        setSelectedTemplateId(nextTemplates[0]?.id ?? "");
+        return nextTemplates;
+      });
+    },
+  });
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveFormTemplateWorkspaceTemplates(templates);
-      setLastSavedAt(new Date().toISOString());
-    }, 500);
+    if (!templatesQuery.data) return;
 
-    return () => window.clearTimeout(timer);
-  }, [templates]);
+    setTemplates((currentTemplates) => {
+      const localOnlyTemplates = currentTemplates.filter(
+        (template) => !isPersistedTemplateId(template.id)
+      );
+
+      return [...localOnlyTemplates, ...templatesQuery.data];
+    });
+  }, [templatesQuery.data]);
+
+  useEffect(() => {
+    if (selectedTemplateId) return;
+    if (templates[0]?.id) {
+      setSelectedTemplateId(templates[0].id);
+    }
+  }, [selectedTemplateId, templates]);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
@@ -276,10 +333,28 @@ export function FormsWorkspace() {
     filteredTemplates[0] ??
     templates[0];
 
+  if (workspace.mode === "outlet") {
+    return <OutletManualFormsWorkspace />;
+  }
+
+  if (!selectedTemplate) {
+    return (
+      <main className="space-y-6 p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          {templatesQuery.isLoading
+            ? "Loading form templates..."
+            : "No form templates available yet. Create one to get started."}
+        </div>
+      </main>
+    );
+  }
+
+  const isAreaWorkspace = workspace.mode === "area";
   const requiredItems = selectedTemplate.fields.filter((field) => field.required).length;
   const evidenceItems = selectedTemplate.fields.filter((field) =>
     ["photo", "signature"].includes(field.type)
   ).length;
+
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
     setTemplates((currentTemplates) =>
       currentTemplates.map((template) =>
@@ -319,36 +394,21 @@ export function FormsWorkspace() {
   }
 
   function createTemplate() {
-    const newTemplate: FormTemplate = {
-      id: `FORM-${Date.now()}`,
-      name: "New Form Template",
-      category: "Daily",
-      description: "Reusable form template for task execution.",
-      status: "Draft",
-      fields: [
-        {
-          id: `field-${crypto.randomUUID()}`,
-          label: "Form field",
-          type: "yes_no",
-          required: true,
-        },
-        {
-          id: `field-${crypto.randomUUID()}`,
-          label: "Photo evidence",
-          type: "photo",
-          required: false,
-        },
-      ],
-    };
+    const newTemplate = createBlankFormTemplate();
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
     setSelectedTemplateId(newTemplate.id);
   }
 
-  function deleteSelectedTemplate() {
+  async function deleteSelectedTemplate() {
     const confirmed = window.confirm(`Delete "${selectedTemplate.name}" template?`);
 
     if (!confirmed) return;
+
+    if (isPersistedTemplateId(selectedTemplate.id)) {
+      await deleteMutation.mutateAsync(selectedTemplate.id);
+      return;
+    }
 
     const nextTemplates = templates.filter((template) => template.id !== selectedTemplate.id);
 
@@ -356,45 +416,15 @@ export function FormsWorkspace() {
     setSelectedTemplateId(nextTemplates[0]?.id ?? "");
   }
 
-  function saveDraftNow() {
-    const nextTemplates = templates.map((template) =>
-      template.id === selectedTemplate.id
-        ? {
-            ...template,
-            status: "Draft" as const,
-          }
-        : template
-    );
+  async function persistSelectedTemplate(status: FormTemplate["status"]) {
+    const templateToSave = {
+      ...selectedTemplate,
+      status,
+    };
 
-    setTemplates(nextTemplates);
-    saveFormTemplateWorkspaceTemplates(nextTemplates);
-    setLastSavedAt(new Date().toISOString());
+    updateSelectedTemplate({ status });
+    await saveMutation.mutateAsync(templateToSave);
   }
-
-  function saveTemplateNow() {
-    const nextTemplates = templates.map((template) =>
-      template.id === selectedTemplate.id
-        ? {
-            ...template,
-            status: "Active" as const,
-          }
-        : template
-    );
-
-    setTemplates(nextTemplates);
-    saveFormTemplateWorkspaceTemplates(nextTemplates);
-    setLastSavedAt(new Date().toISOString());
-  }
-
-  async function syncSelectedTemplate() {
-    await syncTemplateMutation.mutateAsync(selectedTemplate);
-  }
-
-  if (workspace.mode === "outlet") {
-    return <OutletManualFormsWorkspace />;
-  }
-
-  const isAreaWorkspace = workspace.mode === "area";
 
   return (
     <main className="space-y-6 p-6">
@@ -410,23 +440,24 @@ export function FormsWorkspace() {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
               className={`inline-flex rounded-full px-3 py-1 font-bold ${
-                backendTemplatesQuery.isSuccess
+                templatesQuery.isSuccess
                   ? "bg-emerald-50 text-emerald-700"
                   : "bg-amber-50 text-amber-700"
               }`}
             >
-              {backendTemplatesQuery.isSuccess ? "Backend templates connected" : "Local form draft"}
+              {templatesQuery.isSuccess ? "Backend templates connected" : "Connecting to backend"}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Check className="size-3.5 text-emerald-600" />
               {lastSavedAt
-                ? `Draft saved ${new Date(lastSavedAt).toLocaleTimeString([], {
+                ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}`
-                : "Autosave ready"}
+                : "Ready to save"}
             </span>
           </div>
+          {saveError ? <p className="mt-2 text-sm text-red-600">{saveError}</p> : null}
         </div>
 
         {isAreaWorkspace ? (
@@ -446,30 +477,22 @@ export function FormsWorkspace() {
 
             <button
               type="button"
-              onClick={() => void syncSelectedTemplate()}
-              disabled={syncTemplateMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              onClick={() => void persistSelectedTemplate("Draft")}
+              disabled={saveMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Save className="size-4" />
-              {syncTemplateMutation.isPending ? "Syncing..." : "Sync to Backend"}
+              {saveMutation.isPending ? "Saving..." : "Save Draft"}
             </button>
 
             <button
               type="button"
-              onClick={saveDraftNow}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+              onClick={() => void persistSelectedTemplate("Active")}
+              disabled={saveMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               <Save className="size-4" />
-              Save Draft
-            </button>
-
-            <button
-              type="button"
-              onClick={saveTemplateNow}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
-            >
-              <Save className="size-4" />
-              Save Template
+              {saveMutation.isPending ? "Saving..." : "Save Template"}
             </button>
           </div>
         )}
@@ -515,6 +538,7 @@ export function FormsWorkspace() {
               </p>
               <input
                 value={selectedTemplate.name}
+                readOnly={isAreaWorkspace}
                 onChange={(event) =>
                   updateSelectedTemplate({
                     name: event.target.value,
@@ -524,6 +548,7 @@ export function FormsWorkspace() {
               />
               <textarea
                 value={selectedTemplate.description}
+                readOnly={isAreaWorkspace}
                 onChange={(event) =>
                   updateSelectedTemplate({
                     description: event.target.value,
@@ -534,24 +559,28 @@ export function FormsWorkspace() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={addField}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-            >
-              <Plus className="size-4" />
-              Add Item
-            </button>
+            {!isAreaWorkspace ? (
+              <>
+                <button
+                  type="button"
+                  onClick={addField}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                >
+                  <Plus className="size-4" />
+                  Add Item
+                </button>
 
-            <button
-              type="button"
-              onClick={deleteSelectedTemplate}
-              disabled={templates.length <= 1}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-            >
-              <Trash2 className="size-4" />
-              Delete
-            </button>
+                <button
+                  type="button"
+                  onClick={() => void deleteSelectedTemplate()}
+                  disabled={templates.length <= 1 || deleteMutation.isPending}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </button>
+              </>
+            ) : null}
           </div>
 
           <div className="space-y-3 p-4">
@@ -564,6 +593,7 @@ export function FormsWorkspace() {
                     </p>
                     <input
                       value={field.label}
+                      readOnly={isAreaWorkspace}
                       onChange={(event) =>
                         updateField(field.id, {
                           label: event.target.value,
@@ -573,19 +603,22 @@ export function FormsWorkspace() {
                     />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => deleteField(field.id)}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
-                    aria-label="Delete item"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  {!isAreaWorkspace ? (
+                    <button
+                      type="button"
+                      onClick={() => deleteField(field.id)}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
+                      aria-label="Delete item"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                   <select
                     value={field.type}
+                    disabled={isAreaWorkspace}
                     onChange={(event) =>
                       updateField(field.id, {
                         type: event.target.value as FormFieldType,
