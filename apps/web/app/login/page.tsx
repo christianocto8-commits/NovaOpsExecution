@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getMe, login } from "@/services/auth.service";
 import type { NovaRole } from "@/shared/navigation/role-config";
@@ -40,18 +40,21 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
 }
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState(() => {
-    if (typeof window === "undefined") return "admin";
-    return localStorage.getItem(REMEMBER_KEY) ?? "admin";
-  });
-  const [password, setPassword] = useState("Admin12345!");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return Boolean(localStorage.getItem(REMEMBER_KEY));
-  });
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const rememberedIdentifier = localStorage.getItem(REMEMBER_KEY);
+
+    if (rememberedIdentifier) {
+      setIdentifier(rememberedIdentifier);
+      setRememberMe(true);
+    }
+  }, []);
 
   async function handleLogin() {
     if (loading) return;
@@ -138,10 +141,17 @@ export default function LoginPage() {
             <input
               type="checkbox"
               checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setRememberMe(checked);
+
+                if (!checked) {
+                  localStorage.removeItem(REMEMBER_KEY);
+                }
+              }}
               className="h-4 w-4 rounded border-slate-300 accent-[#3D6B49]"
             />
-            Remember me
+            Remember username
           </label>
 
           <button
