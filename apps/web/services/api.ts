@@ -1,7 +1,7 @@
-import { getApiRequestCandidates, wakeBackend } from "@/lib/api-url";
+import { buildApiUrl, resolveApiDisplayUrl } from "@/lib/api-url";
 
-const DEFAULT_TIMEOUT_MS = 90000;
-const RETRY_DELAYS_MS = [3000, 6000, 12000];
+const DEFAULT_TIMEOUT_MS = 70000;
+const RETRY_DELAY_MS = 5000;
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -59,6 +59,19 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function shouldRetryRequest(endpoint: string, options?: RequestInit) {
+  const method = (options?.method ?? "GET").toUpperCase();
+
+  if (method === "GET" || method === "HEAD") return true;
+  if (method === "POST" || method === "PATCH" || method === "DELETE" || method === "PUT") {
+    return true;
+  }
+  if (endpoint.includes("/auth/login")) return true;
+  if (endpoint.includes("/authorization/context")) return true;
+
+  return false;
+}
+
 function buildHeaders(options?: RequestInit) {
   const token = getToken();
   const outletId = getOutletId();
@@ -79,28 +92,16 @@ function buildHeaders(options?: RequestInit) {
   return baseHeaders;
 }
 
-function buildConnectionError(lastUrl: string) {
-  return `Koneksi ke backend gagal (${lastUrl}). Backend Render mungkin sedang bangun dari sleep — tunggu 30–60 detik lalu coba lagi. Jika masih gagal, refresh halaman (Ctrl+Shift+R).`;
+function buildConnectionError() {
+  return `Koneksi ke backend gagal. Pastikan VPS API aktif di ${resolveApiDisplayUrl()}, lalu refresh halaman (Ctrl+Shift+R).`;
 }
 
-function isNetworkLikeFailure(error: unknown) {
-  return (
-    error instanceof TypeError ||
-    (error instanceof DOMException && error.name === "AbortError")
-  );
-}
-
-function shouldWakeBackend(endpoint: string, options?: RequestInit) {
-  const method = (options?.method ?? "GET").toUpperCase();
-  return method !== "GET" && method !== "HEAD" && endpoint !== "/api/v1/health";
-}
-
-async function executeRequest<T>(requestUrl: string, options?: RequestInit): Promise<T> {
+async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(requestUrl, {
+    const response = await fetch(buildApiUrl(endpoint), {
       ...options,
       signal: options?.signal ?? controller.signal,
       headers: buildHeaders(options),
@@ -129,45 +130,44 @@ async function executeRequest<T>(requestUrl: string, options?: RequestInit): Pro
 }
 
 export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  if (shouldWakeBackend(endpoint, options)) {
-    await wakeBackend();
-  }
+  try {
+    return await executeRequest<T>(endpoint, options);
+  } catch (error) {
+    const canRetry = shouldRetryRequest(endpoint, options);
+    const networkLikeFailure =
+      error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "AbortError");
 
-  const requestCandidates = getApiRequestCandidates(endpoint);
-  let lastError: unknown;
-  let lastUrl = requestCandidates[0] ?? endpoint;
-
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-    for (const requestUrl of requestCandidates) {
-      lastUrl = requestUrl;
+    if (canRetry && networkLikeFailure) {
+      await sleep(RETRY_DELAY_MS);
 
       try {
-        return await executeRequest<T>(requestUrl, options);
-      } catch (error) {
-        lastError = error;
-
-        if (!isNetworkLikeFailure(error)) {
-          throw error;
+        return await executeRequest<T>(endpoint, options);
+      } catch (retryError) {
+        if (retryError instanceof DOMException && retryError.name === "AbortError") {
+          throw new Error(
+            "API tidak merespons setelah dua percobaan. Cek VPS backend lalu coba lagi."
+          );
         }
+
+        if (retryError instanceof TypeError) {
+          throw new Error(buildConnectionError());
+        }
+
+        throw retryError;
       }
     }
 
-    if (attempt >= RETRY_DELAYS_MS.length) {
-      break;
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        "API tidak merespons dalam 70 detik. Cek status VPS backend lalu ulangi."
+      );
     }
 
-    await sleep(RETRY_DELAYS_MS[attempt]);
-  }
+    if (error instanceof TypeError) {
+      throw new Error(buildConnectionError());
+    }
 
-  if (lastError instanceof DOMException && lastError.name === "AbortError") {
-    throw new Error(
-      "API tidak merespons setelah beberapa percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 30 detik lalu coba lagi."
-    );
+    throw error;
   }
-
-  if (lastError instanceof TypeError) {
-    throw new Error(buildConnectionError(lastUrl));
-  }
-
-  throw lastError;
 }

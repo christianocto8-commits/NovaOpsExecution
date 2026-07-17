@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const API_PROXY_TARGET = (
-  process.env.NEXT_PUBLIC_API_URL ??
   process.env.API_PROXY_TARGET ??
-  "https://novaops-api.onrender.com"
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://103.247.10.145"
 ).replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
