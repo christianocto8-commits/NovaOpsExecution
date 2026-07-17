@@ -198,7 +198,15 @@ export function ExecutiveDashboard() {
                     <div className="text-sm font-semibold text-[#1E1E1E]">{item.category}</div>
                     <div className="text-xs text-gray-500">Score {item.score}%</div>
                   </div>
-                  <Badge variant={item.status === "healthy" ? "success" : "warning"}>
+                  <Badge
+                    variant={
+                      item.status === "excellent" || item.status === "good"
+                        ? "success"
+                        : item.status === "critical"
+                          ? "danger"
+                          : "warning"
+                    }
+                  >
                     {item.status}
                   </Badge>
                 </div>
