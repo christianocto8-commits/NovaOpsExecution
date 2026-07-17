@@ -1,7 +1,4 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000";
+import { resolveApiUrl } from "@/lib/api-url";
 
 const DEFAULT_TIMEOUT_MS = 70000;
 const RETRY_DELAY_MS = 5000;
@@ -67,6 +64,7 @@ function shouldRetryRequest(endpoint: string, options?: RequestInit) {
 
   if (method === "GET" || method === "HEAD") return true;
   if (method === "DELETE" || method === "PUT") return true;
+  if (method === "POST" || method === "PATCH") return true;
   if (endpoint.includes("/auth/login")) return true;
   if (endpoint.includes("/authorization/context")) return true;
 
@@ -93,12 +91,17 @@ function buildHeaders(options?: RequestInit) {
   return baseHeaders;
 }
 
+function buildConnectionError(apiUrl: string) {
+  return `Koneksi ke backend gagal (${apiUrl}). Pastikan NEXT_PUBLIC_API_URL di Vercel = https://novaops-api.onrender.com dan CORS_ORIGINS di Render sudah mengizinkan domain frontend Anda.`;
+}
+
 async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const apiUrl = resolveApiUrl();
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
       signal: options?.signal ?? controller.signal,
       headers: buildHeaders(options),
@@ -127,6 +130,8 @@ async function executeRequest<T>(endpoint: string, options?: RequestInit): Promi
 }
 
 export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const apiUrl = resolveApiUrl();
+
   try {
     return await executeRequest<T>(endpoint, options);
   } catch (error) {
@@ -148,9 +153,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
         }
 
         if (retryError instanceof TypeError) {
-          throw new Error(
-            "Koneksi ke backend gagal dijangkau. Pastikan URL API Vercel benar dan CORS_ORIGINS di Render sudah mengizinkan domain frontend."
-          );
+          throw new Error(buildConnectionError(apiUrl));
         }
 
         throw retryError;
@@ -164,9 +167,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     }
 
     if (error instanceof TypeError) {
-      throw new Error(
-        "Koneksi ke backend gagal dijangkau. Pastikan URL API Vercel benar dan CORS_ORIGINS di Render sudah mengizinkan domain frontend."
-      );
+      throw new Error(buildConnectionError(apiUrl));
     }
 
     throw error;

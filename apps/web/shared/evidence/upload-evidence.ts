@@ -1,7 +1,4 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000";
+import { resolveApiUrl } from "@/lib/api-url";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -20,7 +17,7 @@ export async function uploadEvidenceFile(file: File) {
 
   formData.append("file", file);
 
-  const response = await fetch(`${API_URL}/api/v1/evidence-uploads`, {
+  const response = await fetch(`${resolveApiUrl()}/api/v1/evidence-uploads`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: formData,
