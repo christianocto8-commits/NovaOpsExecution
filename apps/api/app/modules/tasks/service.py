@@ -372,6 +372,9 @@ class TaskService:
         self.db.commit()
 
     def delete_task(self, task_id: int, outlet_id: int) -> None:
+        from app.models.execution_session import ExecutionSession
+
         task = self.get_task(task_id, outlet_id)
+        self.db.query(ExecutionSession).filter(ExecutionSession.task_id == task_id).delete()
         self.repo.delete(task)
         self.db.commit()

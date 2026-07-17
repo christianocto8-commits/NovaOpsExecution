@@ -12,6 +12,11 @@ export const queryKeys = {
     formTemplates: () => ["sop", "form-templates"] as const,
   },
 
+  history: {
+    executionSessions: () => ["history", "execution-sessions"] as const,
+    formSubmissions: () => ["history", "form-submissions"] as const,
+  },
+
   workflow: {
     all: ["workflow"] as const,
     lists: () => ["workflow", "list"] as const,

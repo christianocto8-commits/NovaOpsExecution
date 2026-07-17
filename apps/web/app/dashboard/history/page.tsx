@@ -1,28 +1,20 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ClipboardCheck, FileText, RefreshCw } from "lucide-react";
 
+import { useFormTemplates } from "@/features/forms/hooks/use-form-templates";
+import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
+import { getExecutionSessions } from "@/services/execution-session.service";
+import { formSubmissionService } from "@/services/form-submission.service";
+import { taskService } from "@/services/task.service";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { taskService } from "@/services/task.service";
-import type { Task } from "@/features/tasks/types";
-
-const TASK_STORAGE_KEY = "novaops_tasks_mock";
-
-type ManualFormSubmission = {
-  id: string;
-  outlet?: string;
-  templateId?: string;
-  templateName?: string;
-  responses?: Record<string, string>;
-  submittedAt?: string;
-};
 
 type HistoryItem = {
   id: string;
@@ -32,48 +24,6 @@ type HistoryItem = {
   timestamp: string;
   details: string;
 };
-
-function loadManualSubmissions() {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const parsed = JSON.parse(localStorage.getItem("novaops_manual_form_submissions") ?? "[]");
-    return Array.isArray(parsed) ? (parsed as ManualFormSubmission[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadLocalTasks() {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const parsed = JSON.parse(localStorage.getItem(TASK_STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? (parsed as Task[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function mergeTasks(primaryTasks: Task[], fallbackTasks: Task[]) {
-  const taskMap = new Map<string, Task>();
-
-  fallbackTasks.forEach((task) => taskMap.set(task.id, task));
-  primaryTasks.forEach((task) => taskMap.set(task.id, task));
-
-  return Array.from(taskMap.values());
-}
-
-function taskMatchesOutletName(taskOutlet: string | undefined, outletName?: string) {
-  if (!outletName) return false;
-  return taskOutlet === outletName;
-}
-
-function taskMatchesOutlet(task: Task, outletName?: string) {
-  if (!outletName) return false;
-
-  return taskMatchesOutletName(task.outlet, outletName) || Boolean(task.targetOutlets?.includes(outletName));
-}
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -86,36 +36,77 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function getTaskTimestamp(task: Task) {
-  return task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due;
+function taskMatchesOutlet(task: Task, outletName?: string, outletId?: string) {
+  if (!outletName && !outletId) return true;
+  if (outletId && task.outletId === outletId) return true;
+  if (outletName && task.outlet === outletName) return true;
+  return Boolean(outletName && task.targetOutlets?.includes(outletName));
 }
 
-function toHistoryItems(tasks: Task[], submissions: ManualFormSubmission[]) {
-  const completedTaskItems: HistoryItem[] = tasks
-    .filter((task) => task.status === "Completed" || task.execution)
+function buildHistoryItems(args: {
+  tasks: Task[];
+  executionSessions: Awaited<ReturnType<typeof getExecutionSessions>>;
+  formSubmissions: Awaited<ReturnType<typeof formSubmissionService.list>>;
+  templateNameById: Map<string, string>;
+  outletName?: string;
+  outletId?: string;
+}) {
+  const { tasks, executionSessions, formSubmissions, templateNameById, outletName, outletId } =
+    args;
+
+  const visibleTasks = tasks.filter((task) => taskMatchesOutlet(task, outletName, outletId));
+  const taskTitleById = new Map(visibleTasks.map((task) => [task.id, task.title]));
+
+  const completedTaskItems: HistoryItem[] = visibleTasks
+    .filter((task) => task.status === "Completed")
     .map((task) => ({
       id: `task-${task.id}`,
       title: task.title,
       subtitle: `${task.outlet} - ${task.assignee}`,
       type: "task",
-      timestamp: getTaskTimestamp(task) || new Date().toISOString(),
+      timestamp: task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due,
       details: task.execution?.note || task.description || "Task completed.",
     }));
 
-  const manualFormItems: HistoryItem[] = submissions
-    .filter((submission) => submission.submittedAt)
-    .map((submission) => ({
-      id: `form-${submission.id}`,
-      title: submission.templateName ?? "Manual form submission",
-      subtitle: submission.outlet ?? "Outlet",
-      type: "form",
-      timestamp: submission.submittedAt ?? new Date().toISOString(),
-      details: `${Object.keys(submission.responses ?? {}).length} response(s) submitted.`,
-    }));
+  const sessionItems: HistoryItem[] = executionSessions
+    .filter((session) => session.status === "completed" && session.task_id)
+    .map((session) => {
+      const taskId = String(session.task_id);
+      const taskTitle = taskTitleById.get(taskId) ?? `Task ${taskId}`;
 
-  return [...completedTaskItems, ...manualFormItems].sort(
-    (first, second) =>
-      new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime()
+      return {
+        id: `session-${session.id}`,
+        title: taskTitle,
+        subtitle: "Task execution session",
+        type: "task" as const,
+        timestamp: session.submitted_at ?? new Date().toISOString(),
+        details: `${Object.keys(session.answers_json ?? {}).length} response(s) submitted.`,
+      };
+    });
+
+  const formItems: HistoryItem[] = formSubmissions.map((submission) => {
+    const templateName =
+      templateNameById.get(String(submission.form_template_id)) ??
+      `Form ${submission.form_template_id}`;
+
+    return {
+      id: `form-${submission.id}`,
+      title: templateName,
+      subtitle: `Outlet ${submission.outlet_id}`,
+      type: "form" as const,
+      timestamp: submission.submitted_at ?? new Date().toISOString(),
+      details: `${submission.answers.length} answer(s) submitted.`,
+    };
+  });
+
+  const merged = new Map<string, HistoryItem>();
+
+  [...completedTaskItems, ...sessionItems, ...formItems].forEach((item) => {
+    merged.set(item.id, item);
+  });
+
+  return Array.from(merged.values()).sort(
+    (first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime()
   );
 }
 
@@ -125,49 +116,78 @@ export default function HistoryPage() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
-  const [manualSubmissions, setManualSubmissions] =
-    useState<ManualFormSubmission[]>(loadManualSubmissions);
-  const [localTasks, setLocalTasks] = useState<Task[]>(loadLocalTasks);
+
+  const outletId =
+    workspace.mode === "outlet" && workspace.outletId ? workspace.outletId : undefined;
+  const numericOutletId = outletId && /^\d+$/.test(outletId) ? Number(outletId) : undefined;
+
   const taskQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.list,
-    retry: false,
   });
 
-  const tasks = useMemo(() => {
-    const backendTasks = taskQuery.data ?? [];
+  const executionSessionsQuery = useQuery({
+    queryKey: queryKeys.history.executionSessions(),
+    queryFn: () => getExecutionSessions({ status: "completed" }),
+  });
 
-    if (workspace.mode !== "outlet") {
-      return backendTasks;
-    }
+  const formSubmissionsQuery = useQuery({
+    queryKey: [...queryKeys.history.formSubmissions(), numericOutletId ?? "all"],
+    queryFn: () =>
+      formSubmissionService.list(
+        numericOutletId !== undefined ? { outletId: numericOutletId } : undefined
+      ),
+  });
 
-    const localOutletTasks = localTasks.filter((task) =>
-      taskMatchesOutlet(task, workspace.outletName)
-    );
+  const templatesQuery = useFormTemplates();
 
-    if (taskQuery.isSuccess) {
-      return mergeTasks(backendTasks, localOutletTasks);
-    }
+  const templateNameById = useMemo(() => {
+    const map = new Map<string, string>();
 
-    return localOutletTasks;
-  }, [localTasks, taskQuery.data, taskQuery.isSuccess, workspace.mode, workspace.outletName]);
+    (templatesQuery.data ?? []).forEach((template) => {
+      map.set(template.id, template.name);
+    });
 
-  const visibleManualSubmissions = useMemo(() => {
-    if (workspace.mode !== "outlet") {
-      return [];
-    }
+    return map;
+  }, [templatesQuery.data]);
 
-    return manualSubmissions.filter((submission) =>
-      taskMatchesOutletName(submission.outlet, workspace.outletName)
-    );
-  }, [manualSubmissions, workspace.mode, workspace.outletName]);
+  const tasks = taskQuery.data ?? [];
+  const executionSessions = executionSessionsQuery.data ?? [];
+  const formSubmissions = formSubmissionsQuery.data ?? [];
 
   const historyItems = useMemo(
-    () => toHistoryItems(tasks, visibleManualSubmissions),
-    [tasks, visibleManualSubmissions]
+    () =>
+      buildHistoryItems({
+        tasks,
+        executionSessions,
+        formSubmissions,
+        templateNameById,
+        outletName: workspace.mode === "outlet" ? workspace.outletName : undefined,
+        outletId,
+      }),
+    [
+      tasks,
+      executionSessions,
+      formSubmissions,
+      templateNameById,
+      workspace.mode,
+      workspace.outletName,
+      outletId,
+    ]
   );
 
   const completedTasks = tasks.filter((task) => task.status === "Completed").length;
+  const isLoading =
+    taskQuery.isLoading || executionSessionsQuery.isLoading || formSubmissionsQuery.isLoading;
+  const isError =
+    taskQuery.isError || executionSessionsQuery.isError || formSubmissionsQuery.isError;
+
+  function refreshHistory() {
+    void taskQuery.refetch();
+    void executionSessionsQuery.refetch();
+    void formSubmissionsQuery.refetch();
+    void templatesQuery.refetch();
+  }
 
   return (
     <main className="space-y-6 p-6">
@@ -178,17 +198,13 @@ export default function HistoryPage() {
             Task History
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Completed task history follows backend access rules. Manual form history stays limited to the active outlet account.
+            Completed tasks, execution sessions, and manual form submissions loaded from backend.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => {
-            setManualSubmissions(loadManualSubmissions());
-            setLocalTasks(loadLocalTasks());
-            void taskQuery.refetch();
-          }}
+          onClick={refreshHistory}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
         >
           <RefreshCw className="size-4" />
@@ -207,7 +223,7 @@ export default function HistoryPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Manual Forms
           </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">{visibleManualSubmissions.length}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">{formSubmissions.length}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -217,10 +233,10 @@ export default function HistoryPage() {
         </div>
       </section>
 
-      {taskQuery.isError ? (
+      {isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Server history sync is unavailable for this account. Showing local outlet history only for
-          the active outlet account.
+          Some history sources failed to load. Refresh after the backend finishes waking up on
+          Render.
         </div>
       ) : null}
 
@@ -228,16 +244,16 @@ export default function HistoryPage() {
         <div className="border-b border-slate-100 p-5">
           <p className="text-sm font-bold text-slate-950">Activity Timeline</p>
           <p className="mt-1 text-sm text-slate-500">
-            This timeline only shows submitted or completed work.
+            This timeline only shows submitted or completed work from the API.
           </p>
         </div>
 
-        {taskQuery.isLoading ? (
+        {isLoading ? (
           <div className="p-8 text-sm text-slate-500">Loading history...</div>
         ) : historyItems.length === 0 ? (
           <div className="p-10 text-center">
             <ClipboardCheck className="mx-auto size-9 text-slate-300" />
-            <p className="mt-3 font-bold text-slate-800">No real history yet</p>
+            <p className="mt-3 font-bold text-slate-800">No history yet</p>
             <p className="mt-1 text-sm text-slate-500">
               Complete a task or submit a manual form, then it will appear here.
             </p>

@@ -204,10 +204,16 @@ export const taskService = {
     return mapBackendTask(task);
   },
 
-  async remove(taskId: string, outletId?: string) {
+  async remove(taskId: string, options?: { resolveOutletFromTask?: boolean }) {
+    const headers: Record<string, string> = {};
+
+    if (options?.resolveOutletFromTask) {
+      headers["X-Outlet-Id"] = "";
+    }
+
     return api<void>(`/api/v1/tasks/${taskId}`, {
       method: "DELETE",
-      headers: outletId ? { "X-Outlet-Id": outletId } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     });
   },
 

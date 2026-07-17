@@ -222,8 +222,8 @@ export function useTaskWorkspace() {
   });
 
   const deleteTaskMutation = useMutation({
-    mutationFn: ({ taskId, outletId }: { taskId: string; outletId?: string }) =>
-      taskService.remove(taskId, outletId),
+    mutationFn: ({ taskId }: { taskId: string }) =>
+      taskService.remove(taskId, { resolveOutletFromTask: true }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
   });
 
@@ -412,7 +412,6 @@ export function useTaskWorkspace() {
     try {
       await deleteTaskMutation.mutateAsync({
         taskId: id,
-        outletId: task?.outletId,
       });
       toast.success("Task berhasil dihapus.");
     } catch (error) {

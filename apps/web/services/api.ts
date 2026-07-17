@@ -66,6 +66,7 @@ function shouldRetryRequest(endpoint: string, options?: RequestInit) {
   const method = (options?.method ?? "GET").toUpperCase();
 
   if (method === "GET" || method === "HEAD") return true;
+  if (method === "DELETE" || method === "PUT") return true;
   if (endpoint.includes("/auth/login")) return true;
   if (endpoint.includes("/authorization/context")) return true;
 

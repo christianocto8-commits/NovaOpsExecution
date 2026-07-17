@@ -19,6 +19,18 @@ export type FormSubmissionCreatePayload = {
   answers: FormSubmissionAnswerPayload[];
 };
 
+export type FormSubmissionResponse = {
+  id: number;
+  form_template_id: number;
+  outlet_id: number;
+  submitted_by: number;
+  reviewed_by: number | null;
+  status: string;
+  score: number | null;
+  submitted_at: string | null;
+  answers: FormSubmissionAnswerPayload[];
+};
+
 function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
   return fields
     .map((field) => {
@@ -60,6 +72,28 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
 }
 
 export const formSubmissionService = {
+  async list(params?: { outletId?: number; formTemplateId?: number; status?: string }) {
+    const searchParams = new URLSearchParams();
+
+    if (params?.outletId !== undefined) {
+      searchParams.set("outlet_id", String(params.outletId));
+    }
+
+    if (params?.formTemplateId !== undefined) {
+      searchParams.set("form_template_id", String(params.formTemplateId));
+    }
+
+    if (params?.status) {
+      searchParams.set("status", params.status);
+    }
+
+    const query = searchParams.toString();
+
+    return api<FormSubmissionResponse[]>(
+      `/api/v1/form-submissions${query ? `?${query}` : ""}`
+    );
+  },
+
   async create(payload: FormSubmissionCreatePayload) {
     return api("/api/v1/form-submissions", {
       method: "POST",
