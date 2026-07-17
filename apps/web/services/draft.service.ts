@@ -23,33 +23,33 @@ export type CreateTaskDraftPayload = {
 export type UpdateTaskDraftPayload = Partial<CreateTaskDraftPayload>;
 
 export async function getTaskDrafts() {
-  return api<TaskDraft[]>("/task-drafts", {
+  return api<TaskDraft[]>("/api/v1/task-drafts", {
     method: "GET",
   });
 }
 
 export async function createTaskDraft(payload: CreateTaskDraftPayload) {
-  return api<TaskDraft>("/task-drafts", {
+  return api<TaskDraft>("/api/v1/task-drafts", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateTaskDraft(draftId: number, payload: UpdateTaskDraftPayload) {
-  return api<TaskDraft>(`/task-drafts/${draftId}`, {
+  return api<TaskDraft>(`/api/v1/task-drafts/${draftId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteTaskDraft(draftId: number) {
-  return api<void>(`/task-drafts/${draftId}`, {
+  return api<void>(`/api/v1/task-drafts/${draftId}`, {
     method: "DELETE",
   });
 }
 
 export async function publishTaskDraft(draftId: number) {
-  return api<TaskDraft>(`/task-drafts/${draftId}/publish`, {
+  return api<TaskDraft>(`/api/v1/task-drafts/${draftId}/publish`, {
     method: "POST",
   });
 }

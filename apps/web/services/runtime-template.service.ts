@@ -11,9 +11,9 @@ export type RuntimeTemplate = {
 };
 
 export function getRuntimeTemplates() {
-  return api<RuntimeTemplate[]>("/runtime-templates");
+  return api<RuntimeTemplate[]>("/api/v1/runtime-templates");
 }
 
 export function getRuntimeTemplate(id: number) {
-  return api<RuntimeTemplate>(`/runtime-templates/${id}`);
+  return api<RuntimeTemplate>(`/api/v1/runtime-templates/${id}`);
 }

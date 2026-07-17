@@ -31,17 +31,17 @@ export type ComplianceReport = {
 };
 
 export async function getReportSummary() {
-  return api<ReportSummary>("/reports/summary");
+  return api<ReportSummary>("/api/v1/reports/summary");
 }
 
 export async function getReportTrends() {
-  return api<ReportTrendPoint[]>("/reports/trends");
+  return api<ReportTrendPoint[]>("/api/v1/reports/trends");
 }
 
 export async function getOutletReports() {
-  return api<OutletReport[]>("/reports/outlets");
+  return api<OutletReport[]>("/api/v1/reports/outlets");
 }
 
 export async function getComplianceReports() {
-  return api<ComplianceReport[]>("/reports/compliance");
+  return api<ComplianceReport[]>("/api/v1/reports/compliance");
 }

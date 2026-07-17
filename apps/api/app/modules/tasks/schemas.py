@@ -40,6 +40,11 @@ class TaskStatusUpdate(BaseModel):
     status: TaskStatus
 
 
+class TaskReviewUpdate(BaseModel):
+    review: Literal["approved", "rejected"]
+    note: str | None = None
+
+
 class TaskCommentCreate(BaseModel):
     comment: str = Field(min_length=1)
     evidence_url: str | None = None
@@ -125,6 +130,13 @@ class TaskResponse(BaseModel):
 
     approved_by: int | None
     approved_at: datetime | None
+
+    schedule_id: int | None = None
+    shift: str | None = None
+    recurrence: str | None = None
+    due_time: str | None = None
+    weekly_publish_day: str | None = None
+    auto_publish: bool | None = None
 
     created_at: datetime
     updated_at: datetime

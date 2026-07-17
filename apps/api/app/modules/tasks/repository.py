@@ -13,6 +13,7 @@ class TaskRepository:
     def list_by_outlet(self, outlet_id: int) -> list[Task]:
         return (
             self.db.query(Task)
+            .options(joinedload(Task.schedule), joinedload(Task.outlet))
             .filter(Task.outlet_id == outlet_id)
             .order_by(Task.created_at.desc())
             .all()
@@ -24,13 +25,19 @@ class TaskRepository:
 
         return (
             self.db.query(Task)
+            .options(joinedload(Task.schedule), joinedload(Task.outlet))
             .filter(Task.outlet_id.in_(outlet_ids))
             .order_by(Task.created_at.desc())
             .all()
         )
 
     def list_all(self) -> list[Task]:
-        return self.db.query(Task).order_by(Task.created_at.desc()).all()
+        return (
+            self.db.query(Task)
+            .options(joinedload(Task.schedule), joinedload(Task.outlet))
+            .order_by(Task.created_at.desc())
+            .all()
+        )
 
     def get_any_by_id(self, task_id: int) -> Task | None:
         return self.db.query(Task).filter(Task.id == task_id).first()

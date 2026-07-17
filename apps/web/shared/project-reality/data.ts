@@ -146,6 +146,13 @@ export const NOVAOPS_REAL_PROJECT_TASKS: ProjectTask[] = [
     title: "Enterprise Backend Integration",
     sprint: "07",
     module: "Backend",
-    status: "planned",
+    status: "in_progress",
+  },
+  {
+    id: "08-recurring-scheduler",
+    title: "Recurring Task Scheduler + Auto Publish",
+    sprint: "08",
+    module: "Tasks",
+    status: "completed",
   },
 ];

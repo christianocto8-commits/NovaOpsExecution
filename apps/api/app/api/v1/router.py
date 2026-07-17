@@ -6,6 +6,7 @@ from app.modules.identity.authorization_api import router as authorization_route
 from app.modules.identity.management_api import router as identity_router
 from app.modules.notifications.api import router as notification_router
 from app.modules.task_drafts.draft_router import router as task_draft_router
+from app.modules.task_schedules.router import router as task_schedule_router
 from app.modules.tasks.router import router as task_router
 from app.modules.workflow_notifications.api import router as workflow_notifications_router
 from app.modules.workflows.action_api import router as workflow_action_router
@@ -16,9 +17,13 @@ from app.modules.workflows.escalation_processor_api import (
 )
 from app.modules.workflows.instance_api import router as workflow_instance_router
 from app.modules.workflows.workflow_api import router as workflow_router
+from app.routers.builder_documents import router as builder_document_router
 from app.routers.evidence_uploads import router as evidence_upload_router
 from app.routers.execution_sessions import router as execution_session_router
+from app.routers.form_submissions import router as form_submission_router
 from app.routers.form_templates import router as form_template_router
+from app.routers.reports import router as reports_router
+from app.routers.runtime_templates import router as runtime_template_router
 from app.routers.settings import router as settings_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -29,11 +34,16 @@ api_router.include_router(identity_router)
 api_router.include_router(authorization_router)
 
 api_router.include_router(task_router)
+api_router.include_router(task_schedule_router)
 api_router.include_router(task_draft_router)
 api_router.include_router(form_template_router)
+api_router.include_router(form_submission_router)
 api_router.include_router(execution_session_router)
 api_router.include_router(settings_router)
 api_router.include_router(evidence_upload_router)
+api_router.include_router(reports_router)
+api_router.include_router(runtime_template_router)
+api_router.include_router(builder_document_router)
 
 # Static and specialized workflow routes must be registered before
 # the generic /workflows/{workflow_id} routes.

@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.user_outlet_role import UserOutletRole
 
 from app.models.task import Task
+from app.models.task_schedule import TaskSchedule
 from app.models.task_comment import TaskComment
 from app.models.task_assignment import TaskAssignment
 

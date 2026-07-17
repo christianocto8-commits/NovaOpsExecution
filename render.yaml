@@ -18,3 +18,20 @@ services:
         value: 1440
       - key: CORS_ORIGINS
         sync: false
+      - key: TASK_SCHEDULER_SECRET
+        sync: false
+
+  - type: cron
+    name: novaops-task-scheduler
+    runtime: image
+    schedule: "*/15 * * * *"
+    image:
+      url: curlimages/curl:latest
+    dockerCommand: >
+      curl -X POST "$NOVAOPS_API_URL/api/v1/task-schedules/process"
+      -H "X-Scheduler-Secret: $TASK_SCHEDULER_SECRET"
+    envVars:
+      - key: NOVAOPS_API_URL
+        sync: false
+      - key: TASK_SCHEDULER_SECRET
+        sync: false

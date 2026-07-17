@@ -1,23 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getFormTemplate } from "@/features/forms/data/mock-form-templates";
-import {
-  readStoredFormTemplates,
-  writeStoredFormTemplates,
-} from "@/features/forms/data/form-template-storage";
-import { FormTemplate } from "@/features/forms/types";
-import { Task } from "@/features/tasks/types";
 import { useConfirmation } from "@/shared/confirmation";
-
-const TASK_STORAGE_KEY = "novaops_tasks_mock";
+import { useToast } from "@/shared/toast";
+import { queryKeys } from "@/lib/query/keys";
+import { formTemplateService } from "@/services/form-template.service";
+import {
+  deleteExecutionSession,
+  getExecutionSessions,
+  type ExecutionSessionResponse,
+} from "@/services/execution-session.service";
+import { taskService } from "@/services/task.service";
 
 type DraftCenterMode = "operational" | "content";
 
 type OperationalDraft = {
   id: string;
+  sessionId: number;
   taskId: string;
   title: string;
   outlet: string;
@@ -37,52 +39,52 @@ type ContentDraft = {
   updatedAt: string;
 };
 
-function loadTaskDrafts(): OperationalDraft[] {
-  if (typeof window === "undefined") return [];
+function formatUpdatedAt(value: string | null | undefined) {
+  if (!value) return "Recently updated";
 
-  const raw = window.localStorage.getItem(TASK_STORAGE_KEY);
+  const date = new Date(value);
 
-  if (!raw) return [];
+  if (Number.isNaN(date.getTime())) return "Recently updated";
 
-  try {
-    const tasks = JSON.parse(raw) as Task[];
-
-    return tasks
-      .filter((task) => Boolean(task.executionDraft))
-      .map((task) => {
-        const template = getFormTemplate(task.formTemplateId);
-        const responses = task.executionDraft?.formResponses ?? {};
-        const answeredCount = Object.values(responses).filter((value) => value.trim()).length;
-        const totalFields = template?.fields.length ?? 0;
-
-        return {
-          id: `DRAFT-${task.id}`,
-          taskId: task.id,
-          title: task.title,
-          outlet: task.outlet,
-          operatorName: task.executionDraft?.operatorName || "Outlet Operator",
-          formName: template?.name ?? task.formTemplateId ?? "No Form",
-          progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
-          updatedAt: "Just now",
-        };
-      });
-  } catch {
-    return [];
-  }
+  return date.toLocaleString();
 }
 
-function loadContentDrafts(): ContentDraft[] {
-  return readStoredFormTemplates()
-    .filter((template) => template.status === "Draft")
-    .map((template) => ({
-      id: `FORM-DRAFT-${template.id}`,
-      templateId: template.id,
-      title: template.name,
-      category: template.category,
-      items: template.fields.length,
-      description: template.description,
-      updatedAt: "Just now",
-    }));
+function buildOperationalDrafts(
+  sessions: ExecutionSessionResponse[],
+  taskTitleById: Map<string, string>,
+  taskOutletById: Map<string, string>,
+  formNameById: Map<string, string>,
+  formFieldCountById: Map<string, number>
+): OperationalDraft[] {
+  return sessions
+    .filter((session) => session.status === "draft" && session.task_id != null)
+    .map((session) => {
+      const taskId = String(session.task_id);
+      const answers = session.answers_json ?? {};
+      const operator = answers.operator as Record<string, unknown> | undefined;
+      const responses = answers.responses as Record<string, unknown> | undefined;
+      const operatorName =
+        typeof operator?.name === "string" && operator.name.trim()
+          ? operator.name
+          : "Outlet Operator";
+      const formTemplateId = session.form_template_id ? String(session.form_template_id) : "";
+      const totalFields = formFieldCountById.get(formTemplateId) ?? 0;
+      const answeredCount = Object.values(responses ?? {}).filter(
+        (value) => typeof value === "string" && value.trim()
+      ).length;
+
+      return {
+        id: `DRAFT-${session.id}`,
+        sessionId: session.id,
+        taskId,
+        title: taskTitleById.get(taskId) ?? `Task ${taskId}`,
+        outlet: taskOutletById.get(taskId) ?? "Outlet",
+        operatorName,
+        formName: formNameById.get(formTemplateId) ?? formTemplateId || "No Form",
+        progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
+        updatedAt: formatUpdatedAt(session.submitted_at),
+      };
+    });
 }
 
 function OperationalDraftCard({
@@ -90,7 +92,7 @@ function OperationalDraftCard({
   onDelete,
 }: {
   draft: OperationalDraft;
-  onDelete: (draftId: string) => void;
+  onDelete: (draft: OperationalDraft) => void;
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -127,7 +129,7 @@ function OperationalDraftCard({
 
         <button
           type="button"
-          onClick={() => onDelete(draft.id)}
+          onClick={() => onDelete(draft)}
           className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
         >
           Delete
@@ -142,7 +144,7 @@ function ContentDraftCard({
   onDelete,
 }: {
   draft: ContentDraft;
-  onDelete: (draftId: string) => void;
+  onDelete: (draft: ContentDraft) => void;
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -176,7 +178,7 @@ function ContentDraftCard({
 
         <button
           type="button"
-          onClick={() => onDelete(draft.id)}
+          onClick={() => onDelete(draft)}
           className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
         >
           Delete
@@ -188,30 +190,77 @@ function ContentDraftCard({
 
 export function DraftCenterWorkspace() {
   const confirm = useConfirmation();
+  const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<DraftCenterMode>("operational");
   const [search, setSearch] = useState("");
 
-  const [operationalDrafts, setOperationalDrafts] = useState<OperationalDraft[]>(loadTaskDrafts);
-  const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>(loadContentDrafts);
+  const executionDraftsQuery = useQuery({
+    queryKey: ["execution-sessions", "draft-center"],
+    queryFn: () => getExecutionSessions({ status: "draft", sourceType: "sop_task" }),
+    retry: false,
+  });
 
-  useEffect(() => {
-    const syncDrafts = () => {
-      setOperationalDrafts(loadTaskDrafts());
-      setContentDrafts(loadContentDrafts());
-    };
+  const tasksQuery = useQuery({
+    queryKey: queryKeys.sop.tasks(),
+    queryFn: taskService.list,
+    retry: false,
+  });
 
-    syncDrafts();
-    window.addEventListener("storage", syncDrafts);
-    window.addEventListener("focus", syncDrafts);
-    window.addEventListener("visibilitychange", syncDrafts);
+  const templatesQuery = useQuery({
+    queryKey: ["form-templates", "draft-center"],
+    queryFn: formTemplateService.list,
+    retry: false,
+  });
 
-    return () => {
-      window.removeEventListener("storage", syncDrafts);
-      window.removeEventListener("focus", syncDrafts);
-      window.removeEventListener("visibilitychange", syncDrafts);
-    };
-  }, []);
+  const deleteDraftMutation = useMutation({
+    mutationFn: deleteExecutionSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution-sessions", "draft-center"] });
+      queryClient.invalidateQueries({ queryKey: ["execution-sessions", "drafts"] });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: formTemplateService.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form-templates", "draft-center"] });
+    },
+  });
+
+  const operationalDrafts = useMemo(() => {
+    const tasks = tasksQuery.data ?? [];
+    const templates = templatesQuery.data ?? [];
+    const taskTitleById = new Map(tasks.map((task) => [task.id, task.title]));
+    const taskOutletById = new Map(tasks.map((task) => [task.id, task.outlet]));
+    const formNameById = new Map(templates.map((template) => [template.id, template.name]));
+    const formFieldCountById = new Map(
+      templates.map((template) => [template.id, template.fields.length])
+    );
+
+    return buildOperationalDrafts(
+      executionDraftsQuery.data ?? [],
+      taskTitleById,
+      taskOutletById,
+      formNameById,
+      formFieldCountById
+    );
+  }, [executionDraftsQuery.data, tasksQuery.data, templatesQuery.data]);
+
+  const contentDrafts = useMemo<ContentDraft[]>(() => {
+    return (templatesQuery.data ?? [])
+      .filter((template) => template.status === "Draft")
+      .map((template) => ({
+        id: `FORM-DRAFT-${template.id}`,
+        templateId: template.id,
+        title: template.name,
+        category: template.category,
+        items: template.fields.length,
+        description: template.description,
+        updatedAt: "Recently updated",
+      }));
+  }, [templatesQuery.data]);
 
   const filteredOperationalDrafts = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -238,68 +287,46 @@ export function DraftCenterWorkspace() {
     });
   }, [contentDrafts, search]);
 
-  async function handleDeleteOperationalDraft(draftId: string) {
-    const draft = operationalDrafts.find((item) => item.id === draftId);
-
+  async function handleDeleteOperationalDraft(draft: OperationalDraft) {
     const confirmed = await confirm({
       title: "Delete Operational Draft",
-      description: `Are you sure you want to delete ${
-        draft?.title ?? "this operational draft"
-      }?\n\nThe saved execution draft will be removed from this task.`,
+      description: `Are you sure you want to delete ${draft.title}?\n\nThe saved execution draft will be removed from this task.`,
       variant: "danger",
       confirmText: "Delete",
       cancelText: "Cancel",
       loadingText: "Deleting...",
     });
 
-    if (!confirmed || !draft) return;
+    if (!confirmed) return;
 
-    const raw = window.localStorage.getItem(TASK_STORAGE_KEY);
-
-    if (raw) {
-      try {
-        const tasks = JSON.parse(raw) as Task[];
-
-        const nextTasks = tasks.map((task) =>
-          task.id === draft.taskId
-            ? {
-                ...task,
-                executionDraft: undefined,
-              }
-            : task
-        );
-
-        window.localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(nextTasks));
-      } catch {
-        // Keep UI stable if local storage contains invalid task data.
-      }
+    try {
+      await deleteDraftMutation.mutateAsync(draft.sessionId);
+      toast.success("Draft eksekusi dihapus.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Gagal menghapus draft.";
+      toast.error(message);
     }
-
-    setOperationalDrafts((current) => current.filter((item) => item.id !== draftId));
   }
 
-  async function handleDeleteContentDraft(draftId: string) {
-    const draft = contentDrafts.find((item) => item.id === draftId);
-
+  async function handleDeleteContentDraft(draft: ContentDraft) {
     const confirmed = await confirm({
       title: "Delete Form Template Draft",
-      description: `Are you sure you want to delete ${
-        draft?.title ?? "this form template draft"
-      }?\n\nThe draft will be removed from My Form too.`,
+      description: `Are you sure you want to delete ${draft.title}?\n\nThe draft will be removed from My Form too.`,
       variant: "danger",
       confirmText: "Delete",
       cancelText: "Cancel",
       loadingText: "Deleting...",
     });
 
-    if (!confirmed || !draft) return;
+    if (!confirmed) return;
 
-    const nextTemplates: FormTemplate[] = readStoredFormTemplates().filter(
-      (template) => template.id !== draft.templateId
-    );
-
-    writeStoredFormTemplates(nextTemplates);
-    setContentDrafts((current) => current.filter((item) => item.id !== draftId));
+    try {
+      await deleteTemplateMutation.mutateAsync(draft.templateId);
+      toast.success("Draft form dihapus.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Gagal menghapus draft form.";
+      toast.error(message);
+    }
   }
 
   return (
@@ -374,7 +401,7 @@ export function DraftCenterWorkspace() {
                 <OperationalDraftCard
                   key={draft.id}
                   draft={draft}
-                  onDelete={(draftId) => void handleDeleteOperationalDraft(draftId)}
+                  onDelete={(item) => void handleDeleteOperationalDraft(item)}
                 />
               ))
             )}
@@ -420,7 +447,7 @@ export function DraftCenterWorkspace() {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteOperationalDraft(draft.id)}
+                          onClick={() => void handleDeleteOperationalDraft(draft)}
                           className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
                         >
                           Delete
@@ -464,7 +491,7 @@ export function DraftCenterWorkspace() {
                 <ContentDraftCard
                   key={draft.id}
                   draft={draft}
-                  onDelete={(draftId) => void handleDeleteContentDraft(draftId)}
+                  onDelete={(item) => void handleDeleteContentDraft(item)}
                 />
               ))
             )}
@@ -506,7 +533,7 @@ export function DraftCenterWorkspace() {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteContentDraft(draft.id)}
+                          onClick={() => void handleDeleteContentDraft(draft)}
                           className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
                         >
                           Delete
@@ -535,4 +562,3 @@ export function DraftCenterWorkspace() {
     </main>
   );
 }
-

@@ -12,6 +12,7 @@ from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
     TaskCommentCreate,
     TaskCreate,
+    TaskReviewUpdate,
     TaskStatusUpdate,
     TaskUpdate,
 )
@@ -211,6 +212,50 @@ class TaskService:
                 event_type="status_changed",
                 previous_value=previous_status,
                 new_value=payload.status,
+            )
+        )
+
+        self.db.commit()
+        self.db.refresh(task)
+        return task
+
+    def review_task(
+        self,
+        task_id: int,
+        outlet_id: int,
+        actor_id: int,
+        payload: TaskReviewUpdate,
+    ) -> Task:
+        task = self.get_task(task_id, outlet_id)
+
+        if task.status not in {"in_progress", "completed", "blocked"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task is not ready for review",
+            )
+
+        approved = payload.review == "approved"
+        previous_status = task.status
+
+        if approved:
+            task.status = "completed"
+            task.approved_by = actor_id
+            task.approved_at = datetime.now(timezone.utc)
+            if task.completed_at is None:
+                task.completed_at = task.approved_at
+        else:
+            task.status = "in_progress"
+            task.approved_by = None
+            task.approved_at = None
+
+        self.repo.create_comment(
+            TaskComment(
+                task_id=task.id,
+                user_id=actor_id,
+                comment=payload.note or ("Evidence approved" if approved else "Evidence rejected"),
+                event_type="review_approved" if approved else "review_rejected",
+                previous_value=previous_status,
+                new_value=task.status,
             )
         )
 

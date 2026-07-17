@@ -16,6 +16,7 @@ from app.modules.tasks.schemas import (
     TaskCreate,
     TaskDetailResponse,
     TaskResponse,
+    TaskReviewUpdate,
     TaskStatusUpdate,
     TaskUpdate,
 )
@@ -244,6 +245,26 @@ def update_task_status(
     )
     service = TaskService(db)
     return service.update_status(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=actor_id,
+        payload=payload,
+    )
+
+
+@router.patch("/{task_id}/review", response_model=TaskResponse)
+def review_task(
+    task_id: int,
+    payload: TaskReviewUpdate,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
+    service = TaskService(db)
+    return service.review_task(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,

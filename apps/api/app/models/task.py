@@ -25,6 +25,9 @@ class Task(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    schedule_id = Column(Integer, ForeignKey("task_schedules.id"), nullable=True, index=True)
+    shift = Column(String(50), nullable=True)
+
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -49,6 +52,23 @@ class Task(Base):
     )
 
     outlet = relationship("Outlet")
+    schedule = relationship("TaskSchedule", back_populates="tasks")
+
+    @property
+    def recurrence(self):
+        return self.schedule.recurrence if self.schedule else None
+
+    @property
+    def due_time(self):
+        return self.schedule.due_time if self.schedule else None
+
+    @property
+    def weekly_publish_day(self):
+        return self.schedule.weekly_publish_day if self.schedule else None
+
+    @property
+    def auto_publish(self):
+        return self.schedule.auto_publish if self.schedule else None
 
     @property
     def outlet_name(self):
