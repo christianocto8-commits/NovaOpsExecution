@@ -7,6 +7,8 @@ services:
     dockerfilePath: ./Dockerfile
     autoDeploy: true
     healthCheckPath: /
+    # Run migrations before traffic switches to the new container.
+    preDeployCommand: timeout 90 alembic upgrade head
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -27,11 +29,15 @@ services:
     schedule: "*/15 * * * *"
     image:
       url: curlimages/curl:latest
-    dockerCommand: >
-      curl -X POST "$NOVAOPS_API_URL/api/v1/task-schedules/process"
-      -H "X-Scheduler-Secret: $TASK_SCHEDULER_SECRET"
+    dockerCommand: >-
+      curl -fsS --max-time 120 --retry 3 --retry-delay 10 --retry-all-errors
+      -X POST "${NOVAOPS_API_URL}/api/v1/task-schedules/process"
+      -H "X-Scheduler-Secret: ${TASK_SCHEDULER_SECRET}"
     envVars:
       - key: NOVAOPS_API_URL
         sync: false
       - key: TASK_SCHEDULER_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: novaops-api
+          envVarKey: TASK_SCHEDULER_SECRET
