@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,12 +13,44 @@ load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 
 def _sanitize_env_value(value: str) -> str:
-    cleaned = value.strip()
+    cleaned = value.strip().strip("\ufeff")
 
-    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {'"', "'"}:
+    quote_pairs = {'"', "'", "“", "”", "‘", "’"}
+    while len(cleaned) >= 2 and cleaned[0] in quote_pairs and cleaned[-1] in quote_pairs:
         cleaned = cleaned[1:-1].strip()
 
     return cleaned
+
+
+def _normalize_database_url(value: str) -> str:
+    cleaned = _sanitize_env_value(value)
+
+    if not cleaned:
+        raise ValueError("DATABASE_URL is empty. Set a valid Neon connection string in Render.")
+
+    parsed = urlparse(cleaned)
+    scheme = parsed.scheme.lower()
+
+    if scheme not in {"postgresql", "postgres", "postgresql+psycopg2", "postgresql+psycopg"}:
+        raise ValueError(
+            "DATABASE_URL must start with postgresql:// or postgres://. "
+            "Remove surrounding quotes and paste only the connection string."
+        )
+
+    query = [
+        (key, val)
+        for key, val in parse_qsl(parsed.query, keep_blank_values=True)
+        if key.lower() != "channel_binding"
+    ]
+    normalized = urlunparse(parsed._replace(query=urlencode(query)))
+
+    if normalized.startswith("postgresql://"):
+        return normalized.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    if normalized.startswith("postgres://"):
+        return normalized.replace("postgres://", "postgresql+psycopg2://", 1)
+
+    return normalized
 
 
 def _parse_cors_origins(raw_value: str | None) -> list[str]:
@@ -59,7 +92,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    database_url = _sanitize_env_value(os.environ["DATABASE_URL"])
+    database_url = _normalize_database_url(os.environ["DATABASE_URL"])
 
     return Settings(
         database_url=database_url,
