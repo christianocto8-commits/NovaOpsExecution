@@ -28,7 +28,8 @@ export type TaskFormFieldType =
   | "photo"
   | "signature"
   | "money_denomination"
-  | "money_amount";
+  | "money_amount"
+  | "responsible_person";
 
 export type TaskFormField = {
   id: string;

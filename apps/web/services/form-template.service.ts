@@ -1,6 +1,9 @@
 import { api } from "@/services/api";
 import type { FormField, FormFieldOptions, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
+import {
+  ensureResponsiblePersonField,
+} from "@/features/forms/utils/system-fields";
 
 export function isPersistedTemplateId(templateId: string) {
   return /^\d+$/.test(templateId);
@@ -14,7 +17,7 @@ export function createMoneySafeCountTemplate(): FormTemplate {
     description:
       "Penghitungan setoran uang tunai per denominasi dan laporan penjualan cash vs EDC.",
     status: "Draft",
-    fields: [
+    fields: ensureResponsiblePersonField([
       {
         id: `local-field-${crypto.randomUUID()}`,
         label: "Uang Tunai Setoran",
@@ -56,7 +59,7 @@ export function createMoneySafeCountTemplate(): FormTemplate {
         required: true,
         section: "Evidence & Sign Off",
       },
-    ],
+    ]),
   };
 }
 
@@ -67,7 +70,7 @@ export function createBlankFormTemplate(): FormTemplate {
     category: "Daily",
     description: "Reusable form template for task execution.",
     status: "Draft",
-    fields: [
+    fields: ensureResponsiblePersonField([
       {
         id: `local-field-${crypto.randomUUID()}`,
         label: "Form field",
@@ -80,7 +83,7 @@ export function createBlankFormTemplate(): FormTemplate {
         type: "photo",
         required: false,
       },
-    ],
+    ]),
   };
 }
 
@@ -137,6 +140,7 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
     denominations: Array.isArray(options.denominations)
       ? options.denominations.filter((value): value is number => typeof value === "number")
       : undefined,
+    system: options.system === true,
   };
 }
 
@@ -167,9 +171,11 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
     category: template.form_type === "draft" ? "Custom" : template.form_type || "Checklist",
     description: template.description ?? "",
     status,
-    fields: (template.fields ?? [])
-      .sort((left, right) => left.sort_order - right.sort_order)
-      .map(mapBackendField),
+    fields: ensureResponsiblePersonField(
+      (template.fields ?? [])
+        .sort((left, right) => left.sort_order - right.sort_order)
+        .map(mapBackendField)
+    ),
   };
 }
 
@@ -195,7 +201,7 @@ function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
     form_type: isDraft ? "draft" : template.category || "Checklist",
     outlet_id: null,
     is_active: template.status === "Active",
-    fields: toBackendFields(template.fields),
+    fields: toBackendFields(ensureResponsiblePersonField(template.fields)),
   };
 }
 

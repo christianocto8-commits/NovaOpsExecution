@@ -18,6 +18,7 @@ class FormSubmission(Base):
 
     status = Column(String(50), nullable=False, default="submitted")
     score = Column(Float, nullable=True)
+    responsible_person_name = Column(String(150), nullable=True)
 
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)

@@ -4,6 +4,12 @@ import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FormField } from "@/features/forms/types";
+import {
+  getResponsiblePersonField,
+  RESPONSIBLE_PERSON_FIELD_LABEL,
+  RESPONSIBLE_PERSON_RESPONSE_KEY,
+  RESPONSIBLE_PERSON_SECTION,
+} from "@/features/forms/utils/system-fields";
 import { formatIdr, parseDigits, parseMoneyDenomination } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { ProgressChip, useFormProgress } from "@/shared/form-progress";
@@ -49,6 +55,10 @@ function getSectionTitle(field: FormField) {
 
   if (field.type === "money_amount") {
     return "Laporan Penjualan";
+  }
+
+  if (field.type === "responsible_person") {
+    return "Pelaksana Tugas";
   }
 
   return "General Checklist";
@@ -194,6 +204,8 @@ export function SectionedFormRenderer({
   highlightedFieldIds = [],
 }: SectionedFormRendererProps) {
   const sections = useMemo(() => groupFieldsBySection(fields), [fields]);
+  const responsiblePersonField = useMemo(() => getResponsiblePersonField(fields), [fields]);
+  const showFallbackResponsiblePerson = !responsiblePersonField;
   const reconciliation = useMemo(
     () => getMoneyReconciliation(fields, responses),
     [fields, responses]
@@ -216,6 +228,30 @@ export function SectionedFormRenderer({
 
   return (
     <div className="space-y-3 sm:space-y-4">
+      {showFallbackResponsiblePerson ? (
+        <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm sm:rounded-3xl">
+          <div className="border-b border-emerald-100 bg-emerald-50 px-4 py-4 sm:px-5">
+            <p className="text-sm font-bold text-emerald-950">{RESPONSIBLE_PERSON_SECTION}</p>
+            <p className="mt-1 text-xs text-emerald-800">Wajib diisi sebelum submit form.</p>
+          </div>
+          <div className="p-4">
+            <label className="text-sm font-bold text-slate-800">{RESPONSIBLE_PERSON_FIELD_LABEL}</label>
+            <input
+              value={responses[RESPONSIBLE_PERSON_RESPONSE_KEY] ?? ""}
+              disabled={readOnly}
+              onChange={(event) =>
+                onChange({
+                  ...responses,
+                  [RESPONSIBLE_PERSON_RESPONSE_KEY]: event.target.value,
+                })
+              }
+              placeholder="Masukkan nama yang mengerjakan tugas ini..."
+              className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+            />
+          </div>
+        </section>
+      ) : null}
+
       {sections.map((section) => (
         <SectionCard
           key={section.id}

@@ -36,6 +36,7 @@ class FormSubmissionCreate(BaseModel):
     submitted_by: int
     status: str = "submitted"
     score: Optional[float] = None
+    responsible_person_name: Optional[str] = None
     answers: list[FormAnswerCreate] = Field(default_factory=list)
 
 
@@ -47,6 +48,7 @@ class FormSubmissionResponse(BaseModel):
     reviewed_by: Optional[int]
     status: str
     score: Optional[float]
+    responsible_person_name: Optional[str]
     submitted_at: Optional[datetime]
     reviewed_at: Optional[datetime]
     answers: list[FormAnswerResponse] = Field(default_factory=list)

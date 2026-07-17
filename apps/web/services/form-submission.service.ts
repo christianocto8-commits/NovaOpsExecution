@@ -6,6 +6,7 @@ import {
   parseDigits,
   parseMoneyDenomination,
 } from "@/features/forms/utils/money";
+import { getResponsiblePersonValue } from "@/features/forms/utils/system-fields";
 import type { TaskFormResponses } from "@/features/tasks/types";
 
 export type FormSubmissionAnswerPayload = {
@@ -23,6 +24,7 @@ export type FormSubmissionCreatePayload = {
   submitted_by: number;
   status?: string;
   score?: number | null;
+  responsible_person_name?: string | null;
   answers: FormSubmissionAnswerPayload[];
 };
 
@@ -34,6 +36,7 @@ export type FormSubmissionResponse = {
   reviewed_by: number | null;
   status: string;
   score: number | null;
+  responsible_person_name: string | null;
   submitted_at: string | null;
   answers: FormSubmissionAnswerPayload[];
 };
@@ -87,6 +90,13 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
         };
       }
 
+      if (field.type === "responsible_person") {
+        return {
+          form_field_id: fieldId,
+          answer_text: raw || null,
+        };
+      }
+
       return {
         form_field_id: fieldId,
         answer_text: raw || null,
@@ -137,6 +147,7 @@ export const formSubmissionService = {
       outlet_id: args.outletId,
       submitted_by: args.submittedBy,
       status: "submitted",
+      responsible_person_name: getResponsiblePersonValue(args.fields, args.responses) || null,
       answers: buildAnswers(args.fields, args.responses),
     });
   },

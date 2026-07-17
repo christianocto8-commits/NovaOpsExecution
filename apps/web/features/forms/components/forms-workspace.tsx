@@ -5,7 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
-import { SectionedFormRenderer } from "@/features/forms/renderer/sectioned-form-renderer";
+import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
+import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
 import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
@@ -29,14 +30,15 @@ const fieldTypeOptions: Array<{
   value: FormFieldType;
   label: string;
 }> = [
-  { value: "yes_no", label: "Yes / No" },
-  { value: "text", label: "Text" },
-  { value: "textarea", label: "Long text" },
-  { value: "number", label: "Number" },
-  { value: "photo", label: "Photo" },
-  { value: "signature", label: "Signature" },
-  { value: "money_denomination", label: "Money denomination" },
-  { value: "money_amount", label: "Money amount" },
+  { value: "yes_no", label: "Ya / Tidak" },
+  { value: "text", label: "Text singkat" },
+  { value: "textarea", label: "Kotak teks" },
+  { value: "number", label: "Angka" },
+  { value: "photo", label: "Foto bukti" },
+  { value: "signature", label: "Tanda tangan" },
+  { value: "responsible_person", label: "Nama pelaksana" },
+  { value: "money_denomination", label: "Hitung denom uang" },
+  { value: "money_amount", label: "Nominal uang" },
 ];
 
 const formTypeOptions = [
@@ -54,14 +56,15 @@ const formTypeOptions = [
 ];
 
 const fieldTypeLabel: Record<FormFieldType, string> = {
-  text: "Text",
-  textarea: "Long text",
-  yes_no: "Yes / No",
-  number: "Number",
-  photo: "Photo",
-  signature: "Signature",
-  money_denomination: "Money denomination",
-  money_amount: "Money amount",
+  text: "Text singkat",
+  textarea: "Kotak teks",
+  yes_no: "Ya / Tidak",
+  number: "Angka",
+  photo: "Foto bukti",
+  signature: "Tanda tangan",
+  money_denomination: "Hitung denom uang",
+  money_amount: "Nominal uang",
+  responsible_person: "Nama pelaksana",
 };
 
 function createField(): FormField {
@@ -145,12 +148,10 @@ function OutletManualFormsWorkspace() {
       return;
     }
 
-    const missingRequiredFields = selectedTemplate.fields.filter(
-      (field) => field.required && !responses[field.id]?.trim()
-    );
+    const missingRequiredFields = getMissingRequiredFields(selectedTemplate.fields, responses);
 
     if (missingRequiredFields.length > 0) {
-      setNotice(`Please complete ${missingRequiredFields.length} required field(s) before submit.`);
+      setNotice(`Lengkapi ${missingRequiredFields.length} field wajib, termasuk nama pelaksana.`);
       return;
     }
 
@@ -343,25 +344,26 @@ export function FormsWorkspace() {
     return <OutletManualFormsWorkspace />;
   }
 
-  if (!selectedTemplate) {
-    return (
-      <main className="space-y-6 p-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          {templatesQuery.isLoading
-            ? "Loading form templates..."
-            : "No form templates available yet. Create one to get started."}
-        </div>
-      </main>
-    );
+  const isAreaWorkspace = workspace.mode === "area";
+  const hasSelectedTemplate = Boolean(selectedTemplate);
+
+  function createTemplate() {
+    const newTemplate = createBlankFormTemplate();
+
+    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
+    setSelectedTemplateId(newTemplate.id);
   }
 
-  const isAreaWorkspace = workspace.mode === "area";
-  const requiredItems = selectedTemplate.fields.filter((field) => field.required).length;
-  const evidenceItems = selectedTemplate.fields.filter((field) =>
-    ["photo", "signature"].includes(field.type)
-  ).length;
+  function createMoneySafeCountForm() {
+    const newTemplate = createMoneySafeCountTemplate();
+
+    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
+    setSelectedTemplateId(newTemplate.id);
+  }
 
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
+    if (!selectedTemplate) return;
+
     setTemplates((currentTemplates) =>
       currentTemplates.map((template) =>
         template.id === selectedTemplate.id
@@ -375,6 +377,8 @@ export function FormsWorkspace() {
   }
 
   function updateField(fieldId: string, updates: Partial<FormField>) {
+    if (!selectedTemplate) return;
+
     updateSelectedTemplate({
       fields: selectedTemplate.fields.map((field) => {
         if (field.id !== fieldId) return field;
@@ -383,6 +387,13 @@ export function FormsWorkspace() {
           ...field,
           ...updates,
         };
+
+        if (isResponsiblePersonField(nextField)) {
+          nextField.type = "responsible_person";
+          nextField.required = true;
+          nextField.section = nextField.section ?? "Pelaksana Tugas";
+          nextField.options = { system: true };
+        }
 
         if (updates.type === "money_denomination" && !nextField.options?.denominations) {
           nextField.options = {
@@ -403,32 +414,27 @@ export function FormsWorkspace() {
   }
 
   function addField() {
+    if (!selectedTemplate) return;
+
     updateSelectedTemplate({
       fields: [...selectedTemplate.fields, createField()],
     });
   }
 
   function deleteField(fieldId: string) {
+    if (!selectedTemplate) return;
+
+    const targetField = selectedTemplate.fields.find((field) => field.id === fieldId);
+    if (targetField && isResponsiblePersonField(targetField)) return;
+
     updateSelectedTemplate({
       fields: selectedTemplate.fields.filter((field) => field.id !== fieldId),
     });
   }
 
-  function createTemplate() {
-    const newTemplate = createBlankFormTemplate();
-
-    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
-    setSelectedTemplateId(newTemplate.id);
-  }
-
-  function createMoneySafeCountForm() {
-    const newTemplate = createMoneySafeCountTemplate();
-
-    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
-    setSelectedTemplateId(newTemplate.id);
-  }
-
   async function deleteSelectedTemplate() {
+    if (!selectedTemplate) return;
+
     const confirmed = window.confirm(`Delete "${selectedTemplate.name}" template?`);
 
     if (!confirmed) return;
@@ -445,6 +451,8 @@ export function FormsWorkspace() {
   }
 
   async function persistSelectedTemplate(status: FormTemplate["status"]) {
+    if (!selectedTemplate) return;
+
     const templateToSave = {
       ...selectedTemplate,
       status,
@@ -452,6 +460,21 @@ export function FormsWorkspace() {
 
     updateSelectedTemplate({ status });
     await saveMutation.mutateAsync(templateToSave);
+  }
+
+  const requiredItems = selectedTemplate?.fields.filter((field) => field.required).length ?? 0;
+  const evidenceItems =
+    selectedTemplate?.fields.filter((field) => ["photo", "signature"].includes(field.type)).length ??
+    0;
+
+  if (templatesQuery.isLoading) {
+    return (
+      <main className="space-y-6 p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          Loading form templates...
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -515,7 +538,7 @@ export function FormsWorkspace() {
             <button
               type="button"
               onClick={() => void persistSelectedTemplate("Draft")}
-              disabled={saveMutation.isPending}
+              disabled={!hasSelectedTemplate || saveMutation.isPending}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Save className="size-4" />
@@ -525,7 +548,7 @@ export function FormsWorkspace() {
             <button
               type="button"
               onClick={() => void persistSelectedTemplate("Active")}
-              disabled={saveMutation.isPending}
+              disabled={!hasSelectedTemplate || saveMutation.isPending}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               <Save className="size-4" />
@@ -548,6 +571,13 @@ export function FormsWorkspace() {
           </div>
 
           <div className="mt-4 space-y-2">
+            {filteredTemplates.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                Belum ada template. Klik <span className="font-semibold">New Form</span> untuk
+                mulai.
+              </p>
+            ) : null}
+
             {filteredTemplates.map((template) => (
               <button
                 key={template.id}
@@ -555,7 +585,7 @@ export function FormsWorkspace() {
                 onClick={() => setSelectedTemplateId(template.id)}
                 className={[
                   "w-full rounded-xl border p-3 text-left transition",
-                  selectedTemplate.id === template.id
+                  selectedTemplate?.id === template.id
                     ? "border-emerald-500 bg-emerald-50"
                     : "border-slate-200 hover:bg-slate-50",
                 ].join(" ")}
@@ -568,6 +598,36 @@ export function FormsWorkspace() {
         </aside>
 
         <section className="rounded-xl border border-slate-200 bg-white">
+          {!hasSelectedTemplate ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 p-8 text-center">
+              <p className="text-lg font-semibold text-slate-900">Belum ada form template</p>
+              <p className="max-w-md text-sm text-slate-500">
+                Buat template baru untuk task outlet, atau gunakan preset Money Safe Count untuk
+                penghitungan setoran dan laporan cash vs EDC.
+              </p>
+              {!isAreaWorkspace ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={createTemplate}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
+                  >
+                    <Plus className="size-4" />
+                    New Form
+                  </button>
+                  <button
+                    type="button"
+                    onClick={createMoneySafeCountForm}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
+                  >
+                    <Plus className="size-4" />
+                    Money Safe Count
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
           <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -621,7 +681,10 @@ export function FormsWorkspace() {
           </div>
 
           <div className="space-y-3 p-4">
-            {selectedTemplate.fields.map((field, index) => (
+            {selectedTemplate.fields.map((field, index) => {
+              const isSystemResponsibleField = isResponsiblePersonField(field);
+
+              return (
               <div key={field.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -630,7 +693,7 @@ export function FormsWorkspace() {
                     </p>
                     <input
                       value={field.label}
-                      readOnly={isAreaWorkspace}
+                      readOnly={isAreaWorkspace || isSystemResponsibleField}
                       onChange={(event) =>
                         updateField(field.id, {
                           label: event.target.value,
@@ -640,7 +703,7 @@ export function FormsWorkspace() {
                     />
                   </div>
 
-                  {!isAreaWorkspace ? (
+                  {!isAreaWorkspace && !isSystemResponsibleField ? (
                     <button
                       type="button"
                       onClick={() => deleteField(field.id)}
@@ -655,13 +718,13 @@ export function FormsWorkspace() {
                 <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                   <select
                     value={field.type}
-                    disabled={isAreaWorkspace}
+                    disabled={isAreaWorkspace || isSystemResponsibleField}
                     onChange={(event) =>
                       updateField(field.id, {
                         type: event.target.value as FormFieldType,
                       })
                     }
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-50"
                   >
                     {fieldTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -674,7 +737,7 @@ export function FormsWorkspace() {
                     <input
                       type="checkbox"
                       checked={field.required}
-                      disabled={isAreaWorkspace}
+                      disabled={isAreaWorkspace || isSystemResponsibleField}
                       onChange={(event) =>
                         updateField(field.id, {
                           required: event.target.checked,
@@ -690,6 +753,12 @@ export function FormsWorkspace() {
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {fieldTypeLabel[field.type]}
                   </span>
+
+                  {isSystemResponsibleField ? (
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Wajib sistem
+                    </span>
+                  ) : null}
 
                   {field.required ? (
                     <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
@@ -720,11 +789,20 @@ export function FormsWorkspace() {
                   ) : null}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
+            </>
+          )}
         </section>
 
         <aside className="rounded-xl border border-slate-200 bg-white p-4">
+          {!hasSelectedTemplate ? (
+            <p className="text-sm text-slate-500">
+              Pilih atau buat template untuk mengatur field dan publish status.
+            </p>
+          ) : (
+            <>
           <div className="flex items-center gap-2">
             <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
               <Settings2 className="size-4" />
@@ -791,6 +869,8 @@ export function FormsWorkspace() {
               </select>
             </div>
           </div>
+            </>
+          )}
         </aside>
       </div>
 

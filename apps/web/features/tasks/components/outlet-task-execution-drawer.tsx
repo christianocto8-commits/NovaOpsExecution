@@ -5,6 +5,10 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
+import {
+  getResponsiblePersonField,
+  getResponsiblePersonValue,
+} from "@/features/forms/utils/system-fields";
 import { useUnsavedChangesGuard } from "@/features/tasks/hooks/use-unsaved-changes-guard";
 import { Task, TaskExecutionForm } from "@/features/tasks/types";
 import { DraftSaveState } from "@/features/tasks/types/autosave";
@@ -82,6 +86,7 @@ export function OutletTaskExecutionDrawer({
     enabled: Boolean(task?.formTemplateId),
   });
   const template = templateQuery.data ?? null;
+  const responsiblePersonField = template ? getResponsiblePersonField(template.fields) : undefined;
 
   const evidenceItems = useMemo(() => parseEvidenceItems(form.evidenceText), [form.evidenceText]);
 
@@ -144,8 +149,12 @@ export function OutletTaskExecutionDrawer({
   }
 
   async function handleSubmit() {
-    if (!form.operatorName.trim()) {
-      window.alert("Operator Name wajib diisi.");
+    const responsibleName = template
+      ? getResponsiblePersonValue(template.fields, form.formResponses) || form.operatorName
+      : form.operatorName;
+
+    if (!responsibleName.trim()) {
+      window.alert("Nama pelaksana wajib diisi.");
       return;
     }
 
@@ -255,7 +264,17 @@ export function OutletTaskExecutionDrawer({
                   <SectionedFormRenderer
                     fields={template.fields}
                     responses={form.formResponses}
-                    onChange={(formResponses) => updateForm({ ...form, formResponses })}
+                    onChange={(formResponses) => {
+                      const nextResponsibleName = responsiblePersonField
+                        ? formResponses[responsiblePersonField.id]?.trim() ?? ""
+                        : form.operatorName;
+
+                      updateForm({
+                        ...form,
+                        formResponses,
+                        operatorName: responsiblePersonField ? nextResponsibleName : form.operatorName,
+                      });
+                    }}
                     highlightedFieldIds={highlightedFieldIds}
                   />
                 </section>
@@ -277,20 +296,30 @@ export function OutletTaskExecutionDrawer({
               ) : null}
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                <p className="text-sm font-bold text-slate-950">Operator</p>
+                <p className="text-sm font-bold text-slate-950">Pelaksana</p>
                 <div className="mt-4 grid gap-4">
-                  <div>
-                    <label className="text-sm font-semibold text-slate-700">Operator Name</label>
-                    <input
-                      value={form.operatorName}
-                      onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
-                      placeholder="Contoh: Fajar"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
-                    />
-                  </div>
+                  {!responsiblePersonField ? (
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Nama pelaksana</label>
+                      <input
+                        value={form.operatorName}
+                        onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
+                        placeholder="Contoh: Fajar"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                      Nama pelaksana diisi di bagian <span className="font-bold">Pelaksana Tugas</span>{" "}
+                      pada form.
+                      {form.operatorName.trim() ? (
+                        <p className="mt-2 font-semibold">{form.operatorName}</p>
+                      ) : null}
+                    </div>
+                  )}
 
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">Operator Position</label>
+                    <label className="text-sm font-semibold text-slate-700">Posisi</label>
                     <select
                       value={form.operatorPosition}
                       onChange={(event) =>
@@ -340,7 +369,13 @@ export function OutletTaskExecutionDrawer({
             <button
               type="button"
               onClick={handleSaveDraft}
-              disabled={!form.operatorName.trim() || saveState === "saving"}
+              disabled={
+                !(responsiblePersonField
+                  ? getResponsiblePersonValue(template?.fields ?? [], form.formResponses) ||
+                    form.operatorName
+                  : form.operatorName
+                ).trim() || saveState === "saving"
+              }
               className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
               {saveState === "saving" ? "Saving..." : "Save Draft"}

@@ -5,6 +5,8 @@ import { TaskFormResponses } from "@/features/tasks/types";
 
 import { MoneyAmountField } from "./money-amount-field";
 import { MoneyDenominationField } from "./money-denomination-field";
+import { PhotoFieldInput } from "./photo-field-input";
+import { SignatureFieldInput } from "./signature-field-input";
 
 type DynamicFormRendererProps = {
   fields: FormField[];
@@ -15,8 +17,15 @@ type DynamicFormRendererProps = {
 };
 
 const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
-  money_denomination: "Denomination count",
-  money_amount: "Currency amount",
+  text: "Text singkat",
+  textarea: "Kotak teks",
+  yes_no: "Ya / Tidak",
+  number: "Angka",
+  photo: "Foto bukti",
+  signature: "Tanda tangan",
+  money_denomination: "Hitung denom uang",
+  money_amount: "Nominal uang",
+  responsible_person: "Nama pelaksana",
 };
 
 export function DynamicFormRenderer({
@@ -53,7 +62,7 @@ export function DynamicFormRenderer({
                 <label className="text-sm font-bold text-slate-800">{field.label}</label>
                 <p className="mt-1 text-xs text-slate-400">
                   {typeLabel}
-                  {field.required ? " • Required" : " • Optional"}
+                  {field.required ? " • Wajib diisi" : " • Opsional"}
                 </p>
               </div>
             </div>
@@ -73,7 +82,7 @@ export function DynamicFormRenderer({
                           : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       } disabled:cursor-not-allowed`}
                     >
-                      {option}
+                      {option === "Yes" ? "Ya" : "Tidak"}
                     </button>
                   ))}
                 </div>
@@ -83,6 +92,7 @@ export function DynamicFormRenderer({
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   rows={4}
+                  placeholder="Tulis catatan atau jawaban di sini..."
                   className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
                 />
               ) : field.type === "number" ? (
@@ -107,19 +117,23 @@ export function DynamicFormRenderer({
                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
               ) : field.type === "photo" ? (
-                <input
+                <PhotoFieldInput
                   value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  placeholder="Paste photo URL / file reference"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
               ) : field.type === "signature" ? (
+                <SignatureFieldInput
+                  value={value}
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                />
+              ) : field.type === "responsible_person" ? (
                 <input
                   value={value}
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
-                  placeholder="PIC signature name"
+                  placeholder="Masukkan nama yang mengerjakan tugas ini..."
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
                 />
               ) : (
@@ -127,6 +141,7 @@ export function DynamicFormRenderer({
                   value={value}
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
+                  placeholder="Tulis jawaban singkat..."
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
                 />
               )}

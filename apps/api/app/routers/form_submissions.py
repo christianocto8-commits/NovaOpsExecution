@@ -25,6 +25,7 @@ def create_form_submission(
         submitted_by=payload.submitted_by or current_user.id,
         status=payload.status,
         score=payload.score,
+        responsible_person_name=payload.responsible_person_name,
         submitted_at=datetime.now(timezone.utc),
     )
     db.add(submission)
