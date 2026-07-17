@@ -17,6 +17,11 @@ export const queryKeys = {
     formSubmissions: () => ["history", "form-submissions"] as const,
   },
 
+  builder: {
+    documents: () => ["builder", "documents"] as const,
+    document: (documentId: string) => ["builder", "document", documentId] as const,
+  },
+
   workflow: {
     all: ["workflow"] as const,
     lists: () => ["workflow", "list"] as const,

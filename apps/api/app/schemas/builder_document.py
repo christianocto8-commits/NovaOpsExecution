@@ -11,6 +11,14 @@ class BuilderDocumentCreate(BaseModel):
     created_by: Optional[int] = None
 
 
+class BuilderDocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    version: Optional[int] = None
+    status: Optional[str] = None
+    document_json: Optional[dict[str, Any]] = None
+
+
 class BuilderDocumentResponse(BaseModel):
     id: int
     title: str

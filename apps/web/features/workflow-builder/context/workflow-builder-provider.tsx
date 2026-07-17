@@ -11,6 +11,8 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -22,28 +24,26 @@ import {
 } from "react";
 
 import type {
-  WorkflowBuilderDraft,
   WorkflowBuilderNode,
   WorkflowBuilderNodeData,
 } from "@/features/workflow-builder/types/builder";
-import {
-  loadWorkflowDraft,
-  saveWorkflowDraft,
-  serializeWorkflowDraft,
-} from "@/features/workflow-builder/utils/serializer";
+import { serializeWorkflowDraft } from "@/features/workflow-builder/utils/serializer";
 import {
   getWorkflowEdgeLabel,
   validateWorkflowConnection,
 } from "@/features/workflow-builder/utils/connection-validator";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  builderDocumentService,
+  mapBuilderDocumentToDraft,
+} from "@/services/builder-document.service";
 
-type AutosaveStatus =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "error";
+type AutosaveStatus = "idle" | "saving" | "saved" | "error";
 
 type WorkflowBuilderContextValue = {
   workflowName: string;
+  documentId: string | null;
+  documentStatus: string;
   nodes: WorkflowBuilderNode[];
   edges: Edge[];
   viewport: Viewport;
@@ -51,24 +51,22 @@ type WorkflowBuilderContextValue = {
   selectedNode: WorkflowBuilderNode | null;
   isDirty: boolean;
   isHydrated: boolean;
+  isLoadingDocument: boolean;
+  backendConnected: boolean;
   autosaveStatus: AutosaveStatus;
   lastSavedAt: string | null;
   connectionMessage: string | null;
-  onNodesChange: (
-    changes: NodeChange<WorkflowBuilderNode>[]
-  ) => void;
+  onNodesChange: (changes: NodeChange<WorkflowBuilderNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<Edge>[]) => void;
   connectNodes: (connection: Connection) => void;
   isConnectionValid: (connection: Connection | Edge) => boolean;
   addNode: (node: WorkflowBuilderNode) => void;
   selectNode: (nodeId: string | null) => void;
-  updateNodeData: (
-    nodeId: string,
-    updates: Partial<WorkflowBuilderNodeData>
-  ) => void;
+  updateNodeData: (nodeId: string, updates: Partial<WorkflowBuilderNodeData>) => void;
   updateWorkflowName: (name: string) => void;
   updateViewport: (viewport: Viewport) => void;
-  saveDraftNow: () => void;
+  saveDraftNow: () => Promise<void>;
+  publishWorkflow: () => Promise<void>;
 };
 
 const defaultViewport: Viewport = {
@@ -114,90 +112,120 @@ const initialEdges: Edge[] = [
   },
 ];
 
-export const WorkflowBuilderContext =
-  createContext<WorkflowBuilderContextValue | null>(null);
+export const WorkflowBuilderContext = createContext<WorkflowBuilderContextValue | null>(null);
+
+function isPersistedDocumentId(documentId: string | null | undefined) {
+  return Boolean(documentId && /^\d+$/.test(documentId));
+}
 
 export function WorkflowBuilderProvider({
   children,
+  documentId: initialDocumentId = null,
 }: {
   children: ReactNode;
+  documentId?: string | null;
 }) {
-  const [initialDraft] = useState(() => loadWorkflowDraft());
-  const [workflowName, setWorkflowName] =
-    useState(initialDraft?.name ?? "Untitled Workflow");
-
-  const [nodes, setNodes, applyNodeChanges] =
-    useNodesState<WorkflowBuilderNode>(initialDraft?.nodes ?? initialNodes);
-
-  const [edges, setEdges, applyEdgeChanges] =
-    useEdgesState<Edge>(initialDraft?.edges ?? initialEdges);
-
-  const [viewport, setViewport] =
-    useState<Viewport>(initialDraft?.viewport ?? defaultViewport);
-
-  const [selectedNodeId, setSelectedNodeId] =
-    useState<string | null>(null);
-
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
+  const [documentStatus, setDocumentStatus] = useState("draft");
+  const [workflowName, setWorkflowName] = useState("Untitled Workflow");
+  const [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowBuilderNode>(initialNodes);
+  const [edges, setEdges, applyEdgeChanges] = useEdgesState<Edge>(initialEdges);
+  const [viewport, setViewport] = useState<Viewport>(defaultViewport);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [isHydrated] = useState(true);
+  const [backendConnected, setBackendConnected] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const [hasHydratedDocument, setHasHydratedDocument] = useState(!isPersistedDocumentId(initialDocumentId));
 
-  const [autosaveStatus, setAutosaveStatus] =
-    useState<AutosaveStatus>("idle");
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [lastSavedAt, setLastSavedAt] =
-    useState<string | null>(initialDraft?.updatedAt ?? null);
+  const documentQuery = useQuery({
+    queryKey: queryKeys.builder.document(documentId ?? "new"),
+    queryFn: () => builderDocumentService.get(documentId!),
+    enabled: isPersistedDocumentId(documentId),
+    retry: false,
+  });
 
-  const [connectionMessage, setConnectionMessage] =
-    useState<string | null>(null);
+  useEffect(() => {
+    setDocumentId(initialDocumentId);
+    setHasHydratedDocument(!isPersistedDocumentId(initialDocumentId));
+  }, [initialDocumentId]);
 
-  const autosaveTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!documentQuery.data) return;
 
-  const connectionMessageTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+    const draft = mapBuilderDocumentToDraft(documentQuery.data);
+    setWorkflowName(draft.name);
+    setNodes(draft.nodes.length > 0 ? draft.nodes : initialNodes);
+    setEdges(draft.edges.length > 0 ? draft.edges : initialEdges);
+    setViewport(draft.viewport);
+    setDocumentStatus(documentQuery.data.status);
+    setLastSavedAt(draft.updatedAt);
+    setIsDirty(false);
+    setBackendConnected(true);
+    setHasHydratedDocument(true);
+  }, [documentQuery.data, setNodes, setEdges]);
 
+  const showConnectionMessage = useCallback((message: string | null) => {
+    setConnectionMessage(message);
 
-  const showConnectionMessage = useCallback(
-    (message: string | null) => {
-      setConnectionMessage(message);
+    if (connectionMessageTimerRef.current) {
+      clearTimeout(connectionMessageTimerRef.current);
+    }
 
-      if (connectionMessageTimerRef.current) {
-        clearTimeout(connectionMessageTimerRef.current);
-      }
+    if (message) {
+      connectionMessageTimerRef.current = setTimeout(() => {
+        setConnectionMessage(null);
+      }, 3500);
+    }
+  }, []);
 
-      if (message) {
-        connectionMessageTimerRef.current = setTimeout(() => {
-          setConnectionMessage(null);
-        }, 3500);
-      }
-    },
-    []
-  );
-
-  const persistDraft = useCallback(() => {
+  const persistDraft = useCallback(async (): Promise<string | null> => {
     try {
       setAutosaveStatus("saving");
 
-      const draft: WorkflowBuilderDraft =
-        serializeWorkflowDraft({
-          name: workflowName,
-          nodes,
-          edges,
-          viewport,
-        });
+      const draft = serializeWorkflowDraft({
+        workflowId: documentId,
+        name: workflowName,
+        nodes,
+        edges,
+        viewport,
+      });
 
-      saveWorkflowDraft(draft);
+      let savedDocumentId = documentId;
 
-      setLastSavedAt(draft.updatedAt);
+      if (isPersistedDocumentId(documentId)) {
+        const updated = await builderDocumentService.update(documentId!, draft);
+        setDocumentStatus(updated.status);
+        savedDocumentId = String(updated.id);
+      } else {
+        const created = await builderDocumentService.create(draft);
+        savedDocumentId = String(created.id);
+        setDocumentId(savedDocumentId);
+        setDocumentStatus(created.status);
+        router.replace(`/dashboard/workflows/builder?document=${savedDocumentId}`);
+      }
+
+      setLastSavedAt(new Date().toISOString());
       setIsDirty(false);
       setAutosaveStatus("saved");
+      setBackendConnected(true);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.builder.documents() });
+      return savedDocumentId;
     } catch {
       setAutosaveStatus("error");
+      setBackendConnected(false);
+      return null;
     }
-  }, [workflowName, nodes, edges, viewport]);
+  }, [documentId, workflowName, nodes, edges, viewport, router, queryClient]);
 
   useEffect(() => {
-    if (!isHydrated || !isDirty) {
+    if (!hasHydratedDocument || !isDirty) {
       return;
     }
 
@@ -206,7 +234,7 @@ export function WorkflowBuilderProvider({
     }
 
     autosaveTimerRef.current = setTimeout(() => {
-      persistDraft();
+      void persistDraft();
     }, 1500);
 
     return () => {
@@ -214,7 +242,7 @@ export function WorkflowBuilderProvider({
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [isDirty, isHydrated, persistDraft]);
+  }, [hasHydratedDocument, isDirty, persistDraft]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<WorkflowBuilderNode>[]) => {
@@ -228,10 +256,7 @@ export function WorkflowBuilderProvider({
         .filter((change) => change.type === "remove")
         .map((change) => change.id);
 
-      if (
-        selectedNodeId &&
-        removedNodeIds.includes(selectedNodeId)
-      ) {
+      if (selectedNodeId && removedNodeIds.includes(selectedNodeId)) {
         setSelectedNodeId(null);
       }
     },
@@ -277,9 +302,7 @@ export function WorkflowBuilderProvider({
         return;
       }
 
-      const sourceNode = nodes.find(
-        (node) => node.id === connection.source
-      );
+      const sourceNode = nodes.find((node) => node.id === connection.source);
 
       setEdges((currentEdges) =>
         addEdge(
@@ -312,14 +335,10 @@ export function WorkflowBuilderProvider({
     (node: WorkflowBuilderNode) => {
       const alreadyExists =
         (node.type === "start" || node.type === "end") &&
-        nodes.some(
-          (currentNode) => currentNode.type === node.type
-        );
+        nodes.some((currentNode) => currentNode.type === node.type);
 
       if (alreadyExists) {
-        showConnectionMessage(
-          `Only one ${node.type} node is allowed.`
-        );
+        showConnectionMessage(`Only one ${node.type} node is allowed.`);
         return;
       }
 
@@ -330,18 +349,12 @@ export function WorkflowBuilderProvider({
     [nodes, setNodes, showConnectionMessage]
   );
 
-  const selectNode = useCallback(
-    (nodeId: string | null) => {
-      setSelectedNodeId(nodeId);
-    },
-    []
-  );
+  const selectNode = useCallback((nodeId: string | null) => {
+    setSelectedNodeId(nodeId);
+  }, []);
 
   const updateNodeData = useCallback(
-    (
-      nodeId: string,
-      updates: Partial<WorkflowBuilderNodeData>
-    ) => {
+    (nodeId: string, updates: Partial<WorkflowBuilderNodeData>) => {
       setNodes((currentNodes) =>
         currentNodes.map((node) =>
           node.id === nodeId
@@ -366,37 +379,50 @@ export function WorkflowBuilderProvider({
     setIsDirty(true);
   }, []);
 
-  const updateViewport = useCallback(
-    (nextViewport: Viewport) => {
-      setViewport(nextViewport);
-    },
-    []
-  );
+  const updateViewport = useCallback((nextViewport: Viewport) => {
+    setViewport(nextViewport);
+  }, []);
 
-  const saveDraftNow = useCallback(() => {
+  const saveDraftNow = useCallback(async () => {
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
     }
 
-    persistDraft();
+    await persistDraft();
   }, [persistDraft]);
 
+  const publishWorkflow = useCallback(async () => {
+    const savedDocumentId = await persistDraft();
+
+    if (!savedDocumentId || !isPersistedDocumentId(savedDocumentId)) {
+      return;
+    }
+
+    const published = await builderDocumentService.publish(savedDocumentId);
+    setDocumentStatus(published.status);
+    setBackendConnected(true);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.builder.documents() });
+  }, [persistDraft, queryClient]);
+
   const selectedNode = useMemo(
-    () =>
-      nodes.find((node) => node.id === selectedNodeId) ?? null,
+    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
     [nodes, selectedNodeId]
   );
 
   const value = useMemo<WorkflowBuilderContextValue>(
     () => ({
       workflowName,
+      documentId,
+      documentStatus,
       nodes,
       edges,
       viewport,
       selectedNodeId,
       selectedNode,
       isDirty,
-      isHydrated,
+      isHydrated: hasHydratedDocument,
+      isLoadingDocument: documentQuery.isLoading,
+      backendConnected,
       autosaveStatus,
       lastSavedAt,
       connectionMessage,
@@ -410,16 +436,21 @@ export function WorkflowBuilderProvider({
       updateWorkflowName,
       updateViewport,
       saveDraftNow,
+      publishWorkflow,
     }),
     [
       workflowName,
+      documentId,
+      documentStatus,
       nodes,
       edges,
       viewport,
       selectedNodeId,
       selectedNode,
       isDirty,
-      isHydrated,
+      hasHydratedDocument,
+      documentQuery.isLoading,
+      backendConnected,
       autosaveStatus,
       lastSavedAt,
       connectionMessage,
@@ -433,14 +464,11 @@ export function WorkflowBuilderProvider({
       updateWorkflowName,
       updateViewport,
       saveDraftNow,
+      publishWorkflow,
     ]
   );
 
   return (
-    <WorkflowBuilderContext.Provider value={value}>
-      {children}
-    </WorkflowBuilderContext.Provider>
+    <WorkflowBuilderContext.Provider value={value}>{children}</WorkflowBuilderContext.Provider>
   );
 }
-
-

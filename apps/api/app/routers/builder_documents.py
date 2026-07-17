@@ -7,6 +7,7 @@ from app.models.runtime_template import RuntimeTemplate
 from app.schemas.builder_document import (
     BuilderDocumentCreate,
     BuilderDocumentResponse,
+    BuilderDocumentUpdate,
 )
 
 router = APIRouter(prefix="/builder-documents", tags=["Builder Documents"])
@@ -20,6 +21,31 @@ def create_builder_document(
     builder_document = BuilderDocument(**payload.model_dump())
 
     db.add(builder_document)
+    db.commit()
+    db.refresh(builder_document)
+
+    return builder_document
+
+
+@router.patch("/{builder_document_id}", response_model=BuilderDocumentResponse)
+def update_builder_document(
+    builder_document_id: int,
+    payload: BuilderDocumentUpdate,
+    db: Session = Depends(get_db),
+):
+    builder_document = (
+        db.query(BuilderDocument)
+        .filter(BuilderDocument.id == builder_document_id)
+        .first()
+    )
+
+    if not builder_document:
+        raise HTTPException(status_code=404, detail="Builder document not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(builder_document, key, value)
+
     db.commit()
     db.refresh(builder_document)
 

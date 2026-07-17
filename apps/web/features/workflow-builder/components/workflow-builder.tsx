@@ -10,6 +10,7 @@ import {
   Save,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { WorkflowBuilderProvider } from "@/features/workflow-builder/context/workflow-builder-provider";
 import { useWorkflowBuilder } from "@/features/workflow-builder/hooks/use-workflow-builder";
@@ -22,19 +23,33 @@ import { WorkflowToolbox } from "./workflow-toolbox";
 function WorkflowBuilderContent() {
   const {
     workflowName,
+    documentId,
+    documentStatus,
     isDirty,
+    isLoadingDocument,
+    backendConnected,
     autosaveStatus,
     lastSavedAt,
     updateWorkflowName,
     saveDraftNow,
+    publishWorkflow,
   } = useWorkflowBuilder();
 
   function renderSaveStatus() {
+    if (isLoadingDocument) {
+      return (
+        <>
+          <LoaderCircle className="size-3.5 animate-spin" />
+          <span>Loading workflow...</span>
+        </>
+      );
+    }
+
     if (autosaveStatus === "saving") {
       return (
         <>
           <LoaderCircle className="size-3.5 animate-spin" />
-          <span>Saving draft...</span>
+          <span>Saving to backend...</span>
         </>
       );
     }
@@ -43,9 +58,7 @@ function WorkflowBuilderContent() {
       return (
         <>
           <CloudAlert className="size-3.5 text-red-600" />
-          <span className="text-red-700">
-            Autosave failed
-          </span>
+          <span className="text-red-700">Backend save failed</span>
         </>
       );
     }
@@ -64,17 +77,24 @@ function WorkflowBuilderContent() {
         <Check className="size-3.5 text-emerald-600" />
         <span>
           {lastSavedAt
-            ? `Saved ${new Date(
-                lastSavedAt
-              ).toLocaleTimeString([], {
+            ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })}`
-            : "All changes saved"}
+            : backendConnected
+              ? "Synced with backend"
+              : "Ready"}
         </span>
       </>
     );
   }
+
+  const statusLabel =
+    documentStatus === "published"
+      ? "Published"
+      : documentId
+        ? "Draft"
+        : "New";
 
   return (
     <main className="flex h-[calc(100vh-72px)] min-h-[720px] flex-col overflow-hidden">
@@ -93,18 +113,24 @@ function WorkflowBuilderContent() {
               <input
                 type="text"
                 value={workflowName}
-                onChange={(event) =>
-                  updateWorkflowName(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => updateWorkflowName(event.target.value)}
                 className="min-w-0 max-w-72 border-0 bg-transparent p-0 text-base font-semibold text-slate-950 outline-none"
                 aria-label="Workflow name"
               />
 
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                Draft
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                  documentStatus === "published"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {statusLabel}
               </span>
+
+              {documentId ? (
+                <span className="text-[11px] font-medium text-slate-400">#{documentId}</span>
+              ) : null}
             </div>
 
             <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
@@ -116,11 +142,8 @@ function WorkflowBuilderContent() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={saveDraftNow}
-            disabled={
-              !isDirty ||
-              autosaveStatus === "saving"
-            }
+            onClick={() => void saveDraftNow()}
+            disabled={!isDirty || autosaveStatus === "saving" || isLoadingDocument}
             className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="size-4" />
@@ -129,10 +152,12 @@ function WorkflowBuilderContent() {
 
           <button
             type="button"
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#274733] px-3 text-sm font-semibold text-white transition hover:bg-[#1f3929]"
+            onClick={() => void publishWorkflow()}
+            disabled={autosaveStatus === "saving" || isLoadingDocument}
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#274733] px-3 text-sm font-semibold text-white transition hover:bg-[#1f3929] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Play className="size-4" />
-            Test workflow
+            Publish workflow
           </button>
         </div>
       </header>
@@ -152,11 +177,17 @@ function WorkflowBuilderContent() {
   );
 }
 
-export function WorkflowBuilder() {
+function WorkflowBuilderShell() {
+  const searchParams = useSearchParams();
+  const documentId = searchParams.get("document");
+
   return (
-    <WorkflowBuilderProvider>
+    <WorkflowBuilderProvider documentId={documentId}>
       <WorkflowBuilderContent />
     </WorkflowBuilderProvider>
   );
 }
 
+export function WorkflowBuilder() {
+  return <WorkflowBuilderShell />;
+}

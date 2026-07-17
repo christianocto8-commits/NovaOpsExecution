@@ -224,7 +224,24 @@ export function useTaskWorkspace() {
   const deleteTaskMutation = useMutation({
     mutationFn: ({ taskId }: { taskId: string }) =>
       taskService.remove(taskId, { resolveOutletFromTask: true }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+    onMutate: async ({ taskId }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.sop.tasks() });
+      const previousTasks = queryClient.getQueryData<Task[]>(queryKeys.sop.tasks());
+
+      queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
+        (currentTasks ?? []).filter((task) => task.id !== taskId)
+      );
+
+      return { previousTasks };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(queryKeys.sop.tasks(), context.previousTasks);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+    },
   });
 
   const reviewTaskMutation = useMutation({

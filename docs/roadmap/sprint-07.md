@@ -14,8 +14,8 @@ Status: **In Progress**
 - Forms workspace backend-first (templates CRUD + manual outlet submit via API)
 - Task form drawer and task execution load templates from backend
 - History page loads completed tasks, execution sessions, and form submissions from API
+- Workflow builder saves and publishes via builder-documents API
 
 ## Remaining
 
-- Workflow builder → builder-documents API
 - Remove mock seed files after all consumers migrated
