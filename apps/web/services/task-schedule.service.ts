@@ -53,13 +53,21 @@ function resolveOutletIds(form: TaskFormState) {
   return [];
 }
 
-function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
-  const numericTemplateId = Number(form.formTemplateId);
+function resolveFormTemplateId(formTemplateId: string): number | null {
+  const trimmed = formTemplateId.trim();
+  if (!trimmed) return null;
 
+  const numericTemplateId = Number(trimmed);
+  if (!Number.isFinite(numericTemplateId) || numericTemplateId <= 0) return null;
+
+  return numericTemplateId;
+}
+
+function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
   return {
     title: form.title.trim(),
     description: form.description.trim() || null,
-    form_template_id: Number.isFinite(numericTemplateId) ? numericTemplateId : null,
+    form_template_id: resolveFormTemplateId(form.formTemplateId),
     priority: toBackendPriority(form.priority),
     recurrence: form.recurrence === "weekly" ? "weekly" : "daily",
     shifts: form.recurrence === "weekly" ? [] : form.shifts,

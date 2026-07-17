@@ -1,5 +1,7 @@
 from uuid import UUID
 
+import os
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -28,6 +30,8 @@ from app.modules.tasks.identity_bridge import (
     sync_identity_access,
     sync_legacy_user,
 )
+from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
+from app.modules.tasks.overdue_alerts import process_overdue_task_alerts
 from app.modules.tasks.service import TaskService
 from app.repositories.outlet_repository import OutletRepository
 
@@ -168,6 +172,36 @@ def create_task(
         x_outlet_id = outlet_ids[0]
     service = TaskService(db)
     return service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=actor_id)
+
+
+@router.post("/process-overdue-alerts")
+def process_overdue_alerts(
+    db: Session = Depends(get_db),
+    x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
+):
+    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
+    if configured_secret and x_scheduler_secret != configured_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid scheduler secret",
+        )
+
+    return process_overdue_task_alerts(db)
+
+
+@router.post("/process-due-soon-alerts")
+def process_due_soon_alerts(
+    db: Session = Depends(get_db),
+    x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
+):
+    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
+    if configured_secret and x_scheduler_secret != configured_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid scheduler secret",
+        )
+
+    return process_due_soon_task_alerts(db)
 
 
 @router.get("/outlet-members", response_model=list[OutletMemberResponse])

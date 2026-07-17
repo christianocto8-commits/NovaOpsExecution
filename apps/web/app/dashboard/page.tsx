@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useDashboardReports } from "@/features/dashboard/hooks/use-dashboard-reports";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
@@ -153,6 +154,7 @@ export default function DashboardPage() {
     queryFn: taskService.list,
     retry: false,
   });
+  const reportsQuery = useDashboardReports();
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const visibleTasks = useMemo(
@@ -292,81 +294,57 @@ export default function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Task Compliance"
-          value={`${getComplianceRate(visibleTasks)}%`}
-          description="Completed backend tasks."
+          value={
+            reportsQuery.summary
+              ? `${reportsQuery.summary.compliance_rate}%`
+              : `${getComplianceRate(visibleTasks)}%`
+          }
+          description="Live compliance from reports API."
         />
         <MetricCard
-          label="Avg Completion"
-          value={`${getAverageCompletion(visibleTasks)}%`}
-          description="Average progress from backend status."
+          label="Open Tasks"
+          value={reportsQuery.summary?.open_tasks ?? openCount}
+          description="Backend tasks awaiting completion."
+          tone="amber"
         />
         <MetricCard
-          label="In Progress"
-          value={inProgressCount}
-          description="Backend tasks currently in progress."
-          tone="blue"
-        />
-        <MetricCard
-          label="Needs Action"
-          value={priorityQueue.length}
-          description="Overdue, pending, high, or critical tasks."
+          label="Overdue"
+          value={reportsQuery.summary?.overdue_tasks ?? priorityQueue.length}
+          description="Tasks past due date."
           tone="red"
+        />
+        <MetricCard
+          label="Completion Rate"
+          value={
+            reportsQuery.summary
+              ? `${reportsQuery.summary.completion_rate}%`
+              : `${getAverageCompletion(visibleTasks)}%`
+          }
+          description="Completed vs total tasks."
+          tone="blue"
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Priority Attention</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Real backend tasks that need action first.
-              </p>
-            </div>
-            <Link href="/dashboard/compliance" className="text-sm font-bold text-emerald-700">
-              Review details
-            </Link>
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">Priority Attention</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Real backend tasks that need action first.
+            </p>
           </div>
-
-          {tasksQuery.isLoading ? (
-            <div className="mt-5 rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">
-              Loading task data...
-            </div>
-          ) : (
-            <PriorityQueue tasks={priorityQueue} />
-          )}
+          <Link href="/dashboard/compliance" className="text-sm font-bold text-emerald-700">
+            Review details
+          </Link>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-950">Workspaces</p>
-          <p className="mt-1 text-xs text-slate-500">Jump into the area that matches the job.</p>
-
-          <div className="mt-5 space-y-3">
-            <Link
-              href="/dashboard/compliance"
-              className="block rounded-2xl border border-emerald-100 bg-emerald-50 p-4 hover:bg-emerald-100"
-            >
-              <p className="font-semibold text-emerald-900">Compliance Center</p>
-              <p className="mt-1 text-sm text-emerald-700">
-                Review real backend task compliance and follow-up.
-              </p>
-            </Link>
-            <Link
-              href="/dashboard/tasks"
-              className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100"
-            >
-              <p className="font-semibold text-slate-950">Task</p>
-              <p className="mt-1 text-sm text-slate-500">Assign, execute, and track outlet work.</p>
-            </Link>
-            <Link
-              href="/dashboard/reports"
-              className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100"
-            >
-              <p className="font-semibold text-slate-950">Reports</p>
-              <p className="mt-1 text-sm text-slate-500">Review submitted reports and analytics.</p>
-            </Link>
+        {tasksQuery.isLoading ? (
+          <div className="mt-5 rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">
+            Loading task data...
           </div>
-        </div>
+        ) : (
+          <PriorityQueue tasks={priorityQueue} />
+        )}
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react"
 
 import { useQuery } from "@tanstack/react-query";
 
+import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
 import { OutletTaskExecutionDrawer,
   TaskDetailDrawer,
   TaskFormDrawer,
@@ -16,7 +17,6 @@ import { Task } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
-import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
 import {
   getServerWorkspaceSnapshot,
@@ -35,6 +35,57 @@ type MobileTaskSection = {
   title: string;
   tasks: Task[];
 };
+
+const TASK_SECTION_COLLAPSE_KEY = "novaops_task_section_collapsed";
+
+function getDefaultSectionCollapsed(sectionId: string, taskCount: number) {
+  if (sectionId === "overdue" || sectionId === "today") {
+    return false;
+  }
+
+  if (sectionId === "due-this-week") {
+    return taskCount > 4;
+  }
+
+  if (sectionId.startsWith("outlet:")) {
+    return taskCount > 3;
+  }
+
+  return true;
+}
+
+function readStoredCollapseState() {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = localStorage.getItem(TASK_SECTION_COLLAPSE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getTasksGroupedByOutlet(tasks: Task[]) {
+  const grouped = new Map<string, Task[]>();
+
+  tasks.forEach((task) => {
+    const outletName = task.outlet?.trim() || "Unknown Outlet";
+    const current = grouped.get(outletName) ?? [];
+    current.push(task);
+    grouped.set(outletName, current);
+  });
+
+  return [...grouped.entries()]
+    .sort(([leftOutlet], [rightOutlet]) => leftOutlet.localeCompare(rightOutlet))
+    .map(([outletName, outletTasks]) => ({
+      id: `outlet:${outletName}`,
+      title: outletName,
+      tasks: outletTasks,
+    }));
+}
 
 function getTaskDraftProgress(task: Task, templates: FormTemplate[]) {
   if (!task.executionDraft || !task.formTemplateId) return null;
@@ -307,31 +358,45 @@ function MobileTaskRow({
   );
 }
 
-function MobileTaskSectionBlock({
+function CollapsibleTaskSection({
   section,
   highlightedTaskId,
   onOpenTask,
   formTemplates,
+  collapsed,
+  onToggle,
 }: {
   section: MobileTaskSection;
   highlightedTaskId: string | null;
   onOpenTask: (task: Task) => void;
   formTemplates: FormTemplate[];
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
-  const [open, setOpen] = useState(true);
-
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-3 bg-slate-50 px-3 py-3 text-left"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 bg-slate-50 px-3 py-3 text-left hover:bg-slate-100 sm:px-4"
       >
-        <span className="text-sm font-semibold text-slate-700">{section.title}</span>
-        {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-slate-700">{section.title}</span>
+          <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+            {section.tasks.length} task
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+          {collapsed ? "Tampilkan" : "Sembunyikan"}
+          {collapsed ? (
+            <ChevronDown className="h-4 w-4 text-slate-400" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-slate-400" />
+          )}
+        </div>
       </button>
 
-      {open ? (
+      {!collapsed ? (
         <div>
           {section.tasks.map((task) => (
             <MobileTaskRow
@@ -348,6 +413,76 @@ function MobileTaskSectionBlock({
   );
 }
 
+function TaskGroupedList({
+  groups,
+  highlightedTaskId,
+  onOpenTask,
+  formTemplates,
+  collapsedGroups,
+  onToggleGroup,
+  onExpandAll,
+  onCollapseAll,
+  emptyMessage,
+}: {
+  groups: MobileTaskSection[];
+  highlightedTaskId: string | null;
+  onOpenTask: (task: Task) => void;
+  formTemplates: FormTemplate[];
+  collapsedGroups: Record<string, boolean>;
+  onToggleGroup: (groupId: string, defaultCollapsed: boolean) => void;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  emptyMessage: string;
+}) {
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {groups.length > 1 ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onExpandAll}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Buka semua
+          </button>
+          <button
+            type="button"
+            onClick={onCollapseAll}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Sembunyikan semua
+          </button>
+        </div>
+      ) : null}
+
+      {groups.map((section) => {
+        const defaultCollapsed = getDefaultSectionCollapsed(section.id, section.tasks.length);
+        const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
+
+        return (
+          <CollapsibleTaskSection
+            key={section.id}
+            section={section}
+            highlightedTaskId={highlightedTaskId}
+            onOpenTask={onOpenTask}
+            formTemplates={formTemplates}
+            collapsed={collapsed}
+            onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function TasksWorkspace() {
   const searchParams = useSearchParams();
   const continuedDraftRef = useRef<string | null>(null);
@@ -360,6 +495,9 @@ export function TasksWorkspace() {
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [mobileSearch, setMobileSearch] = useState("");
   const [mobileIncompleteOnly, setMobileIncompleteOnly] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
+    readStoredCollapseState()
+  );
 
   const {
     tasks,
@@ -375,7 +513,6 @@ export function TasksWorkspace() {
     openTaskDetail,
     closeDetail,
     reviewTaskExecution,
-    deleteTask,
     executionForm,
     setExecutionForm,
     isExecutionOpen,
@@ -385,6 +522,8 @@ export function TasksWorkspace() {
     saveExecutionDraft,
     submitTaskExecution,
     isBackendConnected,
+    isOnline,
+    pendingLocalSyncCount,
   } = useTaskWorkspace();
 
   const formTemplatesQuery = useQuery({
@@ -433,12 +572,34 @@ export function TasksWorkspace() {
     }, 3500);
   }, [isOutletWorkspace, searchParams, tasks, openExecution]);
 
+  useEffect(() => {
+    const taskId = searchParams.get("taskId");
+    if (!taskId || tasks.length === 0) return;
+
+    const matchedTask = tasks.find((task) => task.id === taskId);
+    if (!matchedTask) return;
+
+    setHighlightedTaskId(taskId);
+
+    window.setTimeout(() => {
+      if (isOutletRole) {
+        openExecution(matchedTask);
+      } else {
+        openTaskDetail(matchedTask);
+      }
+    }, 300);
+
+    window.setTimeout(() => {
+      setHighlightedTaskId(null);
+    }, 3500);
+  }, [isOutletRole, openExecution, openTaskDetail, searchParams, tasks]);
+
   const outletScopedTasks = useMemo(() => {
     if (!isOutletWorkspace) return tasks;
-    if (isBackendConnected) return tasks;
+    if (isBackendConnected || !isOnline) return tasks;
 
     return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
-  }, [isBackendConnected, isOutletWorkspace, tasks, workspace.outletName]);
+  }, [isBackendConnected, isOnline, isOutletWorkspace, tasks, workspace.outletName]);
 
   const visibleTasks = useMemo(() => {
     return [...outletScopedTasks].sort((left, right) => {
@@ -472,6 +633,62 @@ export function TasksWorkspace() {
     [filteredMobileTasks, mobileIncompleteOnly, formTemplates]
   );
 
+  const filteredAdminTasks = useMemo(() => {
+    const query = mobileSearch.trim().toLowerCase();
+
+    if (!query) return visibleTasks;
+
+    return visibleTasks.filter((task) => {
+      const haystack = [task.title, task.outlet, task.formTemplateId ?? "", task.status]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [mobileSearch, visibleTasks]);
+
+  const outletTaskGroups = useMemo(
+    () => getTasksGroupedByOutlet(filteredAdminTasks),
+    [filteredAdminTasks]
+  );
+
+  const activeTaskGroups = isOutletRole ? mobileSections : outletTaskGroups;
+
+  useEffect(() => {
+    localStorage.setItem(TASK_SECTION_COLLAPSE_KEY, JSON.stringify(collapsedGroups));
+  }, [collapsedGroups]);
+
+  function toggleTaskGroup(groupId: string, defaultCollapsed: boolean) {
+    setCollapsedGroups((current) => ({
+      ...current,
+      [groupId]: !(current[groupId] ?? defaultCollapsed),
+    }));
+  }
+
+  function expandAllTaskGroups() {
+    setCollapsedGroups((current) => {
+      const next = { ...current };
+
+      activeTaskGroups.forEach((group) => {
+        next[group.id] = false;
+      });
+
+      return next;
+    });
+  }
+
+  function collapseAllTaskGroups() {
+    setCollapsedGroups((current) => {
+      const next = { ...current };
+
+      activeTaskGroups.forEach((group) => {
+        next[group.id] = true;
+      });
+
+      return next;
+    });
+  }
+
   const outletTaskMetrics = useMemo(
     () => getOutletTaskExecutionMetrics(visibleTasks, formTemplates),
     [visibleTasks, formTemplates]
@@ -482,140 +699,6 @@ export function TasksWorkspace() {
       syncTaskToOutletTaskStore(task, formTemplates);
     });
   }, [visibleTasks, formTemplates]);
-
-  const columns: EnterpriseColumn<Task>[] = [
-    {
-      key: "title",
-      header: "Task",
-      render: (task) => {
-        const isHighlighted = highlightedTaskId === task.id;
-
-        return (
-          <div
-            data-task-row-id={task.id}
-            className={`rounded-2xl p-2 transition-all duration-500 ${
-              isHighlighted ? "bg-emerald-50 ring-2 ring-emerald-300" : ""
-            }`}
-          >
-            <p className="font-semibold text-slate-950">{task.title}</p>
-            <p className="text-xs text-slate-500">{task.id}</p>
-          </div>
-        );
-      },
-    },
-    { key: "outlet", header: "Outlet" },
-    {
-      key: "priority",
-      header: "Priority",
-      render: (task) => (
-        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-          {task.priority}
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (task) => {
-        const draftProgress = getTaskDraftProgress(task, formTemplates);
-
-        return (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              {task.status}
-            </span>
-
-            {draftProgress ? (
-              <div className="flex items-center gap-1">
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  Draft
-                </span>
-                <ProgressChip percentage={draftProgress.percentage} />
-              </div>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      key: "formTemplateId",
-      header: "Form",
-      render: (task) => task.formTemplateId ?? "-",
-    },
-    {
-      key: "due",
-      header: "Due",
-      render: (task) => formatTaskSchedule(task),
-    },
-    {
-      key: "id",
-      header: "Actions",
-      render: (task) =>
-        isOutletRole ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setHighlightedTaskId(task.id);
-              openExecution(task);
-
-              window.setTimeout(() => {
-                setHighlightedTaskId(null);
-              }, 2500);
-            }}
-            className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
-          >
-            {task.executionDraft ? "Continue" : "Execute"}
-          </button>
-        ) : isOwnerAdminWorkspace ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openTaskDetail(task);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-            >
-              View
-            </button>
-
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openEditTask(task);
-              }}
-              className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
-            >
-              Edit
-            </button>
-
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                void deleteTask(task.id);
-              }}
-              className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
-            >
-              Delete
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              openTaskDetail(task);
-            }}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-          >
-            View
-          </button>
-        ),
-    },
-  ];
 
   function handleOpenTask(task: Task) {
     setHighlightedTaskId(task.id);
@@ -655,11 +738,23 @@ export function TasksWorkspace() {
             </div>
             <span
               className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
+                isOnline ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              {isOnline ? "Online" : "Offline"}
+            </span>
+            <span
+              className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
                 isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
               }`}
             >
-              {isBackendConnected ? "Backend synced" : "Demo fallback"}
+              {isBackendConnected ? "Backend synced" : "Backend unavailable"}
             </span>
+            {pendingLocalSyncCount > 0 ? (
+              <span className="inline-flex items-center rounded-2xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700">
+                {pendingLocalSyncCount} menunggu sinkron
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -677,6 +772,8 @@ export function TasksWorkspace() {
           </div>
         ) : null}
       </div>
+
+      {isOutletWorkspace ? <PushNotificationPrompt /> : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
@@ -713,71 +810,53 @@ export function TasksWorkspace() {
         </div>
       </div>
 
-      {isOutletRole ? (
-        <section className="space-y-3 lg:hidden">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-3 py-3">
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <Search className="h-4 w-4 text-slate-400" />
-                <input
-                  value={mobileSearch}
-                  onChange={(event) => setMobileSearch(event.target.value)}
-                  placeholder="Search"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => setMobileIncompleteOnly((current) => !current)}
-                  className={`rounded-lg p-1.5 transition ${
-                    mobileIncompleteOnly ? "bg-sky-50 text-sky-600" : "text-slate-400"
-                  }`}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              {mobileIncompleteOnly
-                ? `All Incomplete Tasks at ${workspace.outletName ?? "Outlet"}`
-                : `All Tasks at ${workspace.outletName ?? "Outlet"}`}
-            </div>
-
-            <div className="space-y-3 bg-[#F7FAF8] p-3">
-              {mobileSections.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
-                  No tasks match this view.
-                </div>
-              ) : (
-                mobileSections.map((section) => (
-                  <MobileTaskSectionBlock
-                    key={section.id}
-                    section={section}
-                    highlightedTaskId={highlightedTaskId}
-                    onOpenTask={handleOpenTask}
-                    formTemplates={formTemplates}
-                  />
-                ))
-              )}
-            </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-3 py-3 sm:px-4">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={mobileSearch}
+              onChange={(event) => setMobileSearch(event.target.value)}
+              placeholder="Cari task, outlet, atau status"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+            {isOutletRole ? (
+              <button
+                type="button"
+                onClick={() => setMobileIncompleteOnly((current) => !current)}
+                className={`rounded-lg p-1.5 transition ${
+                  mobileIncompleteOnly ? "bg-sky-50 text-sky-600" : "text-slate-400"
+                }`}
+                title={mobileIncompleteOnly ? "Hanya task belum selesai" : "Semua task"}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
-        </section>
-      ) : null}
+        </div>
 
-      <div className={isOutletRole ? "hidden lg:block" : "block"}>
-        <EnterpriseDataTable
-          title="Outlet Task Queue"
-          description={
-            isOutletRole
-              ? "Complete required task evidence or continue saved drafts."
-              : "Assign tasks, review saved drafts, validate evidence, and monitor compliance."
-          }
-          columns={columns}
-          data={visibleTasks}
-          getRowId={(task) => task.id}
-          onRowClick={handleOpenTask}
-        />
-      </div>
+        <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
+          {isOutletRole
+            ? mobileIncompleteOnly
+              ? `Task belum selesai — ${workspace.outletName ?? "Outlet"}`
+              : `Semua task — ${workspace.outletName ?? "Outlet"}`
+            : `${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task`}
+        </div>
+
+        <div className="bg-[#F7FAF8] p-3 sm:p-4">
+          <TaskGroupedList
+            groups={activeTaskGroups}
+            highlightedTaskId={highlightedTaskId}
+            onOpenTask={handleOpenTask}
+            formTemplates={formTemplates}
+            collapsedGroups={collapsedGroups}
+            onToggleGroup={toggleTaskGroup}
+            onExpandAll={expandAllTaskGroups}
+            onCollapseAll={collapseAllTaskGroups}
+            emptyMessage="Tidak ada task yang cocok dengan filter ini."
+          />
+        </div>
+      </section>
 
       {canCreateTask ? (
         <TaskFormDrawer

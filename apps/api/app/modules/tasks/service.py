@@ -7,6 +7,7 @@ from app.models.task import Task
 from app.models.task_assignment import TaskAssignment
 from app.models.task_comment import TaskComment
 from app.models.user import User
+from app.modules.notifications.task_notifications import notify_task_recipient
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
@@ -117,6 +118,17 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(task)
+
+        if payload.assigned_to:
+            notify_task_recipient(
+                self.db,
+                task=task,
+                event_type="task_assigned",
+                subject=f"Task baru ditugaskan: {task.title}",
+                body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
+                recipient_legacy_user_id=payload.assigned_to,
+            )
+
         return task
 
     def update_task(
@@ -177,6 +189,17 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(task)
+
+        if "assigned_to" in update_data and previous_assignee != task.assigned_to and task.assigned_to:
+            notify_task_recipient(
+                self.db,
+                task=task,
+                event_type="task_assigned",
+                subject=f"Task ditugaskan: {task.title}",
+                body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
+                recipient_legacy_user_id=task.assigned_to,
+            )
+
         return task
 
     def update_status(
@@ -334,6 +357,16 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(assignment)
+
+        notify_task_recipient(
+            self.db,
+            task=task,
+            event_type="task_assigned",
+            subject=f"Task ditugaskan: {task.title}",
+            body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
+            recipient_legacy_user_id=payload.user_id,
+        )
+
         return assignment
 
     def remove_assignment(

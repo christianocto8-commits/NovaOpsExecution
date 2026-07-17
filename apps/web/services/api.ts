@@ -1,4 +1,4 @@
-import { buildApiUrl, resolveApiDisplayUrl } from "@/lib/api-url";
+import { buildApiUrl, isLocalDevEnvironment, resolveApiDisplayUrl } from "@/lib/api-url";
 
 const DEFAULT_TIMEOUT_MS = 70000;
 const RETRY_DELAY_MS = 5000;
@@ -63,9 +63,6 @@ function shouldRetryRequest(endpoint: string, options?: RequestInit) {
   const method = (options?.method ?? "GET").toUpperCase();
 
   if (method === "GET" || method === "HEAD") return true;
-  if (method === "POST" || method === "PATCH" || method === "DELETE" || method === "PUT") {
-    return true;
-  }
   if (endpoint.includes("/auth/login")) return true;
   if (endpoint.includes("/authorization/context")) return true;
 
@@ -93,7 +90,12 @@ function buildHeaders(options?: RequestInit) {
 }
 
 function buildConnectionError() {
-  return `Koneksi ke backend gagal. Pastikan VPS API aktif di ${resolveApiDisplayUrl()}, lalu refresh halaman (Ctrl+Shift+R).`;
+  const target = resolveApiDisplayUrl();
+  if (isLocalDevEnvironment()) {
+    return `Koneksi ke backend local gagal (${target}). Pastikan API jalan di port 8000, lalu refresh (Ctrl+Shift+R).`;
+  }
+
+  return `Koneksi ke backend gagal. Pastikan VPS API aktif di ${target}, lalu refresh halaman (Ctrl+Shift+R).`;
 }
 
 async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {

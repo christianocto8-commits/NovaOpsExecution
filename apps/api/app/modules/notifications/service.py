@@ -5,11 +5,13 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.modules.notifications.models import (
+    NotificationChannel,
     NotificationDelivery,
     NotificationEvent,
     NotificationStatus,
     NotificationTemplate,
 )
+from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.repository import (
     NotificationDeliveryRepository,
     NotificationEventRepository,
@@ -143,11 +145,28 @@ class NotificationService:
 
     def process_pending(self) -> dict:
         deliveries = self.delivery_repository.list_pending()
+        push_service = PushNotificationService(self.db)
         result = {"checked": len(deliveries), "sent": 0, "failed": 0}
 
         for delivery in deliveries:
+            delivery.attempt_count += 1
+
             try:
-                delivery.attempt_count += 1
+                if delivery.channel == NotificationChannel.push:
+                    if not delivery.recipient_user_id:
+                        raise ValueError("Push delivery missing recipient_user_id")
+
+                    push_result = push_service.send_to_user(
+                        delivery.recipient_user_id,
+                        title=delivery.subject or "NovaOps",
+                        body=delivery.body,
+                        url=self._resolve_delivery_url(delivery),
+                        data=self._delivery_payload(delivery),
+                    )
+
+                    if push_result["sent"] == 0 and push_result["attempted"] > 0:
+                        raise ValueError("All push delivery attempts failed")
+
                 delivery.status = NotificationStatus.sent
                 delivery.sent_at = datetime.utcnow()
                 delivery.last_error = None
@@ -159,6 +178,20 @@ class NotificationService:
 
         self.db.commit()
         return result
+
+    def _delivery_payload(self, delivery: NotificationDelivery) -> dict | None:
+        event = self.db.get(NotificationEvent, delivery.event_id)
+        return event.payload_json if event else None
+
+    def _resolve_delivery_url(self, delivery: NotificationDelivery) -> str:
+        payload = self._delivery_payload(delivery)
+
+        if isinstance(payload, dict):
+            task_id = payload.get("task_id")
+            if task_id is not None:
+                return f"/dashboard/tasks?taskId={task_id}"
+
+        return "/dashboard/tasks"
 
     def _render(self, template: str | None, payload: dict) -> str | None:
         if template is None:

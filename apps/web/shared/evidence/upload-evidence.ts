@@ -1,4 +1,5 @@
-import { buildRequestUrl, getApiRequestCandidates } from "@/lib/api-url";
+import { buildApiUrl } from "@/lib/api-url";
+import { storeOfflineEvidence } from "@/lib/offline/offline-evidence";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -11,45 +12,60 @@ export type EvidenceUploadResponse = {
   uploaded_at: string;
 };
 
+function isOfflineContext() {
+  return typeof navigator !== "undefined" && !navigator.onLine;
+}
+
 export async function uploadEvidenceFile(file: File) {
+  if (isOfflineContext()) {
+    const record = await storeOfflineEvidence(file);
+
+    return {
+      url: record.url,
+      file_name: record.fileName,
+      uploaded_at: record.createdAt,
+    };
+  }
+
   const formData = new FormData();
   const token = getToken();
 
   formData.append("file", file);
 
-  let lastError: unknown;
+  try {
+    const response = await fetch(buildApiUrl("/api/v1/evidence-uploads"), {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    });
 
-  for (const requestUrl of getApiRequestCandidates("/api/v1/evidence-uploads")) {
-    try {
-      const response = await fetch(requestUrl, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: formData,
-      });
+    if (!response.ok) {
+      let errorMessage = "Upload evidence gagal.";
 
-      if (!response.ok) {
-        let errorMessage = "Upload evidence gagal.";
-
-        try {
-          const payload = (await response.json()) as { detail?: string };
-          if (payload.detail) {
-            errorMessage = payload.detail;
-          }
-        } catch {
-          // Keep fallback message when response is not JSON.
+      try {
+        const payload = (await response.json()) as { detail?: string };
+        if (payload.detail) {
+          errorMessage = payload.detail;
         }
-
-        throw new Error(errorMessage);
+      } catch {
+        // Keep fallback message when response is not JSON.
       }
 
-      return (await response.json()) as EvidenceUploadResponse;
-    } catch (error) {
-      lastError = error;
-      if (!(error instanceof TypeError)) {
-        throw error;
-      }
+      throw new Error(errorMessage);
     }
-  }
 
-  throw lastError instanceof Error ? lastError : new Error("Upload evidence gagal.");
+    return (await response.json()) as EvidenceUploadResponse;
+  } catch (error) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const record = await storeOfflineEvidence(file);
+
+      return {
+        url: record.url,
+        file_name: record.fileName,
+        uploaded_at: record.createdAt,
+      };
+    }
+
+    throw error;
+  }
 }

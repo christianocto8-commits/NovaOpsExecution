@@ -1,0 +1,16 @@
+[Unit]
+Description=NovaOps Next.js Frontend
+After=network.target novaops-api.service
+
+[Service]
+User=root
+WorkingDirectory=/opt/NovaOpsExecution/apps/web/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/node /opt/NovaOpsExecution/apps/web/.next/standalone/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

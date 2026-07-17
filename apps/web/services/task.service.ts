@@ -1,4 +1,5 @@
 import { api } from "@/services/api";
+import { cacheTasks, getCachedTasks } from "@/lib/offline/store";
 import { taskScheduleService } from "@/services/task-schedule.service";
 import type { Task, TaskFormState, TaskPriority, TaskShift, TaskStatus } from "@/features/tasks/types";
 
@@ -149,8 +150,20 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
 
 export const taskService = {
   async list() {
-    const tasks = await api<BackendTask[]>("/api/v1/tasks");
-    return tasks.map(mapBackendTask);
+    try {
+      const tasks = await api<BackendTask[]>("/api/v1/tasks");
+      const mapped = tasks.map(mapBackendTask);
+      await cacheTasks(mapped);
+      return mapped;
+    } catch (error) {
+      const cached = await getCachedTasks();
+
+      if (cached.length > 0) {
+        return cached;
+      }
+
+      throw error;
+    }
   },
 
   async create(form: TaskFormState) {

@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str | None = None
     bootstrap_admin_username: str | None = None
     bootstrap_admin_password: str | None = None
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:admin@novaops.com"
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -127,6 +130,11 @@ def get_settings() -> Settings:
         )
         or None,
         bootstrap_admin_password=os.environ.get("BOOTSTRAP_ADMIN_PASSWORD"),
+        vapid_public_key=_sanitize_env_value(os.environ.get("VAPID_PUBLIC_KEY", "") or "") or None,
+        vapid_private_key=_sanitize_env_value(os.environ.get("VAPID_PRIVATE_KEY", "") or "") or None,
+        vapid_subject=_sanitize_env_value(
+            os.environ.get("VAPID_SUBJECT", "mailto:admin@novaops.com") or "mailto:admin@novaops.com"
+        ),
     )
 
 

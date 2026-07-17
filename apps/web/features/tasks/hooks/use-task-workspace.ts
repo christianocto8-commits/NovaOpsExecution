@@ -21,6 +21,16 @@ import {
   updateExecutionSession,
   type ExecutionSessionResponse,
 } from "@/services/execution-session.service";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineSync } from "@/providers/OfflineSyncProvider";
+import {
+  enqueueMutation,
+  getAllLocalDrafts,
+  saveLocalDraft,
+  deleteLocalDraft,
+  updateCachedTask,
+} from "@/lib/offline/store";
+import type { LocalDraft } from "@/lib/offline/types";
 
 const EXECUTION_DRAFT_QUERY_KEY = ["execution-sessions", "drafts"] as const;
 
@@ -149,6 +159,33 @@ function mergeBackendTasksWithDrafts(
   });
 }
 
+function mergeTasksWithLocalDrafts(
+  tasks: Task[],
+  localDrafts: LocalDraft[],
+  executionSessions: ExecutionSessionResponse[]
+) {
+  const mergedTasks = mergeBackendTasksWithDrafts(tasks, executionSessions);
+  const localDraftMap = new Map(localDrafts.map((draft) => [draft.taskId, draft]));
+
+  return mergedTasks.map((task) => {
+    if (task.execution?.reviewStatus === "approved" || task.status === "Completed") {
+      return task;
+    }
+
+    const localDraft = localDraftMap.get(task.id);
+
+    if (!localDraft) {
+      return task;
+    }
+
+    return normalizeTask({
+      ...task,
+      status: "In Progress",
+      executionDraft: localDraft.form,
+    });
+  });
+}
+
 function parseEvidenceGallery(value: string): EvidenceItem[] {
   if (!value.trim()) return [];
 
@@ -197,6 +234,8 @@ export function useTaskWorkspace() {
   const confirm = useConfirmation();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { isOnline } = useOnlineStatus();
+  const { refreshPendingCount, pendingSyncCount } = useOfflineSync();
 
   const backendTasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
@@ -208,6 +247,13 @@ export function useTaskWorkspace() {
     queryKey: EXECUTION_DRAFT_QUERY_KEY,
     queryFn: () => getExecutionSessions({ sourceType: "sop_task" }),
     retry: false,
+    enabled: isOnline,
+  });
+
+  const localDraftsQuery = useQuery({
+    queryKey: ["local-drafts"],
+    queryFn: getAllLocalDrafts,
+    staleTime: 0,
   });
 
   const backendConnected = backendTasksQuery.isSuccess;
@@ -296,6 +342,7 @@ export function useTaskWorkspace() {
   const [executionForm, setExecutionForm] = useState<TaskExecutionForm>(emptyTaskExecutionForm);
 
   const draftSessions = executionSessionsQuery.data ?? [];
+  const localDrafts = localDraftsQuery.data ?? [];
   const latestDraftSessionMap = useMemo(
     () => getLatestDraftSessionsByTask(draftSessions),
     [draftSessions]
@@ -304,8 +351,8 @@ export function useTaskWorkspace() {
   const tasks = useMemo(() => {
     if (!backendTasksQuery.data) return [];
 
-    return mergeBackendTasksWithDrafts(backendTasksQuery.data, draftSessions);
-  }, [backendTasksQuery.data, draftSessions]);
+    return mergeTasksWithLocalDrafts(backendTasksQuery.data, localDrafts, draftSessions);
+  }, [backendTasksQuery.data, localDrafts, draftSessions]);
 
   const taskSummary = useMemo(() => {
     return {
@@ -497,34 +544,91 @@ export function useTaskWorkspace() {
   async function saveExecutionDraft() {
     if (!selectedTask) return;
 
-    if (!backendConnected || !isBackendTaskId(selectedTask.id)) {
-      toast.error("Simpan draft hanya tersedia saat backend aktif.");
+    if (!isBackendTaskId(selectedTask.id)) {
+      toast.error("Simpan draft hanya tersedia untuk task backend.");
       return;
     }
 
-    const payload = {
-      task_id: Number(selectedTask.id),
-      form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
-      source_type: "sop_task",
-      status: "draft",
-      answers_json: buildExecutionAnswers(selectedTask, executionForm),
-      submitted_by: null,
-    };
-
+    const answersJson = buildExecutionAnswers(selectedTask, executionForm);
     const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
 
-    try {
-      if (existingDraftSession) {
-        await updateExecutionSession(existingDraftSession.id, payload);
-      } else {
-        await createExecutionSession(payload);
+    if (isOnline && backendConnected) {
+      const payload = {
+        task_id: Number(selectedTask.id),
+        form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
+        source_type: "sop_task",
+        status: "draft",
+        answers_json: answersJson,
+        submitted_by: null,
+      };
+
+      try {
+        if (existingDraftSession) {
+          await updateExecutionSession(existingDraftSession.id, payload);
+        } else {
+          await createExecutionSession(payload);
+        }
+
+        await queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY });
+        toast.success("Draft eksekusi tersimpan.");
+        closeExecution();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Gagal menyimpan draft.";
+        toast.error(message);
       }
 
-      await queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY });
-      toast.success("Draft eksekusi tersimpan.");
+      return;
+    }
+
+    try {
+      await saveLocalDraft({
+        taskId: selectedTask.id,
+        form: executionForm,
+        answersJson,
+        updatedAt: new Date().toISOString(),
+      });
+
+      await enqueueMutation({
+        id: crypto.randomUUID(),
+        type: "EXECUTION_DRAFT",
+        taskId: selectedTask.id,
+        payload: {
+          task_id: Number(selectedTask.id),
+          form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
+          answers_json: answersJson,
+          existingSessionId: existingDraftSession?.id ?? null,
+        },
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
+
+      await updateCachedTask(selectedTask.id, (task) => ({
+        ...task,
+        status: "In Progress",
+        executionDraft: executionForm,
+      }));
+
+      queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
+        (currentTasks ?? []).map((task) =>
+          task.id === selectedTask.id
+            ? normalizeTask({
+                ...task,
+                status: "In Progress",
+                executionDraft: executionForm,
+              })
+            : task
+        )
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["local-drafts"] }),
+        refreshPendingCount(),
+      ]);
+
+      toast.success("Draft disimpan lokal");
       closeExecution();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal menyimpan draft.";
+      const message = error instanceof Error ? error.message : "Gagal menyimpan draft lokal.";
       toast.error(message);
     }
   }
@@ -532,27 +636,111 @@ export function useTaskWorkspace() {
   async function submitTaskExecution() {
     if (!selectedTask) return;
 
-    if (!backendConnected || !isBackendTaskId(selectedTask.id)) {
-      toast.error("Submit eksekusi hanya tersedia saat backend aktif.");
+    if (!isBackendTaskId(selectedTask.id)) {
+      toast.error("Submit eksekusi hanya tersedia untuk task backend.");
       return;
     }
 
-    try {
-      const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
+    if (isOnline && backendConnected) {
+      try {
+        const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
 
-      if (existingDraftSession) {
-        await deleteExecutionSession(existingDraftSession.id);
+        if (existingDraftSession) {
+          await deleteExecutionSession(existingDraftSession.id);
+        }
+
+        await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
+        toast.success(
+          approvalRequired
+            ? "Evidence dikirim dan menunggu review."
+            : "Task selesai dan evidence tersimpan."
+        );
+        closeExecution();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
+        toast.error(message);
       }
 
-      await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
+      return;
+    }
+
+    const answersJson = buildExecutionAnswers(selectedTask, executionForm);
+    const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
+    const submittedAt = new Date().toISOString();
+    const nextStatus: Task["status"] = approvalRequired ? "In Progress" : "Completed";
+
+    try {
+      await deleteLocalDraft(selectedTask.id);
+
+      await enqueueMutation({
+        id: crypto.randomUUID(),
+        type: "EXECUTION_SUBMIT",
+        taskId: selectedTask.id,
+        payload: {
+          task_id: Number(selectedTask.id),
+          form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
+          answers_json: answersJson,
+          approvalRequired,
+          previousStatus: selectedTask.status,
+          existingSessionId: existingDraftSession?.id ?? null,
+        },
+        createdAt: submittedAt,
+        status: "pending",
+      });
+
+      await updateCachedTask(selectedTask.id, (task) =>
+        normalizeTask({
+          ...task,
+          status: nextStatus,
+          executionDraft: undefined,
+          execution: approvalRequired
+            ? task.execution
+            : {
+                operatorName: executionForm.operatorName,
+                operatorPosition: executionForm.operatorPosition,
+                note: executionForm.note,
+                evidence: buildTaskEvidence(executionForm.evidenceText, submittedAt),
+                formResponses: executionForm.formResponses,
+                completedAt: submittedAt,
+              },
+        })
+      );
+
+      queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
+        (currentTasks ?? []).map((task) =>
+          task.id === selectedTask.id
+            ? normalizeTask({
+                ...task,
+                status: nextStatus,
+                executionDraft: undefined,
+                execution: approvalRequired
+                  ? task.execution
+                  : {
+                      operatorName: executionForm.operatorName,
+                      operatorPosition: executionForm.operatorPosition,
+                      note: executionForm.note,
+                      evidence: buildTaskEvidence(executionForm.evidenceText, submittedAt),
+                      formResponses: executionForm.formResponses,
+                      completedAt: submittedAt,
+                    },
+              })
+            : task
+        )
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["local-drafts"] }),
+        refreshPendingCount(),
+      ]);
+
       toast.success(
         approvalRequired
-          ? "Evidence dikirim dan menunggu review."
-          : "Task selesai dan evidence tersimpan."
+          ? "Evidence disimpan lokal dan akan disinkronkan."
+          : "Task selesai secara lokal dan akan disinkronkan."
       );
       closeExecution();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
+      const message = error instanceof Error ? error.message : "Gagal menyelesaikan task secara lokal.";
       toast.error(message);
     }
   }
@@ -582,6 +770,8 @@ export function useTaskWorkspace() {
     saveExecutionDraft,
     submitTaskExecution,
     isBackendConnected: backendConnected,
+    isOnline,
+    pendingLocalSyncCount: pendingSyncCount,
     backendError: backendTasksQuery.error,
   };
 }

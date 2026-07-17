@@ -284,8 +284,10 @@ export function FormsWorkspace() {
       setLastSavedAt(new Date().toISOString());
       setSaveError(null);
     },
-    onError: () => {
-      setSaveError("Failed to save template to backend.");
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "Gagal menyimpan template ke backend.";
+      setSaveError(message);
     },
   });
 

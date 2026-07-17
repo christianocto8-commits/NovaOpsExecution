@@ -1,0 +1,14 @@
+[Unit]
+Description=NovaOps FastAPI
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/NovaOpsExecution/apps/api
+EnvironmentFile=/opt/NovaOpsExecution/apps/api/.env
+ExecStart=/opt/NovaOpsExecution/apps/api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

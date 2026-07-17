@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 TaskScheduleRecurrence = Literal["daily", "weekly"]
@@ -28,6 +28,13 @@ class TaskScheduleCreate(BaseModel):
     due_time: str = "09:00"
     weekly_publish_day: TaskWeeklyPublishDay | None = None
     auto_publish: bool = True
+
+    @field_validator("form_template_id", mode="before")
+    @classmethod
+    def normalize_form_template_id(cls, value: object) -> int | None:
+        if value in (None, "", 0):
+            return None
+        return value  # type: ignore[return-value]
 
 
 class TaskScheduleUpdate(BaseModel):

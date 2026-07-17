@@ -1,8 +1,12 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 
+import {
+  getOfflineEvidenceBlobUrl,
+  isOfflineEvidenceUrl,
+} from "@/lib/offline/offline-evidence";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 
 type PhotoFieldInputProps = {
@@ -20,13 +24,43 @@ function isMobileDevice() {
 
 export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFieldInputProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [mobileMode, setMobileMode] = useState(false);
+  const [mobileMode] = useState(() => isMobileDevice());
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setMobileMode(isMobileDevice());
-  }, []);
+    if (!value || !isOfflineEvidenceUrl(value)) {
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    void getOfflineEvidenceBlobUrl(value).then((blobUrl) => {
+      if (cancelled) {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      objectUrl = blobUrl;
+      setOfflineBlobUrl(blobUrl);
+    });
+
+    return () => {
+      cancelled = true;
+      setOfflineBlobUrl(null);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [value]);
+
+  const displayUrl = useMemo(() => {
+    if (!value) return "";
+    if (!isOfflineEvidenceUrl(value)) return value;
+    return offlineBlobUrl ?? "";
+  }, [offlineBlobUrl, value]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -58,7 +92,7 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
           <div className="aspect-video max-h-56 w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Foto bukti" className="h-full w-full object-cover" />
+            <img src={displayUrl} alt="Foto bukti" className="h-full w-full object-cover" />
           </div>
 
           {!readOnly ? (

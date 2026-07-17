@@ -28,7 +28,7 @@ if (!(Test-Path ".venv")) {
 & ".\.venv\Scripts\python.exe" -m pip install --upgrade pip
 & ".\.venv\Scripts\pip.exe" install -r requirements.txt
 & ".\.venv\Scripts\alembic.exe" upgrade head
-& ".\.venv\Scripts\python.exe" seed_admin.py
+& ".\.venv\Scripts\python.exe" -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin(); print('Bootstrap admin ensured.')"
 
 Write-Host "Setting up frontend..." -ForegroundColor Yellow
 Set-Location $WebPath

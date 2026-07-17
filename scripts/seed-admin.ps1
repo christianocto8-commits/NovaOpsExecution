@@ -1,39 +1,11 @@
 $ErrorActionPreference = "Stop"
 
 Set-Location "$PSScriptRoot\..\apps\api"
-& "..\..\.venv\Scripts\Activate.ps1"
 
-$script = @'
-from app.core.database import SessionLocal
-from app.core.security import get_password_hash
-from app.models import User
+if (Test-Path ".\.venv\Scripts\python.exe") {
+  $PythonCmd = ".\.venv\Scripts\python.exe"
+} else {
+  $PythonCmd = "python"
+}
 
-db = SessionLocal()
-
-email = "admin@novaops.com"
-password = "admin123"
-
-user = db.query(User).filter(User.email == email).first()
-
-if user:
-    user.password_hash = get_password_hash(password)
-    user.is_active = True
-    db.commit()
-    print("Admin user already exists. Password reset to admin123.")
-else:
-    user = User(
-        email=email,
-        password_hash=get_password_hash(password),
-        full_name="NovaOps Super Admin",
-        is_active=True,
-    )
-    db.add(user)
-    db.commit()
-    print("Admin user created: admin@novaops.com / admin123")
-
-db.close()
-'@
-
-$script | Set-Content ".novaops_seed_admin_tmp.py"
-python ".novaops_seed_admin_tmp.py"
-Remove-Item ".novaops_seed_admin_tmp.py" -Force
+& $PythonCmd -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin(); print('Bootstrap admin ensured from BOOTSTRAP_* settings.')"

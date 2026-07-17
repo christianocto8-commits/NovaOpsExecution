@@ -48,6 +48,10 @@ jobs:
     env:
 
       DATABASE_URL: postgresql+psycopg://novaops:novaops@localhost:5432/novaops
+      BOOTSTRAP_ADMIN_ENABLED: "true"
+      BOOTSTRAP_ADMIN_EMAIL: admin@novaops.com
+      BOOTSTRAP_ADMIN_USERNAME: admin
+      BOOTSTRAP_ADMIN_PASSWORD: admin123
 
     steps:
 
@@ -63,4 +67,4 @@ jobs:
 
       - run: alembic upgrade head
 
-      - run: python seed_admin.py
+      - run: python -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin()"

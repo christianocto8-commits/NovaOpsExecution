@@ -6,11 +6,10 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   Circle,
   CircleAlert,
-  Clock3,
+  Download,
 } from "lucide-react";
 
 import {
@@ -19,22 +18,23 @@ import {
   LineChartCard,
   PieChartCard,
 } from "@/shared/analytics/charts";
-import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
-import {
-  EnterpriseFilterDefinition,
-  EnterpriseFilterState,
-  applyEnterpriseFilters,
-} from "@/shared/filters";
 import { queryKeys } from "@/lib/query/keys";
+import { formTemplateService } from "@/services/form-template.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
+import {
+  countWorkedTasksForOutlet,
+  exportOutletWorkReportPdf,
+  filterWorkedTasksForOutlet,
+  isTaskWorkedOn,
+} from "@/features/reports/utils/task-work-report-pdf";
 import { RealtimeClock } from "@/shared/realtime";
+import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { EnterpriseToolbar } from "@/shared/toolbar";
 
 type ReportStatus = "completed" | "in_progress" | "pending" | "overdue";
 
@@ -92,11 +92,16 @@ type OutletTrackingGroup = {
   rate: number;
 };
 
-const initialReportFilters: EnterpriseFilterState = {
-  outlet: "",
-  form: "",
-  status: "",
-};
+function filterTasksForOutletAndDate(tasks: Task[], outlet: string, dateKey?: string) {
+  let filtered = tasks.filter((task) => task.outlet === outlet);
+
+  if (!dateKey) return filtered;
+
+  return filtered.filter((task) => {
+    const dueDate = getDueDate(task);
+    return dueDate ? formatDateKey(dueDate) === dateKey : false;
+  });
+}
 
 function isOverdue(task: Task) {
   if (!task.due || task.status === "Completed") return false;
@@ -388,75 +393,41 @@ function buildOutletTrackingGroups(entries: TaskTrackingEntry[]) {
     .sort((first, second) => first.outlet.localeCompare(second.outlet));
 }
 
-const reportColumns: EnterpriseColumn<ReportRow>[] = [
-  { key: "id", header: "Report ID", sortable: true, hideable: true },
-  { key: "outlet", header: "Outlet", sortable: true },
-  { key: "task", header: "Task", sortable: true },
-  { key: "form", header: "Form", sortable: true, hideable: true },
-  {
-    key: "status",
-    header: "Status",
-    sortable: true,
-    hideable: true,
-    render: (report) => {
-      const statusClass =
-        report.status === "completed"
-          ? "bg-emerald-50 text-emerald-700"
-          : report.status === "in_progress"
-            ? "bg-blue-50 text-blue-700"
-            : report.status === "overdue"
-              ? "bg-red-50 text-red-700"
-              : "bg-amber-50 text-amber-700";
-
-      return (
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
-          {getStatusLabel(report.status)}
-        </span>
-      );
-    },
-  },
-  {
-    key: "progress",
-    header: "Progress",
-    sortable: true,
-    hideable: true,
-    render: (report) => `${report.progress}%`,
-  },
-  {
-    key: "score",
-    header: "Score",
-    sortable: true,
-    hideable: true,
-    render: (report) => `${report.score}%`,
-  },
-  { key: "operator", header: "Operator", sortable: true, hideable: true },
-  { key: "due", header: "Due", sortable: true, hideable: true },
-  { key: "submittedAt", header: "Submitted At", sortable: true, hideable: true },
-];
-
 export function ReportsWorkspace() {
+  const toast = useToast();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
   const isAreaWorkspace = workspace.mode === "area";
+  const isOutletWorkspace = workspace.mode === "outlet";
+  const isManagerWorkspace = !isOutletWorkspace;
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.list,
     retry: false,
   });
-  const [filters, setFilters] = useState<EnterpriseFilterState>(initialReportFilters);
-  const [toolbarSearch, setToolbarSearch] = useState("");
+  const formTemplatesQuery = useQuery({
+    queryKey: queryKeys.sop.formTemplates(),
+    queryFn: formTemplateService.list,
+  });
 
-  const reportRows = useMemo(() => (tasksQuery.data ?? []).map(toReportRow), [tasksQuery.data]);
+  const tasks = tasksQuery.data ?? [];
+  const formTemplates = formTemplatesQuery.data ?? [];
+
+  const reportRows = useMemo(() => tasks.map(toReportRow), [tasks]);
   const summary = useMemo(() => getSummary(reportRows), [reportRows]);
+  const outletNames = useMemo(
+    () => Array.from(new Set(tasks.map((task) => task.outlet).filter(Boolean))).sort(),
+    [tasks]
+  );
   const completionTrend = useMemo(() => getCompletionTrend(reportRows), [reportRows]);
   const statusDistribution = useMemo(() => getStatusDistribution(reportRows), [reportRows]);
   const outletPerformance = useMemo(() => getOutletPerformance(reportRows), [reportRows]);
   const formBreakdown = useMemo(() => getFormBreakdown(reportRows), [reportRows]);
-  const trackingEntries = useMemo(() => buildTrackingEntries(tasksQuery.data ?? []), [tasksQuery.data]);
+  const trackingEntries = useMemo(() => buildTrackingEntries(tasks), [tasks]);
   const availableMonths = useMemo(() => getAvailableMonths(trackingEntries), [trackingEntries]);
   const [selectedMonthKey, setSelectedMonthKey] = useState(() => formatMonthKey(new Date()));
   const dailySummaries = useMemo(() => buildDailySummaries(trackingEntries), [trackingEntries]);
@@ -479,58 +450,9 @@ export function ReportsWorkspace() {
   const selectedDateEntries = trackingEntries.filter(
     (entry) => entry.dateKey === effectiveSelectedDateKey
   );
-  const isOutletWorkspace = workspace.mode === "outlet";
   const outletTrackingGroups = useMemo(
     () => buildOutletTrackingGroups(selectedDateEntries),
     [selectedDateEntries]
-  );
-
-  const reportFilterDefinitions: EnterpriseFilterDefinition[] = useMemo(() => {
-    const outlets = Array.from(new Set(reportRows.map((report) => report.outlet)));
-    const forms = Array.from(new Set(reportRows.map((report) => report.form)));
-
-    return [
-      {
-        key: "outlet",
-        label: "Outlet",
-        type: "select",
-        placeholder: "All outlets",
-        options: outlets.map((outlet) => ({ label: outlet, value: outlet })),
-      },
-      {
-        key: "form",
-        label: "Form",
-        type: "select",
-        placeholder: "All forms",
-        options: forms.map((form) => ({ label: form, value: form })),
-      },
-      {
-        key: "status",
-        label: "Status",
-        type: "select",
-        placeholder: "All status",
-        options: [
-          { label: "Completed", value: "completed" },
-          { label: "In Progress", value: "in_progress" },
-          { label: "Pending", value: "pending" },
-          { label: "Overdue", value: "overdue" },
-        ],
-      },
-    ];
-  }, [reportRows]);
-
-  const searchedReports = useMemo(() => {
-    if (!toolbarSearch.trim()) return reportRows;
-
-    const query = toolbarSearch.toLowerCase();
-    return reportRows.filter((report) =>
-      Object.values(report).some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [reportRows, toolbarSearch]);
-
-  const filteredReports = useMemo(
-    () => applyEnterpriseFilters(searchedReports, filters, reportFilterDefinitions),
-    [searchedReports, filters, reportFilterDefinitions]
   );
 
   function toggleOutletGroup(outlet: string) {
@@ -546,9 +468,26 @@ export function ReportsWorkspace() {
     return collapsedOutletGroups[groupKey] ?? false;
   }
 
-  function resetReports() {
-    setToolbarSearch("");
-    setFilters(initialReportFilters);
+  function handleOutletWorkExport(outlet: string, dateKey?: string, dateLabel?: string) {
+    const scopedTasks = dateKey
+      ? filterTasksForOutletAndDate(tasks, outlet, dateKey).filter(isTaskWorkedOn)
+      : filterWorkedTasksForOutlet(tasks, outlet);
+
+    try {
+      exportOutletWorkReportPdf({
+        outlet,
+        tasks: scopedTasks,
+        templates: formTemplates,
+        subtitle: dateLabel
+          ? `${scopedTasks.length} task dikerjakan — ${dateLabel}`
+          : `${scopedTasks.length} task dikerjakan`,
+      });
+      toast.success("Laporan hasil pekerjaan PDF berhasil diunduh.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gagal membuat laporan PDF.";
+      toast.error(message);
+    }
   }
 
   return (
@@ -559,18 +498,17 @@ export function ReportsWorkspace() {
           <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Reports</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             {isAreaWorkspace
-              ? "Area manager dapat memantau performa task outlet dari laporan backend tanpa mengubah data sumber."
-              : "Live reporting from backend tasks synced across owner, area manager, and outlet accounts."}
+              ? "Pantau performa task outlet harian dan export laporan per outlet bila diperlukan."
+              : isManagerWorkspace
+                ? "Ringkasan performa outlet dan export laporan task per outlet."
+                : "Pantau task harian outlet Anda."}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              resetReports();
-              void tasksQuery.refetch();
-            }}
+            onClick={() => void tasksQuery.refetch()}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
           >
             Refresh
@@ -607,6 +545,58 @@ export function ReportsWorkspace() {
           <p className="mt-2 text-2xl font-semibold text-red-700">{summary.overdue}</p>
         </div>
       </div>
+
+      {isManagerWorkspace ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Export Laporan Hasil Pekerjaan (PDF)</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Unduh semua task yang sudah dikerjakan per outlet. Setiap task menampilkan raport
+                checklist dan hasil pekerjaan operator.
+              </p>
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {outletNames.length} outlet
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {outletNames.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 sm:col-span-2 xl:col-span-3">
+                Belum ada data task untuk diexport.
+              </div>
+            ) : (
+              outletNames.map((outlet) => {
+                const workedCount = countWorkedTasksForOutlet(tasks, outlet);
+
+                return (
+                  <div
+                    key={outlet}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900">{outlet}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {workedCount} task sudah dikerjakan
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={workedCount === 0}
+                      onClick={() => handleOutletWorkExport(outlet)}
+                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export PDF
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -818,20 +808,11 @@ export function ReportsWorkspace() {
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-xs text-slate-600 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                        <p className="font-semibold uppercase tracking-wide text-slate-400">Completion</p>
-                        <p className="mt-1 text-sm text-slate-800">
-                          {entry.completionTimestamp ? getDateLabel(entry.completionTimestamp) : "Not submitted yet"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                        <p className="font-semibold uppercase tracking-wide text-slate-400">Action</p>
-                        <p className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-700">
-                          Review task flow
-                          <ChevronRight className="h-4 w-4" />
-                        </p>
-                      </div>
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                      <p className="font-semibold uppercase tracking-wide text-slate-400">Completion</p>
+                      <p className="mt-1 text-sm text-slate-800">
+                        {entry.completionTimestamp ? getDateLabel(entry.completionTimestamp) : "Not submitted yet"}
+                      </p>
                     </div>
                   </article>
                 ))
@@ -844,11 +825,12 @@ export function ReportsWorkspace() {
                       key={`${effectiveSelectedDateKey}-${group.outlet}`}
                       className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggleOutletGroup(group.outlet)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-slate-50"
-                      >
+                      <div className="flex items-stretch gap-2 px-3 py-3 sm:px-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleOutletGroup(group.outlet)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-2 py-2 text-left hover:bg-slate-50"
+                        >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-slate-950">{group.outlet}</p>
@@ -873,10 +855,34 @@ export function ReportsWorkspace() {
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                          {isCollapsed ? "Expand" : "Minimize"}
+                          {isCollapsed ? "Tampilkan" : "Sembunyikan"}
                           {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                         </div>
-                      </button>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            filterTasksForOutletAndDate(
+                              tasks,
+                              group.outlet,
+                              effectiveSelectedDateKey
+                            ).filter(isTaskWorkedOn).length === 0
+                          }
+                          onClick={() =>
+                            handleOutletWorkExport(
+                              group.outlet,
+                              effectiveSelectedDateKey,
+                              selectedDateSummary?.dateLabel
+                            )
+                          }
+                          className="inline-flex shrink-0 items-center gap-2 self-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                          title={`Export laporan pekerjaan — ${group.outlet}`}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span className="hidden sm:inline">Export PDF</span>
+                        </button>
+                      </div>
 
                       {!isCollapsed ? (
                         <div className="border-t border-slate-100 bg-[#F7FAF8] p-3 sm:p-4">
@@ -919,20 +925,11 @@ export function ReportsWorkspace() {
                                   </span>
                                 </div>
 
-                                <div className="mt-4 grid gap-3 text-xs text-slate-600 lg:grid-cols-2">
-                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                    <p className="font-semibold uppercase tracking-wide text-slate-400">Completion</p>
-                                    <p className="mt-1 text-sm text-slate-800">
-                                      {entry.completionTimestamp ? getDateLabel(entry.completionTimestamp) : "Not submitted yet"}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                    <p className="font-semibold uppercase tracking-wide text-slate-400">Action</p>
-                                    <p className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-700">
-                                      Review task flow
-                                      <ChevronRight className="h-4 w-4" />
-                                    </p>
-                                  </div>
+                                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                                  <p className="font-semibold uppercase tracking-wide text-slate-400">Completion</p>
+                                  <p className="mt-1 text-sm text-slate-800">
+                                    {entry.completionTimestamp ? getDateLabel(entry.completionTimestamp) : "Not submitted yet"}
+                                  </p>
                                 </div>
                               </article>
                             ))}
@@ -993,92 +990,59 @@ export function ReportsWorkspace() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-950">All Outlet Progress</p>
-            <p className="text-xs text-slate-500">Calculated from backend task status.</p>
+      {isOutletWorkspace ? (
+        <>
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">All Outlet Progress</p>
+                <p className="text-xs text-slate-500">Progress task outlet Anda.</p>
+              </div>
+              <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-emerald-700 transition-all duration-700"
+                style={{ width: `${summary.averageProgress}%` }}
+              />
+            </div>
+          </section>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <LineChartCard
+              title="Task Completion Trend"
+              description="Completion percentage and completed task count by due date."
+              data={completionTrend}
+              xKey="day"
+              series={[
+                { dataKey: "completion", name: "Completion %" },
+                { dataKey: "submitted", name: "Completed" },
+              ]}
+            />
+            <DonutChartCard
+              title="Task Status Distribution"
+              description="Status task saat ini."
+              data={statusDistribution}
+              valueKey="value"
+              nameKey="name"
+            />
+            <BarChartCard
+              title="Outlet Progress"
+              description="Rata-rata progress task per outlet."
+              data={outletPerformance}
+              xKey="outlet"
+              series={[{ dataKey: "progress", name: "Progress %" }]}
+            />
+            <PieChartCard
+              title="Form Template Breakdown"
+              description="Distribusi task berdasarkan form template."
+              data={formBreakdown}
+              valueKey="value"
+              nameKey="name"
+            />
           </div>
-          <p className="text-sm font-bold text-emerald-700">{summary.averageProgress}%</p>
-        </div>
-        <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-emerald-700 transition-all duration-700"
-            style={{ width: `${summary.averageProgress}%` }}
-          />
-        </div>
-      </section>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <LineChartCard
-          title="Task Completion Trend"
-          description="Completion percentage and completed task count by due date."
-          data={completionTrend}
-          xKey="day"
-          series={[
-            { dataKey: "completion", name: "Completion %" },
-            { dataKey: "submitted", name: "Completed" },
-          ]}
-        />
-        <DonutChartCard
-          title="Task Status Distribution"
-          description="Current backend task lifecycle status."
-          data={statusDistribution}
-          valueKey="value"
-          nameKey="name"
-        />
-        <BarChartCard
-          title="Outlet Progress"
-          description="Average backend task progress per outlet."
-          data={outletPerformance}
-          xKey="outlet"
-          series={[{ dataKey: "progress", name: "Progress %" }]}
-        />
-        <PieChartCard
-          title="Form Template Breakdown"
-          description="Backend task distribution by selected form template."
-          data={formBreakdown}
-          valueKey="value"
-          nameKey="name"
-        />
-      </div>
-
-      <EnterpriseToolbar
-        title="Report Actions"
-        description={
-          isAreaWorkspace
-            ? "Search, refresh, print, and inspect backend task reports in read-only mode."
-            : "Search, refresh, print, and inspect backend task reports."
-        }
-        searchValue={toolbarSearch}
-        searchPlaceholder="Search task reports..."
-        onSearchChange={setToolbarSearch}
-        actions={[
-          { label: "Refresh", variant: "secondary", onClick: () => void tasksQuery.refetch() },
-          { label: "Print", variant: "secondary", onClick: () => window.print() },
-        ]}
-      />
-
-      <EnterpriseDataTable
-        title="Backend Task Report Register"
-        description="Search, filter, sort, paginate, customize columns, and export synced task reports."
-        data={filteredReports}
-        columns={reportColumns}
-        searchPlaceholder="Search current result..."
-        pageSize={10}
-        getRowId={(report) => report.id}
-        filterDefinitions={reportFilterDefinitions}
-        filters={filters}
-        onFiltersChange={setFilters}
-        enableFilters
-        enableSavedViews
-        savedViewScope="backend-task-reports"
-        emptyTitle={tasksQuery.isLoading ? "Loading backend reports..." : "No backend task reports found"}
-        emptyDescription="Create or complete backend tasks, then synced reports will appear here."
-        exportable
-        exportFileName="backend-task-reports"
-        exportSheetName="Backend Task Reports"
-      />
+        </>
+      ) : null}
     </main>
   );
 }

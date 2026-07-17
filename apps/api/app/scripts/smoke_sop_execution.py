@@ -1,6 +1,7 @@
 import json
 import urllib.request
 
+from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.modules.identity.models import User as IdentityUser
 from app.modules.identity.security import create_access_token
@@ -21,11 +22,14 @@ def request_json(url, *, method="GET", headers=None, payload=None):
 
 
 def build_token():
+    settings = get_settings()
+    admin_email = (settings.bootstrap_admin_email or "admin@novaops.com").strip().lower()
+
     db = SessionLocal()
     try:
-        user = db.query(IdentityUser).filter(IdentityUser.email == "admin@novaops.local").first()
+        user = db.query(IdentityUser).filter(IdentityUser.email == admin_email).first()
         if not user:
-            raise RuntimeError("admin@novaops.local identity user not found")
+            raise RuntimeError(f"{admin_email} identity user not found")
 
         return create_access_token(
             subject=user.id,

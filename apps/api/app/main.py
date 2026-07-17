@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.bootstrap.ensure_online_admin import ensure_online_admin
+from app.bootstrap.ensure_operational_templates import ensure_operational_templates
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -77,6 +78,7 @@ app.include_router(api_router)
 @app.on_event("startup")
 def bootstrap_online_admin() -> None:
     ensure_online_admin()
+    ensure_operational_templates()
 
 
 @app.get("/", tags=["System"])

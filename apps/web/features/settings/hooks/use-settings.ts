@@ -17,6 +17,7 @@ export function useSettings() {
   const query = useQuery<SettingsResponse>({
     queryKey: SETTINGS_QUERY_KEY,
     queryFn: getSettings,
+    retry: false,
   });
 
   const mutation = useMutation({

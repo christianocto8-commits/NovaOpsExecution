@@ -83,22 +83,10 @@ if (Test-Path "alembic.ini") {
   Warn "alembic.ini not found in $Backend"
 }
 
-$SeedFiles = @(
-  "seed_admin.py",
-  "seed.py",
-  "scripts\seed_admin.py",
-  "scripts\seed.py",
-  "app\seed.py",
-  "app\db\seed.py"
+Run-External "Ensuring bootstrap admin from BOOTSTRAP_* env" $PythonCmd @(
+  "-c",
+  "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin(); print('Bootstrap admin ensured.')"
 )
-
-$SeedFile = $SeedFiles | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-if ($SeedFile) {
-  Run-External "Running seed file $SeedFile" $PythonCmd @($SeedFile)
-} else {
-  Warn "Seed file not detected. Skipping seed."
-}
 
 Pop-Location
 

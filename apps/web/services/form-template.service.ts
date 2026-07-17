@@ -1,4 +1,5 @@
 import { api } from "@/services/api";
+import { cacheFormTemplates, getCachedFormTemplate, getCachedFormTemplates } from "@/lib/offline/store";
 import type { FormField, FormFieldOptions, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import {
@@ -207,13 +208,37 @@ function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
 
 export const formTemplateService = {
   async list() {
-    const templates = await api<BackendFormTemplate[]>("/api/v1/form-templates");
-    return templates.map(mapBackendFormTemplate);
+    try {
+      const templates = await api<BackendFormTemplate[]>("/api/v1/form-templates");
+      const mapped = templates.map(mapBackendFormTemplate);
+      await cacheFormTemplates(mapped);
+      return mapped;
+    } catch (error) {
+      const cached = await getCachedFormTemplates();
+
+      if (cached.length > 0) {
+        return cached;
+      }
+
+      throw error;
+    }
   },
 
   async get(templateId: string) {
-    const template = await api<BackendFormTemplate>(`/api/v1/form-templates/${templateId}`);
-    return mapBackendFormTemplate(template);
+    try {
+      const template = await api<BackendFormTemplate>(`/api/v1/form-templates/${templateId}`);
+      const mapped = mapBackendFormTemplate(template);
+      await cacheFormTemplates([mapped]);
+      return mapped;
+    } catch (error) {
+      const cached = await getCachedFormTemplate(templateId);
+
+      if (cached) {
+        return cached;
+      }
+
+      throw error;
+    }
   },
 
   async create(template: FormTemplate) {

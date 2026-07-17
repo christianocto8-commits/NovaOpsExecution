@@ -1,11 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.modules.identity.dependencies import get_current_user, require_permission
 from app.modules.identity.models import User
+from app.modules.notifications.push_repository import PushSubscriptionRepository
+from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import (
     MessageResponse,
     NotificationDeliveryRead,
@@ -14,6 +17,10 @@ from app.modules.notifications.schemas import (
     NotificationTemplateCreate,
     NotificationTemplateRead,
     NotificationTemplateUpdate,
+    PushSubscriptionCreate,
+    PushSubscriptionRead,
+    PushSubscriptionUnsubscribe,
+    PushTestResponse,
 )
 from app.modules.notifications.service import NotificationService, NotificationTemplateService
 
@@ -101,3 +108,96 @@ def process_pending_notifications(
     _: User = Depends(require_permission("workflow.edit")),
 ):
     return NotificationService(db).process_pending()
+
+
+def _parse_outlet_uuid(raw_outlet_id: str | None) -> UUID | None:
+    if not raw_outlet_id:
+        return None
+
+    try:
+        return UUID(raw_outlet_id)
+    except (TypeError, ValueError):
+        return None
+
+
+@router.post(
+    "/push/subscribe",
+    response_model=PushSubscriptionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def subscribe_push_notifications(
+    payload: PushSubscriptionCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    x_outlet_id: str | None = Header(default=None, alias="X-Outlet-Id"),
+):
+    outlet_id = payload.outlet_id or _parse_outlet_uuid(x_outlet_id)
+
+    return PushSubscriptionRepository(db).upsert(
+        user_id=user.id,
+        endpoint=payload.endpoint.strip(),
+        p256dh=payload.keys.p256dh.strip(),
+        auth=payload.keys.auth.strip(),
+        outlet_id=outlet_id,
+    )
+
+
+@router.delete(
+    "/push/unsubscribe",
+    response_model=MessageResponse,
+)
+def unsubscribe_push_notifications(
+    payload: PushSubscriptionUnsubscribe,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    removed = PushSubscriptionRepository(db).delete_by_endpoint(
+        payload.endpoint.strip(),
+        user.id,
+    )
+
+    if not removed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Push subscription not found",
+        )
+
+    return {"message": "Push subscription removed"}
+
+
+@router.post(
+    "/push/test",
+    response_model=PushTestResponse,
+)
+def test_push_notification(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    settings = get_settings()
+
+    if settings.environment not in {"local", "development", "dev"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Push test endpoint is only available in local development",
+        )
+
+    push_service = PushNotificationService(db)
+
+    if not push_service.is_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="VAPID keys are not configured on the API server",
+        )
+
+    result = push_service.send_to_user(
+        user.id,
+        title="NovaOps — Tes Notifikasi",
+        body="Push notification berhasil dikirim dari server local.",
+        url="/dashboard/tasks",
+        data={"event_type": "push_test"},
+    )
+
+    return {
+        "message": "Push test dispatched",
+        "result": result,
+    }

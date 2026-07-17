@@ -1,4 +1,5 @@
-﻿import { Edit3, Eye, Trash2 } from "lucide-react";
+﻿import { useMemo } from "react";
+import { Edit3, Eye, Trash2 } from "lucide-react";
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
@@ -21,44 +22,43 @@ type TaskTableProps = {
   onStatusChange: (id: string, status: TaskStatus) => void;
 };
 
-const taskFilterDefinitions = [
-  {
-    key: "outlet",
-    label: "Outlet",
-    type: "select" as const,
-    options: [
-      { label: "KOV Montre", value: "KOV Montre" },
-      { label: "KOV Heritage", value: "KOV Heritage" },
-      { label: "KOV Sultan Agung", value: "KOV Sultan Agung" },
-      { label: "KOV Sula", value: "KOV Sula" },
-    ],
-  },
-  {
-    key: "status",
-    label: "Status",
-    type: "select" as const,
-    options: [
-      { label: "Pending", value: "Pending" },
-      { label: "In Progress", value: "In Progress" },
-      { label: "Completed", value: "Completed" },
-    ],
-  },
-  {
-    key: "priority",
-    label: "Priority",
-    type: "select" as const,
-    options: [
-      { label: "Low", value: "Low" },
-      { label: "Medium", value: "Medium" },
-      { label: "High", value: "High" },
-    ],
-  },
-  {
-    key: "assignee",
-    label: "Assignee",
-    type: "text" as const,
-  },
-];
+function buildTaskFilterDefinitions(tasks: Task[]) {
+  const outletNames = [...new Set(tasks.map((task) => task.outlet).filter(Boolean))].sort();
+
+  return [
+    {
+      key: "outlet",
+      label: "Outlet",
+      type: "select" as const,
+      options: outletNames.map((name) => ({ label: name, value: name })),
+    },
+    {
+      key: "status",
+      label: "Status",
+      type: "select" as const,
+      options: [
+        { label: "Pending", value: "Pending" },
+        { label: "In Progress", value: "In Progress" },
+        { label: "Completed", value: "Completed" },
+      ],
+    },
+    {
+      key: "priority",
+      label: "Priority",
+      type: "select" as const,
+      options: [
+        { label: "Low", value: "Low" },
+        { label: "Medium", value: "Medium" },
+        { label: "High", value: "High" },
+      ],
+    },
+    {
+      key: "assignee",
+      label: "Assignee",
+      type: "text" as const,
+    },
+  ];
+}
 
 function getExportRows(tasks: Task[]) {
   return tasks.map((task) => ({
@@ -80,6 +80,8 @@ export function TaskTable({
   onDeleteTask,
   onStatusChange,
 }: TaskTableProps) {
+  const filterDefinitions = useMemo(() => buildTaskFilterDefinitions(tasks), [tasks]);
+
   const columns: EnterpriseColumn<Task>[] = [
     {
       key: "title",
@@ -158,7 +160,7 @@ export function TaskTable({
       enableFilters
       enableSavedViews
       savedViewScope="tasks-workspace"
-      filterDefinitions={taskFilterDefinitions}
+      filterDefinitions={filterDefinitions}
       actions={
         <ExportMenu
           onCsvExport={() => exportToCsv(exportRows, "novaops-tasks")}
