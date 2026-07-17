@@ -1,9 +1,10 @@
 "use client";
 
 import { useContext, useMemo } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Menu } from "lucide-react";
+import { ArrowLeft, Menu } from "lucide-react";
+
+import { NotificationHeaderButton } from "@/features/notifications/components/notification-header-button";
 
 import { AuthContext } from "@/providers/AuthProvider";
 import { useLanguage } from "@/shared/i18n";
@@ -76,14 +77,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/dashboard/notifications"
-            title={t("navigation.notifications")}
-            className="flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
-          >
-            <Bell className="size-4" />
-            <span className="sr-only">{t("navigation.notifications")}</span>
-          </Link>
+          <NotificationHeaderButton />
 
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] sm:block">
             {workspace.roleLabel}

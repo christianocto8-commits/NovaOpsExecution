@@ -9,6 +9,8 @@ const notificationKeys = {
   inbox: () => [...notificationKeys.all, "inbox"] as const,
 };
 
+export { notificationKeys };
+
 export function useNotificationsWorkspace() {
   const queryClient = useQueryClient();
 
