@@ -1,8 +1,24 @@
 # Render Troubleshooting (NovaOps)
 
-## Symptom: `novaops-api` stuck on **Deploying**
+## Symptom: `novaops-api` stuck on **Deploying** / log shows **Timed Out**
 
-Common cause: `alembic upgrade head` hangs or fails while connecting to Neon, so the new container never passes the health check.
+Example log pattern:
+
+```text
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+==> Timed Out
+INFO:     Started server process [...]
+==> Port scan timeout reached, no open ports detected
+INFO:     Uvicorn running on http://0.0.0.0:10000
+```
+
+Cause: the old container startup ran `alembic upgrade head` **before** uvicorn. Neon connection + migration took ~15 minutes, Render timed out before the API bound to `$PORT`.
+
+Fix (already in latest repo):
+
+- Migrations: `preDeployCommand` only
+- Container start: uvicorn immediately on `$PORT`
+- DB connect timeout: 15 seconds
 
 ### Fix in Render dashboard
 

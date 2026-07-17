@@ -50,6 +50,7 @@ def run_migrations_online() -> None:
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"connect_timeout": 15},
     )
 
     with connectable.connect() as connection:

@@ -7,8 +7,9 @@ services:
     dockerfilePath: ./Dockerfile
     autoDeploy: true
     healthCheckPath: /
-    # Run migrations before traffic switches to the new container.
-    preDeployCommand: timeout 90 alembic upgrade head
+    # Migrations run before the new container receives traffic (not during startup).
+    preDeployCommand: timeout 120 alembic upgrade head
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
         sync: false
