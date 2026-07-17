@@ -1,4 +1,4 @@
-import { getApiRequestCandidates, resolveApiUrlLabel, wakeBackend } from "@/lib/api-url";
+import { getApiRequestCandidates, wakeBackend } from "@/lib/api-url";
 
 const DEFAULT_TIMEOUT_MS = 90000;
 const RETRY_DELAYS_MS = [3000, 6000, 12000];
@@ -80,7 +80,7 @@ function buildHeaders(options?: RequestInit) {
 }
 
 function buildConnectionError(lastUrl: string) {
-  return `Koneksi ke backend gagal (${lastUrl}). Render free tier bisa tidur 30-60 detik — tunggu sebentar lalu coba lagi. API target: ${resolveApiUrlLabel()}`;
+  return `Koneksi ke backend gagal (${lastUrl}). Backend Render mungkin sedang bangun dari sleep — tunggu 30–60 detik lalu coba lagi. Jika masih gagal, refresh halaman (Ctrl+Shift+R).`;
 }
 
 function isNetworkLikeFailure(error: unknown) {
@@ -135,7 +135,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
 
   const requestCandidates = getApiRequestCandidates(endpoint);
   let lastError: unknown;
-  let lastUrl = requestCandidates[0] ?? resolveApiUrlLabel();
+  let lastUrl = requestCandidates[0] ?? endpoint;
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     for (const requestUrl of requestCandidates) {

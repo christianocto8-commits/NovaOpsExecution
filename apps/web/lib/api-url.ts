@@ -54,19 +54,28 @@ export function resolveProxyApiUrl() {
 export function getApiRequestCandidates(endpoint: string) {
   const directBase = resolveDirectApiUrl();
   const proxyBase = resolveProxyApiUrl();
-  const candidates = [buildRequestUrl(directBase, endpoint)];
+  const candidates: string[] = [];
 
+  // Same-origin proxy first in production — avoids CORS and uses Vercel edge rewrite
+  // instead of the 10s serverless timeout on Hobby plans.
   if (proxyBase !== null) {
-    const proxyUrl = buildRequestUrl(proxyBase, endpoint);
-    if (!candidates.includes(proxyUrl)) {
-      candidates.push(proxyUrl);
-    }
+    candidates.push(buildRequestUrl(proxyBase, endpoint));
+  }
+
+  const directUrl = buildRequestUrl(directBase, endpoint);
+  if (!candidates.includes(directUrl)) {
+    candidates.push(directUrl);
   }
 
   return candidates;
 }
 
 export function resolveApiUrlLabel() {
+  const proxyBase = resolveProxyApiUrl();
+  if (proxyBase !== null) {
+    return buildRequestUrl(proxyBase, "/api/v1/health").replace(/\/v1\/health$/, "");
+  }
+
   return resolveDirectApiUrl();
 }
 
@@ -79,22 +88,32 @@ export async function wakeBackend() {
     wakePromise = (async () => {
       const healthEndpoint = "/api/v1/health";
       const candidates = getApiRequestCandidates(healthEndpoint);
+      const maxAttempts = 6;
 
-      for (const url of candidates) {
-        try {
-          const controller = new AbortController();
-          const timeout = window.setTimeout(() => controller.abort(), 90000);
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        for (const url of candidates) {
+          try {
+            const controller = new AbortController();
+            const timeout = window.setTimeout(() => controller.abort(), 90000);
 
-          await fetch(url, {
-            method: "GET",
-            cache: "no-store",
-            signal: controller.signal,
-          });
+            const response = await fetch(url, {
+              method: "GET",
+              cache: "no-store",
+              signal: controller.signal,
+            });
 
-          window.clearTimeout(timeout);
-          return;
-        } catch {
-          // Try the next transport if Render is still waking up.
+            window.clearTimeout(timeout);
+
+            if (response.ok) {
+              return;
+            }
+          } catch {
+            // Try the next transport if Render is still waking up.
+          }
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 5000));
         }
       }
     })().finally(() => {

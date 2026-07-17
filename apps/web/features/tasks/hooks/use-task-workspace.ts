@@ -11,7 +11,9 @@ import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/feat
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
+import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { taskService } from "@/services/task.service";
+import { getIdentityOutlets } from "@/services/identity.service";
 import {
   createExecutionSession,
   deleteExecutionSession,
@@ -352,19 +354,55 @@ export function useTaskWorkspace() {
   }
 
   async function submitTaskForm() {
-    if (!backendConnected) {
-      toast.error("Backend belum tersedia. Jalankan NovaOps API terlebih dahulu.");
+    let outlets =
+      queryClient.getQueryData<Awaited<ReturnType<typeof getIdentityOutlets>>>(
+        queryKeys.identity.outlets
+      ) ?? [];
+
+    if (outlets.length === 0) {
+      try {
+        outlets = await getIdentityOutlets();
+      } catch {
+        outlets = [];
+      }
+    }
+
+    const readyForm = enrichTaskFormOutlets(
+      taskForm,
+      outlets.map((outlet) => ({ id: outlet.id, name: outlet.name }))
+    );
+
+    if (readyForm.recurrence === "once" && !readyForm.outletId) {
+      toast.error(
+        "Outlet belum dipilih. Buat outlet di menu Outlets terlebih dahulu, lalu coba lagi."
+      );
+      return;
+    }
+
+    if (
+      readyForm.recurrence !== "once" &&
+      (!readyForm.targetOutletIds || readyForm.targetOutletIds.length === 0)
+    ) {
+      toast.error("Pilih minimal satu outlet untuk task recurring.");
       return;
     }
 
     try {
+      if (!backendConnected) {
+        toast.info("Menyambungkan ke backend, tunggu sebentar...");
+        await queryClient.fetchQuery({
+          queryKey: queryKeys.sop.tasks(),
+          queryFn: taskService.list,
+        });
+      }
+
       if (editingTaskId && isBackendTaskId(editingTaskId)) {
-        await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: taskForm });
+        await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: readyForm });
         toast.success("Task berhasil diperbarui.");
       } else {
-        await createTaskMutation.mutateAsync(taskForm);
+        await createTaskMutation.mutateAsync(readyForm);
         toast.success(
-          taskForm.recurrence !== "once"
+          readyForm.recurrence !== "once"
             ? "Schedule recurring berhasil dibuat."
             : "Task berhasil dibuat."
         );

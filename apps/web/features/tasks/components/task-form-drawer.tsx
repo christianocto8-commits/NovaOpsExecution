@@ -107,8 +107,9 @@ export function TaskFormDrawer({
       : Boolean(form.dueTime?.trim()) &&
         (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay))) &&
     Boolean(safeFormTemplateId.trim()) &&
-    (!isRecurringTask ||
-      (selectedTargetOutlets.length > 0 && (!isDailyTask || selectedShiftCount > 0)));
+    (form.recurrence === "once"
+      ? outletOptions.length > 0
+      : selectedTargetOutlets.length > 0 && (!isDailyTask || selectedShiftCount > 0));
 
   function toggleTargetOutlet(outletId: string, outletName: string) {
     const selected = selectedTargetOutletIds.includes(outletId);
