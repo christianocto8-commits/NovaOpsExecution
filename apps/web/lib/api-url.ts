@@ -15,12 +15,8 @@ function isLocalApiUrl(value: string) {
   }
 }
 
-function isHostedFrontend(hostname: string) {
-  return (
-    hostname.endsWith(".vercel.app") ||
-    hostname.endsWith(".vercel.app.") ||
-    hostname.includes("nova-ops")
-  );
+function isLocalFrontend(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
 export function buildRequestUrl(apiBase: string, endpoint: string) {
@@ -31,30 +27,80 @@ export function buildRequestUrl(apiBase: string, endpoint: string) {
   return `${apiBase}${endpoint}`;
 }
 
-export function resolveApiUrl() {
+export function resolveDirectApiUrl() {
   const configured = normalizeApiUrl(
     process.env.NEXT_PUBLIC_API_URL ??
       process.env.NEXT_PUBLIC_API_BASE_URL ??
       ""
   );
 
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-
-    if (isHostedFrontend(hostname)) {
-      // Same-origin proxy via Next.js rewrites — avoids browser CORS failures.
-      return "";
-    }
-  }
-
   if (configured && !isLocalApiUrl(configured)) {
     return configured;
+  }
+
+  if (typeof window !== "undefined" && !isLocalFrontend(window.location.hostname)) {
+    return DEFAULT_PRODUCTION_API_URL;
   }
 
   return configured || "http://localhost:8000";
 }
 
+export function resolveProxyApiUrl() {
+  if (typeof window === "undefined") return null;
+  if (isLocalFrontend(window.location.hostname)) return null;
+  return "";
+}
+
+export function getApiRequestCandidates(endpoint: string) {
+  const directBase = resolveDirectApiUrl();
+  const proxyBase = resolveProxyApiUrl();
+  const candidates = [buildRequestUrl(directBase, endpoint)];
+
+  if (proxyBase !== null) {
+    const proxyUrl = buildRequestUrl(proxyBase, endpoint);
+    if (!candidates.includes(proxyUrl)) {
+      candidates.push(proxyUrl);
+    }
+  }
+
+  return candidates;
+}
+
 export function resolveApiUrlLabel() {
-  const resolved = resolveApiUrl();
-  return resolved || DEFAULT_PRODUCTION_API_URL;
+  return resolveDirectApiUrl();
+}
+
+let wakePromise: Promise<void> | null = null;
+
+export async function wakeBackend() {
+  if (typeof window === "undefined") return;
+
+  if (!wakePromise) {
+    wakePromise = (async () => {
+      const healthEndpoint = "/api/v1/health";
+      const candidates = getApiRequestCandidates(healthEndpoint);
+
+      for (const url of candidates) {
+        try {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 90000);
+
+          await fetch(url, {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal,
+          });
+
+          window.clearTimeout(timeout);
+          return;
+        } catch {
+          // Try the next transport if Render is still waking up.
+        }
+      }
+    })().finally(() => {
+      wakePromise = null;
+    });
+  }
+
+  await wakePromise;
 }

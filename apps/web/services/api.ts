@@ -1,7 +1,7 @@
-import { buildRequestUrl, resolveApiUrl, resolveApiUrlLabel } from "@/lib/api-url";
+import { getApiRequestCandidates, resolveApiUrlLabel, wakeBackend } from "@/lib/api-url";
 
 const DEFAULT_TIMEOUT_MS = 90000;
-const RETRY_DELAYS_MS = [5000, 10000, 15000];
+const RETRY_DELAYS_MS = [3000, 6000, 12000];
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -59,10 +59,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function shouldRetryRequest() {
-  return true;
-}
-
 function buildHeaders(options?: RequestInit) {
   const token = getToken();
   const outletId = getOutletId();
@@ -83,8 +79,8 @@ function buildHeaders(options?: RequestInit) {
   return baseHeaders;
 }
 
-function buildConnectionError() {
-  return `Koneksi ke backend gagal (${resolveApiUrlLabel()}). Render mungkin masih bangun — tunggu 20 detik lalu coba lagi. Jika masih gagal, cek deploy Render/Vercel.`;
+function buildConnectionError(lastUrl: string) {
+  return `Koneksi ke backend gagal (${lastUrl}). Render free tier bisa tidur 30-60 detik — tunggu sebentar lalu coba lagi. API target: ${resolveApiUrlLabel()}`;
 }
 
 function isNetworkLikeFailure(error: unknown) {
@@ -94,9 +90,12 @@ function isNetworkLikeFailure(error: unknown) {
   );
 }
 
-async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const apiBase = resolveApiUrl();
-  const requestUrl = buildRequestUrl(apiBase, endpoint);
+function shouldWakeBackend(endpoint: string, options?: RequestInit) {
+  const method = (options?.method ?? "GET").toUpperCase();
+  return method !== "GET" && method !== "HEAD" && endpoint !== "/api/v1/health";
+}
+
+async function executeRequest<T>(requestUrl: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
@@ -130,34 +129,44 @@ async function executeRequest<T>(endpoint: string, options?: RequestInit): Promi
 }
 
 export async function api<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  if (shouldWakeBackend(endpoint, options)) {
+    await wakeBackend();
+  }
+
+  const requestCandidates = getApiRequestCandidates(endpoint);
   let lastError: unknown;
+  let lastUrl = requestCandidates[0] ?? resolveApiUrlLabel();
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-    try {
-      return await executeRequest<T>(endpoint, options);
-    } catch (error) {
-      lastError = error;
+    for (const requestUrl of requestCandidates) {
+      lastUrl = requestUrl;
 
-      if (!shouldRetryRequest() || !isNetworkLikeFailure(error)) {
-        break;
+      try {
+        return await executeRequest<T>(requestUrl, options);
+      } catch (error) {
+        lastError = error;
+
+        if (!isNetworkLikeFailure(error)) {
+          throw error;
+        }
       }
-
-      if (attempt >= RETRY_DELAYS_MS.length) {
-        break;
-      }
-
-      await sleep(RETRY_DELAYS_MS[attempt]);
     }
+
+    if (attempt >= RETRY_DELAYS_MS.length) {
+      break;
+    }
+
+    await sleep(RETRY_DELAYS_MS[attempt]);
   }
 
   if (lastError instanceof DOMException && lastError.name === "AbortError") {
     throw new Error(
-      "API tidak merespons setelah beberapa percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 20-30 detik lalu coba lagi."
+      "API tidak merespons setelah beberapa percobaan. Backend Render kemungkinan masih bangun dari sleep. Tunggu 30 detik lalu coba lagi."
     );
   }
 
   if (lastError instanceof TypeError) {
-    throw new Error(buildConnectionError());
+    throw new Error(buildConnectionError(lastUrl));
   }
 
   throw lastError;

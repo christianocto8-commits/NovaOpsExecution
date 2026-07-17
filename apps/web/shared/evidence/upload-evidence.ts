@@ -1,4 +1,4 @@
-import { buildRequestUrl, resolveApiUrl } from "@/lib/api-url";
+import { buildRequestUrl, getApiRequestCandidates } from "@/lib/api-url";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -17,26 +17,39 @@ export async function uploadEvidenceFile(file: File) {
 
   formData.append("file", file);
 
-  const response = await fetch(buildRequestUrl(resolveApiUrl(), "/api/v1/evidence-uploads"), {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    body: formData,
-  });
+  let lastError: unknown;
 
-  if (!response.ok) {
-    let errorMessage = "Upload evidence gagal.";
-
+  for (const requestUrl of getApiRequestCandidates("/api/v1/evidence-uploads")) {
     try {
-      const payload = (await response.json()) as { detail?: string };
-      if (payload.detail) {
-        errorMessage = payload.detail;
-      }
-    } catch {
-      // Keep fallback message when response is not JSON.
-    }
+      const response = await fetch(requestUrl, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
 
-    throw new Error(errorMessage);
+      if (!response.ok) {
+        let errorMessage = "Upload evidence gagal.";
+
+        try {
+          const payload = (await response.json()) as { detail?: string };
+          if (payload.detail) {
+            errorMessage = payload.detail;
+          }
+        } catch {
+          // Keep fallback message when response is not JSON.
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      return (await response.json()) as EvidenceUploadResponse;
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
   }
 
-  return (await response.json()) as EvidenceUploadResponse;
+  throw lastError instanceof Error ? lastError : new Error("Upload evidence gagal.");
 }
