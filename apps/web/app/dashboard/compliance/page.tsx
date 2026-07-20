@@ -214,10 +214,11 @@ export default function ComplianceCenterPage() {
       }
 
       const payload = checklist as Record<string, unknown>;
-      const status = payload.status;
-      if (status !== "pass" && status !== "attention" && status !== "fail") {
+      const rawStatus = payload.status;
+      if (rawStatus !== "pass" && rawStatus !== "attention" && rawStatus !== "fail") {
         return task;
       }
+      const checklistStatus: "pass" | "attention" | "fail" = rawStatus;
 
       return {
         ...task,
@@ -249,7 +250,7 @@ export default function ComplianceCenterPage() {
                   };
                 })
               : [],
-            status,
+            status: checklistStatus,
           },
         },
       };
