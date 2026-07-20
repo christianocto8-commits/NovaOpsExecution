@@ -34,11 +34,22 @@ type CreateTaskSchedulePayload = {
   auto_publish: boolean;
 };
 
+type UpdateTaskSchedulePayload = Partial<CreateTaskSchedulePayload> & {
+  is_active?: boolean;
+};
+
 function toBackendPriority(priority: TaskFormState["priority"]) {
   if (priority === "Critical") return "urgent";
   if (priority === "High") return "high";
   if (priority === "Low") return "low";
   return "medium";
+}
+
+function fromBackendPriority(priority: string): TaskFormState["priority"] {
+  if (priority === "urgent") return "Critical";
+  if (priority === "high") return "High";
+  if (priority === "low") return "Low";
+  return "Medium";
 }
 
 function resolveOutletIds(form: TaskFormState) {
@@ -78,6 +89,34 @@ function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
   };
 }
 
+export function scheduleToFormState(
+  schedule: BackendTaskSchedule,
+  outletNameById: Record<string, string> = {}
+): TaskFormState {
+  const targetOutlets = schedule.outlet_ids_json.map(
+    (outletId) => outletNameById[outletId] ?? outletId
+  );
+
+  return {
+    title: schedule.title,
+    outlet: targetOutlets[0] ?? "",
+    outletId: schedule.outlet_ids_json[0],
+    status: "Pending",
+    priority: fromBackendPriority(schedule.priority),
+    assignee: "Outlet Team",
+    due: "",
+    description: schedule.description ?? "",
+    formTemplateId: schedule.form_template_id ? String(schedule.form_template_id) : "",
+    recurrence: schedule.recurrence === "weekly" ? "weekly" : "daily",
+    shifts: schedule.shifts_json.length > 0 ? schedule.shifts_json : ["morning"],
+    targetOutlets,
+    targetOutletIds: schedule.outlet_ids_json,
+    autoPublish: schedule.auto_publish,
+    dueTime: schedule.due_time,
+    weeklyPublishDay: schedule.weekly_publish_day ?? "sunday",
+  };
+}
+
 export const taskScheduleService = {
   async create(form: TaskFormState) {
     return api<BackendTaskSchedule>("/api/v1/task-schedules", {
@@ -88,6 +127,38 @@ export const taskScheduleService = {
 
   async list() {
     return api<BackendTaskSchedule[]>("/api/v1/task-schedules");
+  },
+
+  async get(scheduleId: number) {
+    return api<BackendTaskSchedule>(`/api/v1/task-schedules/${scheduleId}`);
+  },
+
+  async update(scheduleId: number, form: TaskFormState, isActive?: boolean) {
+    const payload: UpdateTaskSchedulePayload = {
+      ...toSchedulePayload(form),
+    };
+
+    if (typeof isActive === "boolean") {
+      payload.is_active = isActive;
+    }
+
+    return api<BackendTaskSchedule>(`/api/v1/task-schedules/${scheduleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async setActive(scheduleId: number, isActive: boolean) {
+    return api<BackendTaskSchedule>(`/api/v1/task-schedules/${scheduleId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  },
+
+  async delete(scheduleId: number) {
+    return api<void>(`/api/v1/task-schedules/${scheduleId}`, {
+      method: "DELETE",
+    });
   },
 
   async process() {

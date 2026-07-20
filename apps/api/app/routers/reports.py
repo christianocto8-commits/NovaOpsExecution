@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -8,12 +9,14 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.outlet import Outlet
 from app.models.task import Task
+from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
     OutletReport,
     ReportSummary,
     ReportTrendPoint,
 )
+from app.services.compliance_export import build_compliance_export_xlsx
 from app.services.execution_validation import compliance_score
 from app.services.workspace_settings import get_workspace_settings
 
@@ -211,3 +214,32 @@ def get_compliance_reports(
             status="healthy" if summary.completion_rate >= pass_threshold else "attention",
         ),
     ]
+
+
+@router.get("/compliance/export")
+def export_compliance_report(
+    format: str = Query(default="xlsx", alias="format"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    if format.lower() != "xlsx":
+        raise HTTPException(status_code=400, detail="Only xlsx export is supported")
+
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+
+    content = build_compliance_export_xlsx(
+        db,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        all_outlets=full_access and outlet_id is None,
+    )
+
+    filename = f"compliance-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

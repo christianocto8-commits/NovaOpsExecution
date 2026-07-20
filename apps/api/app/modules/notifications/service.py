@@ -166,6 +166,23 @@ class NotificationService:
 
                     if push_result["sent"] == 0 and push_result["attempted"] > 0:
                         raise ValueError("All push delivery attempts failed")
+                elif delivery.channel == NotificationChannel.email:
+                    if not delivery.recipient_user_id:
+                        raise ValueError("Email delivery missing recipient_user_id")
+
+                    from app.modules.identity.models import User as IdentityUser
+                    from app.services.email_service import EmailService
+
+                    recipient = self.db.get(IdentityUser, delivery.recipient_user_id)
+                    if not recipient or not recipient.email:
+                        raise ValueError("Email delivery missing recipient email")
+
+                    if not EmailService().send(
+                        recipient.email,
+                        delivery.subject or "NovaOps",
+                        delivery.body,
+                    ):
+                        raise ValueError("Email delivery failed or SMTP not configured")
 
                 delivery.status = NotificationStatus.sent
                 delivery.sent_at = datetime.utcnow()

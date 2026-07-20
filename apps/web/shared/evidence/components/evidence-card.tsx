@@ -2,7 +2,7 @@
 
 "use client";
 
-import { ImageIcon, Trash2 } from "lucide-react";
+import { ImageIcon, MapPin, Trash2 } from "lucide-react";
 
 import { EvidenceItem } from "../types";
 
@@ -12,6 +12,8 @@ type EvidenceCardProps = {
 };
 
 export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
+  const hasLocation = item.latitude != null && item.longitude != null;
+
   return (
     <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="flex aspect-video items-center justify-center bg-slate-50">
@@ -32,6 +34,17 @@ export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
             {item.caption ?? "Evidence"}
           </p>
           <p className="mt-0.5 text-[11px] text-slate-400">{item.uploadedAt ?? "Saved evidence"}</p>
+          {hasLocation ? (
+            <a
+              href={`https://maps.google.com/?q=${item.latitude},${item.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800"
+            >
+              <MapPin className="size-3" />
+              {item.latitude?.toFixed(5)}, {item.longitude?.toFixed(5)}
+            </a>
+          ) : null}
         </div>
 
         {onRemove ? (

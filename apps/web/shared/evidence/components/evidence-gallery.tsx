@@ -1,8 +1,13 @@
+/* eslint-disable @next/next/no-img-element */
+
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MapPin } from "lucide-react";
 
-import { uploadEvidenceFile } from "../upload-evidence";
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
+import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 import { EvidenceItem } from "../types";
 import { EvidenceCard } from "./evidence-card";
 import { UploadPlaceholder } from "./upload-placeholder";
@@ -11,6 +16,7 @@ type EvidenceGalleryProps = {
   value: EvidenceItem[];
   onChange: (items: EvidenceItem[]) => void;
   readOnly?: boolean;
+  outletName?: string;
 };
 
 function isMobileDevice() {
@@ -22,7 +28,13 @@ function isMobileDevice() {
   return mobilePattern.test(userAgent) || window.matchMedia("(pointer: coarse)").matches;
 }
 
-export function EvidenceGallery({ value, onChange, readOnly = false }: EvidenceGalleryProps) {
+export function EvidenceGallery({
+  value,
+  onChange,
+  readOnly = false,
+  outletName,
+}: EvidenceGalleryProps) {
+  const { settings } = useSettings();
   const [draftCaption, setDraftCaption] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [mobileMode, setMobileMode] = useState(false);
@@ -57,13 +69,24 @@ export function EvidenceGallery({ value, onChange, readOnly = false }: EvidenceG
     try {
       const nextItems = await Promise.all(
         files.map(async (file, index) => {
-          const uploaded = await uploadEvidenceFile(file);
+          const prepared = await prepareEvidenceFile(file, {
+            timestampWatermark: settings?.timestamp_watermark ?? true,
+            captureGps: settings?.gps_watermark ?? true,
+            timezone: settings?.timezone ?? "Asia/Jakarta",
+            outletName,
+          });
+          const uploaded = await uploadEvidenceFile(prepared.file, {
+            geolocation: prepared.geolocation,
+          });
 
           return {
             id: `evidence-${Date.now()}-${index}`,
             url: uploaded.url,
             caption: draftCaption.trim() || file.name.replace(/\.[^.]+$/, "") || "Evidence",
             uploadedAt: new Date(uploaded.uploaded_at).toLocaleString(),
+            latitude: uploaded.latitude ?? prepared.geolocation?.latitude,
+            longitude: uploaded.longitude ?? prepared.geolocation?.longitude,
+            accuracy_m: uploaded.accuracy_m ?? prepared.geolocation?.accuracy_m,
           } satisfies EvidenceItem;
         })
       );
@@ -146,6 +169,26 @@ export function EvidenceGallery({ value, onChange, readOnly = false }: EvidenceG
           <p className="mt-2 text-xs text-slate-500">{helperText}</p>
           {uploadError ? <p className="mt-2 text-xs text-red-600">{uploadError}</p> : null}
         </>
+      ) : null}
+
+      {readOnly && value.some((item) => item.latitude != null && item.longitude != null) ? (
+        <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          {value
+            .filter((item) => item.latitude != null && item.longitude != null)
+            .map((item) => (
+              <div key={`${item.id}-location`} className="flex items-center gap-2 text-xs text-slate-600">
+                <MapPin className="size-3.5 shrink-0 text-emerald-700" />
+                <a
+                  href={`https://maps.google.com/?q=${item.latitude},${item.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-emerald-700 hover:text-emerald-800"
+                >
+                  {item.caption ?? "Evidence"}: {item.latitude?.toFixed(5)}, {item.longitude?.toFixed(5)}
+                </a>
+              </div>
+            ))}
+        </div>
       ) : null}
     </section>
   );

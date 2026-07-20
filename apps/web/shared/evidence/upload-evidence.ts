@@ -1,5 +1,6 @@
 import { buildApiUrl } from "@/lib/api-url";
 import { storeOfflineEvidence } from "@/lib/offline/offline-evidence";
+import type { GeolocationResult } from "./geolocation";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -10,13 +11,20 @@ export type EvidenceUploadResponse = {
   url: string;
   file_name: string;
   uploaded_at: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy_m?: number | null;
+};
+
+export type EvidenceUploadOptions = {
+  geolocation?: GeolocationResult | null;
 };
 
 function isOfflineContext() {
   return typeof navigator !== "undefined" && !navigator.onLine;
 }
 
-export async function uploadEvidenceFile(file: File) {
+export async function uploadEvidenceFile(file: File, options: EvidenceUploadOptions = {}) {
   if (isOfflineContext()) {
     const record = await storeOfflineEvidence(file);
 
@@ -24,6 +32,9 @@ export async function uploadEvidenceFile(file: File) {
       url: record.url,
       file_name: record.fileName,
       uploaded_at: record.createdAt,
+      latitude: options.geolocation?.latitude ?? null,
+      longitude: options.geolocation?.longitude ?? null,
+      accuracy_m: options.geolocation?.accuracy_m ?? null,
     };
   }
 
@@ -31,6 +42,15 @@ export async function uploadEvidenceFile(file: File) {
   const token = getToken();
 
   formData.append("file", file);
+
+  if (options.geolocation) {
+    formData.append("latitude", String(options.geolocation.latitude));
+    formData.append("longitude", String(options.geolocation.longitude));
+
+    if (options.geolocation.accuracy_m != null) {
+      formData.append("accuracy_m", String(options.geolocation.accuracy_m));
+    }
+  }
 
   try {
     const response = await fetch(buildApiUrl("/api/v1/evidence-uploads"), {
@@ -63,6 +83,9 @@ export async function uploadEvidenceFile(file: File) {
         url: record.url,
         file_name: record.fileName,
         uploaded_at: record.createdAt,
+        latitude: options.geolocation?.latitude ?? null,
+        longitude: options.geolocation?.longitude ?? null,
+        accuracy_m: options.geolocation?.accuracy_m ?? null,
       };
     }
 

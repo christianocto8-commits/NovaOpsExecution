@@ -110,6 +110,8 @@ export function mapBackendTask(task: BackendTask): Task {
     due: formatDueDate(task.due_date),
     description: task.description ?? "",
     formTemplateId: parseSourceFormTemplateId(task),
+    sourceType: task.source_type ?? undefined,
+    sourceId: task.source_id != null ? String(task.source_id) : undefined,
     recurrence,
     shifts,
     targetOutlets: [outletName],
@@ -149,21 +151,30 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
 }
 
 export const taskService = {
-  async list() {
+  async list(sourceType?: string) {
     try {
-      const tasks = await api<BackendTask[]>("/api/v1/tasks");
+      const query = sourceType ? `?source_type=${encodeURIComponent(sourceType)}` : "";
+      const tasks = await api<BackendTask[]>(`/api/v1/tasks${query}`);
       const mapped = tasks.map(mapBackendTask);
-      await cacheTasks(mapped);
+      if (!sourceType) {
+        await cacheTasks(mapped);
+      }
       return mapped;
     } catch (error) {
-      const cached = await getCachedTasks();
+      if (!sourceType) {
+        const cached = await getCachedTasks();
 
-      if (cached.length > 0) {
-        return cached;
+        if (cached.length > 0) {
+          return cached;
+        }
       }
 
       throw error;
     }
+  },
+
+  async listCorrectiveActions() {
+    return this.list("corrective_action");
   },
 
   async create(form: TaskFormState) {

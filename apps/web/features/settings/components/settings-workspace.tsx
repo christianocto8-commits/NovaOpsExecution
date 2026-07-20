@@ -38,11 +38,18 @@ type OwnerAdminState = {
   corrective_action_sla_hours: number;
   photo_required_by_default: boolean;
   max_upload_mb: number;
+  timestamp_watermark: boolean;
+  gps_watermark: boolean;
   outlet_grouping: string;
   default_user_role: string;
   digest_frequency: string;
   two_factor_required: boolean;
   password_rotation_days: number;
+  webhook_enabled: boolean;
+  auto_workflow_on_checklist_fail: boolean;
+  checklist_fail_workflow_code: string;
+  auto_workflow_on_task_completed: boolean;
+  task_completed_workflow_code: string;
 };
 
 const defaults: OwnerAdminState = {
@@ -64,11 +71,18 @@ const defaults: OwnerAdminState = {
   corrective_action_sla_hours: 24,
   photo_required_by_default: true,
   max_upload_mb: 10,
+  timestamp_watermark: true,
+  gps_watermark: true,
   outlet_grouping: "region",
   default_user_role: "outlet_manager",
   digest_frequency: "daily",
   two_factor_required: false,
   password_rotation_days: 90,
+  webhook_enabled: false,
+  auto_workflow_on_checklist_fail: false,
+  checklist_fail_workflow_code: "",
+  auto_workflow_on_task_completed: false,
+  task_completed_workflow_code: "",
 };
 
 function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): OwnerAdminState {
@@ -93,11 +107,24 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
       settings?.photo_required_by_default ?? defaults.photo_required_by_default
     ),
     max_upload_mb: Number(settings?.max_upload_mb ?? defaults.max_upload_mb),
+    timestamp_watermark: Boolean(settings?.timestamp_watermark ?? defaults.timestamp_watermark),
+    gps_watermark: Boolean(settings?.gps_watermark ?? defaults.gps_watermark),
     outlet_grouping: settings?.outlet_grouping ?? defaults.outlet_grouping,
     default_user_role: settings?.default_user_role ?? defaults.default_user_role,
     digest_frequency: settings?.digest_frequency ?? defaults.digest_frequency,
     two_factor_required: Boolean(settings?.two_factor_required ?? defaults.two_factor_required),
     password_rotation_days: Number(settings?.password_rotation_days ?? defaults.password_rotation_days),
+    webhook_enabled: Boolean(settings?.webhook_enabled ?? defaults.webhook_enabled),
+    auto_workflow_on_checklist_fail: Boolean(
+      settings?.auto_workflow_on_checklist_fail ?? defaults.auto_workflow_on_checklist_fail
+    ),
+    checklist_fail_workflow_code:
+      settings?.checklist_fail_workflow_code ?? defaults.checklist_fail_workflow_code,
+    auto_workflow_on_task_completed: Boolean(
+      settings?.auto_workflow_on_task_completed ?? defaults.auto_workflow_on_task_completed
+    ),
+    task_completed_workflow_code:
+      settings?.task_completed_workflow_code ?? defaults.task_completed_workflow_code,
   };
 }
 
@@ -529,6 +556,8 @@ export function SettingsWorkspace() {
           <div className="space-y-4">
             <ActionCard title="Evidence required" description="Task wajib membawa evidence." action={<EnterpriseCheckbox checked={state.evidence_required} onChange={(event) => update("evidence_required", event.target.checked)} />} />
             <ActionCard title="Photo required by default" description="Submit task outlet wajib sertakan bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
+            <ActionCard title="Timestamp watermark" description="Tambahkan cap waktu pada foto evidence sebelum upload." action={<EnterpriseCheckbox checked={state.timestamp_watermark} onChange={(event) => update("timestamp_watermark", event.target.checked)} />} />
+            <ActionCard title="GPS on evidence" description="Simpan koordinat GPS pada metadata evidence (permission browser diperlukan)." action={<EnterpriseCheckbox checked={state.gps_watermark} onChange={(event) => update("gps_watermark", event.target.checked)} />} />
             <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
           </div>
         </SectionCard>
@@ -537,9 +566,69 @@ export function SettingsWorkspace() {
           <div className="space-y-4">
             <ActionCard title="Dashboard alerts" description="Tampilkan alert operasional di dashboard." action={<EnterpriseCheckbox checked={state.dashboard_alerts} onChange={(event) => update("dashboard_alerts", event.target.checked)} />} />
             <ActionCard title="Overdue alerts" description="Peringatan untuk task yang melewati due time." action={<EnterpriseCheckbox checked={state.overdue_alerts} onChange={(event) => update("overdue_alerts", event.target.checked)} />} />
+            <ActionCard title="Email notifications" description="Kirim email operasional untuk checklist gagal, overdue, dan due soon." action={<EnterpriseCheckbox checked={state.email_notifications} onChange={(event) => update("email_notifications", event.target.checked)} />} />
           </div>
           <p className="mt-4 text-sm text-slate-500">
-            Email, digest, 2FA, dan rotasi password belum tersedia — akan ditambahkan di update berikutnya.
+            Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).
+          </p>
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionCard title="Integrations & Automation">
+          <div className="space-y-4">
+            <ActionCard
+              title="Webhook delivery"
+              description="Kirim event task/checklist ke endpoint HTTP eksternal."
+              action={
+                <EnterpriseCheckbox
+                  checked={state.webhook_enabled}
+                  onChange={(event) => update("webhook_enabled", event.target.checked)}
+                />
+              }
+            />
+            <ActionCard
+              title="Auto workflow on checklist fail"
+              description="Mulai workflow instance otomatis saat checklist gagal."
+              action={
+                <EnterpriseCheckbox
+                  checked={state.auto_workflow_on_checklist_fail}
+                  onChange={(event) =>
+                    update("auto_workflow_on_checklist_fail", event.target.checked)
+                  }
+                />
+              }
+            />
+            <EnterpriseField label="Checklist fail workflow code">
+              <EnterpriseInput
+                value={state.checklist_fail_workflow_code}
+                onChange={(event) => update("checklist_fail_workflow_code", event.target.value)}
+                placeholder="checklist-fail-review"
+              />
+            </EnterpriseField>
+            <ActionCard
+              title="Auto workflow on task completed"
+              description="Mulai workflow instance otomatis saat task selesai."
+              action={
+                <EnterpriseCheckbox
+                  checked={state.auto_workflow_on_task_completed}
+                  onChange={(event) =>
+                    update("auto_workflow_on_task_completed", event.target.checked)
+                  }
+                />
+              }
+            />
+            <EnterpriseField label="Task completed workflow code">
+              <EnterpriseInput
+                value={state.task_completed_workflow_code}
+                onChange={(event) => update("task_completed_workflow_code", event.target.value)}
+                placeholder="task-completion-review"
+              />
+            </EnterpriseField>
+          </div>
+          <p className="mt-4 text-sm text-slate-500">
+            Kelola endpoint webhook di halaman Webhooks. Workflow code harus sesuai definisi yang
+            sudah dipublish di workflow engine.
           </p>
         </SectionCard>
       </div>

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -10,6 +10,7 @@ from app.models.task_assignment import TaskAssignment
 from app.models.task_comment import TaskComment
 from app.models.user import User
 from app.modules.notifications.task_notifications import (
+    notify_checklist_failure_supervisors,
     notify_task_completed_supervisors,
     notify_task_recipient,
 )
@@ -23,7 +24,13 @@ from app.modules.tasks.schemas import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.checklist_scoring import score_checklist
 from app.services.execution_validation import validate_task_execution_answers
+from app.services.webhook_dispatcher import dispatch_webhook_event
+from app.services.workflow_triggers import (
+    maybe_trigger_checklist_fail_workflow,
+    maybe_trigger_task_completed_workflow,
+)
 from app.services.workspace_settings import get_workspace_settings
 
 
@@ -46,17 +53,18 @@ class TaskService:
         outlet_id: int | None = None,
         outlet_ids: list[int] | None = None,
         all_outlets: bool = False,
+        source_type: str | None = None,
     ) -> list[Task]:
         if all_outlets:
-            return self.repo.list_all()
+            return self.repo.list_all(source_type=source_type)
 
         if outlet_ids is not None:
-            return self.repo.list_by_outlets(outlet_ids)
+            return self.repo.list_by_outlets(outlet_ids, source_type=source_type)
 
         if outlet_id is None:
             return []
 
-        return self.repo.list_by_outlet(outlet_id)
+        return self.repo.list_by_outlet(outlet_id, source_type=source_type)
 
     def list_outlet_members(self, outlet_id: int) -> list[User]:
         return self.repo.list_outlet_members(outlet_id)
@@ -257,6 +265,26 @@ class TaskService:
                 task=task,
                 completed_by_identity_id=actor_identity_id,
             )
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="task.completed",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "status": task.status,
+                        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                    },
+                )
+                maybe_trigger_task_completed_workflow(
+                    self.db,
+                    task=task,
+                    completed_by_identity_id=actor_identity_id,
+                )
+            except Exception:
+                pass
 
         return task
 
@@ -279,6 +307,21 @@ class TaskService:
 
         validate_task_execution_answers(self.db, payload.answers_json)
 
+        form_template_id = payload.form_template_id
+        if form_template_id is None and task.source_type == "form_template":
+            form_template_id = task.source_id
+
+        workspace_settings = get_workspace_settings(self.db)
+        checklist_result = score_checklist(
+            self.db,
+            form_template_id=form_template_id,
+            answers_json=payload.answers_json,
+        )
+        answers_with_checklist = {
+            **payload.answers_json,
+            "_checklist": checklist_result,
+        }
+
         self.db.query(ExecutionSession).filter(
             ExecutionSession.task_id == task.id,
             ExecutionSession.status == "draft",
@@ -286,15 +329,13 @@ class TaskService:
 
         execution_session = ExecutionSession(
             task_id=task.id,
-            form_template_id=payload.form_template_id,
+            form_template_id=form_template_id,
             source_type="sop_task",
             status="completed",
-            answers_json=payload.answers_json,
+            answers_json=answers_with_checklist,
             submitted_by=actor_id,
         )
         self.db.add(execution_session)
-
-        workspace_settings = get_workspace_settings(self.db)
         previous_status = task.status
         completed = not workspace_settings.approval_required
 
@@ -316,8 +357,92 @@ class TaskService:
             )
         )
 
+        if (
+            workspace_settings.auto_corrective_action
+            and checklist_result.get("failed_items")
+        ):
+            failed_items = checklist_result["failed_items"]
+            failed_labels = [item["label"] for item in failed_items]
+            if len(failed_labels) <= 3:
+                corrective_title = f"Corrective: {', '.join(failed_labels)}"
+            else:
+                corrective_title = f"Corrective: {task.title}"
+
+            description_lines = [
+                f"Checklist failure from task #{task.id}: {task.title}",
+                f"Score: {checklist_result['score']}% (threshold: {workspace_settings.pass_threshold}%)",
+                "",
+                "Failed items:",
+            ]
+            for item in failed_items:
+                description_lines.append(
+                    f"- {item['label']}: {item.get('value') or '-'} ({item['reason']})"
+                )
+
+            priority = (
+                "urgent"
+                if checklist_result.get("status") == "fail"
+                else "high"
+            )
+            due_date = datetime.now(timezone.utc) + timedelta(
+                hours=max(1, workspace_settings.corrective_action_sla_hours)
+            )
+
+            corrective_task = Task(
+                title=corrective_title,
+                description="\n".join(description_lines),
+                outlet_id=task.outlet_id,
+                assigned_to=task.assigned_to,
+                created_by=actor_id,
+                source_type="corrective_action",
+                source_id=task.id,
+                priority=priority,
+                status="open",
+                due_date=due_date,
+            )
+            self.repo.create(corrective_task)
+            self.repo.create_comment(
+                TaskComment(
+                    task_id=corrective_task.id,
+                    user_id=actor_id,
+                    comment="Corrective action created from checklist failure",
+                    event_type="created",
+                    new_value=corrective_title,
+                )
+            )
+
         self.db.commit()
         self.db.refresh(task)
+
+        if checklist_result.get("status") != "pass":
+            notify_checklist_failure_supervisors(
+                self.db,
+                task=task,
+                checklist=checklist_result,
+                submitted_by_identity_id=actor_identity_id,
+            )
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="checklist.failed",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "checklist_status": checklist_result.get("status"),
+                        "checklist_score": checklist_result.get("score"),
+                        "failed_items": checklist_result.get("failed_items", []),
+                    },
+                )
+                maybe_trigger_checklist_fail_workflow(
+                    self.db,
+                    task=task,
+                    checklist=checklist_result,
+                    submitted_by_identity_id=actor_identity_id,
+                )
+            except Exception:
+                pass
 
         if completed:
             notify_task_completed_supervisors(
@@ -325,6 +450,26 @@ class TaskService:
                 task=task,
                 completed_by_identity_id=actor_identity_id,
             )
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="task.completed",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "status": task.status,
+                        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                    },
+                )
+                maybe_trigger_task_completed_workflow(
+                    self.db,
+                    task=task,
+                    completed_by_identity_id=actor_identity_id,
+                )
+            except Exception:
+                pass
 
         return task
 

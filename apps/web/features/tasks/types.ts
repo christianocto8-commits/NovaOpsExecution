@@ -18,6 +18,9 @@ export type TaskEvidence = {
   label?: string;
   value: string;
   submittedAt: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy_m?: number;
 };
 
 export type TaskFormFieldType =
@@ -73,6 +76,22 @@ export type TaskActivity = {
   timestamp: string;
 };
 
+export type ChecklistFailedItem = {
+  field_id: number;
+  label: string;
+  value: string | null;
+  reason: string;
+};
+
+export type ChecklistScore = {
+  score: number;
+  passed_count: number;
+  failed_count: number;
+  total_scorable: number;
+  failed_items: ChecklistFailedItem[];
+  status: "pass" | "attention" | "fail";
+};
+
 export type TaskExecutionForm = {
   operatorName: string;
   operatorPosition: OperatorPosition;
@@ -92,6 +111,7 @@ export type TaskExecution = {
   reviewedBy?: string;
   reviewedAt?: string;
   reviewNote?: string;
+  checklist?: ChecklistScore;
 };
 
 export type Task = {
@@ -105,6 +125,8 @@ export type Task = {
   due: string;
   description: string;
   formTemplateId?: string;
+  sourceType?: string;
+  sourceId?: string;
   recurrence?: TaskRecurrence;
   shifts?: TaskShift[];
   targetOutlets?: string[];

@@ -6,6 +6,7 @@ import {
   FileText,
   Image,
   Link2,
+  MapPin,
   StickyNote,
   UserCheck,
   X,
@@ -19,6 +20,12 @@ type TaskDetailDrawerProps = {
   onClose: () => void;
   onEdit?: (task: Task) => void;
 };
+
+function getChecklistStatusClass(status: string) {
+  if (status === "pass") return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (status === "attention") return "bg-amber-50 text-amber-700 border-amber-100";
+  return "bg-red-50 text-red-700 border-red-100";
+}
 
 function getStatusClass(status: string) {
   if (status === "Completed") return "bg-emerald-50 text-emerald-700 border-emerald-100";
@@ -69,6 +76,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
 
   const hasExecution = Boolean(task.execution);
   const hasDraft = Boolean(task.executionDraft);
+  const checklist = task.execution?.checklist;
   const activities = task.activity ?? [];
 
   return (
@@ -181,6 +189,17 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                                 {evidence.value}
                               </p>
                             )}
+                            {evidence.latitude != null && evidence.longitude != null ? (
+                              <a
+                                href={`https://maps.google.com/?q=${evidence.latitude},${evidence.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                              >
+                                <MapPin className="h-3.5 w-3.5" />
+                                {evidence.latitude.toFixed(5)}, {evidence.longitude.toFixed(5)}
+                              </a>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -196,6 +215,60 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
               </div>
             )}
           </section>
+
+          {checklist ? (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-slate-950">Checklist Scorecard</h3>
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${getChecklistStatusClass(checklist.status)}`}
+                >
+                  {checklist.status}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Score</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.score}%</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 p-4">
+                  <p className="text-xs text-emerald-700">Passed</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-800">{checklist.passed_count}</p>
+                </div>
+                <div className="rounded-2xl bg-red-50 p-4">
+                  <p className="text-xs text-red-700">Failed</p>
+                  <p className="mt-1 text-2xl font-bold text-red-800">{checklist.failed_count}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Scorable</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.total_scorable}</p>
+                </div>
+              </div>
+
+              {checklist.failed_items.length > 0 ? (
+                <div className="mt-5 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Failed Items
+                  </p>
+                  {checklist.failed_items.map((item) => (
+                    <div
+                      key={`${item.field_id}-${item.label}`}
+                      className="rounded-2xl border border-red-100 bg-red-50 p-4"
+                    >
+                      <p className="font-semibold text-red-950">{item.label}</p>
+                      <p className="mt-1 text-sm text-red-800">
+                        Value: {item.value || "-"}
+                      </p>
+                      <p className="mt-1 text-sm text-red-700">{item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-emerald-700">All scorable checklist items passed.</p>
+              )}
+            </section>
+          ) : null}
 
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <h3 className="text-sm font-bold text-slate-950">Activity Timeline</h3>

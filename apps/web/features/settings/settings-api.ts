@@ -48,6 +48,10 @@ export type SettingsResponse = {
   template_history_visible: boolean;
   export_format: string;
   webhook_enabled: boolean;
+  auto_workflow_on_checklist_fail: boolean;
+  checklist_fail_workflow_code: string;
+  auto_workflow_on_task_completed: boolean;
+  task_completed_workflow_code: string;
   api_status_mode: string;
   two_factor_required: boolean;
   password_rotation_days: number;

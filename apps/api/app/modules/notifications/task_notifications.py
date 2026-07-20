@@ -15,6 +15,8 @@ from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
+from app.services.email_service import EmailService
+from app.services.workspace_settings import get_workspace_settings
 
 
 def resolve_identity_user_id(db: Session, legacy_user_id: int | None) -> UUID | None:
@@ -29,6 +31,24 @@ def resolve_identity_user_id(db: Session, legacy_user_id: int | None) -> UUID | 
         db.query(IdentityUser).filter(IdentityUser.email == legacy_user.email).first()
     )
     return identity_user.id if identity_user else None
+
+
+def _send_email_if_enabled(
+    db: Session,
+    *,
+    identity_user_id: UUID,
+    subject: str,
+    body: str,
+) -> None:
+    settings = get_workspace_settings(db)
+    if not settings.email_notifications:
+        return
+
+    identity_user = db.get(IdentityUser, identity_user_id)
+    if not identity_user or not identity_user.email:
+        return
+
+    EmailService().send(identity_user.email, subject, body)
 
 
 def notify_task_recipient(
@@ -73,6 +93,13 @@ def notify_task_recipient(
         body=body,
         url=f"/dashboard/tasks?taskId={task.id}",
         data=payload,
+    )
+
+    _send_email_if_enabled(
+        db,
+        identity_user_id=identity_user_id,
+        subject=subject,
+        body=body,
     )
 
 
@@ -165,4 +192,95 @@ def notify_task_completed_supervisors(
             body=body,
             url=f"/dashboard/tasks?taskId={task.id}",
             data=payload,
+        )
+
+        _send_email_if_enabled(
+            db,
+            identity_user_id=supervisor.id,
+            subject=subject,
+            body=body,
+        )
+
+
+def notify_checklist_failure_supervisors(
+    db: Session,
+    *,
+    task: Task,
+    checklist: dict,
+    submitted_by_identity_id: UUID | None = None,
+) -> None:
+    if checklist.get("status") == "pass":
+        return
+
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    outlet_label = identity_outlet.name if identity_outlet else f"Outlet {task.outlet_id}"
+
+    supervisor_roles = db.scalars(
+        select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE, AREA_MANAGER_ROLE]))
+    ).all()
+    if not supervisor_roles:
+        return
+
+    role_ids = [role.id for role in supervisor_roles]
+    supervisors = db.scalars(
+        select(IdentityUser).where(
+            IdentityUser.is_active.is_(True),
+            IdentityUser.role_id.in_(role_ids),
+        )
+    ).all()
+
+    failed_count = checklist.get("failed_count", 0)
+    score = checklist.get("score", 0)
+    subject = f"Checklist gagal: {task.title}"
+    body = (
+        f'Checklist task "{task.title}" di {outlet_label} '
+        f"mendapat skor {score}% dengan {failed_count} item gagal."
+    )
+
+    for supervisor in supervisors:
+        if submitted_by_identity_id and supervisor.id == submitted_by_identity_id:
+            continue
+
+        role_slug = supervisor.role.slug if supervisor.role else ""
+        if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(
+            supervisor, identity_outlet
+        ):
+            continue
+
+        payload = {
+            "task_id": task.id,
+            "task_title": task.title,
+            "outlet_id": task.outlet_id,
+            "event_type": "checklist_failed",
+            "checklist_score": score,
+            "checklist_status": checklist.get("status"),
+        }
+
+        NotificationService(db).create_event(
+            NotificationEventCreate(
+                event_type="checklist_failed",
+                source_module="tasks",
+                source_entity_type="task",
+                source_entity_id=str(task.id),
+                recipient_user_id=supervisor.id,
+                channel=NotificationChannel.in_app,
+                subject=subject,
+                body=body,
+                payload_json=payload,
+            )
+        )
+
+        PushNotificationService(db).send_to_user(
+            supervisor.id,
+            title=subject,
+            body=body,
+            url=f"/dashboard/tasks?taskId={task.id}",
+            data=payload,
+        )
+
+        _send_email_if_enabled(
+            db,
+            identity_user_id=supervisor.id,
+            subject=subject,
+            body=body,
         )

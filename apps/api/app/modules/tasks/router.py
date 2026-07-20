@@ -2,7 +2,7 @@ from uuid import UUID
 
 import os
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -140,6 +140,7 @@ def resolve_task_outlet_access(
 
 @router.get("", response_model=list[TaskResponse])
 def list_tasks(
+    source_type: str | None = Query(default=None),
     x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -152,6 +153,7 @@ def list_tasks(
         outlet_id=x_outlet_id,
         outlet_ids=None if x_outlet_id else outlet_ids,
         all_outlets=full_access and x_outlet_id is None,
+        source_type=source_type,
     )
 
 

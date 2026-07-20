@@ -23,6 +23,7 @@ const areaManagerNavigationItemIds = new Set([
   "notifications",
   "outlets",
   "reports",
+  "schedules",
   "settings",
   "tasks",
 ]);

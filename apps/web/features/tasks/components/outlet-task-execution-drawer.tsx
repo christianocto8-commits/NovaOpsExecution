@@ -351,7 +351,11 @@ export function OutletTaskExecutionDrawer({
                 />
               </section>
 
-              <EvidenceGallery value={evidenceItems} onChange={handleEvidenceChange} />
+              <EvidenceGallery
+                value={evidenceItems}
+                onChange={handleEvidenceChange}
+                outletName={task?.outlet}
+              />
             </div>
           </div>
         </div>

@@ -4,3 +4,7 @@ export * from "./components/evidence-card";
 export * from "./components/upload-placeholder";
 export * from "./components/evidence-gallery";
 export * from "./upload-evidence";
+export * from "./geolocation";
+export * from "./photo-watermark";
+export * from "./prepare-evidence-file";
+export * from "./photo-value";

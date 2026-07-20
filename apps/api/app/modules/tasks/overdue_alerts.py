@@ -9,6 +9,7 @@ from app.models.task import Task
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.notifications.models import NotificationEvent
 from app.modules.notifications.task_notifications import notify_task_recipient
+from app.services.webhook_dispatcher import dispatch_webhook_event
 
 
 def _get_task_recipients(db: Session, task: Task) -> list[int]:
@@ -83,6 +84,22 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
                 recipient_legacy_user_id=recipient_legacy_id,
             )
             alerts_created += 1
+
+        try:
+            dispatch_webhook_event(
+                db,
+                event_type="task.overdue",
+                outlet_id=task.outlet_id,
+                payload={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "outlet_id": task.outlet_id,
+                    "due_date": task.due_date.isoformat() if task.due_date else None,
+                    "status": task.status,
+                },
+            )
+        except Exception:
+            pass
 
     return {
         "overdue_tasks": len(overdue_tasks),

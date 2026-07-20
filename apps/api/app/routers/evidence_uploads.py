@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -36,9 +36,12 @@ def _safe_extension(filename: str, content_type: str | None) -> str:
 async def upload_evidence(
     request: Request,
     file: UploadFile = File(...),
+    latitude: float | None = Form(default=None),
+    longitude: float | None = Form(default=None),
+    accuracy_m: float | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> dict[str, str]:
+) -> dict[str, str | float | None]:
     del current_user
 
     max_file_size_bytes = get_max_upload_bytes(db)
@@ -74,4 +77,7 @@ async def upload_evidence(
         "url": public_url,
         "file_name": file.filename or stored_name,
         "uploaded_at": datetime.now(UTC).isoformat(),
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_m": accuracy_m,
     }

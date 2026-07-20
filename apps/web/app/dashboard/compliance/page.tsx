@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { BarChartCard, DonutChartCard, LineChartCard } from "@/shared/analytics/charts";
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
+import { getExecutionSessions } from "@/services/execution-session.service";
+import { downloadComplianceExport } from "@/services/reports.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 import {
@@ -60,22 +62,36 @@ function isOverdue(task: Task) {
 }
 
 function getCompletion(task: Task) {
+  if (task.execution?.checklist) {
+    return task.execution.checklist.score;
+  }
   if (task.status === "Completed") return 100;
   if (task.status === "In Progress") return 50;
   return 0;
 }
 
+function getChecklistStatus(task: Task) {
+  return task.execution?.checklist?.status;
+}
+
 function toRow(task: Task): ComplianceRow {
+  const checklistStatus = getChecklistStatus(task);
+
   return {
     id: task.id,
     outlet: task.outlet,
     task: task.title,
     priority: task.priority,
-    status: isOverdue(task) ? "Overdue" : task.status,
+    status:
+      checklistStatus === "fail"
+        ? "Overdue"
+        : isOverdue(task)
+          ? "Overdue"
+          : task.status,
     completion: getCompletion(task),
     due: task.due || "-",
     assignee: task.assignee,
-    updated: task.activity?.[0]?.timestamp ?? task.due ?? "",
+    updated: task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due ?? "",
   };
 }
 
@@ -151,6 +167,8 @@ function getSopHealthClass(rate: number) {
 }
 
 export default function ComplianceCenterPage() {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -160,17 +178,103 @@ export default function ComplianceCenterPage() {
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
-    queryFn: taskService.list,
+    queryFn: () => taskService.list(),
     retry: false,
   });
 
-  const rows = useMemo(() => (tasksQuery.data ?? []).map(toRow), [tasksQuery.data]);
+  const executionSessionsQuery = useQuery({
+    queryKey: ["execution-sessions", "compliance"],
+    queryFn: () => getExecutionSessions({ sourceType: "sop_task" }),
+    retry: false,
+  });
+
+  const tasksWithExecution = useMemo(() => {
+    const tasks = tasksQuery.data ?? [];
+    const sessions = executionSessionsQuery.data ?? [];
+    const latestCompletedMap = new Map<string, (typeof sessions)[number]>();
+
+    sessions.forEach((session) => {
+      if (session.status !== "completed" || session.task_id == null) return;
+      const taskId = String(session.task_id);
+      const current = latestCompletedMap.get(taskId);
+      if (!current || session.id > current.id) {
+        latestCompletedMap.set(taskId, session);
+      }
+    });
+
+    return tasks.map((task) => {
+      const session = latestCompletedMap.get(task.id);
+      if (!session?.answers_json || typeof session.answers_json !== "object") {
+        return task;
+      }
+
+      const checklist = (session.answers_json as Record<string, unknown>)._checklist;
+      if (!checklist || typeof checklist !== "object") {
+        return task;
+      }
+
+      const payload = checklist as Record<string, unknown>;
+      const status = payload.status;
+      if (status !== "pass" && status !== "attention" && status !== "fail") {
+        return task;
+      }
+
+      return {
+        ...task,
+        execution: {
+          operatorName: task.execution?.operatorName ?? "",
+          operatorPosition: task.execution?.operatorPosition ?? "Crew",
+          note: task.execution?.note ?? "",
+          evidence: task.execution?.evidence ?? [],
+          formResponses: task.execution?.formResponses ?? {},
+          completedAt: task.execution?.completedAt ?? session.submitted_at ?? "",
+          checklist: {
+            score: typeof payload.score === "number" ? payload.score : Number(payload.score ?? 0),
+            passed_count: typeof payload.passed_count === "number" ? payload.passed_count : 0,
+            failed_count: typeof payload.failed_count === "number" ? payload.failed_count : 0,
+            total_scorable: typeof payload.total_scorable === "number" ? payload.total_scorable : 0,
+            failed_items: Array.isArray(payload.failed_items)
+              ? payload.failed_items.map((item) => {
+                  const row = item as Record<string, unknown>;
+                  return {
+                    field_id: Number(row.field_id),
+                    label: typeof row.label === "string" ? row.label : "Unknown field",
+                    value:
+                      typeof row.value === "string"
+                        ? row.value
+                        : row.value == null
+                          ? null
+                          : String(row.value),
+                    reason: typeof row.reason === "string" ? row.reason : "Failed",
+                  };
+                })
+              : [],
+            status,
+          },
+        },
+      };
+    });
+  }, [tasksQuery.data, executionSessionsQuery.data]);
+
+  const rows = useMemo(() => tasksWithExecution.map(toRow), [tasksWithExecution]);
   const complianceRate = getComplianceRate(rows);
   const outletPerformance = groupByOutlet(rows);
   const ownerActionQueue = rows
     .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
     .sort((first, second) => first.completion - second.completion)
     .slice(0, 5);
+
+  async function handleExportExcel() {
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      await downloadComplianceExport("xlsx");
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export failed.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <main className="space-y-6 p-6">
@@ -200,12 +304,27 @@ export default function ComplianceCenterPage() {
             Corrective Actions
           </Link>
 
+          <button
+            type="button"
+            onClick={() => void handleExportExcel()}
+            disabled={isExporting}
+            className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isExporting ? "Exporting..." : "Export Excel"}
+          </button>
+
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>
             <RealtimeClock />
           </div>
         </div>
       </div>
+
+      {exportError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {exportError}
+        </div>
+      ) : null}
 
       {tasksQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

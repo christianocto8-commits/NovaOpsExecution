@@ -1,17 +1,21 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
+import { Camera, ImageIcon, Loader2, MapPin, Trash2, Upload } from "lucide-react";
 
+import { useSettings } from "@/features/settings/hooks/use-settings";
 import {
   getOfflineEvidenceBlobUrl,
   isOfflineEvidenceUrl,
 } from "@/lib/offline/offline-evidence";
+import { getPhotoDisplayUrl, parsePhotoFieldValue, serializePhotoFieldValue } from "@/shared/evidence/photo-value";
+import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 
 type PhotoFieldInputProps = {
   value: string;
   readOnly?: boolean;
+  outletName?: string;
   onChange: (value: string) => void;
 };
 
@@ -22,22 +26,31 @@ function isMobileDevice() {
   return /android|iphone|ipad|ipod|mobile/.test(userAgent) || window.matchMedia("(pointer: coarse)").matches;
 }
 
-export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFieldInputProps) {
+export function PhotoFieldInput({
+  value,
+  readOnly = false,
+  outletName,
+  onChange,
+}: PhotoFieldInputProps) {
+  const { settings } = useSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [mobileMode] = useState(() => isMobileDevice());
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
 
+  const parsedValue = useMemo(() => parsePhotoFieldValue(value), [value]);
+  const displayUrlValue = parsedValue?.url ?? value;
+
   useEffect(() => {
-    if (!value || !isOfflineEvidenceUrl(value)) {
+    if (!displayUrlValue || !isOfflineEvidenceUrl(displayUrlValue)) {
       return;
     }
 
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    void getOfflineEvidenceBlobUrl(value).then((blobUrl) => {
+    void getOfflineEvidenceBlobUrl(displayUrlValue).then((blobUrl) => {
       if (cancelled) {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         return;
@@ -54,13 +67,13 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [value]);
+  }, [displayUrlValue]);
 
   const displayUrl = useMemo(() => {
-    if (!value) return "";
-    if (!isOfflineEvidenceUrl(value)) return value;
+    if (!displayUrlValue) return "";
+    if (!isOfflineEvidenceUrl(displayUrlValue)) return displayUrlValue;
     return offlineBlobUrl ?? "";
-  }, [offlineBlobUrl, value]);
+  }, [displayUrlValue, offlineBlobUrl]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -70,8 +83,24 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
     setUploadError(null);
 
     try {
-      const uploaded = await uploadEvidenceFile(file);
-      onChange(uploaded.url);
+      const prepared = await prepareEvidenceFile(file, {
+        timestampWatermark: settings?.timestamp_watermark ?? true,
+        captureGps: settings?.gps_watermark ?? true,
+        timezone: settings?.timezone ?? "Asia/Jakarta",
+        outletName,
+      });
+      const uploaded = await uploadEvidenceFile(prepared.file, {
+        geolocation: prepared.geolocation,
+      });
+
+      onChange(
+        serializePhotoFieldValue({
+          url: uploaded.url,
+          latitude: uploaded.latitude ?? prepared.geolocation?.latitude,
+          longitude: uploaded.longitude ?? prepared.geolocation?.longitude,
+          accuracy_m: uploaded.accuracy_m ?? prepared.geolocation?.accuracy_m,
+        })
+      );
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Upload foto gagal.");
     } finally {
@@ -86,6 +115,11 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
     fileInputRef.current?.click();
   }
 
+  const locationLabel =
+    parsedValue?.latitude != null && parsedValue.longitude != null
+      ? `${parsedValue.latitude.toFixed(5)}, ${parsedValue.longitude.toFixed(5)}`
+      : null;
+
   return (
     <div className="space-y-3">
       {value ? (
@@ -94,6 +128,20 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={displayUrl} alt="Foto bukti" className="h-full w-full object-cover" />
           </div>
+
+          {locationLabel ? (
+            <div className="flex items-center gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
+              <MapPin className="size-3.5 shrink-0 text-emerald-700" />
+              <a
+                href={`https://maps.google.com/?q=${parsedValue?.latitude},${parsedValue?.longitude}`}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {locationLabel}
+              </a>
+            </div>
+          ) : null}
 
           {!readOnly ? (
             <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
@@ -157,3 +205,5 @@ export function PhotoFieldInput({ value, readOnly = false, onChange }: PhotoFiel
     </div>
   );
 }
+
+export { getPhotoDisplayUrl };

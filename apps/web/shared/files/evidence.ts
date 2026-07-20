@@ -5,6 +5,9 @@ export function createTaskEvidence(params: {
   value: string;
   label?: string;
   submittedAt?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy_m?: number;
 }): TaskEvidence {
   return {
     id: `EVD-${Date.now()}`,
@@ -12,6 +15,9 @@ export function createTaskEvidence(params: {
     label: params.label,
     value: params.value,
     submittedAt: params.submittedAt ?? "Just now",
+    latitude: params.latitude,
+    longitude: params.longitude,
+    accuracy_m: params.accuracy_m,
   };
 }
 

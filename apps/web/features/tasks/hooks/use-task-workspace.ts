@@ -214,6 +214,9 @@ function buildTaskEvidence(value: string, submittedAt: string) {
         label: item.caption || "Outlet Evidence",
         value: item.url,
         submittedAt: item.uploadedAt ?? submittedAt,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        accuracy_m: item.accuracy_m,
       })
     );
   }
@@ -226,6 +229,36 @@ function buildTaskEvidence(value: string, submittedAt: string) {
       submittedAt,
     }),
   ];
+}
+
+function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undefined {
+  if (!value || typeof value !== "object") return undefined;
+
+  const payload = value as Record<string, unknown>;
+  const failedItems = Array.isArray(payload.failed_items)
+    ? payload.failed_items
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          field_id: Number(item.field_id),
+          label: typeof item.label === "string" ? item.label : "Unknown field",
+          value: typeof item.value === "string" ? item.value : item.value == null ? null : String(item.value),
+          reason: typeof item.reason === "string" ? item.reason : "Failed",
+        }))
+    : [];
+
+  const status = payload.status;
+  if (status !== "pass" && status !== "attention" && status !== "fail") {
+    return undefined;
+  }
+
+  return {
+    score: typeof payload.score === "number" ? payload.score : Number(payload.score ?? 0),
+    passed_count: typeof payload.passed_count === "number" ? payload.passed_count : 0,
+    failed_count: typeof payload.failed_count === "number" ? payload.failed_count : failedItems.length,
+    total_scorable: typeof payload.total_scorable === "number" ? payload.total_scorable : 0,
+    failed_items: failedItems,
+    status,
+  };
 }
 
 function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution | null {
@@ -253,6 +286,7 @@ function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution
       Object.entries(responses ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : ""])
     ),
     completedAt: submittedAt,
+    checklist: parseChecklistScore(payload._checklist),
   };
 }
 

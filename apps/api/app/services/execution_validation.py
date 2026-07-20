@@ -9,26 +9,60 @@ from app.services.workspace_settings import get_workspace_settings
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 
 
+def _extract_url_from_value(value: object) -> str | None:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+
+        if trimmed.startswith("{"):
+            try:
+                parsed = json.loads(trimmed)
+            except json.JSONDecodeError:
+                return trimmed
+
+            if isinstance(parsed, dict):
+                url = parsed.get("url")
+                if isinstance(url, str) and url.strip():
+                    return url.strip()
+
+        return trimmed
+
+    if isinstance(value, dict):
+        url = value.get("url")
+        if isinstance(url, str) and url.strip():
+            return url.strip()
+
+    return None
+
+
 def extract_evidence_urls(answers_json: dict[str, Any]) -> list[str]:
     evidence = answers_json.get("evidence")
 
     if not isinstance(evidence, str) or not evidence.strip():
-        return []
+        urls: list[str] = []
+    else:
+        try:
+            parsed = json.loads(evidence)
+        except json.JSONDecodeError:
+            urls = [evidence.strip()]
+        else:
+            if not isinstance(parsed, list):
+                urls = [evidence.strip()]
+            else:
+                urls = []
+                for item in parsed:
+                    if isinstance(item, dict):
+                        url = item.get("url")
+                        if isinstance(url, str) and url.strip():
+                            urls.append(url.strip())
 
-    try:
-        parsed = json.loads(evidence)
-    except json.JSONDecodeError:
-        return [evidence.strip()]
-
-    if not isinstance(parsed, list):
-        return [evidence.strip()]
-
-    urls: list[str] = []
-    for item in parsed:
-        if isinstance(item, dict):
-            url = item.get("url")
-            if isinstance(url, str) and url.strip():
-                urls.append(url.strip())
+    responses = answers_json.get("responses")
+    if isinstance(responses, dict):
+        for value in responses.values():
+            url = _extract_url_from_value(value)
+            if url:
+                urls.append(url)
 
     return urls
 
