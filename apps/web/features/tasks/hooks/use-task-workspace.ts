@@ -250,8 +250,21 @@ function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undef
           label: typeof item.label === "string" ? item.label : "Unknown field",
           value: typeof item.value === "string" ? item.value : item.value == null ? null : String(item.value),
           reason: typeof item.reason === "string" ? item.reason : "Failed",
+          critical: item.critical === true,
         }))
     : [];
+
+  const criticalFailures = Array.isArray(payload.critical_failures)
+    ? payload.critical_failures
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          field_id: Number(item.field_id),
+          label: typeof item.label === "string" ? item.label : "Unknown field",
+          value: typeof item.value === "string" ? item.value : item.value == null ? null : String(item.value),
+          reason: typeof item.reason === "string" ? item.reason : "Failed",
+          critical: true,
+        }))
+    : failedItems.filter((item) => item.critical);
 
   const status = payload.status;
   if (status !== "pass" && status !== "attention" && status !== "fail") {
@@ -263,7 +276,9 @@ function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undef
     passed_count: typeof payload.passed_count === "number" ? payload.passed_count : 0,
     failed_count: typeof payload.failed_count === "number" ? payload.failed_count : failedItems.length,
     total_scorable: typeof payload.total_scorable === "number" ? payload.total_scorable : 0,
+    na_count: typeof payload.na_count === "number" ? payload.na_count : 0,
     failed_items: failedItems,
+    critical_failures: criticalFailures,
     status,
   };
 }
@@ -789,6 +804,8 @@ export function useTaskWorkspace() {
       } catch {
         // Backend will enforce geofence if outlet context is unavailable client-side.
       }
+    } else {
+      submitLocation = await getCurrentPosition();
     }
 
     if (isOnline && backendConnected) {
@@ -843,6 +860,9 @@ export function useTaskWorkspace() {
           approvalRequired,
           previousStatus: selectedTask.status,
           existingSessionId: existingDraftSession?.id ?? null,
+          latitude: submitLocation?.latitude ?? null,
+          longitude: submitLocation?.longitude ?? null,
+          accuracy_m: submitLocation?.accuracy_m ?? null,
         },
         createdAt: submittedAt,
         status: "pending",

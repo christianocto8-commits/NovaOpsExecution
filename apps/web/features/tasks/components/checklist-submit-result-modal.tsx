@@ -15,7 +15,7 @@ type ChecklistSubmitResultModalProps = {
 function getStatusMeta(status: ChecklistScore["status"]) {
   if (status === "pass") {
     return {
-      title: "Checklist Passed",
+      title: "Checklist Lulus",
       description: "Semua item scorable memenuhi standar operasional.",
       icon: CheckCircle2,
       iconClass: "text-emerald-600",
@@ -34,7 +34,7 @@ function getStatusMeta(status: ChecklistScore["status"]) {
   }
 
   return {
-    title: "Checklist Failed",
+    title: "Checklist Gagal",
     description: "Beberapa item gagal. Corrective action mungkin dibuat otomatis.",
     icon: XCircle,
     iconClass: "text-red-600",
@@ -52,12 +52,16 @@ export function ChecklistSubmitResultModal({
 
   const meta = getStatusMeta(checklist.status);
   const StatusIcon = meta.icon;
+  const criticalFailures =
+    checklist.critical_failures && checklist.critical_failures.length > 0
+      ? checklist.critical_failures
+      : checklist.failed_items.filter((item) => item.critical);
 
   return (
     <Modal
       open={open}
       title={meta.title}
-      description={`${taskTitle} · Score ${checklist.score}%`}
+      description={`${taskTitle} · Skor ${checklist.score}%`}
       onClose={onClose}
       size="md"
       footer={
@@ -83,33 +87,66 @@ export function ChecklistSubmitResultModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl bg-slate-50 p-4 text-center">
-            <p className="text-xs text-slate-500">Score</p>
+            <p className="text-xs text-slate-500">Skor</p>
             <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.score}%</p>
           </div>
           <div className="rounded-2xl bg-emerald-50 p-4 text-center">
-            <p className="text-xs text-emerald-700">Passed</p>
+            <p className="text-xs text-emerald-700">Lulus</p>
             <p className="mt-1 text-2xl font-bold text-emerald-800">{checklist.passed_count}</p>
           </div>
           <div className="rounded-2xl bg-red-50 p-4 text-center">
-            <p className="text-xs text-red-700">Failed</p>
+            <p className="text-xs text-red-700">Gagal</p>
             <p className="mt-1 text-2xl font-bold text-red-800">{checklist.failed_count}</p>
           </div>
+          <div className="rounded-2xl bg-slate-100 p-4 text-center">
+            <p className="text-xs text-slate-500">N/A</p>
+            <p className="mt-1 text-2xl font-bold text-slate-700">{checklist.na_count ?? 0}</p>
+          </div>
         </div>
+
+        {criticalFailures.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
+              Item Kritis Gagal
+            </p>
+            {criticalFailures.map((item) => (
+              <div
+                key={`critical-${item.field_id}-${item.label}`}
+                className="rounded-2xl border-2 border-red-300 bg-red-100 p-4"
+              >
+                <p className="font-bold text-red-950">{item.label}</p>
+                <p className="mt-1 text-sm text-red-800">Nilai: {item.value || "-"}</p>
+                <p className="mt-1 text-sm font-semibold text-red-700">{item.reason}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {checklist.failed_items.length > 0 ? (
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Failed Items
+              Item Gagal
             </p>
             {checklist.failed_items.map((item) => (
               <div
                 key={`${item.field_id}-${item.label}`}
-                className="rounded-2xl border border-red-100 bg-red-50 p-4"
+                className={`rounded-2xl border p-4 ${
+                  item.critical
+                    ? "border-red-200 bg-red-50"
+                    : "border-red-100 bg-red-50/70"
+                }`}
               >
-                <p className="font-semibold text-red-950">{item.label}</p>
-                <p className="mt-1 text-sm text-red-800">Value: {item.value || "-"}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-red-950">{item.label}</p>
+                  {item.critical ? (
+                    <span className="rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold uppercase text-red-800">
+                      Kritis
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-sm text-red-800">Nilai: {item.value || "-"}</p>
                 <p className="mt-1 text-sm text-red-700">{item.reason}</p>
               </div>
             ))}

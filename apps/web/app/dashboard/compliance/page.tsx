@@ -15,6 +15,7 @@ import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
 import { downloadComplianceExport, getFailedChecklistItems } from "@/services/reports.service";
+import { outletService } from "@/services/outlet.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 import {
@@ -26,6 +27,7 @@ import {
 type ComplianceRow = {
   id: string;
   outlet: string;
+  region: string;
   task: string;
   priority: string;
   status: "Completed" | "In Progress" | "Pending" | "Overdue";
@@ -38,6 +40,7 @@ type ComplianceRow = {
 const columns: EnterpriseColumn<ComplianceRow>[] = [
   { key: "id", header: "Task ID", sortable: true },
   { key: "outlet", header: "Outlet", sortable: true },
+  { key: "region", header: "Region", sortable: true },
   { key: "task", header: "Task", sortable: true },
   { key: "priority", header: "Urgency", sortable: true },
   {
@@ -79,12 +82,13 @@ function getChecklistStatus(task: Task) {
   return task.execution?.checklist?.status;
 }
 
-function toRow(task: Task): ComplianceRow {
+function toRow(task: Task, outletRegionByName: Map<string, string>): ComplianceRow {
   const checklistStatus = getChecklistStatus(task);
 
   return {
     id: task.id,
     outlet: task.outlet,
+    region: outletRegionByName.get(task.outlet) ?? "—",
     task: task.title,
     priority: task.priority,
     status:
@@ -182,6 +186,7 @@ export default function ComplianceCenterPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [regionFilter, setRegionFilter] = useState("all");
   const { settings } = useSettings();
   const passThreshold = settings?.pass_threshold ?? 85;
   const workspace = useSyncExternalStore(
@@ -208,6 +213,32 @@ export default function ComplianceCenterPage() {
     queryFn: () => getFailedChecklistItems({ limit: 8, days: 30 }),
     retry: false,
   });
+
+  const outletsQuery = useQuery({
+    queryKey: ["outlets", "legacy", "compliance"],
+    queryFn: () => outletService.listMine(),
+    retry: false,
+  });
+
+  const outletRegionByName = useMemo(() => {
+    const map = new Map<string, string>();
+    (outletsQuery.data ?? []).forEach((outlet) => {
+      if (outlet.region) {
+        map.set(outlet.name, outlet.region);
+      }
+    });
+    return map;
+  }, [outletsQuery.data]);
+
+  const availableRegions = useMemo(() => {
+    const regions = new Set<string>();
+    (outletsQuery.data ?? []).forEach((outlet) => {
+      if (outlet.region?.trim()) {
+        regions.add(outlet.region.trim());
+      }
+    });
+    return Array.from(regions).sort((a, b) => a.localeCompare(b, "id"));
+  }, [outletsQuery.data]);
 
   const tasksWithExecution = useMemo(() => {
     const tasks = tasksQuery.data ?? [];
@@ -278,7 +309,15 @@ export default function ComplianceCenterPage() {
     });
   }, [tasksQuery.data, executionSessionsQuery.data]);
 
-  const rows = useMemo(() => tasksWithExecution.map(toRow), [tasksWithExecution]);
+  const allRows = useMemo(
+    () => tasksWithExecution.map((task) => toRow(task, outletRegionByName)),
+    [tasksWithExecution, outletRegionByName]
+  );
+
+  const rows = useMemo(() => {
+    if (regionFilter === "all") return allRows;
+    return allRows.filter((row) => row.region === regionFilter);
+  }, [allRows, regionFilter]);
   const complianceRate = getComplianceRate(rows);
   const outletPerformance = groupByOutlet(rows);
   const checklistTrend30Days = useMemo(
@@ -347,6 +386,26 @@ export default function ComplianceCenterPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {availableRegions.length > 0 ? (
+            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+              <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Region
+              </span>
+              <select
+                value={regionFilter}
+                onChange={(event) => setRegionFilter(event.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 outline-none"
+              >
+                <option value="all">Semua Region</option>
+                {availableRegions.map((region) => (
+                  <option key={region} value={region}>
+                    {region}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <Link
             href="/dashboard/tasks"
             className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"

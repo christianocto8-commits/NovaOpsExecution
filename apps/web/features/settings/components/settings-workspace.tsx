@@ -142,8 +142,9 @@ function OutletLocationPanel({
 }: {
   onNotice: (message: string) => void;
 }) {
-  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; latitude: number | null; longitude: number | null }>>([]);
+  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; region: string | null; latitude: number | null; longitude: number | null }>>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | "">("");
+  const [region, setRegion] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -155,6 +156,7 @@ function OutletLocationPanel({
         setOutlets(items);
         if (items.length > 0) {
           setSelectedOutletId(items[0].id);
+          setRegion(items[0].region ?? "");
           setLatitude(items[0].latitude != null ? String(items[0].latitude) : "");
           setLongitude(items[0].longitude != null ? String(items[0].longitude) : "");
         }
@@ -168,6 +170,7 @@ function OutletLocationPanel({
     if (selectedOutletId === "") return;
     const outlet = outlets.find((item) => item.id === selectedOutletId);
     if (!outlet) return;
+    setRegion(outlet.region ?? "");
     setLatitude(outlet.latitude != null ? String(outlet.latitude) : "");
     setLongitude(outlet.longitude != null ? String(outlet.longitude) : "");
   }, [outlets, selectedOutletId]);
@@ -188,6 +191,9 @@ function OutletLocationPanel({
 
     try {
       setIsSaving(true);
+      const updatedRegion = await outletService.updateOutlet(selectedOutletId, {
+        region: region.trim() || null,
+      });
       const updated = await outletService.updateLocation(selectedOutletId, {
         latitude: lat,
         longitude: lon,
@@ -195,25 +201,30 @@ function OutletLocationPanel({
       setOutlets((current) =>
         current.map((item) =>
           item.id === updated.id
-            ? { ...item, latitude: updated.latitude, longitude: updated.longitude }
+            ? {
+                ...item,
+                region: updatedRegion.region,
+                latitude: updated.latitude,
+                longitude: updated.longitude,
+              }
             : item
         )
       );
-      onNotice(`Lokasi ${updated.name} berhasil disimpan.`);
+      onNotice(`Data outlet ${updated.name} berhasil disimpan.`);
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Gagal menyimpan lokasi outlet.");
+      onNotice(error instanceof Error ? error.message : "Gagal menyimpan data outlet.");
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <SectionCard title="Outlet Geolocation">
+    <SectionCard title="Outlet Geolocation & Region">
       <p className="mb-4 text-sm text-slate-500">
-        Set koordinat pusat outlet untuk validasi geofence saat submit task. Gunakan GPS saat berada
-        di lokasi outlet, atau salin dari Google Maps.
+        Atur region outlet untuk filter compliance, serta koordinat pusat untuk validasi geofence saat
+        submit task.
       </p>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <EnterpriseField label="Outlet">
           <EnterpriseSelect
             value={selectedOutletId === "" ? "" : String(selectedOutletId)}
@@ -225,6 +236,13 @@ function OutletLocationPanel({
               </option>
             ))}
           </EnterpriseSelect>
+        </EnterpriseField>
+        <EnterpriseField label="Region">
+          <EnterpriseInput
+            value={region}
+            onChange={(event) => setRegion(event.target.value)}
+            placeholder="Contoh: Jawa Tengah"
+          />
         </EnterpriseField>
         <EnterpriseField label="Latitude">
           <EnterpriseInput value={latitude} onChange={(event) => setLatitude(event.target.value)} />
@@ -239,7 +257,7 @@ function OutletLocationPanel({
         disabled={isSaving || selectedOutletId === ""}
         className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
       >
-        {isSaving ? "Menyimpan..." : "Simpan lokasi outlet"}
+        {isSaving ? "Menyimpan..." : "Simpan outlet"}
       </button>
     </SectionCard>
   );

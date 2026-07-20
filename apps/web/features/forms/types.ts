@@ -19,11 +19,14 @@ export type FormFieldOptions = {
   showWhenFieldId?: string;
   showWhenValue?: string;
   choices?: string[];
+  allow_na?: boolean;
 };
 
 export type FormFieldValidation = {
   min?: number;
   max?: number;
+  weight?: number;
+  critical?: boolean;
 };
 
 export type FormField = {

@@ -896,6 +896,71 @@ export function FormsWorkspace() {
                       </div>
                     ) : null}
 
+                    {field.type === "yes_no" ? (
+                      <label className="flex items-center gap-2 text-sm text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={field.options?.allow_na ?? false}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              options: {
+                                ...field.options,
+                                allow_na: event.target.checked,
+                              },
+                            })
+                          }
+                          className="rounded border-slate-300"
+                        />
+                        Izinkan opsi N/A / Tidak Berlaku
+                      </label>
+                    ) : null}
+
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <label className="grid gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Bobot skor
+                        </span>
+                        <input
+                          type="number"
+                          min={0.1}
+                          step={0.1}
+                          value={field.validation?.weight ?? ""}
+                          readOnly={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              validation: {
+                                ...field.validation,
+                                weight:
+                                  event.target.value === ""
+                                    ? undefined
+                                    : Number(event.target.value),
+                              },
+                            })
+                          }
+                          placeholder="Default: 1"
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        />
+                      </label>
+                      <label className="flex items-end gap-2 pb-2 text-sm text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={field.validation?.critical ?? false}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              validation: {
+                                ...field.validation,
+                                critical: event.target.checked || undefined,
+                              },
+                            })
+                          }
+                          className="rounded border-slate-300"
+                        />
+                        Item kritis (gagal = checklist fail)
+                      </label>
+                    </div>
+
                     {field.type === "select" ? (
                       <div className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">

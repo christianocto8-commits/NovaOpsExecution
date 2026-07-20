@@ -150,6 +150,7 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
     choices: Array.isArray(options.choices)
       ? options.choices.filter((value): value is string => typeof value === "string")
       : undefined,
+    allow_na: options.allow_na === true,
   };
 }
 
@@ -159,12 +160,16 @@ function parseFieldValidation(validationJson: unknown): FormFieldValidation | un
   const validation = validationJson as FormFieldValidation;
   const min = validation.min != null ? Number(validation.min) : undefined;
   const max = validation.max != null ? Number(validation.max) : undefined;
+  const weight = validation.weight != null ? Number(validation.weight) : undefined;
+  const critical = validation.critical === true;
 
-  if (min == null && max == null) return undefined;
+  if (min == null && max == null && weight == null && !critical) return undefined;
 
   return {
     min: Number.isFinite(min) ? min : undefined,
     max: Number.isFinite(max) ? max : undefined,
+    weight: Number.isFinite(weight) && weight! > 0 ? weight : undefined,
+    critical: critical || undefined,
   };
 }
 

@@ -52,3 +52,19 @@ class OutletRepository:
         self.db.commit()
         self.db.refresh(outlet)
         return outlet
+
+    def update_outlet(
+        self,
+        outlet_id: int,
+        *,
+        region: str | None = None,
+    ) -> Outlet | None:
+        outlet = self.get_outlet_by_id(outlet_id)
+        if not outlet:
+            return None
+
+        outlet.region = region.strip() if region and region.strip() else None
+        self.db.add(outlet)
+        self.db.commit()
+        self.db.refresh(outlet)
+        return outlet

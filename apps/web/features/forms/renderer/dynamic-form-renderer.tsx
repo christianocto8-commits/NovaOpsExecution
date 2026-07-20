@@ -75,8 +75,11 @@ export function DynamicFormRenderer({
 
             <div className="mt-3">
               {field.type === "yes_no" ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {["Yes", "No"].map((option) => (
+                <div
+                  className={`grid gap-2 ${field.options?.allow_na ? "grid-cols-3" : "grid-cols-2"}`}
+                >
+                  {(["Yes", "No", ...(field.options?.allow_na ? (["N/A"] as const) : [])] as const).map(
+                    (option) => (
                     <button
                       key={option}
                       type="button"
@@ -84,11 +87,13 @@ export function DynamicFormRenderer({
                       onClick={() => updateResponse(field.id, option)}
                       className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
                         value === option
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          ? option === "N/A"
+                            ? "border-slate-300 bg-slate-100 text-slate-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       } disabled:cursor-not-allowed`}
                     >
-                      {option === "Yes" ? "Ya" : "Tidak"}
+                      {option === "Yes" ? "Ya" : option === "No" ? "Tidak" : "Tidak Berlaku"}
                     </button>
                   ))}
                 </div>

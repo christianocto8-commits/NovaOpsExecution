@@ -13,6 +13,7 @@ class Outlet(Base):
     name = Column(String(120), nullable=False)
     code = Column(String(50), nullable=False, unique=True, index=True)
     address = Column(String(255), nullable=True)
+    region = Column(String(100), nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)

@@ -130,6 +130,9 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
   await taskService.submitExecution(mutation.taskId, {
     form_template_id: (payload.form_template_id as number | null) ?? null,
     answers_json: answersJson,
+    latitude: typeof payload.latitude === "number" ? payload.latitude : null,
+    longitude: typeof payload.longitude === "number" ? payload.longitude : null,
+    accuracy_m: typeof payload.accuracy_m === "number" ? payload.accuracy_m : null,
   });
 
   await deleteLocalDraft(mutation.taskId);

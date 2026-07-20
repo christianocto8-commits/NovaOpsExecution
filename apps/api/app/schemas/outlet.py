@@ -15,6 +15,7 @@ class OutletResponse(BaseModel):
     name: str
     code: str
     address: str | None = None
+    region: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     is_active: bool
@@ -25,6 +26,10 @@ class OutletResponse(BaseModel):
 class OutletLocationUpdate(BaseModel):
     latitude: float
     longitude: float
+
+
+class OutletUpdate(BaseModel):
+    region: str | None = None
 
 
 class CurrentOutletResponse(BaseModel):

@@ -143,6 +143,147 @@ def test_score_checklist_without_template_returns_pass(db: Session):
         "passed_count": 0,
         "failed_count": 0,
         "total_scorable": 0,
+        "na_count": 0,
         "failed_items": [],
+        "critical_failures": [],
         "status": "pass",
     }
+
+
+def test_score_checklist_na_answer_excluded_from_scoring(db: Session):
+    template = FormTemplate(
+        title="NA Test",
+        description="Template with N/A yes/no",
+        form_type="test",
+        outlet_id=None,
+        created_by=1,
+        is_active=True,
+    )
+    db.add(template)
+    db.flush()
+
+    field = FormField(
+        form_template_id=template.id,
+        label="Optional check",
+        field_type="yes_no",
+        is_required=True,
+        sort_order=0,
+        options_json={"allow_na": True},
+    )
+    db.add(field)
+    db.commit()
+    db.refresh(template)
+    db.refresh(field)
+
+    result = score_checklist(
+        db,
+        form_template_id=template.id,
+        answers_json={"responses": {str(field.id): "N/A"}},
+    )
+
+    assert result["na_count"] == 1
+    assert result["total_scorable"] == 0
+    assert result["score"] == 100
+    assert result["status"] == "pass"
+
+
+def test_score_checklist_critical_failure_forces_fail(db: Session):
+    template = FormTemplate(
+        title="Critical Test",
+        description="Template with critical field",
+        form_type="test",
+        outlet_id=None,
+        created_by=1,
+        is_active=True,
+    )
+    db.add(template)
+    db.flush()
+
+    fields = [
+        FormField(
+            form_template_id=template.id,
+            label="Critical safety",
+            field_type="yes_no",
+            is_required=True,
+            sort_order=0,
+            validation_json={"critical": True, "weight": 2},
+        ),
+        FormField(
+            form_template_id=template.id,
+            label="Minor check",
+            field_type="yes_no",
+            is_required=True,
+            sort_order=1,
+            validation_json={"weight": 1},
+        ),
+    ]
+    db.add_all(fields)
+    db.commit()
+    for field in fields:
+        db.refresh(field)
+
+    result = score_checklist(
+        db,
+        form_template_id=template.id,
+        answers_json={
+            "responses": {
+                str(fields[0].id): "no",
+                str(fields[1].id): "yes",
+            }
+        },
+    )
+
+    assert result["status"] == "fail"
+    assert len(result["critical_failures"]) == 1
+    assert result["critical_failures"][0]["label"] == "Critical safety"
+    assert result["score"] == 33
+
+
+def test_score_checklist_weighted_score(db: Session):
+    template = FormTemplate(
+        title="Weighted Test",
+        description="Template with weighted fields",
+        form_type="test",
+        outlet_id=None,
+        created_by=1,
+        is_active=True,
+    )
+    db.add(template)
+    db.flush()
+
+    fields = [
+        FormField(
+            form_template_id=template.id,
+            label="Heavy item",
+            field_type="yes_no",
+            is_required=True,
+            sort_order=0,
+            validation_json={"weight": 3},
+        ),
+        FormField(
+            form_template_id=template.id,
+            label="Light item",
+            field_type="yes_no",
+            is_required=True,
+            sort_order=1,
+            validation_json={"weight": 1},
+        ),
+    ]
+    db.add_all(fields)
+    db.commit()
+    for field in fields:
+        db.refresh(field)
+
+    result = score_checklist(
+        db,
+        form_template_id=template.id,
+        answers_json={
+            "responses": {
+                str(fields[0].id): "yes",
+                str(fields[1].id): "no",
+            }
+        },
+    )
+
+    assert result["score"] == 75
+    assert result["failed_count"] == 1

@@ -259,7 +259,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-4">
+              <div className="mt-4 grid gap-4 sm:grid-cols-5">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs text-slate-500">Score</p>
                   <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.score}%</p>
@@ -276,7 +276,29 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                   <p className="text-xs text-slate-500">Scorable</p>
                   <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.total_scorable}</p>
                 </div>
+                <div className="rounded-2xl bg-slate-100 p-4">
+                  <p className="text-xs text-slate-500">N/A</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-700">{checklist.na_count ?? 0}</p>
+                </div>
               </div>
+
+              {(checklist.critical_failures?.length ?? 0) > 0 ? (
+                <div className="mt-5 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
+                    Critical Failures
+                  </p>
+                  {(checklist.critical_failures ?? []).map((item) => (
+                    <div
+                      key={`critical-${item.field_id}-${item.label}`}
+                      className="rounded-2xl border-2 border-red-300 bg-red-100 p-4"
+                    >
+                      <p className="font-bold text-red-950">{item.label}</p>
+                      <p className="mt-1 text-sm text-red-800">Value: {item.value || "-"}</p>
+                      <p className="mt-1 text-sm font-semibold text-red-700">{item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               {checklist.failed_items.length > 0 ? (
                 <div className="mt-5 space-y-3">
@@ -288,7 +310,14 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                       key={`${item.field_id}-${item.label}`}
                       className="rounded-2xl border border-red-100 bg-red-50 p-4"
                     >
-                      <p className="font-semibold text-red-950">{item.label}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-red-950">{item.label}</p>
+                        {item.critical ? (
+                          <span className="rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold uppercase text-red-800">
+                            Kritis
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-sm text-red-800">
                         Value: {item.value || "-"}
                       </p>

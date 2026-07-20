@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import get_permissions_for_role
 from app.repositories.outlet_repository import OutletRepository
-from app.schemas.outlet import CurrentOutletResponse, OutletLocationUpdate, OutletResponse
+from app.schemas.outlet import CurrentOutletResponse, OutletLocationUpdate, OutletResponse, OutletUpdate
 
 MANAGER_ADMIN_OUTLET_ROLES = {
     "Owner",
@@ -83,6 +83,24 @@ def update_outlet_location(
         latitude=payload.latitude,
         longitude=payload.longitude,
     )
+
+    if not outlet:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Outlet not found")
+
+    return outlet
+
+
+@router.patch("/{outlet_id}", response_model=OutletResponse)
+def update_outlet(
+    outlet_id: int,
+    payload: OutletUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    ensure_outlet_manager_access(db, current_user.id, outlet_id)
+
+    repo = OutletRepository(db)
+    outlet = repo.update_outlet(outlet_id, region=payload.region)
 
     if not outlet:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Outlet not found")

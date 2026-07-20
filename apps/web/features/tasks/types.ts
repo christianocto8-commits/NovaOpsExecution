@@ -81,6 +81,7 @@ export type ChecklistFailedItem = {
   label: string;
   value: string | null;
   reason: string;
+  critical?: boolean;
 };
 
 export type ChecklistScore = {
@@ -88,7 +89,9 @@ export type ChecklistScore = {
   passed_count: number;
   failed_count: number;
   total_scorable: number;
+  na_count?: number;
   failed_items: ChecklistFailedItem[];
+  critical_failures?: ChecklistFailedItem[];
   status: "pass" | "attention" | "fail";
 };
 

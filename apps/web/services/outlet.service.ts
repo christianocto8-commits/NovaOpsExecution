@@ -6,6 +6,7 @@ export type LegacyOutlet = {
   name: string;
   code: string;
   address: string | null;
+  region: string | null;
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
@@ -29,6 +30,13 @@ export const outletService = {
 
   async updateLocation(outletId: number, payload: { latitude: number; longitude: number }) {
     return api<LegacyOutlet>(`/api/v1/outlets/${outletId}/location`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateOutlet(outletId: number, payload: { region?: string | null }) {
+    return api<LegacyOutlet>(`/api/v1/outlets/${outletId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
