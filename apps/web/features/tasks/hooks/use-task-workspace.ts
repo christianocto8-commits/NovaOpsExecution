@@ -400,7 +400,7 @@ export function useTaskWorkspace() {
     },
   });
 
-  async function deleteTask(id: string) {
+  const completeTaskMutation = useMutation({
     mutationFn: async ({ task, form }: { task: Task; form: TaskExecutionForm }) => {
       await taskService.submitExecution(task.id, {
         form_template_id: getNumericFormTemplateId(task.formTemplateId),
