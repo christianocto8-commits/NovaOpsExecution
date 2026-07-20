@@ -219,7 +219,7 @@ function OutletSettingsWorkspace({
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
       <div className="grid gap-4 xl:grid-cols-4">
         <MetricCard label="Role" value="Outlet" />
-        <MetricCard label="Approval" value={settings?.approval_required ? "Review owner/admin" : "Auto approve"} />
+        <MetricCard label="Submit" value="Auto complete" />
         <MetricCard label="Evidence" value={settings?.evidence_required ? "Required" : "Optional"} />
         <MetricCard label="Upload" value={`${settings?.max_upload_mb ?? defaults.max_upload_mb} MB`} />
       </div>
@@ -303,7 +303,7 @@ function AreaManagerSettingsWorkspace({
       <SectionCard title="Ringkasan Operasional Area">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <ActionCard title="Alert dashboard" description="Status alert untuk area manager." action={<span className="text-sm font-semibold text-slate-900">{settings?.dashboard_alerts ? "Aktif" : "Mati"}</span>} />
-          <ActionCard title="Email notifikasi" description="Pengingat laporan dan task area." action={<span className="text-sm font-semibold text-slate-900">{settings?.email_notifications ? "Aktif" : "Mati"}</span>} />
+          <ActionCard title="Overdue alerts" description="Peringatan keterlambatan task di area." action={<span className="text-sm font-semibold text-slate-900">{settings?.overdue_alerts ? "Aktif" : "Mati"}</span>} />
           <ActionCard title="Grouping outlet" description="Pengelompokan outlet di dashboard." action={<span className="text-sm font-semibold text-slate-900">{settings?.outlet_grouping ?? defaults.outlet_grouping}</span>} />
         </div>
       </SectionCard>
@@ -330,7 +330,8 @@ export function SettingsWorkspace() {
   const summaryCards = useMemo(
     () => [
       { label: "Timezone", value: state.timezone },
-      { label: "Approval", value: state.approval_required ? "Wajib" : "Opsional" },
+      { label: "Pass score", value: `${state.pass_threshold}%` },
+      { label: "Photo evidence", value: state.photo_required_by_default ? "Wajib" : "Opsional" },
       { label: "Evidence", value: state.evidence_required ? "Required" : "Optional" },
       { label: "Security", value: state.enforce_role_permissions ? "Guarded" : "Basic" },
     ],
@@ -526,46 +527,20 @@ export function SettingsWorkspace() {
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Execution Controls">
           <div className="space-y-4">
-            <ActionCard title="Approval required" description="Submission outlet harus direview." action={<EnterpriseCheckbox checked={state.approval_required} onChange={(event) => update("approval_required", event.target.checked)} />} />
             <ActionCard title="Evidence required" description="Task wajib membawa evidence." action={<EnterpriseCheckbox checked={state.evidence_required} onChange={(event) => update("evidence_required", event.target.checked)} />} />
-            <ActionCard title="Photo required by default" description="Form baru otomatis minta bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
+            <ActionCard title="Photo required by default" description="Submit task outlet wajib sertakan bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
             <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
           </div>
         </SectionCard>
 
-        <SectionCard title="Notifications & Security">
+        <SectionCard title="Notifications">
           <div className="space-y-4">
-            <ActionCard title="Email notifications" description="Kirim notifikasi penting ke email." action={<EnterpriseCheckbox checked={state.email_notifications} onChange={(event) => update("email_notifications", event.target.checked)} />} />
             <ActionCard title="Dashboard alerts" description="Tampilkan alert operasional di dashboard." action={<EnterpriseCheckbox checked={state.dashboard_alerts} onChange={(event) => update("dashboard_alerts", event.target.checked)} />} />
             <ActionCard title="Overdue alerts" description="Peringatan untuk task yang melewati due time." action={<EnterpriseCheckbox checked={state.overdue_alerts} onChange={(event) => update("overdue_alerts", event.target.checked)} />} />
-            <ActionCard title="Two-factor required" description="Wajibkan 2FA untuk owner/admin." action={<EnterpriseCheckbox checked={state.two_factor_required} onChange={(event) => update("two_factor_required", event.target.checked)} />} />
           </div>
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <EnterpriseField label="Digest frequency">
-              <EnterpriseSelect
-                value={state.digest_frequency}
-                onChange={(event) => update("digest_frequency", event.target.value)}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Password rotation days">
-              <EnterpriseInput
-                type="number"
-                value={state.password_rotation_days}
-                onChange={(event) => update("password_rotation_days", Number(event.target.value || 0))}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Session timeout (minutes)">
-              <EnterpriseInput
-                type="number"
-                value={state.session_timeout_minutes}
-                onChange={(event) => update("session_timeout_minutes", Number(event.target.value || 0))}
-              />
-            </EnterpriseField>
-          </div>
+          <p className="mt-4 text-sm text-slate-500">
+            Email, digest, 2FA, dan rotasi password belum tersedia — akan ditambahkan di update berikutnya.
+          </p>
         </SectionCard>
       </div>
 

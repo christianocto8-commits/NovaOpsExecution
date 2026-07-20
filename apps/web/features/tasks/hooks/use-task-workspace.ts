@@ -12,7 +12,6 @@ import {
   TaskExecution,
   TaskExecutionForm,
   TaskFormState,
-  TaskReviewStatus,
 } from "@/features/tasks/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
@@ -177,6 +176,32 @@ function parseEvidenceGallery(value: string): EvidenceItem[] {
   } catch {
     return [];
   }
+}
+
+function hasPhotoEvidence(evidenceText: string) {
+  const galleryItems = parseEvidenceGallery(evidenceText);
+  return galleryItems.some((item) => /uploads\/evidence|\.(jpg|jpeg|png|webp|heic)/i.test(item.url));
+}
+
+function validateExecutionSubmit(
+  form: TaskExecutionForm,
+  settings?: {
+    photo_required_by_default?: boolean;
+    evidence_required?: boolean;
+  } | null
+) {
+  if (settings?.photo_required_by_default && !hasPhotoEvidence(form.evidenceText)) {
+    return "Bukti foto wajib diunggah.";
+  }
+
+  if (settings?.evidence_required) {
+    const hasEvidence = Boolean(form.evidenceText.trim()) || Boolean(form.note.trim());
+    if (!hasEvidence) {
+      return "Evidence atau catatan wajib diisi.";
+    }
+  }
+
+  return null;
 }
 
 function buildTaskEvidence(value: string, submittedAt: string) {
@@ -375,39 +400,12 @@ export function useTaskWorkspace() {
     },
   });
 
-  const reviewTaskMutation = useMutation({
-    mutationFn: ({
-      taskId,
-      review,
-      note,
-    }: {
-      taskId: string;
-      review: "approved" | "rejected";
-      note: string;
-    }) => taskService.review(taskId, review, note),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
-  });
-
-  const completeTaskMutation = useMutation({
+  async function deleteTask(id: string) {
     mutationFn: async ({ task, form }: { task: Task; form: TaskExecutionForm }) => {
-      await createExecutionSession({
-        task_id: Number(task.id),
+      await taskService.submitExecution(task.id, {
         form_template_id: getNumericFormTemplateId(task.formTemplateId),
-        source_type: "sop_task",
-        status: "completed",
         answers_json: buildExecutionAnswers(task, form),
-        submitted_by: null,
       });
-
-      if (task.status === "Pending") {
-        await taskService.updateStatus(task.id, "in_progress");
-      }
-
-      if (approvalRequired) {
-        return;
-      }
-
-      await taskService.updateStatus(task.id, "completed");
     },
     onSuccess: async () => {
       await Promise.all([
@@ -551,26 +549,6 @@ export function useTaskWorkspace() {
 
   function closeDetail() {
     setSelectedTask(null);
-  }
-
-  async function reviewTaskExecution(taskId: string, review: TaskReviewStatus, note: string) {
-    if (review !== "approved" && review !== "rejected") {
-      return;
-    }
-
-    if (!backendConnected || !isBackendTaskId(taskId)) {
-      toast.error("Review hanya tersedia saat backend aktif.");
-      return;
-    }
-
-    try {
-      await reviewTaskMutation.mutateAsync({ taskId, review, note });
-      toast.success(review === "approved" ? "Evidence disetujui." : "Evidence ditolak.");
-      closeDetail();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal memproses review.";
-      toast.error(message);
-    }
   }
 
   async function deleteTask(id: string) {
@@ -724,6 +702,12 @@ export function useTaskWorkspace() {
       return;
     }
 
+    const validationError = validateExecutionSubmit(executionForm, settings);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     if (isOnline && backendConnected) {
       try {
         const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
@@ -838,7 +822,6 @@ export function useTaskWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
-    reviewTaskExecution,
     deleteTask,
     executionForm,
     setExecutionForm,

@@ -14,6 +14,8 @@ from app.schemas.reports import (
     ReportSummary,
     ReportTrendPoint,
 )
+from app.services.execution_validation import compliance_score
+from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -29,6 +31,10 @@ def get_report_summary(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    del current_user
+
+    workspace_settings = get_workspace_settings(db)
+    pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
     total = db.query(func.count(Task.id)).scalar() or 0
     completed = (
@@ -51,10 +57,9 @@ def get_report_summary(
         .scalar()
         or 0
     )
-    approved = db.query(func.count(Task.id)).filter(Task.approved_by.isnot(None)).scalar() or 0
 
     completion_rate = _completion_rate(completed, total)
-    compliance_rate = _completion_rate(approved, completed) if completed else completion_rate
+    compliance_rate = compliance_score(completion_rate, pass_threshold)
 
     return ReportSummary(
         completion_rate=completion_rate,
@@ -70,6 +75,10 @@ def get_report_trends(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    del current_user
+
+    workspace_settings = get_workspace_settings(db)
+    pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
     trends: list[ReportTrendPoint] = []
 
@@ -110,12 +119,13 @@ def get_report_trends(
             or 0
         )
 
+        day_completion = _completion_rate(completed, day_total)
         trends.append(
             ReportTrendPoint(
                 date=label,
                 completed=completed,
                 overdue=overdue,
-                compliance=_completion_rate(completed, day_total),
+                compliance=compliance_score(day_completion, pass_threshold),
             )
         )
 
@@ -127,6 +137,10 @@ def get_outlet_reports(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    del current_user
+
+    workspace_settings = get_workspace_settings(db)
+    pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
     outlets = db.query(Outlet).order_by(Outlet.id.asc()).all()
     reports: list[OutletReport] = []
@@ -151,15 +165,9 @@ def get_outlet_reports(
             .scalar()
             or 0
         )
-        approved = (
-            db.query(func.count(Task.id))
-            .filter(Task.outlet_id == outlet.id, Task.approved_by.isnot(None))
-            .scalar()
-            or 0
-        )
 
         completion_rate = _completion_rate(completed, total)
-        compliance_rate = _completion_rate(approved, completed) if completed else completion_rate
+        outlet_compliance = compliance_score(completion_rate, pass_threshold)
 
         reports.append(
             OutletReport(
@@ -167,8 +175,8 @@ def get_outlet_reports(
                 outlet_name=outlet.name,
                 completion_rate=completion_rate,
                 overdue_tasks=overdue,
-                compliance_rate=compliance_rate,
-                audit_score=compliance_rate,
+                compliance_rate=outlet_compliance,
+                audit_score=outlet_compliance,
             )
         )
 
@@ -180,13 +188,17 @@ def get_compliance_reports(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    del current_user
+
+    workspace_settings = get_workspace_settings(db)
+    pass_threshold = workspace_settings.pass_threshold
     summary = get_report_summary(db=db, current_user=current_user)
 
     return [
         ComplianceReport(
             category="Task Completion",
             score=summary.completion_rate,
-            status="healthy" if summary.completion_rate >= 85 else "attention",
+            status="healthy" if summary.completion_rate >= pass_threshold else "attention",
         ),
         ComplianceReport(
             category="Overdue Control",
@@ -194,8 +206,8 @@ def get_compliance_reports(
             status="healthy" if summary.overdue_tasks <= 3 else "attention",
         ),
         ComplianceReport(
-            category="Approval Compliance",
+            category="Pass Threshold",
             score=summary.compliance_rate,
-            status="healthy" if summary.compliance_rate >= 85 else "attention",
+            status="healthy" if summary.completion_rate >= pass_threshold else "attention",
         ),
     ]

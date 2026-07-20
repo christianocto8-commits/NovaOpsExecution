@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,11 @@ class TaskStatusUpdate(BaseModel):
 class TaskReviewUpdate(BaseModel):
     review: Literal["approved", "rejected"]
     note: str | None = None
+
+
+class TaskExecutionSubmit(BaseModel):
+    form_template_id: int | None = None
+    answers_json: dict[str, Any]
 
 
 class TaskCommentCreate(BaseModel):

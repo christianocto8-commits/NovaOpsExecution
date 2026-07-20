@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import {
-  AlertTriangle,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -11,16 +10,14 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import { useState } from "react";
 
-import { Task, TaskActivityType, TaskEvidenceType, TaskReviewStatus } from "../types";
+import { Task, TaskActivityType, TaskEvidenceType } from "../types";
 import { formatTaskSchedule } from "../utils";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
   onClose: () => void;
   onEdit?: (task: Task) => void;
-  onReview?: (taskId: string, review: TaskReviewStatus, note: string) => void;
 };
 
 function getStatusClass(status: string) {
@@ -64,266 +61,105 @@ function getActivityStyle(type: TaskActivityType) {
     return { icon: UserCheck, className: "border-blue-100 bg-blue-50 text-blue-700" };
   if (type === "evidence_submitted" || type === "draft_saved")
     return { icon: FileText, className: "border-violet-100 bg-violet-50 text-violet-700" };
-  if (type === "review_approved")
-    return { icon: CheckCircle2, className: "border-emerald-100 bg-emerald-50 text-emerald-700" };
-  if (type === "review_rejected")
-    return { icon: AlertTriangle, className: "border-red-100 bg-red-50 text-red-700" };
   return { icon: ClipboardList, className: "border-slate-200 bg-white text-slate-600" };
 }
 
-function getReviewStatusLabel(status?: TaskReviewStatus) {
-  if (status === "approved") return "Approved";
-  if (status === "rejected") return "Rejected";
-  return "Pending Review";
-}
-
-function getReviewStatusClass(status?: TaskReviewStatus) {
-  if (status === "approved") return "border-emerald-100 bg-emerald-50 text-emerald-700";
-  if (status === "rejected") return "border-red-100 bg-red-50 text-red-700";
-  return "border-amber-100 bg-amber-50 text-amber-700";
-}
-
-export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetailDrawerProps) {
-  const [reviewNote, setReviewNote] = useState("");
-
+export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProps) {
   if (!task) return null;
 
   const hasExecution = Boolean(task.execution);
   const hasDraft = Boolean(task.executionDraft);
   const activities = task.activity ?? [];
-  const reviewStatus = task.execution?.reviewStatus;
-  const canReview = Boolean(onReview && task.execution && reviewStatus !== "approved");
-
-  function submitReview(review: TaskReviewStatus) {
-    if (!task || !onReview) return;
-
-    if (review === "rejected" && !reviewNote.trim()) {
-      window.alert("Review note wajib diisi saat evidence ditolak.");
-      return;
-    }
-
-    onReview(
-      task.id,
-      review,
-      reviewNote.trim() ||
-        (review === "approved"
-          ? "Evidence reviewed and accepted."
-          : "Evidence rejected. Corrective follow-up required.")
-    );
-    setReviewNote("");
-  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="h-full w-full max-w-xl overflow-y-auto border-l border-slate-200 bg-white shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 p-6 backdrop-blur">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                {task.id}
-              </p>
-              <h2 className="mt-1 text-xl font-bold text-slate-950">{task.title}</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(task.status)}`}
-                >
-                  {task.status}
-                </span>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${getPriorityClass(task.priority)}`}
-                >
-                  {task.priority}
-                </span>
-                {hasDraft ? (
-                  <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                    Draft Saved
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-sm">
+      <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-slate-50 shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Task Detail</p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-950">{task.title}</h2>
+            <p className="mt-1 text-sm text-slate-500">{task.outlet}</p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
-            <h3 className="text-sm font-bold text-slate-950">Task Information</h3>
-
-            <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-              <div>
-                <p className="text-slate-400">Outlet</p>
-                <p className="font-semibold text-slate-800">{task.outlet}</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Assignee</p>
-                <p className="font-semibold text-slate-800">{task.assignee}</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Schedule</p>
-                <p className="font-semibold text-slate-800">{formatTaskSchedule(task)}</p>
-              </div>
-              <div>
-                <p className="text-slate-400">Execution Status</p>
-                <p className="font-semibold text-slate-800">
-                  {hasExecution ? "Submitted" : hasDraft ? "Draft saved" : "Not submitted"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-sm text-slate-400">Description</p>
-              <p className="mt-1 text-sm leading-6 text-slate-700">{task.description}</p>
-            </div>
-          </section>
-
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={() => onEdit(task)}
-              className="w-full rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
-            >
-              Edit Task
-            </button>
-          ) : null}
-
-          {task.executionDraft && !task.execution ? (
-            <section className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
-              <h3 className="text-sm font-bold text-blue-950">Saved Execution Draft</h3>
-              <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <p className="text-blue-500">Operator</p>
-                  <p className="font-semibold text-blue-950">
-                    {task.executionDraft.operatorName || "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-blue-500">Position</p>
-                  <p className="font-semibold text-blue-950">
-                    {task.executionDraft.operatorPosition}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-sm text-blue-500">Draft Note</p>
-                <p className="mt-1 text-sm leading-6 text-blue-900">
-                  {task.executionDraft.note || "No note yet."}
-                </p>
-              </div>
-              <div className="mt-4">
-                <p className="text-sm text-blue-500">Draft Evidence</p>
-                <p className="mt-1 break-words text-sm leading-6 text-blue-900">
-                  {task.executionDraft.evidenceText || "No evidence yet."}
-                </p>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-slate-950">Outlet Execution Audit</h3>
-              <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  hasExecution
-                    ? getReviewStatusClass(reviewStatus)
-                    : hasDraft
-                      ? "border-blue-100 bg-blue-50 text-blue-700"
-                      : "border-slate-200 bg-white text-slate-500"
-                }`}
-              >
-                {hasExecution
-                  ? getReviewStatusLabel(reviewStatus)
-                  : hasDraft
-                    ? "Draft saved"
-                    : "Waiting evidence"}
+            <div className="flex flex-wrap gap-2">
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(task.status)}`}>
+                {task.status}
+              </span>
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getPriorityClass(task.priority)}`}>
+                {task.priority}
               </span>
             </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assignee</p>
+                <p className="mt-1 font-medium text-slate-900">{task.assignee || "Unassigned"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
+                <p className="mt-1 font-medium text-slate-900">{task.due || "No due date"}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
+                <p className="mt-1 font-medium text-slate-900">{formatTaskSchedule(task)}</p>
+              </div>
+            </div>
+            {task.description ? (
+              <p className="mt-4 text-sm leading-6 text-slate-600">{task.description}</p>
+            ) : null}
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(task)}
+                className="mt-4 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
+              >
+                Edit Task
+              </button>
+            ) : null}
+          </section>
 
-            {task.execution ? (
-              <div className="mt-4 space-y-5 text-sm">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-slate-400">Operator</p>
-                    <p className="font-semibold text-slate-800">{task.execution.operatorName}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-400">Position</p>
-                    <p className="font-semibold text-slate-800">
-                      {task.execution.operatorPosition}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-400">Completed At</p>
-                    <p className="font-semibold text-slate-800">{task.execution.completedAt}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-400">Evidence Count</p>
-                    <p className="font-semibold text-slate-800">{task.execution.evidence.length}</p>
-                  </div>
-                </div>
+          <section className="rounded-3xl border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-bold text-slate-950">Execution Evidence</h3>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                    Execution Note
+            {hasExecution ? (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Operator</p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {task.execution?.operatorName} · {task.execution?.operatorPosition}
                   </p>
-                  <p className="mt-2 leading-6 text-slate-700">{task.execution.note}</p>
+                  {task.execution?.completedAt ? (
+                    <p className="mt-2 text-xs text-slate-500">Submitted {task.execution.completedAt}</p>
+                  ) : null}
+                  {task.execution?.note ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{task.execution.note}</p>
+                  ) : null}
                 </div>
-
-                {task.execution.reviewedAt ? (
-                  <div
-                    className={`rounded-2xl border p-4 ${getReviewStatusClass(
-                      task.execution.reviewStatus
-                    )}`}
-                  >
-                    <p className="text-xs font-bold uppercase tracking-wide">Owner Review</p>
-                    <p className="mt-2 text-sm font-semibold">
-                      {getReviewStatusLabel(task.execution.reviewStatus)} by{" "}
-                      {task.execution.reviewedBy} at {task.execution.reviewedAt}
-                    </p>
-                    <p className="mt-1 text-sm leading-6">
-                      {task.execution.reviewNote || "No review note."}
-                    </p>
-                  </div>
-                ) : null}
 
                 <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                    Evidence Attachments
-                  </p>
-
-                  {task.execution.evidence.map((evidence) => {
+                  {(task.execution?.evidence ?? []).map((evidence) => {
                     const evidenceStyle = getEvidenceStyle(evidence.type);
                     const EvidenceIcon = evidenceStyle.icon;
-                    const isUrl = evidence.type === "url";
+                    const isUrl = /^https?:\/\//i.test(evidence.value);
 
                     return (
-                      <div
-                        key={evidence.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${evidenceStyle.className}`}
-                          >
+                      <div key={`${evidence.type}-${evidence.value}`} className="rounded-2xl border border-slate-200 p-4">
+                        <div className="flex gap-3">
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${evidenceStyle.className}`}>
                             <EvidenceIcon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wide ${evidenceStyle.className}`}
-                              >
+                              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wide ${evidenceStyle.className}`}>
                                 {evidenceStyle.label}
                               </span>
                               <p className="text-xs text-slate-400">{evidence.submittedAt}</p>
@@ -351,39 +187,6 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetail
                     );
                   })}
                 </div>
-
-                {canReview ? (
-                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-bold text-slate-950">Evidence Review Decision</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">
-                      Approve evidence when SOP execution is acceptable. Reject it when the outlet
-                      needs to correct and resubmit.
-                    </p>
-                    <textarea
-                      value={reviewNote}
-                      onChange={(event) => setReviewNote(event.target.value)}
-                      rows={3}
-                      placeholder="Review note for outlet or corrective action"
-                      className="mt-3 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-                    />
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => submitReview("rejected")}
-                        className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
-                      >
-                        Reject & Request Fix
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => submitReview("approved")}
-                        className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
-                      >
-                        Approve Evidence
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
@@ -410,9 +213,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetail
                         <div className="absolute left-5 top-11 h-full w-px bg-slate-200" />
                       ) : null}
 
-                      <div
-                        className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${activityStyle.className}`}
-                      >
+                      <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${activityStyle.className}`}>
                         <ActivityIcon className="h-4 w-4" />
                       </div>
 
@@ -421,12 +222,8 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onReview }: TaskDetail
                           <p className="font-semibold text-slate-900">{activity.title}</p>
                           <p className="text-xs text-slate-400">{activity.timestamp}</p>
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                          {activity.description}
-                        </p>
-                        <p className="mt-2 text-xs font-semibold text-slate-400">
-                          Actor: {activity.actor}
-                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{activity.description}</p>
+                        <p className="mt-2 text-xs font-semibold text-slate-400">Actor: {activity.actor}</p>
                       </div>
                     </div>
                   );

@@ -1,5 +1,4 @@
 import { buildApiUrl } from "@/lib/api-url";
-import { getStoredWorkspace } from "@/shared/navigation/workspace-store";
 import {
   deleteEvidenceBlob,
   deleteLocalDraft,
@@ -128,35 +127,10 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
     (payload.answers_json as Record<string, unknown>) ?? {}
   );
 
-  const existingSessionId =
-    typeof payload.existingSessionId === "number"
-      ? payload.existingSessionId
-      : await findExistingDraftSessionId(mutation.taskId);
-
-  if (existingSessionId) {
-    await deleteExecutionSession(existingSessionId);
-  }
-
-  await createExecutionSession({
-    task_id: Number(payload.task_id),
+  await taskService.submitExecution(mutation.taskId, {
     form_template_id: (payload.form_template_id as number | null) ?? null,
-    source_type: "sop_task",
-    status: "completed",
     answers_json: answersJson,
-    submitted_by: null,
   });
-
-  const previousStatus = typeof payload.previousStatus === "string" ? payload.previousStatus : "Pending";
-  const isOutletWorkspace = getStoredWorkspace().mode === "outlet";
-  const approvalRequired = payload.approvalRequired === true && !isOutletWorkspace;
-
-  if (previousStatus === "Pending") {
-    await taskService.updateStatus(mutation.taskId, "in_progress");
-  }
-
-  if (!approvalRequired) {
-    await taskService.updateStatus(mutation.taskId, "completed");
-  }
 
   await deleteLocalDraft(mutation.taskId);
 }

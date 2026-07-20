@@ -512,7 +512,6 @@ export function TasksWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
-    reviewTaskExecution,
     executionForm,
     setExecutionForm,
     isExecutionOpen,
@@ -874,39 +873,6 @@ export function TasksWorkspace() {
           task={selectedTask}
           onClose={closeDetail}
           onEdit={isOwnerAdminWorkspace ? openEditTask : undefined}
-          onReview={
-            isOwnerAdminWorkspace
-              ? (taskId, review, note) => {
-                  reviewTaskExecution(taskId, review, note);
-
-                  if (review === "approved") {
-                    updateOutletTaskStoreItem(taskId, {
-                      status: "completed",
-                      progress: 100,
-                      score: 100,
-                      correctiveActionStatus: "resolved",
-                      correctiveActionResolvedAt: "Realtime",
-                    });
-                    return;
-                  }
-
-                  updateOutletTaskStoreItem(taskId, {
-                    status: "draft",
-                    score: 55,
-                    correctiveActionStatus: "open",
-                    correctiveActionOwner: "Store Manager",
-                    correctiveActionDue: "Today 18:00",
-                    correctiveActionNote: note,
-                  });
-                  setCorrectiveAction(taskId, {
-                    status: "open",
-                    owner: "Store Manager",
-                    due: "Today 18:00",
-                    note,
-                  });
-                }
-              : undefined
-          }
         />
       ) : null}
 

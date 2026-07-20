@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_health_is_public(client):
     response = client.get("/api/v1/health")
     assert response.status_code == 200
@@ -79,8 +82,39 @@ def test_evidence_upload_rejects_oversized_file(client, auth_headers):
     assert response.status_code == 400
     assert "1 MB" in response.json()["detail"]
 
+def test_submit_execution_requires_photo_when_enabled(client, auth_headers):
     client.put(
         "/api/v1/settings",
         headers=auth_headers,
-        json={"max_upload_mb": 10},
+        json={"photo_required_by_default": True},
+    )
+
+    tasks_response = client.get("/api/v1/tasks", headers=auth_headers)
+    assert tasks_response.status_code == 200
+    tasks = tasks_response.json()
+
+    if not tasks:
+        pytest.skip("No tasks available for submit execution test")
+
+    task_id = tasks[0]["id"]
+    response = client.post(
+        f"/api/v1/tasks/{task_id}/submit-execution",
+        headers=auth_headers,
+        json={
+            "answers_json": {
+                "operator": {"name": "Tester", "position": "Crew"},
+                "note": "No photo",
+                "evidence": "",
+                "responses": {},
+                "submittedAt": "2026-07-20T10:00:00Z",
+            }
+        },
+    )
+    assert response.status_code == 400
+    assert "foto" in response.json()["detail"].lower()
+
+    client.put(
+        "/api/v1/settings",
+        headers=auth_headers,
+        json={"photo_required_by_default": True},
     )

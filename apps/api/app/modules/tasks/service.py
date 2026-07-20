@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.execution_session import ExecutionSession
 from app.models.task import Task
 from app.models.task_assignment import TaskAssignment
 from app.models.task_comment import TaskComment
@@ -17,10 +18,13 @@ from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
     TaskCommentCreate,
     TaskCreate,
+    TaskExecutionSubmit,
     TaskReviewUpdate,
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.execution_validation import validate_task_execution_answers
+from app.services.workspace_settings import get_workspace_settings
 
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
@@ -248,6 +252,74 @@ class TaskService:
         self.db.refresh(task)
 
         if payload.status == "completed":
+            notify_task_completed_supervisors(
+                self.db,
+                task=task,
+                completed_by_identity_id=actor_identity_id,
+            )
+
+        return task
+
+    def submit_execution(
+        self,
+        task_id: int,
+        outlet_id: int,
+        actor_id: int,
+        payload: TaskExecutionSubmit,
+        *,
+        actor_identity_id: UUID | None = None,
+    ) -> Task:
+        task = self.get_task(task_id, outlet_id)
+
+        if task.status in {"completed", "cancelled"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task is already closed",
+            )
+
+        validate_task_execution_answers(self.db, payload.answers_json)
+
+        self.db.query(ExecutionSession).filter(
+            ExecutionSession.task_id == task.id,
+            ExecutionSession.status == "draft",
+        ).delete(synchronize_session=False)
+
+        execution_session = ExecutionSession(
+            task_id=task.id,
+            form_template_id=payload.form_template_id,
+            source_type="sop_task",
+            status="completed",
+            answers_json=payload.answers_json,
+            submitted_by=actor_id,
+        )
+        self.db.add(execution_session)
+
+        workspace_settings = get_workspace_settings(self.db)
+        previous_status = task.status
+        completed = not workspace_settings.approval_required
+
+        if task.status == "open":
+            task.status = "in_progress"
+
+        if completed:
+            task.status = "completed"
+            task.completed_at = datetime.now(timezone.utc)
+
+        self.repo.create_comment(
+            TaskComment(
+                task_id=task.id,
+                user_id=actor_id,
+                comment="Evidence submitted by outlet",
+                event_type="completed" if completed else "evidence_submitted",
+                previous_value=previous_status,
+                new_value=task.status,
+            )
+        )
+
+        self.db.commit()
+        self.db.refresh(task)
+
+        if completed:
             notify_task_completed_supervisors(
                 self.db,
                 task=task,

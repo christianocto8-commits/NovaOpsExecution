@@ -17,7 +17,9 @@ from app.modules.tasks.schemas import (
     TaskCommentResponse,
     TaskCreate,
     TaskDetailResponse,
+    TaskExecutionSubmit,
     TaskResponse,
+    TaskExecutionSubmit,
     TaskReviewUpdate,
     TaskStatusUpdate,
     TaskUpdate,
@@ -280,6 +282,28 @@ def update_task_status(
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
     return service.update_status(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=actor_id,
+        payload=payload,
+        actor_identity_id=identity_user.id if identity_user else None,
+    )
+
+
+@router.post("/{task_id}/submit-execution", response_model=TaskResponse)
+def submit_task_execution(
+    task_id: int,
+    payload: TaskExecutionSubmit,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
+    service = TaskService(db)
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    return service.submit_execution(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,

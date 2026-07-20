@@ -237,4 +237,18 @@ export const taskService = {
     });
     return mapBackendTask(task);
   },
+
+  async submitExecution(
+    taskId: string,
+    payload: {
+      form_template_id?: number | null;
+      answers_json: Record<string, unknown>;
+    }
+  ) {
+    const task = await api<BackendTask>(`/api/v1/tasks/${taskId}/submit-execution`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return mapBackendTask(task);
+  },
 };
