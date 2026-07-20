@@ -26,6 +26,7 @@ const areaManagerNavigationItemIds = new Set([
   "schedules",
   "settings",
   "tasks",
+  "workflows",
 ]);
 
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {

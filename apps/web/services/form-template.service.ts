@@ -1,7 +1,7 @@
 import { api } from "@/services/api";
 import { createLocalId } from "@/lib/local-id";
 import { cacheFormTemplates, getCachedFormTemplate, getCachedFormTemplates } from "@/lib/offline/store";
-import type { FormField, FormFieldOptions, FormTemplate } from "@/features/forms/types";
+import type { FormField, FormFieldOptions, FormFieldValidation, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import {
   ensureResponsiblePersonField,
@@ -135,7 +135,7 @@ export type BackendFormTemplateCreate = {
 function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
   if (!optionsJson || typeof optionsJson !== "object") return undefined;
 
-  const options = optionsJson as FormFieldOptions;
+  const options = optionsJson as FormFieldOptions & Record<string, unknown>;
 
   return {
     currency: typeof options.currency === "string" ? options.currency : undefined,
@@ -143,11 +143,31 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       ? options.denominations.filter((value): value is number => typeof value === "number")
       : undefined,
     system: options.system === true,
+    showWhenFieldId:
+      typeof options.showWhenFieldId === "string" ? options.showWhenFieldId : undefined,
+    showWhenValue:
+      typeof options.showWhenValue === "string" ? options.showWhenValue : undefined,
+  };
+}
+
+function parseFieldValidation(validationJson: unknown): FormFieldValidation | undefined {
+  if (!validationJson || typeof validationJson !== "object") return undefined;
+
+  const validation = validationJson as FormFieldValidation;
+  const min = validation.min != null ? Number(validation.min) : undefined;
+  const max = validation.max != null ? Number(validation.max) : undefined;
+
+  if (min == null && max == null) return undefined;
+
+  return {
+    min: Number.isFinite(min) ? min : undefined,
+    max: Number.isFinite(max) ? max : undefined,
   };
 }
 
 function mapBackendField(field: BackendFormField): FormField {
   const options = parseFieldOptions(field.options_json);
+  const validation = parseFieldValidation(field.validation_json);
 
   return {
     id: String(field.id),
@@ -156,6 +176,7 @@ function mapBackendField(field: BackendFormField): FormField {
     required: field.is_required,
     section: field.help_text ?? undefined,
     options,
+    validation,
   };
 }
 
@@ -190,7 +211,7 @@ function toBackendFields(fields: FormField[]) {
       help_text: field.section ?? null,
       is_required: field.required,
       options_json: field.options ?? null,
-      validation_json: null,
+      validation_json: field.validation ?? null,
       sort_order: index,
     }))
     .filter((field) => field.label.length > 0);

@@ -9,12 +9,34 @@ type PushNotificationPromptProps = {
   compact?: boolean;
 };
 
+function isSecureContextForPush() {
+  if (typeof window === "undefined") return true;
+  return window.isSecureContext || window.location.protocol === "https:";
+}
+
 export function PushNotificationPrompt({ compact = false }: PushNotificationPromptProps) {
   const toast = useToast();
   const push = usePushNotifications();
+  const secureContext = isSecureContextForPush();
 
   if (!push.isSupported || !push.isConfigured) {
     return null;
+  }
+
+  if (!secureContext) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="font-semibold">Push notification membutuhkan HTTPS</p>
+        <p className="mt-1 text-amber-800/90">
+          Aktifkan domain + SSL (DNS A record ke VPS, lalu certbot) sebelum crew outlet bisa
+          menerima notifikasi task. Lihat panduan di{" "}
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">deploy/README_VPS.md</code>{" "}
+          atau{" "}
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">scripts/vps-setup-ssl.sh</code>
+          .
+        </p>
+      </div>
+    );
   }
 
   async function handleSubscribe() {

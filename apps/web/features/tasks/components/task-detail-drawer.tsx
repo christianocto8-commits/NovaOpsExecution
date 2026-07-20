@@ -11,9 +11,11 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Task, TaskActivityType, TaskEvidenceType } from "../types";
 import { formatTaskSchedule } from "../utils";
+import { PhotoLightbox } from "@/shared/evidence/components/photo-lightbox";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
@@ -72,6 +74,19 @@ function getActivityStyle(type: TaskActivityType) {
 }
 
 export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const photoEvidence = useMemo(
+    () =>
+      (task?.execution?.evidence ?? [])
+        .filter((evidence) => evidence.type === "photo" && evidence.value)
+        .map((evidence) => ({
+          url: evidence.value,
+          caption: evidence.label ?? "Evidence photo",
+        })),
+    [task?.execution?.evidence]
+  );
+
   if (!task) return null;
 
   const hasExecution = Boolean(task.execution);
@@ -158,6 +173,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                     const evidenceStyle = getEvidenceStyle(evidence.type);
                     const EvidenceIcon = evidenceStyle.icon;
                     const isUrl = /^https?:\/\//i.test(evidence.value);
+                    const photoIndex = photoEvidence.findIndex((item) => item.url === evidence.value);
 
                     return (
                       <div key={`${evidence.type}-${evidence.value}`} className="rounded-2xl border border-slate-200 p-4">
@@ -175,7 +191,23 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
                             <p className="mt-2 font-semibold text-slate-900">
                               {evidence.label ?? evidenceStyle.label}
                             </p>
-                            {isUrl ? (
+                            {evidence.type === "photo" && evidence.value ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setLightboxIndex(Math.max(photoIndex, 0));
+                                  setLightboxOpen(true);
+                                }}
+                                className="mt-2 block overflow-hidden rounded-xl border border-slate-200"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={evidence.value}
+                                  alt={evidence.label ?? "Evidence photo"}
+                                  className="max-h-48 w-full object-cover"
+                                />
+                              </button>
+                            ) : isUrl ? (
                               <a
                                 href={evidence.value}
                                 target="_blank"
@@ -310,6 +342,14 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
           </section>
         </div>
       </div>
+
+      <PhotoLightbox
+        open={lightboxOpen}
+        images={photoEvidence}
+        activeIndex={lightboxIndex}
+        onClose={() => setLightboxOpen(false)}
+        onNavigate={setLightboxIndex}
+      />
     </div>
   );
 }

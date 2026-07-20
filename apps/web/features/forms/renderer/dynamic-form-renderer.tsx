@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { FormField } from "@/features/forms/types";
+import { getVisibleFields } from "@/features/forms/utils/field-visibility";
 import { TaskFormResponses } from "@/features/tasks/types";
 
 import { MoneyAmountField } from "./money-amount-field";
@@ -35,6 +36,8 @@ export function DynamicFormRenderer({
   readOnly = false,
   highlightedFieldIds = [],
 }: DynamicFormRendererProps) {
+  const visibleFields = getVisibleFields(fields, responses);
+
   function updateResponse(fieldId: string, value: string) {
     onChange({
       ...responses,
@@ -44,7 +47,7 @@ export function DynamicFormRenderer({
 
   return (
     <div className="space-y-4">
-      {fields.map((field) => {
+      {visibleFields.map((field) => {
         const value = responses[field.id] ?? "";
         const isHighlighted = highlightedFieldIds.includes(field.id);
         const typeLabel = fieldTypeLabels[field.type] ?? field.type.toUpperCase();
@@ -100,6 +103,8 @@ export function DynamicFormRenderer({
                   type="number"
                   value={value}
                   disabled={readOnly}
+                  min={field.validation?.min}
+                  max={field.validation?.max}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
                 />

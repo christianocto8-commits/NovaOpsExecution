@@ -258,12 +258,21 @@ export const taskService = {
     payload: {
       form_template_id?: number | null;
       answers_json: Record<string, unknown>;
+      latitude?: number | null;
+      longitude?: number | null;
+      accuracy_m?: number | null;
     }
   ) {
-    const task = await api<BackendTask>(`/api/v1/tasks/${taskId}/submit-execution`, {
+    const response = await api<{
+      task: BackendTask;
+      checklist: Record<string, unknown> | null;
+    }>(`/api/v1/tasks/${taskId}/submit-execution`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    return mapBackendTask(task);
+    return {
+      task: mapBackendTask(response.task),
+      checklist: response.checklist,
+    };
   },
 };

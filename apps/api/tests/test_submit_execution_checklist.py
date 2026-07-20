@@ -97,6 +97,12 @@ def test_submit_execution_embeds_checklist_and_creates_corrective_action(
         },
     )
     assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["task"]["id"] == task.id
+    assert payload["checklist"] is not None
+    assert payload["checklist"]["failed_count"] == 1
+    assert payload["checklist"]["status"] == "fail"
+    assert payload["checklist"]["failed_items"][0]["label"] == "Equipment checked"
 
     session = (
         db.query(ExecutionSession)
@@ -154,20 +160,11 @@ def test_submit_execution_passing_checklist_does_not_create_corrective_action(
         },
     )
     assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["checklist"]["status"] == "pass"
+    assert payload["checklist"]["failed_count"] == 0
 
     session = (
-        db.query(ExecutionSession)
-        .filter(ExecutionSession.task_id == task.id, ExecutionSession.status == "completed")
-        .order_by(ExecutionSession.id.desc())
-        .first()
-    )
-    assert session is not None
-    checklist = session.answers_json.get("_checklist")
-    assert checklist is not None
-    assert checklist["status"] == "pass"
-    assert checklist["failed_count"] == 0
-
-    corrective_tasks = (
         db.query(Task)
         .filter(Task.source_type == "corrective_action", Task.source_id == task.id)
         .all()

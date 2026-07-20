@@ -8,6 +8,43 @@ import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 
+function getSlaLabel(task: Task) {
+  if (task.status === "Completed" || !task.due) return null;
+
+  const due = new Date(task.due);
+  if (Number.isNaN(due.getTime())) return null;
+
+  const diffMs = due.getTime() - Date.now();
+
+  if (diffMs <= 0) {
+    const overdueHours = Math.ceil(Math.abs(diffMs) / (1000 * 60 * 60));
+    return {
+      label: overdueHours <= 1 ? "Overdue" : `${overdueHours}h overdue`,
+      tone: "overdue" as const,
+    };
+  }
+
+  const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+  const minutesLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (hoursLeft >= 24) {
+    const daysLeft = Math.ceil(hoursLeft / 24);
+    return { label: `${daysLeft}d left`, tone: "ok" as const };
+  }
+
+  if (hoursLeft < 4) {
+    return {
+      label: minutesLeft > 0 ? `${hoursLeft}h ${minutesLeft}m left` : `${hoursLeft}h left`,
+      tone: "urgent" as const,
+    };
+  }
+
+  return {
+    label: minutesLeft > 0 ? `${hoursLeft}h ${minutesLeft}m left` : `${hoursLeft}h left`,
+    tone: "ok" as const,
+  };
+}
+
 function getStatusLabel(task: Task) {
   if (task.status === "Completed") return "Resolved";
   if (task.priority === "Critical") return "Critical";
@@ -103,7 +140,10 @@ export default function CorrectiveActionsPage() {
         </div>
       ) : (
         <section className="grid gap-4 xl:grid-cols-2">
-          {correctiveActions.map((task) => (
+          {correctiveActions.map((task) => {
+            const sla = getSlaLabel(task);
+
+            return (
             <article key={task.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
@@ -116,9 +156,25 @@ export default function CorrectiveActionsPage() {
                     {task.outlet} - Due {task.due || "-"}
                   </p>
                 </div>
-                <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                  {getStatusLabel(task)}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+                    {getStatusLabel(task)}
+                  </span>
+                  {sla ? (
+                    <span
+                      className={[
+                        "rounded-full px-3 py-1 text-xs font-bold",
+                        sla.tone === "overdue"
+                          ? "bg-red-100 text-red-800"
+                          : sla.tone === "urgent"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-100 text-slate-700",
+                      ].join(" ")}
+                    >
+                      SLA: {sla.label}
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -156,7 +212,8 @@ export default function CorrectiveActionsPage() {
                 </button>
               ) : null}
             </article>
-          ))}
+            );
+          })}
         </section>
       )}
     </main>

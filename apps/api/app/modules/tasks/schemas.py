@@ -48,6 +48,9 @@ class TaskReviewUpdate(BaseModel):
 class TaskExecutionSubmit(BaseModel):
     form_template_id: int | None = None
     answers_json: dict[str, Any]
+    latitude: float | None = None
+    longitude: float | None = None
+    accuracy_m: float | None = None
 
 
 class TaskCommentCreate(BaseModel):
@@ -154,3 +157,8 @@ class TaskResponse(BaseModel):
 class TaskDetailResponse(TaskResponse):
     comments: list[TaskCommentResponse] = Field(default_factory=list)
     assignments: list[TaskAssignmentResponse] = Field(default_factory=list)
+
+
+class TaskExecutionSubmitResponse(BaseModel):
+    task: TaskResponse
+    checklist: dict[str, Any] | None = None

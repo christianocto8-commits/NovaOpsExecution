@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FormField } from "@/features/forms/types";
+import { getVisibleFields } from "@/features/forms/utils/field-visibility";
 import {
   getResponsiblePersonField,
   RESPONSIBLE_PERSON_FIELD_LABEL,
@@ -203,8 +204,15 @@ export function SectionedFormRenderer({
   readOnly = false,
   highlightedFieldIds = [],
 }: SectionedFormRendererProps) {
-  const sections = useMemo(() => groupFieldsBySection(fields), [fields]);
-  const responsiblePersonField = useMemo(() => getResponsiblePersonField(fields), [fields]);
+  const visibleFields = useMemo(
+    () => getVisibleFields(fields, responses),
+    [fields, responses]
+  );
+  const sections = useMemo(() => groupFieldsBySection(visibleFields), [visibleFields]);
+  const responsiblePersonField = useMemo(
+    () => getResponsiblePersonField(visibleFields),
+    [visibleFields]
+  );
   const showFallbackResponsiblePerson = !responsiblePersonField;
   const reconciliation = useMemo(
     () => getMoneyReconciliation(fields, responses),

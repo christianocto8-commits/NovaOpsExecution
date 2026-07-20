@@ -34,3 +34,21 @@ class OutletRepository:
             .filter(Outlet.id == outlet_id)
             .first()
         )
+
+    def update_location(
+        self,
+        outlet_id: int,
+        *,
+        latitude: float,
+        longitude: float,
+    ) -> Outlet | None:
+        outlet = self.get_outlet_by_id(outlet_id)
+        if not outlet:
+            return None
+
+        outlet.latitude = latitude
+        outlet.longitude = longitude
+        self.db.add(outlet)
+        self.db.commit()
+        self.db.refresh(outlet)
+        return outlet

@@ -7,7 +7,8 @@ import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react"
 import { useQuery } from "@tanstack/react-query";
 
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
-import { OutletTaskExecutionDrawer,
+import { ChecklistSubmitResultModal,
+  OutletTaskExecutionDrawer,
   TaskDetailDrawer,
   TaskFormDrawer,
 } from "@/features/tasks/components";
@@ -520,6 +521,8 @@ export function TasksWorkspace() {
     cancelExecutionChanges,
     saveExecutionDraft,
     submitTaskExecution,
+    submitResult,
+    closeSubmitResult,
     isBackendConnected,
     isOnline,
     pendingLocalSyncCount,
@@ -900,6 +903,13 @@ export function TasksWorkspace() {
           onSubmit={submitTaskExecution}
         />
       ) : null}
+
+      <ChecklistSubmitResultModal
+        open={Boolean(submitResult)}
+        taskTitle={submitResult?.taskTitle ?? ""}
+        checklist={submitResult?.checklist ?? null}
+        onClose={closeSubmitResult}
+      />
     </main>
   );
 }

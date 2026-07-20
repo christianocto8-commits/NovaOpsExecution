@@ -24,6 +24,8 @@ from app.modules.tasks.schemas import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.repositories.outlet_repository import OutletRepository
+from app.services.geofence import is_within_geofence
 from app.services.checklist_scoring import score_checklist
 from app.services.execution_validation import validate_task_execution_answers
 from app.services.webhook_dispatcher import dispatch_webhook_event
@@ -296,7 +298,7 @@ class TaskService:
         payload: TaskExecutionSubmit,
         *,
         actor_identity_id: UUID | None = None,
-    ) -> Task:
+    ) -> tuple[Task, dict]:
         task = self.get_task(task_id, outlet_id)
 
         if task.status in {"completed", "cancelled"}:
@@ -305,13 +307,29 @@ class TaskService:
                 detail="Task is already closed",
             )
 
+        workspace_settings = get_workspace_settings(self.db)
+
+        if workspace_settings.geofence_enabled:
+            outlet = OutletRepository(self.db).get_outlet_by_id(task.outlet_id)
+            allowed, message = is_within_geofence(
+                submitter_lat=payload.latitude,
+                submitter_lon=payload.longitude,
+                outlet_lat=getattr(outlet, "latitude", None) if outlet else None,
+                outlet_lon=getattr(outlet, "longitude", None) if outlet else None,
+                radius_meters=workspace_settings.geofence_radius_meters,
+            )
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=message or "Outside outlet geofence.",
+                )
+
         validate_task_execution_answers(self.db, payload.answers_json)
 
         form_template_id = payload.form_template_id
         if form_template_id is None and task.source_type == "form_template":
             form_template_id = task.source_id
 
-        workspace_settings = get_workspace_settings(self.db)
         checklist_result = score_checklist(
             self.db,
             form_template_id=form_template_id,
@@ -321,6 +339,12 @@ class TaskService:
             **payload.answers_json,
             "_checklist": checklist_result,
         }
+        if payload.latitude is not None and payload.longitude is not None:
+            answers_with_checklist["_submit_location"] = {
+                "latitude": payload.latitude,
+                "longitude": payload.longitude,
+                "accuracy_m": payload.accuracy_m,
+            }
 
         self.db.query(ExecutionSession).filter(
             ExecutionSession.task_id == task.id,
@@ -471,7 +495,7 @@ class TaskService:
             except Exception:
                 pass
 
-        return task
+        return task, checklist_result
 
     def review_task(
         self,

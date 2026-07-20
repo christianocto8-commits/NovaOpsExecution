@@ -44,6 +44,8 @@ class SettingsResponse(BaseModel):
     max_upload_mb: int = 10
     timestamp_watermark: bool = True
     gps_watermark: bool = True
+    geofence_enabled: bool = False
+    geofence_radius_meters: int = 200
     audit_retention_days: int = 180
     login_history_visible: bool = True
     template_history_visible: bool = True
@@ -101,6 +103,8 @@ class SettingsUpdate(BaseModel):
     max_upload_mb: int | None = None
     timestamp_watermark: bool | None = None
     gps_watermark: bool | None = None
+    geofence_enabled: bool | None = None
+    geofence_radius_meters: int | None = None
     audit_retention_days: int | None = None
     login_history_visible: bool | None = None
     template_history_visible: bool | None = None

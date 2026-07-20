@@ -18,8 +18,8 @@ from app.modules.tasks.schemas import (
     TaskCreate,
     TaskDetailResponse,
     TaskExecutionSubmit,
+    TaskExecutionSubmitResponse,
     TaskResponse,
-    TaskExecutionSubmit,
     TaskReviewUpdate,
     TaskStatusUpdate,
     TaskUpdate,
@@ -292,7 +292,7 @@ def update_task_status(
     )
 
 
-@router.post("/{task_id}/submit-execution", response_model=TaskResponse)
+@router.post("/{task_id}/submit-execution", response_model=TaskExecutionSubmitResponse)
 def submit_task_execution(
     task_id: int,
     payload: TaskExecutionSubmit,
@@ -305,13 +305,14 @@ def submit_task_execution(
     )
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
-    return service.submit_execution(
+    task, checklist_result = service.submit_execution(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
         actor_identity_id=identity_user.id if identity_user else None,
     )
+    return TaskExecutionSubmitResponse(task=task, checklist=checklist_result)
 
 
 @router.patch("/{task_id}/review", response_model=TaskResponse)

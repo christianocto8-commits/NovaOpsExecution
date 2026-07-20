@@ -9,6 +9,7 @@ import { NotificationHeaderButton } from "@/features/notifications/components/no
 import { AuthContext } from "@/providers/AuthProvider";
 import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
+import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
 
 type DashboardHeaderProps = {
   workspace: CurrentWorkspace;
@@ -77,6 +78,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <OfflineSyncBadge />
           <NotificationHeaderButton />
 
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] sm:block">

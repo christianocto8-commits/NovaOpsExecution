@@ -15,9 +15,16 @@ class OutletResponse(BaseModel):
     name: str
     code: str
     address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class OutletLocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
 
 
 class CurrentOutletResponse(BaseModel):

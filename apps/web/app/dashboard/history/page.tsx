@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ClipboardCheck, FileText, RefreshCw } from "lucide-react";
 
 import { useFormTemplates } from "@/features/forms/hooks/use-form-templates";
+import {
+  HistoryDetailDrawer,
+  type HistoryDetailSelection,
+} from "@/features/history/components/history-detail-drawer";
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
@@ -23,6 +27,11 @@ type HistoryItem = {
   type: "task" | "form";
   timestamp: string;
   details: string;
+  task?: Task;
+  sessionId?: number;
+  formSubmissionId?: number;
+  formTemplateId?: number;
+  templateName?: string;
 };
 
 function formatDate(value: string) {
@@ -66,6 +75,7 @@ function buildHistoryItems(args: {
       type: "task",
       timestamp: task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due,
       details: task.execution?.note || task.description || "Task completed.",
+      task,
     }));
 
   const sessionItems: HistoryItem[] = executionSessions
@@ -81,6 +91,7 @@ function buildHistoryItems(args: {
         type: "task" as const,
         timestamp: session.submitted_at ?? new Date().toISOString(),
         details: `${Object.keys(session.answers_json ?? {}).length} response(s) submitted.`,
+        sessionId: session.id,
       };
     });
 
@@ -96,6 +107,9 @@ function buildHistoryItems(args: {
       type: "form" as const,
       timestamp: submission.submitted_at ?? new Date().toISOString(),
       details: `${submission.answers.length} answer(s) submitted.`,
+      formSubmissionId: submission.id,
+      formTemplateId: submission.form_template_id,
+      templateName,
     };
   });
 
@@ -111,6 +125,8 @@ function buildHistoryItems(args: {
 }
 
 export default function HistoryPage() {
+  const [selection, setSelection] = useState<HistoryDetailSelection | null>(null);
+
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -189,8 +205,34 @@ export default function HistoryPage() {
     void templatesQuery.refetch();
   }
 
+  function openHistoryItem(item: HistoryItem) {
+    if (item.task) {
+      setSelection({ kind: "task", task: item.task });
+      return;
+    }
+
+    if (item.sessionId != null) {
+      const session = executionSessions.find((row) => row.id === item.sessionId);
+      if (session) {
+        setSelection({ kind: "session", session, taskTitle: item.title });
+      }
+      return;
+    }
+
+    if (item.formSubmissionId != null) {
+      const submission = formSubmissions.find((row) => row.id === item.formSubmissionId);
+      if (submission) {
+        setSelection({
+          kind: "form",
+          submission,
+          templateName: item.templateName ?? `Form ${submission.form_template_id}`,
+        });
+      }
+    }
+  }
+
   return (
-    <main className="space-y-6 p-6">
+    <main className="space-y-6 p-6 pb-24 lg:pb-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Outlet Operations</p>
@@ -261,7 +303,12 @@ export default function HistoryPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {historyItems.map((item) => (
-              <article key={item.id} className="flex gap-4 p-5">
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => openHistoryItem(item)}
+                className="flex w-full gap-4 p-5 text-left transition hover:bg-slate-50"
+              >
                 <div
                   className={`mt-1 flex size-10 shrink-0 items-center justify-center rounded-xl ${
                     item.type === "task"
@@ -286,12 +333,15 @@ export default function HistoryPage() {
                     </time>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{item.details}</p>
+                  <p className="mt-2 text-xs font-semibold text-emerald-700">Tap to view submission</p>
                 </div>
-              </article>
+              </button>
             ))}
           </div>
         )}
       </section>
+
+      <HistoryDetailDrawer selection={selection} onClose={() => setSelection(null)} />
     </main>
   );
 }

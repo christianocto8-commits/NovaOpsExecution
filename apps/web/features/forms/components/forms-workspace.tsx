@@ -778,6 +778,112 @@ export function FormsWorkspace() {
                   </label>
                 </div>
 
+                {!isSystemResponsibleField ? (
+                  <div className="mt-3 space-y-3">
+                    <input
+                      value={field.section ?? ""}
+                      readOnly={isAreaWorkspace}
+                      onChange={(event) =>
+                        updateField(field.id, {
+                          section: event.target.value,
+                        })
+                      }
+                      placeholder="Section name (e.g. Opening, Kitchen)"
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                    />
+
+                    {field.type === "number" ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          value={field.validation?.min ?? ""}
+                          readOnly={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              validation: {
+                                ...field.validation,
+                                min:
+                                  event.target.value === ""
+                                    ? undefined
+                                    : Number(event.target.value),
+                              },
+                            })
+                          }
+                          placeholder="Min value"
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        />
+                        <input
+                          type="number"
+                          value={field.validation?.max ?? ""}
+                          readOnly={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              validation: {
+                                ...field.validation,
+                                max:
+                                  event.target.value === ""
+                                    ? undefined
+                                    : Number(event.target.value),
+                              },
+                            })
+                          }
+                          placeholder="Max value"
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        />
+                      </div>
+                    ) : null}
+
+                    {field.type !== "yes_no" ? (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <select
+                          value={field.options?.showWhenFieldId ?? ""}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              options: {
+                                ...field.options,
+                                showWhenFieldId: event.target.value || undefined,
+                              },
+                            })
+                          }
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        >
+                          <option value="">Always visible</option>
+                          {selectedTemplate.fields
+                            .filter(
+                              (candidate) =>
+                                candidate.type === "yes_no" && candidate.id !== field.id
+                            )
+                            .map((candidate) => (
+                              <option key={candidate.id} value={candidate.id}>
+                                Show when: {candidate.label}
+                              </option>
+                            ))}
+                        </select>
+
+                        {field.options?.showWhenFieldId ? (
+                          <select
+                            value={field.options?.showWhenValue ?? "Yes"}
+                            disabled={isAreaWorkspace}
+                            onChange={(event) =>
+                              updateField(field.id, {
+                                options: {
+                                  ...field.options,
+                                  showWhenValue: event.target.value,
+                                },
+                              })
+                            }
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                          >
+                            <option value="Yes">Answer is Yes</option>
+                            <option value="No">Answer is No</option>
+                          </select>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {fieldTypeLabel[field.type]}

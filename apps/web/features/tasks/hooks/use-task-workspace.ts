@@ -12,13 +12,15 @@ import {
   TaskExecution,
   TaskExecutionForm,
   TaskFormState,
+  ChecklistScore,
 } from "@/features/tasks/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
-import { EvidenceItem } from "@/shared/evidence";
+import { EvidenceItem, getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { taskService } from "@/services/task.service";
+import { outletService } from "@/services/outlet.service";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
   createExecutionSession,
@@ -231,6 +233,11 @@ function buildTaskEvidence(value: string, submittedAt: string) {
   ];
 }
 
+function parseSubmitChecklist(value: unknown): ChecklistScore | null {
+  const parsed = parseChecklistScore(value);
+  return parsed ?? null;
+}
+
 function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undefined {
   if (!value || typeof value !== "object") return undefined;
 
@@ -435,10 +442,21 @@ export function useTaskWorkspace() {
   });
 
   const completeTaskMutation = useMutation({
-    mutationFn: async ({ task, form }: { task: Task; form: TaskExecutionForm }) => {
-      await taskService.submitExecution(task.id, {
+    mutationFn: async ({
+      task,
+      form,
+      location,
+    }: {
+      task: Task;
+      form: TaskExecutionForm;
+      location?: { latitude: number; longitude: number; accuracy_m?: number } | null;
+    }) => {
+      return taskService.submitExecution(task.id, {
         form_template_id: getNumericFormTemplateId(task.formTemplateId),
         answers_json: buildExecutionAnswers(task, form),
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        accuracy_m: location?.accuracy_m ?? null,
       });
     },
     onSuccess: async () => {
@@ -450,6 +468,10 @@ export function useTaskWorkspace() {
   });
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [submitResult, setSubmitResult] = useState<{
+    taskTitle: string;
+    checklist: ChecklistScore;
+  } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExecutionOpen, setIsExecutionOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -728,6 +750,10 @@ export function useTaskWorkspace() {
     }
   }
 
+  function closeSubmitResult() {
+    setSubmitResult(null);
+  }
+
   async function submitTaskExecution() {
     if (!selectedTask) return;
 
@@ -742,6 +768,29 @@ export function useTaskWorkspace() {
       return;
     }
 
+    let submitLocation: { latitude: number; longitude: number; accuracy_m?: number } | null = null;
+
+    if (settings?.geofence_enabled) {
+      submitLocation = await getCurrentPosition();
+
+      try {
+        const currentOutlet = await outletService.getCurrent();
+        const geofenceError = checkGeofencePrecheck({
+          submitter: submitLocation,
+          outletLat: currentOutlet.outlet.latitude,
+          outletLon: currentOutlet.outlet.longitude,
+          radiusMeters: settings.geofence_radius_meters ?? 200,
+        });
+
+        if (geofenceError) {
+          toast.error(geofenceError);
+          return;
+        }
+      } catch {
+        // Backend will enforce geofence if outlet context is unavailable client-side.
+      }
+    }
+
     if (isOnline && backendConnected) {
       try {
         const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
@@ -750,8 +799,22 @@ export function useTaskWorkspace() {
           await deleteExecutionSession(existingDraftSession.id);
         }
 
-        await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
-        toast.success("Task selesai dan evidence tersimpan.");
+        const result = await completeTaskMutation.mutateAsync({
+          task: selectedTask,
+          form: executionForm,
+          location: submitLocation,
+        });
+
+        const checklist = parseSubmitChecklist(result.checklist);
+        if (checklist) {
+          setSubmitResult({
+            taskTitle: selectedTask.title,
+            checklist,
+          });
+        } else {
+          toast.success("Task selesai dan evidence tersimpan.");
+        }
+
         closeExecution();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
@@ -865,6 +928,8 @@ export function useTaskWorkspace() {
     cancelExecutionChanges: closeExecution,
     saveExecutionDraft,
     submitTaskExecution,
+    submitResult,
+    closeSubmitResult,
     isBackendConnected: backendConnected,
     isOnline,
     pendingLocalSyncCount: pendingSyncCount,

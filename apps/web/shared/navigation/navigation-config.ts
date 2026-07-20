@@ -6,6 +6,7 @@ import {
   CalendarClock,
   FileText,
   Gauge,
+  GitBranch,
   History,
   LayoutDashboard,
   Settings,
@@ -126,6 +127,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/users",
     icon: Users,
     requiredPermissions: ["user.read"],
+    section: "administration",
+  },
+  {
+    id: "workflows",
+    label: "Workflows",
+    href: "/dashboard/workflows",
+    icon: GitBranch,
+    requiredPermissions: ["user.edit"],
     section: "administration",
   },
   {

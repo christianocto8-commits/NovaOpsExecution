@@ -5,6 +5,11 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { BarChartCard, DonutChartCard, LineChartCard } from "@/shared/analytics/charts";
+import {
+  getChecklistTrend30Days,
+  getOutletScoreHeatmap,
+} from "@/features/compliance/utils/compliance-trend";
+import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
@@ -166,9 +171,18 @@ function getSopHealthClass(rate: number) {
   return "bg-red-50 text-red-700 border-red-100";
 }
 
+function getHeatmapClass(tone: "strong" | "watch" | "risk" | "empty") {
+  if (tone === "strong") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (tone === "watch") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (tone === "risk") return "border-red-200 bg-red-50 text-red-800";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
 export default function ComplianceCenterPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const { settings } = useSettings();
+  const passThreshold = settings?.pass_threshold ?? 85;
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -178,7 +192,7 @@ export default function ComplianceCenterPage() {
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
-    queryFn: () => taskService.list(),
+    queryFn: () => taskService.listAll(),
     retry: false,
   });
 
@@ -260,6 +274,21 @@ export default function ComplianceCenterPage() {
   const rows = useMemo(() => tasksWithExecution.map(toRow), [tasksWithExecution]);
   const complianceRate = getComplianceRate(rows);
   const outletPerformance = groupByOutlet(rows);
+  const checklistTrend30Days = useMemo(
+    () => getChecklistTrend30Days(executionSessionsQuery.data ?? [], passThreshold),
+    [executionSessionsQuery.data, passThreshold]
+  );
+  const outletHeatmap = useMemo(() => {
+    const taskOutletById = new Map(
+      (tasksQuery.data ?? []).map((task) => [task.id, task.outlet] as const)
+    );
+
+    return getOutletScoreHeatmap(
+      executionSessionsQuery.data ?? [],
+      taskOutletById,
+      passThreshold
+    );
+  }, [executionSessionsQuery.data, tasksQuery.data, passThreshold]);
   const ownerActionQueue = rows
     .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
     .sort((first, second) => first.completion - second.completion)
@@ -453,6 +482,45 @@ export default function ComplianceCenterPage() {
               ))
             ) : (
               <p className="text-sm text-slate-500">No backend task data yet.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <LineChartCard
+          title="30-Day Checklist Score Trend"
+          description={`Average checklist score and pass rate from execution sessions (threshold ${passThreshold}%).`}
+          data={checklistTrend30Days}
+          xKey="day"
+          series={[
+            { dataKey: "score", name: "Avg Score %" },
+            { dataKey: "passRate", name: "Pass Rate %" },
+          ]}
+        />
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-950">Outlet Score Heatmap</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Green ≥ {passThreshold}%, amber watch zone, red at risk.
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {outletHeatmap.length ? (
+              outletHeatmap.map((item) => (
+                <div
+                  key={item.outlet}
+                  className={`rounded-2xl border p-4 ${getHeatmapClass(item.tone)}`}
+                >
+                  <p className="text-sm font-bold">{item.outlet}</p>
+                  <p className="mt-2 text-2xl font-bold">{item.score}%</p>
+                  <p className="mt-1 text-xs opacity-80">{item.submissions} submission(s)</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">
+                Submit scored checklists to populate outlet heatmap.
+              </p>
             )}
           </div>
         </div>

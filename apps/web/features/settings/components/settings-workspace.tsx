@@ -15,6 +15,7 @@ import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
+import { outletService } from "@/services/outlet.service";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
@@ -40,6 +41,8 @@ type OwnerAdminState = {
   max_upload_mb: number;
   timestamp_watermark: boolean;
   gps_watermark: boolean;
+  geofence_enabled: boolean;
+  geofence_radius_meters: number;
   outlet_grouping: string;
   default_user_role: string;
   digest_frequency: string;
@@ -73,6 +76,8 @@ const defaults: OwnerAdminState = {
   max_upload_mb: 10,
   timestamp_watermark: true,
   gps_watermark: true,
+  geofence_enabled: false,
+  geofence_radius_meters: 200,
   outlet_grouping: "region",
   default_user_role: "outlet_manager",
   digest_frequency: "daily",
@@ -109,6 +114,10 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     max_upload_mb: Number(settings?.max_upload_mb ?? defaults.max_upload_mb),
     timestamp_watermark: Boolean(settings?.timestamp_watermark ?? defaults.timestamp_watermark),
     gps_watermark: Boolean(settings?.gps_watermark ?? defaults.gps_watermark),
+    geofence_enabled: Boolean(settings?.geofence_enabled ?? defaults.geofence_enabled),
+    geofence_radius_meters: Number(
+      settings?.geofence_radius_meters ?? defaults.geofence_radius_meters
+    ),
     outlet_grouping: settings?.outlet_grouping ?? defaults.outlet_grouping,
     default_user_role: settings?.default_user_role ?? defaults.default_user_role,
     digest_frequency: settings?.digest_frequency ?? defaults.digest_frequency,
@@ -126,6 +135,114 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     task_completed_workflow_code:
       settings?.task_completed_workflow_code ?? defaults.task_completed_workflow_code,
   };
+}
+
+function OutletLocationPanel({
+  onNotice,
+}: {
+  onNotice: (message: string) => void;
+}) {
+  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; latitude: number | null; longitude: number | null }>>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | "">("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    void outletService
+      .listMine()
+      .then((items) => {
+        setOutlets(items);
+        if (items.length > 0) {
+          setSelectedOutletId(items[0].id);
+          setLatitude(items[0].latitude != null ? String(items[0].latitude) : "");
+          setLongitude(items[0].longitude != null ? String(items[0].longitude) : "");
+        }
+      })
+      .catch(() => {
+        onNotice("Gagal memuat daftar outlet untuk geofence.");
+      });
+  }, [onNotice]);
+
+  useEffect(() => {
+    if (selectedOutletId === "") return;
+    const outlet = outlets.find((item) => item.id === selectedOutletId);
+    if (!outlet) return;
+    setLatitude(outlet.latitude != null ? String(outlet.latitude) : "");
+    setLongitude(outlet.longitude != null ? String(outlet.longitude) : "");
+  }, [outlets, selectedOutletId]);
+
+  async function handleSaveLocation() {
+    if (selectedOutletId === "") {
+      onNotice("Pilih outlet terlebih dahulu.");
+      return;
+    }
+
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      onNotice("Latitude dan longitude harus angka valid.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const updated = await outletService.updateLocation(selectedOutletId, {
+        latitude: lat,
+        longitude: lon,
+      });
+      setOutlets((current) =>
+        current.map((item) =>
+          item.id === updated.id
+            ? { ...item, latitude: updated.latitude, longitude: updated.longitude }
+            : item
+        )
+      );
+      onNotice(`Lokasi ${updated.name} berhasil disimpan.`);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal menyimpan lokasi outlet.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Outlet Geolocation">
+      <p className="mb-4 text-sm text-slate-500">
+        Set koordinat pusat outlet untuk validasi geofence saat submit task. Gunakan GPS saat berada
+        di lokasi outlet, atau salin dari Google Maps.
+      </p>
+      <div className="grid gap-4 md:grid-cols-3">
+        <EnterpriseField label="Outlet">
+          <EnterpriseSelect
+            value={selectedOutletId === "" ? "" : String(selectedOutletId)}
+            onChange={(event) => setSelectedOutletId(Number(event.target.value))}
+          >
+            {outlets.map((outlet) => (
+              <option key={outlet.id} value={outlet.id}>
+                {outlet.name}
+              </option>
+            ))}
+          </EnterpriseSelect>
+        </EnterpriseField>
+        <EnterpriseField label="Latitude">
+          <EnterpriseInput value={latitude} onChange={(event) => setLatitude(event.target.value)} />
+        </EnterpriseField>
+        <EnterpriseField label="Longitude">
+          <EnterpriseInput value={longitude} onChange={(event) => setLongitude(event.target.value)} />
+        </EnterpriseField>
+      </div>
+      <button
+        type="button"
+        onClick={() => void handleSaveLocation()}
+        disabled={isSaving || selectedOutletId === ""}
+        className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        {isSaving ? "Menyimpan..." : "Simpan lokasi outlet"}
+      </button>
+    </SectionCard>
+  );
 }
 
 function RoleAccessSection({
@@ -558,6 +675,17 @@ export function SettingsWorkspace() {
             <ActionCard title="Photo required by default" description="Submit task outlet wajib sertakan bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
             <ActionCard title="Timestamp watermark" description="Tambahkan cap waktu pada foto evidence sebelum upload." action={<EnterpriseCheckbox checked={state.timestamp_watermark} onChange={(event) => update("timestamp_watermark", event.target.checked)} />} />
             <ActionCard title="GPS on evidence" description="Simpan koordinat GPS pada metadata evidence (permission browser diperlukan)." action={<EnterpriseCheckbox checked={state.gps_watermark} onChange={(event) => update("gps_watermark", event.target.checked)} />} />
+            <ActionCard title="Geofence enforcement" description="Wajibkan crew berada di radius outlet saat submit checklist." action={<EnterpriseCheckbox checked={state.geofence_enabled} onChange={(event) => update("geofence_enabled", event.target.checked)} />} />
+            <EnterpriseField label="Geofence radius (meters)">
+              <EnterpriseInput
+                type="number"
+                value={state.geofence_radius_meters}
+                onChange={(event) =>
+                  update("geofence_radius_meters", Number(event.target.value || 0))
+                }
+                disabled={!state.geofence_enabled}
+              />
+            </EnterpriseField>
             <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
           </div>
         </SectionCard>
@@ -632,6 +760,8 @@ export function SettingsWorkspace() {
           </p>
         </SectionCard>
       </div>
+
+      <OutletLocationPanel onNotice={(message) => setNotice(message)} />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="Role Guide">

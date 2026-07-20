@@ -26,6 +26,7 @@ from app.routers.form_templates import router as form_template_router
 from app.routers.reports import router as reports_router
 from app.routers.runtime_templates import router as runtime_template_router
 from app.routers.settings import router as settings_router
+from app.routers.outlets import router as outlets_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -41,6 +42,7 @@ api_router.include_router(form_template_router)
 api_router.include_router(form_submission_router)
 api_router.include_router(execution_session_router)
 api_router.include_router(settings_router)
+api_router.include_router(outlets_router)
 api_router.include_router(evidence_upload_router)
 api_router.include_router(reports_router)
 api_router.include_router(webhooks_router)

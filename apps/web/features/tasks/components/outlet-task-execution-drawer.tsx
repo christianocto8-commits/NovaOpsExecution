@@ -17,6 +17,7 @@ import { formTemplateService } from "@/services/form-template.service";
 import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { SaveIndicator } from "@/shared/status";
+import { useToast } from "@/shared/toast";
 
 type OutletTaskExecutionDrawerProps = {
   open: boolean;
@@ -76,6 +77,7 @@ export function OutletTaskExecutionDrawer({
   onSaveDraft,
   onSubmit,
 }: OutletTaskExecutionDrawerProps) {
+  const toast = useToast();
   const [highlightedFieldIds, setHighlightedFieldIds] = useState<string[]>([]);
   const [saveState, setSaveState] = useState<DraftSaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -144,7 +146,7 @@ export function OutletTaskExecutionDrawer({
       setSaveState("saved");
     } catch {
       setSaveState("error");
-      window.alert("Save draft gagal. Coba lagi.");
+      toast.error("Save draft gagal. Coba lagi.");
     }
   }
 
@@ -154,12 +156,12 @@ export function OutletTaskExecutionDrawer({
       : form.operatorName;
 
     if (!responsibleName.trim()) {
-      window.alert("Nama pelaksana wajib diisi.");
+      toast.warning("Nama pelaksana wajib diisi.");
       return;
     }
 
     if (!form.note.trim()) {
-      window.alert("Execution Note wajib diisi.");
+      toast.warning("Execution Note wajib diisi.");
       return;
     }
 
@@ -181,6 +183,7 @@ export function OutletTaskExecutionDrawer({
         setHighlightedFieldIds([]);
       }, 3500);
 
+      toast.warning(`Lengkapi ${missingRequiredFields.length} field wajib.`);
       return;
     }
 
@@ -191,7 +194,7 @@ export function OutletTaskExecutionDrawer({
       setSaveState("saved");
     } catch {
       setSaveState("error");
-      window.alert("Submit task gagal. Coba lagi.");
+      toast.error("Submit task gagal. Coba lagi.");
     }
   }
 

@@ -13,6 +13,13 @@ export type FormFieldOptions = {
   denominations?: number[];
   currency?: string;
   system?: boolean;
+  showWhenFieldId?: string;
+  showWhenValue?: string;
+};
+
+export type FormFieldValidation = {
+  min?: number;
+  max?: number;
 };
 
 export type FormField = {
@@ -22,6 +29,7 @@ export type FormField = {
   required: boolean;
   section?: string;
   options?: FormFieldOptions;
+  validation?: FormFieldValidation;
 };
 
 export type FormTemplate = {

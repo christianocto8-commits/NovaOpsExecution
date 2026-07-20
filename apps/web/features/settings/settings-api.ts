@@ -43,6 +43,8 @@ export type SettingsResponse = {
   max_upload_mb: number;
   timestamp_watermark: boolean;
   gps_watermark: boolean;
+  geofence_enabled: boolean;
+  geofence_radius_meters: number;
   audit_retention_days: number;
   login_history_visible: boolean;
   template_history_visible: boolean;
