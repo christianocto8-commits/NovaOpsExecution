@@ -295,10 +295,13 @@ export function SchedulesWorkspace() {
         <EnterpriseDataTable
           columns={columns}
           data={rows}
-          emptyMessage={
+          emptyTitle={
+            schedulesQuery.isLoading ? "Loading schedules..." : "Belum ada task schedule"
+          }
+          emptyDescription={
             schedulesQuery.isLoading
-              ? "Loading schedules..."
-              : "Belum ada task schedule. Buat schedule baru untuk publish task otomatis."
+              ? undefined
+              : "Buat schedule baru untuk publish task otomatis."
           }
           searchPlaceholder="Search schedule, outlet, template..."
         />
