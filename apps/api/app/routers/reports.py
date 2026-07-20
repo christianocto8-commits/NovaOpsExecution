@@ -12,10 +12,13 @@ from app.models.task import Task
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
+    FailedChecklistItemTrend,
+    FailedChecklistItemsReport,
     OutletReport,
     ReportSummary,
     ReportTrendPoint,
 )
+from app.services.compliance_analytics import get_top_failed_checklist_items
 from app.services.compliance_export import build_compliance_export_xlsx
 from app.services.execution_validation import compliance_score
 from app.services.workspace_settings import get_workspace_settings
@@ -214,6 +217,34 @@ def get_compliance_reports(
             status="healthy" if summary.completion_rate >= pass_threshold else "attention",
         ),
     ]
+
+
+@router.get("/compliance/failed-items", response_model=FailedChecklistItemsReport)
+def get_failed_checklist_items(
+    limit: int = Query(default=10, ge=1, le=50),
+    days: int = Query(default=30, ge=1, le=365),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+
+    rows = get_top_failed_checklist_items(
+        db,
+        limit=limit,
+        days=days,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        all_outlets=full_access and outlet_id is None,
+    )
+
+    return FailedChecklistItemsReport(
+        days=days,
+        limit=limit,
+        items=[FailedChecklistItemTrend(**row) for row in rows],
+    )
 
 
 @router.get("/compliance/export")

@@ -29,3 +29,16 @@ class ComplianceReport(BaseModel):
     category: str
     score: int
     status: str
+
+
+class FailedChecklistItemTrend(BaseModel):
+    label: str
+    field_id: int | None = None
+    failure_count: int
+    sample_reason: str
+
+
+class FailedChecklistItemsReport(BaseModel):
+    days: int
+    limit: int
+    items: list[FailedChecklistItemTrend]

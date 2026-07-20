@@ -3,6 +3,7 @@
   | "textarea"
   | "yes_no"
   | "number"
+  | "select"
   | "photo"
   | "signature"
   | "money_denomination"
@@ -15,6 +16,7 @@ export type FormFieldOptions = {
   system?: boolean;
   showWhenFieldId?: string;
   showWhenValue?: string;
+  choices?: string[];
 };
 
 export type FormFieldValidation = {

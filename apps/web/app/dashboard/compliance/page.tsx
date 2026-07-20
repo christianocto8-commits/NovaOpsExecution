@@ -14,7 +14,7 @@ import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
-import { downloadComplianceExport } from "@/services/reports.service";
+import { downloadComplianceExport, getFailedChecklistItems } from "@/services/reports.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 import {
@@ -202,6 +202,12 @@ export default function ComplianceCenterPage() {
     retry: false,
   });
 
+  const failedItemsQuery = useQuery({
+    queryKey: ["reports", "failed-checklist-items"],
+    queryFn: () => getFailedChecklistItems({ limit: 8, days: 30 }),
+    retry: false,
+  });
+
   const tasksWithExecution = useMemo(() => {
     const tasks = tasksQuery.data ?? [];
     const sessions = executionSessionsQuery.data ?? [];
@@ -289,6 +295,14 @@ export default function ComplianceCenterPage() {
       passThreshold
     );
   }, [executionSessionsQuery.data, tasksQuery.data, passThreshold]);
+  const failedItemsChartData = useMemo(
+    () =>
+      (failedItemsQuery.data?.items ?? []).map((item) => ({
+        label: item.label,
+        failures: item.failure_count,
+      })),
+    [failedItemsQuery.data]
+  );
   const ownerActionQueue = rows
     .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
     .sort((first, second) => first.completion - second.completion)
@@ -499,7 +513,15 @@ export default function ComplianceCenterPage() {
           ]}
         />
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <BarChartCard
+          title="Top Failed Checklist Items"
+          description="Most frequently failed checklist fields in the last 30 days."
+          data={failedItemsChartData}
+          xKey="label"
+          series={[{ dataKey: "failures", name: "Failures" }]}
+        />
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
           <p className="text-sm font-semibold text-slate-950">Outlet Score Heatmap</p>
           <p className="mt-1 text-xs text-slate-500">
             Green ≥ {passThreshold}%, amber watch zone, red at risk.

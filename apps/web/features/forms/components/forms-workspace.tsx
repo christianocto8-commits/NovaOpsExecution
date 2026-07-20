@@ -35,6 +35,7 @@ const fieldTypeOptions: Array<{
   { value: "text", label: "Text singkat" },
   { value: "textarea", label: "Kotak teks" },
   { value: "number", label: "Angka" },
+  { value: "select", label: "Dropdown / Pilihan" },
   { value: "photo", label: "Foto bukti" },
   { value: "signature", label: "Tanda tangan" },
   { value: "responsible_person", label: "Nama pelaksana" },
@@ -61,6 +62,7 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   textarea: "Kotak teks",
   yes_no: "Ya / Tidak",
   number: "Angka",
+  select: "Dropdown / Pilihan",
   photo: "Foto bukti",
   signature: "Tanda tangan",
   money_denomination: "Hitung denom uang",
@@ -417,6 +419,13 @@ export function FormsWorkspace() {
         if (updates.type === "money_amount" && !nextField.options) {
           nextField.options = { currency: "IDR" };
           nextField.section = nextField.section ?? "Laporan Penjualan";
+        }
+
+        if (updates.type === "select" && !nextField.options?.choices?.length) {
+          nextField.options = {
+            ...nextField.options,
+            choices: ["Option 1", "Option 2"],
+          };
         }
 
         return nextField;
@@ -830,6 +839,72 @@ export function FormsWorkspace() {
                           placeholder="Max value"
                           className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
                         />
+                      </div>
+                    ) : null}
+
+                    {field.type === "select" ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Pilihan dropdown
+                        </p>
+                        {(field.options?.choices ?? []).map((choice, choiceIndex) => (
+                          <div key={`${field.id}-choice-${choiceIndex}`} className="flex gap-2">
+                            <input
+                              value={choice}
+                              readOnly={isAreaWorkspace}
+                              onChange={(event) => {
+                                const nextChoices = [...(field.options?.choices ?? [])];
+                                nextChoices[choiceIndex] = event.target.value;
+                                updateField(field.id, {
+                                  options: {
+                                    ...field.options,
+                                    choices: nextChoices,
+                                  },
+                                });
+                              }}
+                              placeholder={`Pilihan ${choiceIndex + 1}`}
+                              className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                            />
+                            {!isAreaWorkspace ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextChoices = (field.options?.choices ?? []).filter(
+                                    (_, index) => index !== choiceIndex
+                                  );
+                                  updateField(field.id, {
+                                    options: {
+                                      ...field.options,
+                                      choices: nextChoices.length ? nextChoices : ["Option 1"],
+                                    },
+                                  });
+                                }}
+                                className="rounded-xl border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Hapus
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                        {!isAreaWorkspace ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateField(field.id, {
+                                options: {
+                                  ...field.options,
+                                  choices: [
+                                    ...(field.options?.choices ?? []),
+                                    `Option ${(field.options?.choices?.length ?? 0) + 1}`,
+                                  ],
+                                },
+                              })
+                            }
+                            className="rounded-xl border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            + Tambah pilihan
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
 

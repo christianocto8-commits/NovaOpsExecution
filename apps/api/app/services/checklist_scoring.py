@@ -94,6 +94,18 @@ def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]
             return False, "Required evidence missing"
         return True, None
 
+    if field_type == "select":
+        if not _is_filled(value):
+            return False, "Required field empty"
+        choices = []
+        if isinstance(field.options_json, dict):
+            raw_choices = field.options_json.get("choices")
+            if isinstance(raw_choices, list):
+                choices = [str(item).strip() for item in raw_choices if str(item).strip()]
+        if choices and _normalize_text(value) not in choices:
+            return False, f"Invalid selection: {value}"
+        return True, None
+
     if not _is_filled(value):
         return False, "Required field empty"
 

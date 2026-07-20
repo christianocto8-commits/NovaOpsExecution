@@ -147,6 +147,9 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       typeof options.showWhenFieldId === "string" ? options.showWhenFieldId : undefined,
     showWhenValue:
       typeof options.showWhenValue === "string" ? options.showWhenValue : undefined,
+    choices: Array.isArray(options.choices)
+      ? options.choices.filter((value): value is string => typeof value === "string")
+      : undefined,
   };
 }
 

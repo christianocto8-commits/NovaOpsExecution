@@ -1,5 +1,18 @@
 import { buildApiUrl } from "@/lib/api-url";
 
+export type FailedChecklistItemTrend = {
+  label: string;
+  field_id: number | null;
+  failure_count: number;
+  sample_reason: string;
+};
+
+export type FailedChecklistItemsReport = {
+  days: number;
+  limit: number;
+  items: FailedChecklistItemTrend[];
+};
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -57,4 +70,44 @@ export async function downloadComplianceExport(format = "xlsx"): Promise<void> {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export async function getFailedChecklistItems(
+  options: { limit?: number; days?: number } = {}
+): Promise<FailedChecklistItemsReport> {
+  const token = getToken();
+  const outletId = getOutletId();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (outletId) {
+    headers.set("X-Outlet-Id", outletId);
+  }
+
+  const params = new URLSearchParams();
+  if (options.limit != null) params.set("limit", String(options.limit));
+  if (options.days != null) params.set("days", String(options.days));
+
+  const response = await fetch(
+    buildApiUrl(`/api/v1/reports/compliance/failed-items?${params.toString()}`),
+    { headers }
+  );
+
+  if (!response.ok) {
+    let message = "Failed to load failed checklist items";
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      message = await response.text();
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<FailedChecklistItemsReport>;
 }

@@ -22,6 +22,7 @@ const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
   textarea: "Kotak teks",
   yes_no: "Ya / Tidak",
   number: "Angka",
+  select: "Dropdown / Pilihan",
   photo: "Foto bukti",
   signature: "Tanda tangan",
   money_denomination: "Hitung denom uang",
@@ -108,6 +109,20 @@ export function DynamicFormRenderer({
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
                 />
+              ) : field.type === "select" ? (
+                <select
+                  value={value}
+                  disabled={readOnly}
+                  onChange={(event) => updateResponse(field.id, event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                >
+                  <option value="">Pilih opsi...</option>
+                  {(field.options?.choices ?? []).map((choice) => (
+                    <option key={choice} value={choice}>
+                      {choice}
+                    </option>
+                  ))}
+                </select>
               ) : field.type === "money_denomination" ? (
                 <MoneyDenominationField
                   field={field}
