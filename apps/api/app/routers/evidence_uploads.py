@@ -3,16 +3,18 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.services.workspace_settings import get_max_upload_bytes
 
 router = APIRouter(prefix="/evidence-uploads", tags=["Evidence Uploads"])
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[2] / "uploads" / "evidence"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 
 def _safe_extension(filename: str, content_type: str | None) -> str:
@@ -34,9 +36,12 @@ def _safe_extension(filename: str, content_type: str | None) -> str:
 async def upload_evidence(
     request: Request,
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     del current_user
+
+    max_file_size_bytes = get_max_upload_bytes(db)
 
     content_type = (file.content_type or "").lower()
 
@@ -51,8 +56,12 @@ async def upload_evidence(
     if not content:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File evidence kosong.")
 
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ukuran file maksimal 10 MB.")
+    if len(content) > max_file_size_bytes:
+        max_mb = max(1, max_file_size_bytes // (1024 * 1024))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ukuran file maksimal {max_mb} MB.",
+        )
 
     extension = _safe_extension(file.filename or "evidence", content_type)
     stored_name = f"{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{uuid4().hex}{extension}"
