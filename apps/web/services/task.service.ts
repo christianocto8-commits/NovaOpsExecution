@@ -173,6 +173,10 @@ export const taskService = {
     }
   },
 
+  listAll() {
+    return this.list();
+  },
+
   async listCorrectiveActions() {
     return this.list("corrective_action");
   },

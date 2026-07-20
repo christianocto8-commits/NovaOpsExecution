@@ -381,7 +381,7 @@ export function useTaskWorkspace() {
 
   const backendTasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
-    queryFn: taskService.list,
+    queryFn: taskService.listAll,
     retry: false,
   });
 
@@ -554,7 +554,7 @@ export function useTaskWorkspace() {
         toast.info("Menyambungkan ke backend, tunggu sebentar...");
         await queryClient.fetchQuery({
           queryKey: queryKeys.sop.tasks(),
-          queryFn: taskService.list,
+          queryFn: taskService.listAll,
         });
       }
 

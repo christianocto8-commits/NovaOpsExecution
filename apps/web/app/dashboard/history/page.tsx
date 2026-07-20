@@ -123,7 +123,7 @@ export default function HistoryPage() {
 
   const taskQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
-    queryFn: taskService.list,
+    queryFn: taskService.listAll,
   });
 
   const executionSessionsQuery = useQuery({

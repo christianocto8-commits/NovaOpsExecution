@@ -406,7 +406,7 @@ export function ReportsWorkspace() {
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
-    queryFn: taskService.list,
+    queryFn: taskService.listAll,
     retry: false,
   });
   const formTemplatesQuery = useQuery({
