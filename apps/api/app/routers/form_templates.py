@@ -5,8 +5,15 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
+from app.models.execution_session import ExecutionSession
+from app.models.form_answer import FormAnswer
 from app.models.form_field import FormField
+from app.models.form_schedule import FormSchedule
+from app.models.form_submission import FormSubmission
 from app.models.form_template import FormTemplate
+from app.models.task_schedule import TaskSchedule
 from app.models.user import User
 from app.modules.identity.models import User as IdentityUser
 from app.modules.identity.security import decode_access_token
@@ -46,6 +53,55 @@ def _get_template_or_404(db: Session, form_template_id: int) -> FormTemplate:
         raise HTTPException(status_code=404, detail="Form template not found")
 
     return form_template
+
+
+def _delete_form_template_tree(db: Session, template_id: int) -> None:
+    field_ids = [
+        row[0]
+        for row in db.query(FormField.id)
+        .filter(FormField.form_template_id == template_id)
+        .all()
+    ]
+    submission_ids = [
+        row[0]
+        for row in db.query(FormSubmission.id)
+        .filter(FormSubmission.form_template_id == template_id)
+        .all()
+    ]
+
+    if submission_ids:
+        db.query(FormAnswer).filter(
+            FormAnswer.form_submission_id.in_(submission_ids)
+        ).delete(synchronize_session=False)
+
+    if field_ids:
+        db.query(FormAnswer).filter(FormAnswer.form_field_id.in_(field_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.query(FormSubmission).filter(FormSubmission.form_template_id == template_id).delete(
+        synchronize_session=False
+    )
+    db.query(FormSchedule).filter(FormSchedule.form_template_id == template_id).delete(
+        synchronize_session=False
+    )
+    db.query(TaskSchedule).filter(TaskSchedule.form_template_id == template_id).update(
+        {TaskSchedule.form_template_id: None},
+        synchronize_session=False,
+    )
+    db.query(ExecutionSession).filter(
+        ExecutionSession.form_template_id == template_id
+    ).update({ExecutionSession.form_template_id: None}, synchronize_session=False)
+    db.query(FormField).filter(FormField.form_template_id == template_id).delete(
+        synchronize_session=False
+    )
+    deleted = (
+        db.query(FormTemplate)
+        .filter(FormTemplate.id == template_id)
+        .delete(synchronize_session=False)
+    )
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Form template not found")
 
 
 def _resolve_form_actor(
@@ -121,7 +177,12 @@ def create_form_template(
 
 
 @router.get("", response_model=list[FormTemplateResponse])
-def get_form_templates(db: Session = Depends(get_db)):
+def get_form_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    del current_user
+
     return (
         db.query(FormTemplate)
         .options(joinedload(FormTemplate.fields))
@@ -131,7 +192,13 @@ def get_form_templates(db: Session = Depends(get_db)):
 
 
 @router.get("/{form_template_id}", response_model=FormTemplateResponse)
-def get_form_template(form_template_id: int, db: Session = Depends(get_db)):
+def get_form_template(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    del current_user
+
     return _get_template_or_404(db, form_template_id)
 
 
@@ -165,7 +232,14 @@ def delete_form_template(
 ):
     del current_user
 
-    form_template = _get_template_or_404(db, form_template_id)
-    db.delete(form_template)
+    exists = (
+        db.query(FormTemplate.id)
+        .filter(FormTemplate.id == form_template_id)
+        .first()
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Form template not found")
+
+    _delete_form_template_tree(db, form_template_id)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

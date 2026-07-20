@@ -52,7 +52,7 @@ const defaults: OwnerAdminState = {
   default_language: "id",
   task_auto_archive_days: 30,
   evidence_required: true,
-  approval_required: true,
+  approval_required: false,
   email_notifications: true,
   dashboard_alerts: true,
   overdue_alerts: true,

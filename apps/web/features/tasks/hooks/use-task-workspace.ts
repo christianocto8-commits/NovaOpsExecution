@@ -1,16 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { emptyTaskExecutionForm, emptyTaskForm } from "@/features/tasks/data/task-form-defaults";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { useConfirmation } from "@/shared/confirmation";
 import { useToast } from "@/shared/toast";
-import { Task, TaskExecutionForm, TaskFormState, TaskReviewStatus } from "@/features/tasks/types";
+import {
+  Task,
+  TaskExecution,
+  TaskExecutionForm,
+  TaskFormState,
+  TaskReviewStatus,
+} from "@/features/tasks/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem } from "@/shared/evidence";
 import { queryKeys } from "@/lib/query/keys";
+import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { taskService } from "@/services/task.service";
 import { getIdentityOutlets } from "@/services/identity.service";
@@ -31,6 +38,11 @@ import {
   updateCachedTask,
 } from "@/lib/offline/store";
 import type { LocalDraft } from "@/lib/offline/types";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 
 const EXECUTION_DRAFT_QUERY_KEY = ["execution-sessions", "drafts"] as const;
 
@@ -131,16 +143,120 @@ function getLatestDraftSessionsByTask(executionSessions: ExecutionSessionRespons
   return latestDraftMap;
 }
 
+function getLatestCompletedSessionsByTask(executionSessions: ExecutionSessionResponse[]) {
+  const latestCompletedMap = new Map<string, ExecutionSessionResponse>();
+
+  executionSessions.forEach((session) => {
+    if (session.status !== "completed" || session.source_type !== "sop_task" || session.task_id == null) {
+      return;
+    }
+
+    const taskId = String(session.task_id);
+    const current = latestCompletedMap.get(taskId);
+
+    if (!current || session.id > current.id) {
+      latestCompletedMap.set(taskId, session);
+    }
+  });
+
+  return latestCompletedMap;
+}
+
+function parseEvidenceGallery(value: string): EvidenceItem[] {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(
+      (item): item is EvidenceItem =>
+        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function buildTaskEvidence(value: string, submittedAt: string) {
+  const galleryItems = parseEvidenceGallery(value);
+
+  if (galleryItems.length > 0) {
+    return galleryItems.map((item) =>
+      createTaskEvidence({
+        type: detectEvidenceType(item.url),
+        label: item.caption || "Outlet Evidence",
+        value: item.url,
+        submittedAt: item.uploadedAt ?? submittedAt,
+      })
+    );
+  }
+
+  return [
+    createTaskEvidence({
+      type: value ? detectEvidenceType(value) : "note",
+      label: value ? "Outlet Evidence" : "Execution Confirmation",
+      value: value || "Execution completed without additional evidence attachment.",
+      submittedAt,
+    }),
+  ];
+}
+
+function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution | null {
+  const payload = session.answers_json;
+
+  if (!payload || typeof payload !== "object") return null;
+
+  const operator = payload.operator as Record<string, unknown> | undefined;
+  const responses = payload.responses as Record<string, unknown> | undefined;
+  const submittedAt =
+    typeof payload.submittedAt === "string"
+      ? payload.submittedAt
+      : session.submitted_at ?? new Date().toISOString();
+  const evidenceText = typeof payload.evidence === "string" ? payload.evidence : "";
+
+  return {
+    operatorName: typeof operator?.name === "string" ? operator.name : "",
+    operatorPosition:
+      typeof operator?.position === "string"
+        ? (operator.position as TaskExecutionForm["operatorPosition"])
+        : "Crew",
+    note: typeof payload.note === "string" ? payload.note : "",
+    evidence: buildTaskEvidence(evidenceText, submittedAt),
+    formResponses: Object.fromEntries(
+      Object.entries(responses ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : ""])
+    ),
+    completedAt: submittedAt,
+  };
+}
+
 function mergeBackendTasksWithDrafts(
   backendTasks: Task[],
   executionSessions: ExecutionSessionResponse[]
 ) {
   const latestDraftMap = getLatestDraftSessionsByTask(executionSessions);
+  const latestCompletedMap = getLatestCompletedSessionsByTask(executionSessions);
 
   return backendTasks.map((task) => {
     const normalizedTask = normalizeTask(task);
 
-    if (normalizedTask.execution?.reviewStatus === "approved" || normalizedTask.status === "Completed") {
+    if (normalizedTask.execution?.reviewStatus === "approved") {
+      return normalizedTask;
+    }
+
+    const completedSession = latestCompletedMap.get(task.id);
+    const parsedExecution = completedSession ? parseExecutionSession(completedSession) : null;
+
+    if (parsedExecution) {
+      return normalizeTask({
+        ...normalizedTask,
+        execution: normalizedTask.execution ?? parsedExecution,
+        executionDraft: undefined,
+      });
+    }
+
+    if (normalizedTask.status === "Completed") {
       return normalizedTask;
     }
 
@@ -186,51 +302,18 @@ function mergeTasksWithLocalDrafts(
   });
 }
 
-function parseEvidenceGallery(value: string): EvidenceItem[] {
-  if (!value.trim()) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter(
-      (item): item is EvidenceItem =>
-        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
-    );
-  } catch {
-    return [];
-  }
-}
-
-function buildTaskEvidence(value: string, submittedAt: string) {
-  const galleryItems = parseEvidenceGallery(value);
-
-  if (galleryItems.length > 0) {
-    return galleryItems.map((item) =>
-      createTaskEvidence({
-        type: detectEvidenceType(item.url),
-        label: item.caption || "Outlet Evidence",
-        value: item.url,
-        submittedAt: item.uploadedAt ?? submittedAt,
-      })
-    );
-  }
-
-  return [
-    createTaskEvidence({
-      type: value ? detectEvidenceType(value) : "note",
-      label: value ? "Outlet Evidence" : "Execution Confirmation",
-      value: value || "Execution completed without additional evidence attachment.",
-      submittedAt,
-    }),
-  ];
-}
-
 export function useTaskWorkspace() {
   const { settings } = useSettings();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
-  const approvalRequired = settings?.approval_required ?? true;
+  const isOutletWorkspace = workspace.mode === "outlet";
+  const approvalRequired = isOutletWorkspace
+    ? false
+    : (settings?.approval_required ?? false);
   const confirm = useConfirmation();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -589,7 +672,7 @@ export function useTaskWorkspace() {
       });
 
       await enqueueMutation({
-        id: crypto.randomUUID(),
+        id: createLocalId(),
         type: "EXECUTION_DRAFT",
         taskId: selectedTask.id,
         payload: {
@@ -650,11 +733,7 @@ export function useTaskWorkspace() {
         }
 
         await completeTaskMutation.mutateAsync({ task: selectedTask, form: executionForm });
-        toast.success(
-          approvalRequired
-            ? "Evidence dikirim dan menunggu review."
-            : "Task selesai dan evidence tersimpan."
-        );
+        toast.success("Task selesai dan evidence tersimpan.");
         closeExecution();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
@@ -673,7 +752,7 @@ export function useTaskWorkspace() {
       await deleteLocalDraft(selectedTask.id);
 
       await enqueueMutation({
-        id: crypto.randomUUID(),
+        id: createLocalId(),
         type: "EXECUTION_SUBMIT",
         taskId: selectedTask.id,
         payload: {

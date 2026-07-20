@@ -1,4 +1,5 @@
 import { buildApiUrl } from "@/lib/api-url";
+import { getStoredWorkspace } from "@/shared/navigation/workspace-store";
 import {
   deleteEvidenceBlob,
   deleteLocalDraft,
@@ -146,7 +147,8 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
   });
 
   const previousStatus = typeof payload.previousStatus === "string" ? payload.previousStatus : "Pending";
-  const approvalRequired = payload.approvalRequired === true;
+  const isOutletWorkspace = getStoredWorkspace().mode === "outlet";
+  const approvalRequired = payload.approvalRequired === true && !isOutletWorkspace;
 
   if (previousStatus === "Pending") {
     await taskService.updateStatus(mutation.taskId, "in_progress");

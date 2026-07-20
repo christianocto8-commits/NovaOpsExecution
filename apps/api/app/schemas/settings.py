@@ -8,7 +8,7 @@ class SettingsResponse(BaseModel):
     default_language: str = "en"
     task_auto_archive_days: int = 30
     evidence_required: bool = True
-    approval_required: bool = True
+    approval_required: bool = False
     email_notifications: bool = True
     dashboard_alerts: bool = True
     overdue_alerts: bool = True

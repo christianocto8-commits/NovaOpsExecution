@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.execution_session import ExecutionSession
+from app.models.user import User
 from app.schemas.execution_session import (
     ExecutionSessionCreate,
     ExecutionSessionResponse,
@@ -16,7 +18,10 @@ router = APIRouter(prefix="/execution-sessions", tags=["Execution Sessions"])
 def create_execution_session(
     payload: ExecutionSessionCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    del current_user
+
     execution_session = ExecutionSession(**payload.model_dump())
 
     db.add(execution_session)
@@ -32,7 +37,10 @@ def get_execution_sessions(
     status_filter: str | None = Query(default=None, alias="status"),
     source_type: str | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    del current_user
+
     query = db.query(ExecutionSession)
 
     if task_id is not None:
@@ -52,7 +60,10 @@ def update_execution_session(
     session_id: int,
     payload: ExecutionSessionUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    del current_user
+
     execution_session = db.query(ExecutionSession).filter(ExecutionSession.id == session_id).first()
 
     if execution_session is None:
@@ -71,7 +82,10 @@ def update_execution_session(
 def delete_execution_session(
     session_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    del current_user
+
     execution_session = db.query(ExecutionSession).filter(ExecutionSession.id == session_id).first()
 
     if execution_session is None:

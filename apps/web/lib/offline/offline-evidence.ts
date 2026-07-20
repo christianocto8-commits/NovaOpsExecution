@@ -1,4 +1,5 @@
 import { saveEvidenceBlob, getEvidenceBlob } from "@/lib/offline/store";
+import { createLocalId } from "@/lib/local-id";
 import type { EvidenceBlobRecord } from "@/lib/offline/types";
 
 export const OFFLINE_EVIDENCE_PREFIX = "offline://evidence/";
@@ -16,7 +17,7 @@ export function buildOfflineEvidenceUrl(id: string) {
 }
 
 export async function storeOfflineEvidence(file: File): Promise<EvidenceBlobRecord> {
-  const id = crypto.randomUUID();
+  const id = createLocalId();
   const record: EvidenceBlobRecord = {
     id,
     url: buildOfflineEvidenceUrl(id),

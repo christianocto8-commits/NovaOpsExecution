@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.outlet import Outlet as LegacyOutlet
 from app.models.task import Task
 from app.models.user import User
-from app.modules.identity.models import User as IdentityUser
+from app.modules.identity.models import Outlet as IdentityOutlet
+from app.modules.identity.models import Role, User as IdentityUser
+from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import NotificationEventCreate
@@ -70,3 +74,95 @@ def notify_task_recipient(
         url=f"/dashboard/tasks?taskId={task.id}",
         data=payload,
     )
+
+
+def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:
+    legacy_outlet = (
+        db.query(LegacyOutlet).filter(LegacyOutlet.id == legacy_outlet_id).first()
+    )
+    if not legacy_outlet:
+        return None
+
+    code = legacy_outlet.code.strip().upper()
+    return db.query(IdentityOutlet).filter(IdentityOutlet.code == code).first()
+
+
+def _area_manager_has_outlet_access(
+    user: IdentityUser, identity_outlet: IdentityOutlet | None
+) -> bool:
+    if not identity_outlet:
+        return True
+
+    if user.outlet_id == identity_outlet.id:
+        return True
+
+    return any(outlet.id == identity_outlet.id for outlet in user.assigned_outlets)
+
+
+def notify_task_completed_supervisors(
+    db: Session,
+    *,
+    task: Task,
+    completed_by_identity_id: UUID | None = None,
+) -> None:
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    outlet_label = identity_outlet.name if identity_outlet else f"Outlet {task.outlet_id}"
+
+    supervisor_roles = db.scalars(
+        select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE, AREA_MANAGER_ROLE]))
+    ).all()
+    if not supervisor_roles:
+        return
+
+    role_ids = [role.id for role in supervisor_roles]
+    supervisors = db.scalars(
+        select(IdentityUser).where(
+            IdentityUser.is_active.is_(True),
+            IdentityUser.role_id.in_(role_ids),
+        )
+    ).all()
+
+    subject = f"Task selesai: {task.title}"
+    body = (
+        f'Task "{task.title}" di {outlet_label} telah diselesaikan oleh outlet '
+        "dan evidence sudah terunggah."
+    )
+
+    for supervisor in supervisors:
+        if completed_by_identity_id and supervisor.id == completed_by_identity_id:
+            continue
+
+        role_slug = supervisor.role.slug if supervisor.role else ""
+        if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(
+            supervisor, identity_outlet
+        ):
+            continue
+
+        payload = {
+            "task_id": task.id,
+            "task_title": task.title,
+            "outlet_id": task.outlet_id,
+            "event_type": "task_completed",
+        }
+
+        NotificationService(db).create_event(
+            NotificationEventCreate(
+                event_type="task_completed",
+                source_module="tasks",
+                source_entity_type="task",
+                source_entity_id=str(task.id),
+                recipient_user_id=supervisor.id,
+                channel=NotificationChannel.in_app,
+                subject=subject,
+                body=body,
+                payload_json=payload,
+            )
+        )
+
+        PushNotificationService(db).send_to_user(
+            supervisor.id,
+            title=subject,
+            body=body,
+            url=f"/dashboard/tasks?taskId={task.id}",
+            data=payload,
+        )

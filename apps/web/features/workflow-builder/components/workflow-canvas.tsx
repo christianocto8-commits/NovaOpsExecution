@@ -17,6 +17,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 
+import { createLocalId } from "@/lib/local-id";
 import { useWorkflowBuilder } from "@/features/workflow-builder/hooks/use-workflow-builder";
 import { ApprovalNode } from "@/features/workflow-builder/nodes/approval-node";
 import { EndNode } from "@/features/workflow-builder/nodes/end-node";
@@ -46,7 +47,7 @@ const nodeTypes: NodeTypes = {
 function createNodeId(
   nodeType: WorkflowBuilderNodeType
 ) {
-  return `${nodeType}-${crypto.randomUUID()}`;
+  return `${nodeType}-${createLocalId()}`;
 }
 
 function WorkflowCanvasContent() {

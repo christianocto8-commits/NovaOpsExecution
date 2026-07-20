@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.builder_document import BuilderDocument
 from app.models.runtime_template import RuntimeTemplate
+from app.modules.identity.dependencies import get_current_active_user, require_role
+from app.modules.identity.models import User as IdentityUser
 from app.schemas.builder_document import (
     BuilderDocumentCreate,
     BuilderDocumentResponse,
@@ -17,7 +19,10 @@ router = APIRouter(prefix="/builder-documents", tags=["Builder Documents"])
 def create_builder_document(
     payload: BuilderDocumentCreate,
     db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
 ):
+    del current_user
+
     builder_document = BuilderDocument(**payload.model_dump())
 
     db.add(builder_document)
@@ -32,7 +37,10 @@ def update_builder_document(
     builder_document_id: int,
     payload: BuilderDocumentUpdate,
     db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
 ):
+    del current_user
+
     builder_document = (
         db.query(BuilderDocument)
         .filter(BuilderDocument.id == builder_document_id)
@@ -53,7 +61,12 @@ def update_builder_document(
 
 
 @router.get("", response_model=list[BuilderDocumentResponse])
-def get_builder_documents(db: Session = Depends(get_db)):
+def get_builder_documents(
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(get_current_active_user),
+):
+    del current_user
+
     return db.query(BuilderDocument).order_by(BuilderDocument.id.desc()).all()
 
 
@@ -61,7 +74,10 @@ def get_builder_documents(db: Session = Depends(get_db)):
 def get_builder_document(
     builder_document_id: int,
     db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(get_current_active_user),
 ):
+    del current_user
+
     builder_document = (
         db.query(BuilderDocument)
         .filter(BuilderDocument.id == builder_document_id)
@@ -78,7 +94,10 @@ def get_builder_document(
 def publish_builder_document(
     builder_document_id: int,
     db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
 ):
+    del current_user
+
     builder_document = (
         db.query(BuilderDocument)
         .filter(BuilderDocument.id == builder_document_id)

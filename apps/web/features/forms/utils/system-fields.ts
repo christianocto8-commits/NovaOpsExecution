@@ -1,4 +1,5 @@
 import type { FormField } from "@/features/forms/types";
+import { createLocalId } from "@/lib/local-id";
 
 export const RESPONSIBLE_PERSON_FIELD_TYPE = "responsible_person" as const;
 export const RESPONSIBLE_PERSON_FIELD_LABEL = "Nama pelaksana / PIC";
@@ -11,7 +12,7 @@ export function isResponsiblePersonField(field: FormField) {
 
 export function createResponsiblePersonField(): FormField {
   return {
-    id: `local-field-responsible-${crypto.randomUUID()}`,
+    id: `local-field-responsible-${createLocalId()}`,
     label: RESPONSIBLE_PERSON_FIELD_LABEL,
     type: RESPONSIBLE_PERSON_FIELD_TYPE,
     required: true,

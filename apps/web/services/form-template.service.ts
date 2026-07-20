@@ -1,4 +1,5 @@
 import { api } from "@/services/api";
+import { createLocalId } from "@/lib/local-id";
 import { cacheFormTemplates, getCachedFormTemplate, getCachedFormTemplates } from "@/lib/offline/store";
 import type { FormField, FormFieldOptions, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
@@ -12,7 +13,7 @@ export function isPersistedTemplateId(templateId: string) {
 
 export function createMoneySafeCountTemplate(): FormTemplate {
   return {
-    id: `local-${crypto.randomUUID()}`,
+    id: `local-${createLocalId()}`,
     name: "Money Safe Count",
     category: "Closing",
     description:
@@ -20,7 +21,7 @@ export function createMoneySafeCountTemplate(): FormTemplate {
     status: "Draft",
     fields: ensureResponsiblePersonField([
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Uang Tunai Setoran",
         type: "money_denomination",
         required: true,
@@ -31,7 +32,7 @@ export function createMoneySafeCountTemplate(): FormTemplate {
         },
       },
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Total Penjualan Cash",
         type: "money_amount",
         required: true,
@@ -39,7 +40,7 @@ export function createMoneySafeCountTemplate(): FormTemplate {
         options: { currency: "IDR" },
       },
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Total Penjualan EDC",
         type: "money_amount",
         required: true,
@@ -47,14 +48,14 @@ export function createMoneySafeCountTemplate(): FormTemplate {
         options: { currency: "IDR" },
       },
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Catatan / Selisih",
         type: "textarea",
         required: false,
         section: "Catatan",
       },
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Tanda tangan PIC",
         type: "signature",
         required: true,
@@ -66,20 +67,20 @@ export function createMoneySafeCountTemplate(): FormTemplate {
 
 export function createBlankFormTemplate(): FormTemplate {
   return {
-    id: `local-${crypto.randomUUID()}`,
+    id: `local-${createLocalId()}`,
     name: "New Form Template",
     category: "Daily",
     description: "Reusable form template for task execution.",
     status: "Draft",
     fields: ensureResponsiblePersonField([
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Form field",
         type: "yes_no",
         required: true,
       },
       {
-        id: `local-field-${crypto.randomUUID()}`,
+        id: `local-field-${createLocalId()}`,
         label: "Photo evidence",
         type: "photo",
         required: false,
@@ -181,29 +182,45 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
 }
 
 function toBackendFields(fields: FormField[]) {
-  return fields.map((field, index) => ({
-    label: field.label,
-    field_type: field.type,
-    placeholder: null,
-    help_text: field.section ?? null,
-    is_required: field.required,
-    options_json: field.options ?? null,
-    validation_json: null,
-    sort_order: index,
-  }));
+  return fields
+    .map((field, index) => ({
+      label: field.label.trim(),
+      field_type: field.type,
+      placeholder: null,
+      help_text: field.section ?? null,
+      is_required: field.required,
+      options_json: field.options ?? null,
+      validation_json: null,
+      sort_order: index,
+    }))
+    .filter((field) => field.label.length > 0);
 }
 
 function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
   const isDraft = template.status === "Draft";
+  const title = template.name.trim() || "Untitled Form";
 
   return {
-    title: template.name,
-    description: template.description || null,
-    form_type: isDraft ? "draft" : template.category || "Checklist",
+    title,
+    description: template.description?.trim() || null,
+    form_type: isDraft ? "draft" : template.category?.trim() || "Checklist",
     outlet_id: null,
     is_active: template.status === "Active",
     fields: toBackendFields(ensureResponsiblePersonField(template.fields)),
   };
+}
+
+export function validateFormTemplateForSave(template: FormTemplate): string | null {
+  if (!template.name.trim()) {
+    return "Nama template wajib diisi.";
+  }
+
+  const emptyLabels = template.fields.filter((field) => !field.label.trim());
+  if (emptyLabels.length > 0) {
+    return "Setiap item form harus memiliki label.";
+  }
+
+  return null;
 }
 
 export const formTemplateService = {
@@ -242,6 +259,11 @@ export const formTemplateService = {
   },
 
   async create(template: FormTemplate) {
+    const validationError = validateFormTemplateForSave(template);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
     const created = await api<BackendFormTemplate>("/api/v1/form-templates", {
       method: "POST",
       body: JSON.stringify(toBackendPayload(template)),
@@ -251,6 +273,11 @@ export const formTemplateService = {
   },
 
   async update(templateId: string, template: FormTemplate) {
+    const validationError = validateFormTemplateForSave(template);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
     const updated = await api<BackendFormTemplate>(`/api/v1/form-templates/${templateId}`, {
       method: "PATCH",
       body: JSON.stringify(toBackendPayload(template)),

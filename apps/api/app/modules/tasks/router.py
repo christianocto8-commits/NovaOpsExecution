@@ -278,11 +278,13 @@ def update_task_status(
         db, current_user, x_outlet_id, task_id=task_id
     )
     service = TaskService(db)
+    identity_user = get_identity_user_by_email(db, current_user.email)
     return service.update_status(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
+        actor_identity_id=identity_user.id if identity_user else None,
     )
 
 

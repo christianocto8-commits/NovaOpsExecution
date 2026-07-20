@@ -1,0 +1,12 @@
+[Unit]
+Description=NovaOps recurring task and alert scheduler
+After=network.target novaops-api.service
+Wants=novaops-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/NovaOpsExecution/deploy/scripts/novaops-scheduler-run.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target

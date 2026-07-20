@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+*.env.backup
+**/novaops-vps.env
+!**/novaops-vps-local.env.example
+!deploy/novaops-vps.env
 
 # Python
 .venv/
@@ -53,3 +57,7 @@ __pycache__/
 
 # Local reports
 display-report.txt
+
+# Deploy artifacts
+standalone-deploy.tar.gz
+**/standalone-deploy.tar.gz

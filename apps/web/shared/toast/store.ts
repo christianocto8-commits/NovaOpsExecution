@@ -1,4 +1,5 @@
-﻿import { ToastItem, ToastOptions } from "./types";
+﻿import { createLocalId } from "@/lib/local-id";
+import { ToastItem, ToastOptions } from "./types";
 
 let toasts: ToastItem[] = [];
 let listeners: Array<() => void> = [];
@@ -21,7 +22,7 @@ export function getToastSnapshot() {
 
 export function showToast(options: ToastOptions) {
   const toast: ToastItem = {
-    id: crypto.randomUUID(),
+    id: createLocalId(),
     variant: "info",
     duration: 4500,
     createdAt: Date.now(),

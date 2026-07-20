@@ -1,4 +1,5 @@
-﻿import { ConfirmationOptions, ConfirmationRequest } from "./types";
+﻿import { createLocalId } from "@/lib/local-id";
+import { ConfirmationOptions, ConfirmationRequest } from "./types";
 
 let currentRequest: ConfirmationRequest | null = null;
 let listeners: Array<() => void> = [];
@@ -22,7 +23,7 @@ export function getConfirmationSnapshot() {
 export function requestConfirmation(options: ConfirmationOptions) {
   return new Promise<boolean>((resolve) => {
     currentRequest = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       variant: "info",
       confirmText: "Confirm",
       cancelText: "Cancel",

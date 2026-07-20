@@ -2,7 +2,10 @@ from datetime import datetime, UTC
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+
+from app.core.deps import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/evidence-uploads", tags=["Evidence Uploads"])
 
@@ -28,7 +31,13 @@ def _safe_extension(filename: str, content_type: str | None) -> str:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def upload_evidence(request: Request, file: UploadFile = File(...)) -> dict[str, str]:
+async def upload_evidence(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    del current_user
+
     content_type = (file.content_type or "").lower()
 
     if content_type not in ALLOWED_CONTENT_TYPES:

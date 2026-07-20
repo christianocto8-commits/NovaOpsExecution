@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -7,7 +8,10 @@ from app.models.task import Task
 from app.models.task_assignment import TaskAssignment
 from app.models.task_comment import TaskComment
 from app.models.user import User
-from app.modules.notifications.task_notifications import notify_task_recipient
+from app.modules.notifications.task_notifications import (
+    notify_task_completed_supervisors,
+    notify_task_recipient,
+)
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
@@ -208,6 +212,8 @@ class TaskService:
         outlet_id: int,
         actor_id: int,
         payload: TaskStatusUpdate,
+        *,
+        actor_identity_id: UUID | None = None,
     ) -> Task:
         task = self.get_task(task_id, outlet_id)
 
@@ -240,6 +246,14 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(task)
+
+        if payload.status == "completed":
+            notify_task_completed_supervisors(
+                self.db,
+                task=task,
+                completed_by_identity_id=actor_identity_id,
+            )
+
         return task
 
     def review_task(

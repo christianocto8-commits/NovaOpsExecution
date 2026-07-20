@@ -11,6 +11,7 @@ import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { useAuth } from "@/hooks/useAuth";
+import { createLocalId } from "@/lib/local-id";
 import { queryKeys } from "@/lib/query/keys";
 import { formSubmissionService } from "@/services/form-submission.service";
 import {
@@ -69,7 +70,7 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
 
 function createField(): FormField {
   return {
-    id: `local-field-${crypto.randomUUID()}`,
+    id: `local-field-${createLocalId()}`,
     label: "Form field",
     type: "yes_no",
     required: true,
@@ -255,6 +256,7 @@ export function FormsWorkspace() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
+  const { can } = useAuth();
   const queryClient = useQueryClient();
   const templatesQuery = useFormTemplates();
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
@@ -302,6 +304,12 @@ export function FormsWorkspace() {
         setSelectedTemplateId(nextTemplates[0]?.id ?? "");
         return nextTemplates;
       });
+      setSaveError(null);
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "Gagal menghapus template dari backend.";
+      setSaveError(message);
     },
   });
 
@@ -347,6 +355,7 @@ export function FormsWorkspace() {
   }
 
   const isAreaWorkspace = workspace.mode === "area";
+  const canManageTemplates = can("form.create") || can("form.edit");
   const hasSelectedTemplate = Boolean(selectedTemplate);
 
   function createTemplate() {
@@ -455,13 +464,26 @@ export function FormsWorkspace() {
   async function persistSelectedTemplate(status: FormTemplate["status"]) {
     if (!selectedTemplate) return;
 
+    if (!canManageTemplates) {
+      setSaveError(
+        "Akun ini tidak punya izin form.create. Login sebagai Admin/Owner untuk membuat template."
+      );
+      return;
+    }
+
     const templateToSave = {
       ...selectedTemplate,
       status,
     };
 
+    setSaveError(null);
     updateSelectedTemplate({ status });
-    await saveMutation.mutateAsync(templateToSave);
+
+    try {
+      await saveMutation.mutateAsync(templateToSave);
+    } catch {
+      // saveMutation.onError handles message display
+    }
   }
 
   const requiredItems = selectedTemplate?.fields.filter((field) => field.required).length ?? 0;
@@ -516,6 +538,11 @@ export function FormsWorkspace() {
         {isAreaWorkspace ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Read only for Area Manager
+          </div>
+        ) : !canManageTemplates ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Akun ini hanya bisa melihat template. Login sebagai Admin/Owner untuk membuat atau
+            menyimpan template form.
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
