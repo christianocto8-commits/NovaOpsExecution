@@ -180,6 +180,7 @@ function getHeatmapClass(tone: "strong" | "watch" | "risk" | "empty") {
 
 export default function ComplianceCenterPage() {
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const { settings } = useSettings();
   const passThreshold = settings?.pass_threshold ?? 85;
@@ -320,6 +321,18 @@ export default function ComplianceCenterPage() {
     }
   }
 
+  async function handleExportPdf() {
+    setExportError(null);
+    setIsExportingPdf(true);
+    try {
+      await downloadComplianceExport("pdf");
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export PDF gagal.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
+
   return (
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -351,10 +364,19 @@ export default function ComplianceCenterPage() {
           <button
             type="button"
             onClick={() => void handleExportExcel()}
-            disabled={isExporting}
+            disabled={isExporting || isExportingPdf}
             className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isExporting ? "Exporting..." : "Export Excel"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleExportPdf()}
+            disabled={isExporting || isExportingPdf}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isExportingPdf ? "Exporting..." : "Export PDF"}
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">

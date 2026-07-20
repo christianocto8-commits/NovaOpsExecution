@@ -106,6 +106,11 @@ def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]
             return False, f"Invalid selection: {value}"
         return True, None
 
+    if field_type in {"date", "time"}:
+        if not _is_filled(value):
+            return False, "Required field empty"
+        return True, None
+
     if not _is_filled(value):
         return False, "Required field empty"
 

@@ -19,7 +19,7 @@ from app.schemas.reports import (
     ReportTrendPoint,
 )
 from app.services.compliance_analytics import get_top_failed_checklist_items
-from app.services.compliance_export import build_compliance_export_xlsx
+from app.services.compliance_export import build_compliance_export_pdf, build_compliance_export_xlsx
 from app.services.execution_validation import compliance_score
 from app.services.workspace_settings import get_workspace_settings
 
@@ -254,23 +254,38 @@ def export_compliance_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if format.lower() != "xlsx":
-        raise HTTPException(status_code=400, detail="Only xlsx export is supported")
+    export_format = format.lower()
 
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
 
-    content = build_compliance_export_xlsx(
-        db,
-        outlet_id=outlet_id,
-        outlet_ids=None if outlet_id else outlet_ids,
-        all_outlets=full_access and outlet_id is None,
-    )
+    if export_format == "xlsx":
+        content = build_compliance_export_xlsx(
+            db,
+            outlet_id=outlet_id,
+            outlet_ids=None if outlet_id else outlet_ids,
+            all_outlets=full_access and outlet_id is None,
+        )
+        filename = f"compliance-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx"
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
-    filename = f"compliance-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx"
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    if export_format == "pdf":
+        content = build_compliance_export_pdf(
+            db,
+            outlet_id=outlet_id,
+            outlet_ids=None if outlet_id else outlet_ids,
+            all_outlets=full_access and outlet_id is None,
+        )
+        filename = f"compliance-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    raise HTTPException(status_code=400, detail="Supported export formats: xlsx, pdf")

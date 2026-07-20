@@ -15,6 +15,7 @@ const outletNavigationItemIds = new Set([
 
 const areaManagerNavigationItemIds = new Set([
   "dashboard",
+  "audit",
   "compliance",
   "corrective-actions",
   "drafts",

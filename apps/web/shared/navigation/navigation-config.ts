@@ -114,6 +114,14 @@ export const navigationItems: NavigationItem[] = [
     section: "analytics",
   },
   {
+    id: "audit",
+    label: "Audit Trail",
+    href: "/dashboard/audit",
+    icon: History,
+    requiredPermissions: ["user.edit"],
+    section: "analytics",
+  },
+  {
     id: "history",
     label: "History",
     href: "/dashboard/history",

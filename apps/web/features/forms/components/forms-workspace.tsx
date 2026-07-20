@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
@@ -36,6 +36,8 @@ const fieldTypeOptions: Array<{
   { value: "textarea", label: "Kotak teks" },
   { value: "number", label: "Angka" },
   { value: "select", label: "Dropdown / Pilihan" },
+  { value: "date", label: "Tanggal" },
+  { value: "time", label: "Waktu" },
   { value: "photo", label: "Foto bukti" },
   { value: "signature", label: "Tanda tangan" },
   { value: "responsible_person", label: "Nama pelaksana" },
@@ -63,6 +65,8 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   yes_no: "Ya / Tidak",
   number: "Angka",
   select: "Dropdown / Pilihan",
+  date: "Tanggal",
+  time: "Waktu",
   photo: "Foto bukti",
   signature: "Tanda tangan",
   money_denomination: "Hitung denom uang",
@@ -266,6 +270,7 @@ export function FormsWorkspace() {
   const [query, setQuery] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: async (template: FormTemplate) => {
@@ -450,6 +455,16 @@ export function FormsWorkspace() {
     updateSelectedTemplate({
       fields: selectedTemplate.fields.filter((field) => field.id !== fieldId),
     });
+  }
+
+  function reorderField(fromIndex: number, toIndex: number) {
+    if (!selectedTemplate || fromIndex === toIndex) return;
+
+    const nextFields = [...selectedTemplate.fields];
+    const [movedField] = nextFields.splice(fromIndex, 1);
+    nextFields.splice(toIndex, 0, movedField);
+
+    updateSelectedTemplate({ fields: nextFields });
   }
 
   async function deleteSelectedTemplate() {
@@ -723,8 +738,47 @@ export function FormsWorkspace() {
               const isSystemResponsibleField = isResponsiblePersonField(field);
 
               return (
-              <div key={field.id} className="rounded-xl border border-slate-200 p-4">
+              <div
+                key={field.id}
+                className={`rounded-xl border p-4 transition ${
+                  draggingFieldId === field.id
+                    ? "border-emerald-400 bg-emerald-50/40 opacity-70"
+                    : "border-slate-200"
+                }`}
+                onDragOver={(event) => {
+                  if (isAreaWorkspace) return;
+                  event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  if (isAreaWorkspace) return;
+                  event.preventDefault();
+                  const sourceId = event.dataTransfer.getData("text/plain");
+                  const sourceIndex = selectedTemplate.fields.findIndex(
+                    (candidate) => candidate.id === sourceId
+                  );
+                  if (sourceIndex >= 0) {
+                    reorderField(sourceIndex, index);
+                  }
+                  setDraggingFieldId(null);
+                }}
+              >
                 <div className="flex items-start justify-between gap-3">
+                  {!isAreaWorkspace ? (
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", field.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        setDraggingFieldId(field.id);
+                      }}
+                      onDragEnd={() => setDraggingFieldId(null)}
+                      className="mt-1 flex size-9 shrink-0 cursor-grab items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 active:cursor-grabbing"
+                      aria-label="Urutkan item"
+                    >
+                      <GripVertical className="size-4" />
+                    </button>
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       Item {index + 1}

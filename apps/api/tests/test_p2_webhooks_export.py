@@ -19,6 +19,30 @@ def test_compliance_export_returns_xlsx(client: TestClient, auth_headers: dict[s
     assert response.content[:2] == b"PK"
 
 
+def test_compliance_export_returns_pdf(client: TestClient, auth_headers: dict[str, str]):
+    response = client.get(
+        "/api/v1/reports/compliance/export?format=pdf",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_audit_events_requires_auth(client: TestClient):
+    response = client.get("/api/v1/audit/events")
+    assert response.status_code == 401
+
+
+def test_audit_events_returns_page(client: TestClient, auth_headers: dict[str, str]):
+    response = client.get("/api/v1/audit/events?limit=10", headers=auth_headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert "total" in payload
+    assert "items" in payload
+    assert isinstance(payload["items"], list)
+
+
 def test_webhooks_crud_owner_only(client: TestClient, auth_headers: dict[str, str]):
     create_response = client.post(
         "/api/v1/webhooks",

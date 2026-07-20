@@ -19,6 +19,11 @@ export const queryKeys = {
     compliance: () => ["reports", "compliance"] as const,
   },
 
+  audit: {
+    events: (filters: Record<string, string | undefined>) =>
+      ["audit", "events", filters] as const,
+  },
+
   history: {
     executionSessions: () => ["history", "execution-sessions"] as const,
     formSubmissions: () => ["history", "form-submissions"] as const,

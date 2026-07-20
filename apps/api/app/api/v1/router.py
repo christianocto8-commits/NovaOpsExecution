@@ -18,6 +18,7 @@ from app.modules.workflows.escalation_processor_api import (
 from app.modules.workflows.instance_api import router as workflow_instance_router
 from app.modules.workflows.workflow_api import router as workflow_router
 from app.modules.webhooks.api import router as webhooks_router
+from app.routers.audit import router as audit_router
 from app.routers.builder_documents import router as builder_document_router
 from app.routers.evidence_uploads import router as evidence_upload_router
 from app.routers.execution_sessions import router as execution_session_router
@@ -45,6 +46,7 @@ api_router.include_router(settings_router)
 api_router.include_router(outlets_router)
 api_router.include_router(evidence_upload_router)
 api_router.include_router(reports_router)
+api_router.include_router(audit_router)
 api_router.include_router(webhooks_router)
 api_router.include_router(runtime_template_router)
 api_router.include_router(builder_document_router)

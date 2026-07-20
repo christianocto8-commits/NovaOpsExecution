@@ -4,6 +4,8 @@
   | "yes_no"
   | "number"
   | "select"
+  | "date"
+  | "time"
   | "photo"
   | "signature"
   | "money_denomination"
