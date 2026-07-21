@@ -13,7 +13,6 @@ from app.modules.identity.models import Outlet, User
 from app.modules.identity.repository import OrganizationRepository, OutletRepository, RoleRepository, UserRepository
 from app.modules.identity.schemas import BulkImportResponse, BulkImportRowResult
 from app.modules.identity.security import hash_password
-from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet
 
 router = APIRouter(prefix="/identity", tags=["Identity"])
 
@@ -56,6 +55,8 @@ def _sync_legacy_outlet_fields(
     region: str | None,
     district: str | None,
 ) -> None:
+    from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet
+
     legacy = get_or_create_legacy_outlet(db, identity_outlet)
     legacy.region = region.strip() if region and region.strip() else None
     legacy.district = district.strip() if district and district.strip() else None
@@ -265,6 +266,8 @@ async def bulk_import(
 
         users_repo.create(user)
         if outlet:
+            from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet
+
             get_or_create_legacy_outlet(db, outlet)
 
         response.users_created += 1
