@@ -8,6 +8,8 @@
   | "time"
   | "photo"
   | "signature"
+  | "rating"
+  | "barcode"
   | "money_denomination"
   | "money_amount"
   | "responsible_person";
@@ -20,6 +22,9 @@ export type FormFieldOptions = {
   showWhenValue?: string;
   choices?: string[];
   allow_na?: boolean;
+  maxStars?: number;
+  lowLabel?: string;
+  highLabel?: string;
 };
 
 export type FormFieldValidation = {

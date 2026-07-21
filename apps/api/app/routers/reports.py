@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
@@ -12,14 +13,21 @@ from app.models.task import Task
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
+    DigestSendResult,
     FailedChecklistItemTrend,
     FailedChecklistItemsReport,
     OutletReport,
     ReportSummary,
     ReportTrendPoint,
+    TemplateTrendPoint,
+    TemplateTrendsReport,
 )
-from app.services.compliance_analytics import get_top_failed_checklist_items
+from app.services.compliance_analytics import (
+    get_template_compliance_trends,
+    get_top_failed_checklist_items,
+)
 from app.services.compliance_export import build_compliance_export_pdf, build_compliance_export_xlsx
+from app.services.digest_email import send_compliance_digest
 from app.services.execution_validation import compliance_score
 from app.services.workspace_settings import get_workspace_settings
 
@@ -245,6 +253,46 @@ def get_failed_checklist_items(
         limit=limit,
         items=[FailedChecklistItemTrend(**row) for row in rows],
     )
+
+
+@router.get("/compliance/template-trends", response_model=TemplateTrendsReport)
+def get_template_compliance_trends_report(
+    template_id: int = Query(..., ge=1),
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    del current_user
+
+    points = get_template_compliance_trends(
+        db,
+        template_id=template_id,
+        days=days,
+    )
+
+    return TemplateTrendsReport(
+        template_id=template_id,
+        days=days,
+        points=[TemplateTrendPoint(**point) for point in points],
+    )
+
+
+def _verify_scheduler_secret(x_scheduler_secret: str | None) -> None:
+    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
+    if configured_secret and x_scheduler_secret != configured_secret:
+        raise HTTPException(status_code=401, detail="Invalid scheduler secret")
+
+
+@router.post("/compliance/send-digest", response_model=DigestSendResult)
+def send_compliance_digest_report(
+    force: bool = Query(default=False),
+    x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
+    db: Session = Depends(get_db),
+):
+    _verify_scheduler_secret(x_scheduler_secret)
+
+    result = send_compliance_digest(db, force=force)
+    return DigestSendResult(**result)
 
 
 @router.get("/compliance/export")

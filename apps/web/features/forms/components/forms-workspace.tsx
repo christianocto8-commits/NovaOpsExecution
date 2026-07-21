@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, Eye, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
@@ -21,6 +21,7 @@ import {
   isPersistedTemplateId,
 } from "@/services/form-template.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
+import { Modal } from "@/shared/ui/overlay/modal";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -40,6 +41,8 @@ const fieldTypeOptions: Array<{
   { value: "time", label: "Waktu" },
   { value: "photo", label: "Foto bukti" },
   { value: "signature", label: "Tanda tangan" },
+  { value: "rating", label: "Penilaian bintang" },
+  { value: "barcode", label: "Scan barcode / QR" },
   { value: "responsible_person", label: "Nama pelaksana" },
   { value: "money_denomination", label: "Hitung denom uang" },
   { value: "money_amount", label: "Nominal uang" },
@@ -69,6 +72,8 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   time: "Waktu",
   photo: "Foto bukti",
   signature: "Tanda tangan",
+  rating: "Penilaian bintang",
+  barcode: "Scan barcode / QR",
   money_denomination: "Hitung denom uang",
   money_amount: "Nominal uang",
   responsible_person: "Nama pelaksana",
@@ -271,6 +276,8 @@ export function FormsWorkspace() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewResponses, setPreviewResponses] = useState<TaskFormResponses>({});
 
   const saveMutation = useMutation({
     mutationFn: async (template: FormTemplate) => {
@@ -433,6 +440,17 @@ export function FormsWorkspace() {
           };
         }
 
+        if (updates.type === "rating" && nextField.options?.maxStars == null) {
+          nextField.options = {
+            ...nextField.options,
+            maxStars: 5,
+          };
+          nextField.validation = {
+            ...nextField.validation,
+            min: nextField.validation?.min ?? 3,
+          };
+        }
+
         return nextField;
       }),
     });
@@ -586,6 +604,19 @@ export function FormsWorkspace() {
             >
               <Plus className="size-4" />
               New Form
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewResponses({});
+                setPreviewOpen(true);
+              }}
+              disabled={!hasSelectedTemplate}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              <Eye className="size-4" />
+              Preview
             </button>
 
             <button
@@ -916,6 +947,94 @@ export function FormsWorkspace() {
                       </label>
                     ) : null}
 
+                    {field.type === "rating" ? (
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Maks bintang
+                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={field.options?.maxStars ?? 5}
+                            readOnly={isAreaWorkspace}
+                            onChange={(event) =>
+                              updateField(field.id, {
+                                options: {
+                                  ...field.options,
+                                  maxStars:
+                                    event.target.value === ""
+                                      ? 5
+                                      : Number(event.target.value),
+                                },
+                              })
+                            }
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                          />
+                        </label>
+                        <input
+                          value={field.options?.lowLabel ?? ""}
+                          readOnly={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              options: {
+                                ...field.options,
+                                lowLabel: event.target.value || undefined,
+                              },
+                            })
+                          }
+                          placeholder="Label rendah (opsional)"
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        />
+                        <input
+                          value={field.options?.highLabel ?? ""}
+                          readOnly={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateField(field.id, {
+                              options: {
+                                ...field.options,
+                                highLabel: event.target.value || undefined,
+                              },
+                            })
+                          }
+                          placeholder="Label tinggi (opsional)"
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        />
+                        <label className="grid gap-1 md:col-span-3">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Ambang lulus (min bintang)
+                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={field.options?.maxStars ?? 5}
+                            value={field.validation?.min ?? 3}
+                            readOnly={isAreaWorkspace}
+                            onChange={(event) =>
+                              updateField(field.id, {
+                                validation: {
+                                  ...field.validation,
+                                  min:
+                                    event.target.value === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                },
+                              })
+                            }
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+
+                    {field.type === "barcode" ? (
+                      <p className="text-xs text-slate-500">
+                        Operator dapat scan kamera (jika browser mendukung) atau input manual kode
+                        barcode / QR.
+                      </p>
+                    ) : null}
+
                     <div className="grid gap-2 md:grid-cols-2">
                       <label className="grid gap-1">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -1116,6 +1235,18 @@ export function FormsWorkspace() {
                       IDR format
                     </span>
                   ) : null}
+
+                  {field.type === "rating" ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                      {field.options?.maxStars ?? 5} bintang
+                    </span>
+                  ) : null}
+
+                  {field.type === "barcode" ? (
+                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                      Scan / manual
+                    </span>
+                  ) : null}
                 </div>
               </div>
             );
@@ -1213,6 +1344,23 @@ export function FormsWorkspace() {
           setSelectedTemplateId(form.id);
         }}
       />
+
+      {selectedTemplate ? (
+        <Modal
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          title={`Preview: ${selectedTemplate.name}`}
+          description="Pratinjau read-only template form saat ini (perubahan belum disimpan tetap tampil)."
+          size="xl"
+        >
+          <SectionedFormRenderer
+            fields={selectedTemplate.fields}
+            responses={previewResponses}
+            onChange={setPreviewResponses}
+            readOnly
+          />
+        </Modal>
+      ) : null}
     </main>
   );
 }

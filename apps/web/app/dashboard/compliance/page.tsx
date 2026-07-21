@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { BarChartCard, DonutChartCard, LineChartCard } from "@/shared/analytics/charts";
 import {
   getChecklistTrend30Days,
@@ -14,7 +15,7 @@ import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
-import { downloadComplianceExport, getFailedChecklistItems } from "@/services/reports.service";
+import { downloadComplianceExport, getFailedChecklistItems, getTemplateComplianceTrends } from "@/services/reports.service";
 import { outletService } from "@/services/outlet.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
@@ -138,6 +139,21 @@ function groupByOutlet(rows: ComplianceRow[]) {
   });
 }
 
+function groupByRegion(rows: ComplianceRow[]) {
+  const regions = Array.from(
+    new Set(rows.map((row) => row.region).filter((region) => region && region !== "—"))
+  );
+
+  return regions.map((region) => {
+    const regionRows = rows.filter((row) => row.region === region);
+    return {
+      region,
+      progress: getAverage(regionRows.map((row) => row.completion)),
+      compliance: getComplianceRate(regionRows),
+    };
+  });
+}
+
 function getCompletionTrend(rows: ComplianceRow[]) {
   const days = new Map<string, ComplianceRow[]>();
 
@@ -187,8 +203,10 @@ export default function ComplianceCenterPage() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState("all");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const { settings } = useSettings();
   const passThreshold = settings?.pass_threshold ?? 85;
+  const { activeTemplates } = useActiveFormTemplates();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -211,6 +229,13 @@ export default function ComplianceCenterPage() {
   const failedItemsQuery = useQuery({
     queryKey: ["reports", "failed-checklist-items"],
     queryFn: () => getFailedChecklistItems({ limit: 8, days: 30 }),
+    retry: false,
+  });
+
+  const templateTrendQuery = useQuery({
+    queryKey: ["reports", "template-trends", selectedTemplateId],
+    queryFn: () => getTemplateComplianceTrends(selectedTemplateId, { days: 30 }),
+    enabled: Boolean(selectedTemplateId),
     retry: false,
   });
 
@@ -239,6 +264,14 @@ export default function ComplianceCenterPage() {
     });
     return Array.from(regions).sort((a, b) => a.localeCompare(b, "id"));
   }, [outletsQuery.data]);
+
+  useEffect(() => {
+    if (selectedTemplateId) return;
+    const firstPersisted = activeTemplates.find((template) => /^\d+$/.test(template.id));
+    if (firstPersisted) {
+      setSelectedTemplateId(firstPersisted.id);
+    }
+  }, [activeTemplates, selectedTemplateId]);
 
   const tasksWithExecution = useMemo(() => {
     const tasks = tasksQuery.data ?? [];
@@ -320,6 +353,7 @@ export default function ComplianceCenterPage() {
   }, [allRows, regionFilter]);
   const complianceRate = getComplianceRate(rows);
   const outletPerformance = groupByOutlet(rows);
+  const regionPerformance = useMemo(() => groupByRegion(rows), [rows]);
   const checklistTrend30Days = useMemo(
     () => getChecklistTrend30Days(executionSessionsQuery.data ?? [], passThreshold),
     [executionSessionsQuery.data, passThreshold]
@@ -342,6 +376,15 @@ export default function ComplianceCenterPage() {
         failures: item.failure_count,
       })),
     [failedItemsQuery.data]
+  );
+  const templateTrendChartData = useMemo(
+    () =>
+      (templateTrendQuery.data?.points ?? []).map((point) => ({
+        day: point.date,
+        score: point.score,
+        passRate: point.pass_rate,
+      })),
+    [templateTrendQuery.data]
   );
   const ownerActionQueue = rows
     .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
@@ -594,6 +637,51 @@ export default function ComplianceCenterPage() {
           ]}
         />
 
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Trend per Template Form</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Skor harian dan pass rate untuk submission template terpilih (30 hari).
+              </p>
+            </div>
+            <select
+              value={selectedTemplateId}
+              onChange={(event) => setSelectedTemplateId(event.target.value)}
+              className="h-10 min-w-[220px] rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500"
+            >
+              <option value="">Pilih template form...</option>
+              {activeTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!selectedTemplateId ? (
+            <p className="text-sm text-slate-500">Pilih template form untuk melihat trend.</p>
+          ) : templateTrendQuery.isLoading ? (
+            <p className="text-sm text-slate-500">Memuat trend template...</p>
+          ) : templateTrendQuery.isError ? (
+            <p className="text-sm text-red-600">Gagal memuat trend template.</p>
+          ) : (
+            <LineChartCard
+              title={
+                activeTemplates.find((template) => template.id === selectedTemplateId)?.name ??
+                "Template"
+              }
+              description="Skor rata-rata dan pass rate per hari."
+              data={templateTrendChartData}
+              xKey="day"
+              series={[
+                { dataKey: "score", name: "Skor %" },
+                { dataKey: "passRate", name: "Pass Rate %" },
+              ]}
+            />
+          )}
+        </div>
+
         <BarChartCard
           title="Top Failed Checklist Items"
           description="Most frequently failed checklist fields in the last 30 days."
@@ -655,6 +743,17 @@ export default function ComplianceCenterPage() {
           data={outletPerformance}
           xKey="outlet"
           series={[{ dataKey: "progress", name: "Progress %" }]}
+        />
+
+        <BarChartCard
+          title="Compliance per Region"
+          description="Rata-rata completion dan compliance % per region outlet."
+          data={regionPerformance}
+          xKey="region"
+          series={[
+            { dataKey: "progress", name: "Completion %" },
+            { dataKey: "compliance", name: "Compliance %" },
+          ]}
         />
       </section>
 

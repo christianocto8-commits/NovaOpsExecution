@@ -8,6 +8,8 @@ import { MoneyAmountField } from "./money-amount-field";
 import { MoneyDenominationField } from "./money-denomination-field";
 import { PhotoFieldInput } from "./photo-field-input";
 import { SignatureFieldInput } from "./signature-field-input";
+import { RatingFieldInput } from "./rating-field-input";
+import { BarcodeFieldInput } from "./barcode-field-input";
 
 type DynamicFormRendererProps = {
   fields: FormField[];
@@ -27,6 +29,8 @@ const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
   time: "Waktu",
   photo: "Foto bukti",
   signature: "Tanda tangan",
+  rating: "Penilaian bintang",
+  barcode: "Scan barcode / QR",
   money_denomination: "Hitung denom uang",
   money_amount: "Nominal uang",
   responsible_person: "Nama pelaksana",
@@ -167,6 +171,21 @@ export function DynamicFormRenderer({
                 />
               ) : field.type === "signature" ? (
                 <SignatureFieldInput
+                  value={value}
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                />
+              ) : field.type === "rating" ? (
+                <RatingFieldInput
+                  value={value}
+                  maxStars={field.options?.maxStars ?? 5}
+                  lowLabel={field.options?.lowLabel}
+                  highLabel={field.options?.highLabel}
+                  readOnly={readOnly}
+                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                />
+              ) : field.type === "barcode" ? (
+                <BarcodeFieldInput
                   value={value}
                   readOnly={readOnly}
                   onChange={(nextValue) => updateResponse(field.id, nextValue)}

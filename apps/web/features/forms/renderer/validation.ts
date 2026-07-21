@@ -29,6 +29,15 @@ function isFieldFilled(field: FormField, responses: TaskFormResponses) {
     return value.trim().length > 0;
   }
 
+  if (field.type === "rating") {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0;
+  }
+
+  if (field.type === "barcode") {
+    return value.trim().length > 0;
+  }
+
   return Boolean(value.trim());
 }
 

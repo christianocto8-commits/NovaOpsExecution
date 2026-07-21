@@ -13,6 +13,20 @@ export type FailedChecklistItemsReport = {
   items: FailedChecklistItemTrend[];
 };
 
+export type TemplateTrendPoint = {
+  date: string;
+  date_key: string;
+  score: number;
+  pass_rate: number;
+  submissions: number;
+};
+
+export type TemplateTrendsReport = {
+  template_id: number;
+  days: number;
+  points: TemplateTrendPoint[];
+};
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -110,4 +124,45 @@ export async function getFailedChecklistItems(
   }
 
   return response.json() as Promise<FailedChecklistItemsReport>;
+}
+
+export async function getTemplateComplianceTrends(
+  templateId: string,
+  options: { days?: number } = {}
+): Promise<TemplateTrendsReport> {
+  const token = getToken();
+  const outletId = getOutletId();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (outletId) {
+    headers.set("X-Outlet-Id", outletId);
+  }
+
+  const params = new URLSearchParams();
+  params.set("template_id", templateId);
+  if (options.days != null) params.set("days", String(options.days));
+
+  const response = await fetch(
+    buildApiUrl(`/api/v1/reports/compliance/template-trends?${params.toString()}`),
+    { headers }
+  );
+
+  if (!response.ok) {
+    let message = "Failed to load template trends";
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      message = await response.text();
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<TemplateTrendsReport>;
 }

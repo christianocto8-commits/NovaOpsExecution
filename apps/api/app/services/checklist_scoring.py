@@ -105,6 +105,34 @@ def _score_number(value: Any, validation_json: Any, options_json: Any) -> tuple[
     return True, None
 
 
+def _score_rating(value: Any, validation_json: Any, options_json: Any) -> tuple[bool | None, str | None]:
+    normalized = _normalize_text(value)
+    if not normalized:
+        return None, "No answer provided"
+
+    try:
+        rating = float(normalized.replace(",", ""))
+    except ValueError:
+        return False, f"Invalid rating: {value}"
+
+    max_stars = 5.0
+    if isinstance(options_json, dict) and options_json.get("maxStars") is not None:
+        try:
+            max_stars = max(1.0, float(options_json["maxStars"]))
+        except (TypeError, ValueError):
+            pass
+
+    if rating < 1 or rating > max_stars:
+        return False, f"Rating {rating} outside range 1-{int(max_stars)}"
+
+    min_val, _max_val = _extract_bounds(validation_json, options_json)
+    threshold = min_val if min_val is not None else 3.0
+
+    if rating >= threshold:
+        return True, None
+    return False, f"Rating {rating} below threshold {threshold}"
+
+
 def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]:
     allow_na = _field_allows_na(field)
 
@@ -118,6 +146,14 @@ def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]
 
     if field_type == "number":
         return _score_number(value, field.validation_json, field.options_json)
+
+    if field_type == "rating":
+        return _score_rating(value, field.validation_json, field.options_json)
+
+    if field_type == "barcode":
+        if not _is_filled(value):
+            return False, "Required barcode missing"
+        return True, None
 
     if field_type in {"photo", "signature"}:
         if not _is_filled(value):

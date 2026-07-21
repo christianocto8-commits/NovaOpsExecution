@@ -151,6 +151,12 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       ? options.choices.filter((value): value is string => typeof value === "string")
       : undefined,
     allow_na: options.allow_na === true,
+    maxStars:
+      typeof options.maxStars === "number" && options.maxStars > 0
+        ? Math.min(10, Math.round(options.maxStars))
+        : undefined,
+    lowLabel: typeof options.lowLabel === "string" ? options.lowLabel : undefined,
+    highLabel: typeof options.highLabel === "string" ? options.highLabel : undefined,
   };
 }
 

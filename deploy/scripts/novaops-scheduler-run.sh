@@ -27,3 +27,6 @@ echo
 
 curl -fsS -X POST "${API_BASE}/tasks/process-due-soon-alerts" "${AUTH_HEADER[@]}"
 echo
+
+curl -fsS -X POST "${API_BASE}/reports/compliance/send-digest" "${AUTH_HEADER[@]}"
+echo

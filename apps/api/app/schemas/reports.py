@@ -42,3 +42,24 @@ class FailedChecklistItemsReport(BaseModel):
     days: int
     limit: int
     items: list[FailedChecklistItemTrend]
+
+
+class TemplateTrendPoint(BaseModel):
+    date: str
+    date_key: str
+    score: int
+    pass_rate: int
+    submissions: int
+
+
+class TemplateTrendsReport(BaseModel):
+    template_id: int
+    days: int
+    points: list[TemplateTrendPoint]
+
+
+class DigestSendResult(BaseModel):
+    sent: bool
+    reason: str
+    recipients: int
+    delivered: int
