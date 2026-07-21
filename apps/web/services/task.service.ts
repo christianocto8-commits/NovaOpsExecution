@@ -177,11 +177,11 @@ export const taskService = {
   },
 
   listAll() {
-    return this.list();
+    return taskService.list();
   },
 
   async listCorrectiveActions() {
-    return this.list("corrective_action");
+    return taskService.list("corrective_action");
   },
 
   async create(form: TaskFormState) {
