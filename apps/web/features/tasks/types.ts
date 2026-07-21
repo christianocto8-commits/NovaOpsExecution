@@ -130,6 +130,8 @@ export type Task = {
   formTemplateId?: string;
   sourceType?: string;
   sourceId?: string;
+  backendStatus?: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
+  verifiedAt?: string;
   recurrence?: TaskRecurrence;
   shifts?: TaskShift[];
   targetOutlets?: string[];

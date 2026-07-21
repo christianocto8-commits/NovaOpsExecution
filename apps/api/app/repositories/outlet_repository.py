@@ -58,12 +58,16 @@ class OutletRepository:
         outlet_id: int,
         *,
         region: str | None = None,
+        district: str | None = None,
     ) -> Outlet | None:
         outlet = self.get_outlet_by_id(outlet_id)
         if not outlet:
             return None
 
-        outlet.region = region.strip() if region and region.strip() else None
+        if region is not None:
+            outlet.region = region.strip() if region and region.strip() else None
+        if district is not None:
+            outlet.district = district.strip() if district and district.strip() else None
         self.db.add(outlet)
         self.db.commit()
         self.db.refresh(outlet)

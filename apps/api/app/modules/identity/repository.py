@@ -155,6 +155,11 @@ class RoleRepository:
         statement = select(Role).where(Role.id == role_id)
         return self.db.scalar(statement)
 
+    def find_by_slug(self, slug: str) -> Role | None:
+        normalized = slug.strip().lower()
+        statement = select(Role).where(Role.slug == normalized)
+        return self.db.scalar(statement)
+
 
 class PermissionRepository:
     def __init__(self, db: Session):
@@ -175,6 +180,11 @@ class OutletRepository:
 
     def find_by_id(self, outlet_id: UUID) -> Outlet | None:
         statement = select(Outlet).where(Outlet.id == outlet_id)
+        return self.db.scalar(statement)
+
+    def find_by_code(self, code: str) -> Outlet | None:
+        normalized = code.strip().upper()
+        statement = select(Outlet).where(Outlet.code == normalized)
         return self.db.scalar(statement)
 
     def code_exists(self, code: str, exclude_outlet_id: UUID | None = None) -> bool:

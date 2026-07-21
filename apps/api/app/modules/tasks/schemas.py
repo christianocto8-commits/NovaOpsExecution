@@ -135,6 +135,7 @@ class TaskResponse(BaseModel):
 
     due_date: datetime | None
     completed_at: datetime | None
+    verified_at: datetime | None = None
 
     approved_by: int | None
     approved_at: datetime | None

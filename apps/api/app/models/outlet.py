@@ -14,6 +14,7 @@ class Outlet(Base):
     code = Column(String(50), nullable=False, unique=True, index=True)
     address = Column(String(255), nullable=True)
     region = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)

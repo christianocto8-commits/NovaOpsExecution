@@ -15,6 +15,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { OperatorBottomNav } from "@/shared/navigation/components/operator-bottom-nav";
+import { BrandThemeProvider } from "@/shared/branding/brand-theme-provider";
 
 const SIDEBAR_STORAGE_KEY = "novaops_sidebar_collapsed";
 
@@ -118,7 +119,9 @@ function DashboardShell({ children }: { children: ReactNode }) {
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGuard>
-      <DashboardShell>{children}</DashboardShell>
+      <BrandThemeProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </BrandThemeProvider>
     </AuthGuard>
   );
 }

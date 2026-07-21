@@ -58,6 +58,8 @@ class SettingsResponse(BaseModel):
     api_status_mode: str = "connected"
     two_factor_required: bool = False
     password_rotation_days: int = 90
+    brand_logo_url: str = ""
+    brand_primary_color: str = "#047857"
 
 
 class SettingsUpdate(BaseModel):
@@ -117,3 +119,5 @@ class SettingsUpdate(BaseModel):
     api_status_mode: str | None = None
     two_factor_required: bool | None = None
     password_rotation_days: int | None = None
+    brand_logo_url: str | None = None
+    brand_primary_color: str | None = None

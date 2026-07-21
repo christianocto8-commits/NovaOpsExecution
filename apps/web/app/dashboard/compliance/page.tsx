@@ -29,6 +29,7 @@ type ComplianceRow = {
   id: string;
   outlet: string;
   region: string;
+  district: string;
   task: string;
   priority: string;
   status: "Completed" | "In Progress" | "Pending" | "Overdue";
@@ -42,6 +43,7 @@ const columns: EnterpriseColumn<ComplianceRow>[] = [
   { key: "id", header: "Task ID", sortable: true },
   { key: "outlet", header: "Outlet", sortable: true },
   { key: "region", header: "Region", sortable: true },
+  { key: "district", header: "District", sortable: true },
   { key: "task", header: "Task", sortable: true },
   { key: "priority", header: "Urgency", sortable: true },
   {
@@ -83,13 +85,18 @@ function getChecklistStatus(task: Task) {
   return task.execution?.checklist?.status;
 }
 
-function toRow(task: Task, outletRegionByName: Map<string, string>): ComplianceRow {
+function toRow(
+  task: Task,
+  outletRegionByName: Map<string, string>,
+  outletDistrictByName: Map<string, string>
+): ComplianceRow {
   const checklistStatus = getChecklistStatus(task);
 
   return {
     id: task.id,
     outlet: task.outlet,
     region: outletRegionByName.get(task.outlet) ?? "—",
+    district: outletDistrictByName.get(task.outlet) ?? "—",
     task: task.title,
     priority: task.priority,
     status:
@@ -203,6 +210,7 @@ export default function ComplianceCenterPage() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState("all");
+  const [districtFilter, setDistrictFilter] = useState("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const { settings } = useSettings();
   const passThreshold = settings?.pass_threshold ?? 85;
@@ -255,6 +263,16 @@ export default function ComplianceCenterPage() {
     return map;
   }, [outletsQuery.data]);
 
+  const outletDistrictByName = useMemo(() => {
+    const map = new Map<string, string>();
+    (outletsQuery.data ?? []).forEach((outlet) => {
+      if (outlet.district) {
+        map.set(outlet.name, outlet.district);
+      }
+    });
+    return map;
+  }, [outletsQuery.data]);
+
   const availableRegions = useMemo(() => {
     const regions = new Set<string>();
     (outletsQuery.data ?? []).forEach((outlet) => {
@@ -263,6 +281,16 @@ export default function ComplianceCenterPage() {
       }
     });
     return Array.from(regions).sort((a, b) => a.localeCompare(b, "id"));
+  }, [outletsQuery.data]);
+
+  const availableDistricts = useMemo(() => {
+    const districts = new Set<string>();
+    (outletsQuery.data ?? []).forEach((outlet) => {
+      if (outlet.district?.trim()) {
+        districts.add(outlet.district.trim());
+      }
+    });
+    return Array.from(districts).sort((a, b) => a.localeCompare(b, "id"));
   }, [outletsQuery.data]);
 
   useEffect(() => {
@@ -343,14 +371,17 @@ export default function ComplianceCenterPage() {
   }, [tasksQuery.data, executionSessionsQuery.data]);
 
   const allRows = useMemo(
-    () => tasksWithExecution.map((task) => toRow(task, outletRegionByName)),
-    [tasksWithExecution, outletRegionByName]
+    () => tasksWithExecution.map((task) => toRow(task, outletRegionByName, outletDistrictByName)),
+    [tasksWithExecution, outletRegionByName, outletDistrictByName]
   );
 
   const rows = useMemo(() => {
-    if (regionFilter === "all") return allRows;
-    return allRows.filter((row) => row.region === regionFilter);
-  }, [allRows, regionFilter]);
+    return allRows.filter((row) => {
+      if (regionFilter !== "all" && row.region !== regionFilter) return false;
+      if (districtFilter !== "all" && row.district !== districtFilter) return false;
+      return true;
+    });
+  }, [allRows, regionFilter, districtFilter]);
   const complianceRate = getComplianceRate(rows);
   const outletPerformance = groupByOutlet(rows);
   const regionPerformance = useMemo(() => groupByRegion(rows), [rows]);
@@ -443,6 +474,26 @@ export default function ComplianceCenterPage() {
                 {availableRegions.map((region) => (
                   <option key={region} value={region}>
                     {region}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {availableDistricts.length > 0 ? (
+            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
+              <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                District
+              </span>
+              <select
+                value={districtFilter}
+                onChange={(event) => setDistrictFilter(event.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 outline-none"
+              >
+                <option value="all">Semua District</option>
+                {availableDistricts.map((district) => (
+                  <option key={district} value={district}>
+                    {district}
                   </option>
                 ))}
               </select>

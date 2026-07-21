@@ -20,6 +20,7 @@ export type BackendTask = {
   status: BackendTaskStatus;
   due_date: string | null;
   completed_at: string | null;
+  verified_at: string | null;
   approved_by: number | null;
   approved_at: string | null;
   schedule_id: number | null;
@@ -112,6 +113,8 @@ export function mapBackendTask(task: BackendTask): Task {
     formTemplateId: parseSourceFormTemplateId(task),
     sourceType: task.source_type ?? undefined,
     sourceId: task.source_id != null ? String(task.source_id) : undefined,
+    backendStatus: task.status,
+    verifiedAt: task.verified_at ?? undefined,
     recurrence,
     shifts,
     targetOutlets: [outletName],

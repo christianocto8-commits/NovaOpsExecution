@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.services.s3_storage import is_s3_configured, upload_bytes
 from app.services.workspace_settings import get_max_upload_bytes
 
 router = APIRouter(prefix="/evidence-uploads", tags=["Evidence Uploads"])
@@ -68,10 +69,14 @@ async def upload_evidence(
 
     extension = _safe_extension(file.filename or "evidence", content_type)
     stored_name = f"{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{uuid4().hex}{extension}"
-    destination = UPLOAD_ROOT / stored_name
-    destination.write_bytes(content)
 
-    public_url = str(request.base_url).rstrip("/") + f"/uploads/evidence/{stored_name}"
+    if is_s3_configured():
+        object_key = f"evidence/{stored_name}"
+        public_url = upload_bytes(key=object_key, content=content, content_type=content_type)
+    else:
+        destination = UPLOAD_ROOT / stored_name
+        destination.write_bytes(content)
+        public_url = str(request.base_url).rstrip("/") + f"/uploads/evidence/{stored_name}"
 
     return {
         "url": public_url,

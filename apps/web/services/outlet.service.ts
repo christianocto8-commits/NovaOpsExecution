@@ -7,6 +7,7 @@ export type LegacyOutlet = {
   code: string;
   address: string | null;
   region: string | null;
+  district: string | null;
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
@@ -35,7 +36,7 @@ export const outletService = {
     });
   },
 
-  async updateOutlet(outletId: number, payload: { region?: string | null }) {
+  async updateOutlet(outletId: number, payload: { region?: string | null; district?: string | null }) {
     return api<LegacyOutlet>(`/api/v1/outlets/${outletId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),

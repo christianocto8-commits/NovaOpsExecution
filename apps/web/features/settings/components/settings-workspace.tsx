@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { changePassword, type SettingsResponse } from "@/features/settings/settings-api";
+import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
@@ -53,6 +54,8 @@ type OwnerAdminState = {
   checklist_fail_workflow_code: string;
   auto_workflow_on_task_completed: boolean;
   task_completed_workflow_code: string;
+  brand_logo_url: string;
+  brand_primary_color: string;
 };
 
 const defaults: OwnerAdminState = {
@@ -88,6 +91,8 @@ const defaults: OwnerAdminState = {
   checklist_fail_workflow_code: "",
   auto_workflow_on_task_completed: false,
   task_completed_workflow_code: "",
+  brand_logo_url: "",
+  brand_primary_color: "#047857",
 };
 
 function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): OwnerAdminState {
@@ -134,7 +139,92 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     ),
     task_completed_workflow_code:
       settings?.task_completed_workflow_code ?? defaults.task_completed_workflow_code,
+    brand_logo_url: settings?.brand_logo_url ?? defaults.brand_logo_url,
+    brand_primary_color: settings?.brand_primary_color ?? defaults.brand_primary_color,
   };
+}
+
+function BulkImportPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [result, setResult] = useState<BulkImportResponse | null>(null);
+
+  async function handleUpload() {
+    if (!file) {
+      onNotice("Pilih file CSV terlebih dahulu.");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const response = await uploadBulkImport(file);
+      setResult(response);
+      onNotice(
+        `Import selesai: ${response.outlets_created} outlet, ${response.users_created} user dibuat.`
+      );
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal mengimpor CSV.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Bulk Import CSV">
+      <p className="mb-4 text-sm text-slate-500">
+        Unggah CSV outlet (<code>name,code,region,district,address</code>) atau user (
+        <code>email,name,role,outlet_code</code>). Role: outlet_manager, area_manager, admin.
+      </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end">
+        <EnterpriseField label="File CSV">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null);
+              setResult(null);
+            }}
+            className="block w-full text-sm text-slate-600"
+          />
+        </EnterpriseField>
+        <button
+          type="button"
+          onClick={() => void handleUpload()}
+          disabled={isUploading || !file}
+          className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          style={{ backgroundColor: "var(--brand-primary)" }}
+        >
+          {isUploading ? "Mengimpor..." : "Impor CSV"}
+        </button>
+      </div>
+      {result ? (
+        <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Baris</th>
+                <th className="px-4 py-3">Entitas</th>
+                <th className="px-4 py-3">ID</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Pesan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.rows.map((row) => (
+                <tr key={`${row.row}-${row.identifier}`} className="border-t border-slate-100">
+                  <td className="px-4 py-3">{row.row}</td>
+                  <td className="px-4 py-3">{row.entity}</td>
+                  <td className="px-4 py-3">{row.identifier}</td>
+                  <td className="px-4 py-3">{row.status}</td>
+                  <td className="px-4 py-3">{row.message ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </SectionCard>
+  );
 }
 
 function OutletLocationPanel({
@@ -142,9 +232,10 @@ function OutletLocationPanel({
 }: {
   onNotice: (message: string) => void;
 }) {
-  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; region: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; region: string | null; district: string | null; latitude: number | null; longitude: number | null }>>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | "">("");
   const [region, setRegion] = useState("");
+  const [district, setDistrict] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -157,6 +248,7 @@ function OutletLocationPanel({
         if (items.length > 0) {
           setSelectedOutletId(items[0].id);
           setRegion(items[0].region ?? "");
+          setDistrict(items[0].district ?? "");
           setLatitude(items[0].latitude != null ? String(items[0].latitude) : "");
           setLongitude(items[0].longitude != null ? String(items[0].longitude) : "");
         }
@@ -171,6 +263,7 @@ function OutletLocationPanel({
     const outlet = outlets.find((item) => item.id === selectedOutletId);
     if (!outlet) return;
     setRegion(outlet.region ?? "");
+    setDistrict(outlet.district ?? "");
     setLatitude(outlet.latitude != null ? String(outlet.latitude) : "");
     setLongitude(outlet.longitude != null ? String(outlet.longitude) : "");
   }, [outlets, selectedOutletId]);
@@ -193,6 +286,7 @@ function OutletLocationPanel({
       setIsSaving(true);
       const updatedRegion = await outletService.updateOutlet(selectedOutletId, {
         region: region.trim() || null,
+        district: district.trim() || null,
       });
       const updated = await outletService.updateLocation(selectedOutletId, {
         latitude: lat,
@@ -204,6 +298,7 @@ function OutletLocationPanel({
             ? {
                 ...item,
                 region: updatedRegion.region,
+                district: updatedRegion.district,
                 latitude: updated.latitude,
                 longitude: updated.longitude,
               }
@@ -219,12 +314,12 @@ function OutletLocationPanel({
   }
 
   return (
-    <SectionCard title="Outlet Geolocation & Region">
+    <SectionCard title="Outlet Geolocation & Hierarchy">
       <p className="mb-4 text-sm text-slate-500">
-        Atur region outlet untuk filter compliance, serta koordinat pusat untuk validasi geofence saat
-        submit task.
+        Atur region dan district outlet untuk filter compliance, serta koordinat pusat untuk validasi
+        geofence saat submit task.
       </p>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <EnterpriseField label="Outlet">
           <EnterpriseSelect
             value={selectedOutletId === "" ? "" : String(selectedOutletId)}
@@ -242,6 +337,13 @@ function OutletLocationPanel({
             value={region}
             onChange={(event) => setRegion(event.target.value)}
             placeholder="Contoh: Jawa Tengah"
+          />
+        </EnterpriseField>
+        <EnterpriseField label="District">
+          <EnterpriseInput
+            value={district}
+            onChange={(event) => setDistrict(event.target.value)}
+            placeholder="Contoh: Semarang"
           />
         </EnterpriseField>
         <EnterpriseField label="Latitude">
@@ -561,7 +663,8 @@ export function SettingsWorkspace() {
           type="button"
           onClick={() => void handleSave()}
           disabled={isSaving}
-          className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          style={{ backgroundColor: "var(--brand-primary)" }}
         >
           {isSaving ? "Menyimpan..." : "Simpan pengaturan"}
         </button>
@@ -632,6 +735,28 @@ export function SettingsWorkspace() {
                 <option value="area_manager">Area Manager</option>
                 <option value="admin">Admin</option>
               </EnterpriseSelect>
+            </EnterpriseField>
+            <EnterpriseField label="Brand logo URL">
+              <EnterpriseInput
+                value={state.brand_logo_url}
+                onChange={(event) => update("brand_logo_url", event.target.value)}
+                placeholder="https://cdn.example.com/logo.png"
+              />
+            </EnterpriseField>
+            <EnterpriseField label="Brand primary color">
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={state.brand_primary_color}
+                  onChange={(event) => update("brand_primary_color", event.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded-xl border border-slate-200 bg-white"
+                />
+                <EnterpriseInput
+                  value={state.brand_primary_color}
+                  onChange={(event) => update("brand_primary_color", event.target.value)}
+                  placeholder="#047857"
+                />
+              </div>
             </EnterpriseField>
           </div>
         </SectionCard>
@@ -780,6 +905,8 @@ export function SettingsWorkspace() {
       </div>
 
       <OutletLocationPanel onNotice={(message) => setNotice(message)} />
+
+      <BulkImportPanel onNotice={(message) => setNotice(message)} />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="Role Guide">

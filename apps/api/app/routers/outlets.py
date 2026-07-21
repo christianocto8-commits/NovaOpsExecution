@@ -100,7 +100,11 @@ def update_outlet(
     ensure_outlet_manager_access(db, current_user.id, outlet_id)
 
     repo = OutletRepository(db)
-    outlet = repo.update_outlet(outlet_id, region=payload.region)
+    outlet = repo.update_outlet(
+        outlet_id,
+        region=payload.region,
+        district=payload.district,
+    )
 
     if not outlet:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Outlet not found")

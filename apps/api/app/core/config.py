@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     vapid_private_key: str | None = None
     vapid_subject: str = "mailto:admin@novaops.com"
 
+    s3_endpoint: str | None = None
+    s3_bucket: str | None = None
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+    s3_region: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -135,6 +141,11 @@ def get_settings() -> Settings:
         vapid_subject=_sanitize_env_value(
             os.environ.get("VAPID_SUBJECT", "mailto:admin@novaops.com") or "mailto:admin@novaops.com"
         ),
+        s3_endpoint=_sanitize_env_value(os.environ.get("S3_ENDPOINT", "") or "") or None,
+        s3_bucket=_sanitize_env_value(os.environ.get("S3_BUCKET", "") or "") or None,
+        s3_access_key=_sanitize_env_value(os.environ.get("S3_ACCESS_KEY", "") or "") or None,
+        s3_secret_key=os.environ.get("S3_SECRET_KEY") or None,
+        s3_region=_sanitize_env_value(os.environ.get("S3_REGION", "") or "") or None,
     )
 
 

@@ -246,6 +246,8 @@ class TaskService:
 
         if payload.status == "completed":
             task.completed_at = datetime.now(timezone.utc)
+            if task.source_type == "corrective_action":
+                task.verified_at = datetime.now(timezone.utc)
 
         self.repo.create_comment(
             TaskComment(

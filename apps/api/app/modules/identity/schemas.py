@@ -191,3 +191,19 @@ class AuthContextResponse(BaseModel):
     token_version: int
 
 
+class BulkImportRowResult(BaseModel):
+    row: int
+    entity: str
+    identifier: str
+    status: str
+    message: str | None = None
+
+
+class BulkImportResponse(BaseModel):
+    outlets_created: int = 0
+    outlets_skipped: int = 0
+    users_created: int = 0
+    users_skipped: int = 0
+    rows: list[BulkImportRowResult] = []
+
+

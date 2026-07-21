@@ -57,6 +57,8 @@ export type SettingsResponse = {
   api_status_mode: string;
   two_factor_required: boolean;
   password_rotation_days: number;
+  brand_logo_url: string;
+  brand_primary_color: string;
 };
 
 export type SettingsPayload = Partial<SettingsResponse>;
