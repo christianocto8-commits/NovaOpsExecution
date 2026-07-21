@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_jwt_or_api_key
 from app.models.user import User
 from app.models.execution_session import ExecutionSession
 from app.models.form_answer import FormAnswer
@@ -179,9 +179,9 @@ def create_form_template(
 @router.get("", response_model=list[FormTemplateResponse])
 def get_form_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_jwt_or_api_key("read:form-templates")),
 ):
-    del current_user
+    del _auth
 
     return (
         db.query(FormTemplate)
@@ -222,6 +222,44 @@ def update_form_template(
 
     db.commit()
     return _get_template_or_404(db, form_template_id)
+
+
+@router.post("/{form_template_id}/duplicate", response_model=FormTemplateResponse, status_code=status.HTTP_201_CREATED)
+def duplicate_form_template(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    source = _get_template_or_404(db, form_template_id)
+
+    duplicate = FormTemplate(
+        title=f"{source.title} (Copy)",
+        description=source.description,
+        form_type="draft",
+        outlet_id=source.outlet_id,
+        created_by=current_user.id,
+        is_active=False,
+    )
+    db.add(duplicate)
+    db.flush()
+
+    for index, field in sorted(source.fields, key=lambda item: item.sort_order):
+        db.add(
+            FormField(
+                form_template_id=duplicate.id,
+                label=field.label,
+                field_type=field.field_type,
+                placeholder=field.placeholder,
+                help_text=field.help_text,
+                is_required=field.is_required,
+                options_json=field.options_json,
+                validation_json=field.validation_json,
+                sort_order=index,
+            )
+        )
+
+    db.commit()
+    return _get_template_or_404(db, duplicate.id)
 
 
 @router.delete("/{form_template_id}", status_code=status.HTTP_204_NO_CONTENT)

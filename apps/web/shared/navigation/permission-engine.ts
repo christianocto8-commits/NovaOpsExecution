@@ -8,6 +8,7 @@ const outletNavigationItemIds = new Set([
   "tasks",
   "forms",
   "notifications",
+  "activity",
   "drafts",
   "history",
   "settings",
@@ -15,6 +16,8 @@ const outletNavigationItemIds = new Set([
 
 const areaManagerNavigationItemIds = new Set([
   "dashboard",
+  "activity",
+  "announcements",
   "audit",
   "compliance",
   "corrective-actions",

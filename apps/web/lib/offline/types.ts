@@ -7,7 +7,7 @@ export type LocalDraft = {
   updatedAt: string;
 };
 
-export type QueuedMutationType = "EXECUTION_DRAFT" | "EXECUTION_SUBMIT";
+export type QueuedMutationType = "EXECUTION_DRAFT" | "EXECUTION_SUBMIT" | "FORM_SUBMIT";
 
 export type QueuedMutation = {
   id: string;
@@ -17,6 +17,7 @@ export type QueuedMutation = {
   createdAt: string;
   status: "pending" | "processing" | "failed";
   error?: string;
+  label?: string;
 };
 
 export type EvidenceBlobRecord = {

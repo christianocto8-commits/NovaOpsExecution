@@ -1,19 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Eye, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, Copy, Eye, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
+import { FormLibraryPanel, rememberRecentTemplate } from "@/features/forms/components/form-library-panel";
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
-import { FormField, FormFieldType, FormTemplate } from "@/features/forms/types";
+import { visibilityOperatorLabels } from "@/features/forms/utils/field-visibility";
+import { FormField, FormFieldType, FormTemplate, FieldVisibilityOperator } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { createLocalId } from "@/lib/local-id";
+import { enqueueMutation } from "@/lib/offline/store";
 import { queryKeys } from "@/lib/query/keys";
-import { formSubmissionService } from "@/services/form-submission.service";
+import { useOfflineSync } from "@/providers/OfflineSyncProvider";
+import {
+  buildFormSubmissionCreatePayload,
+  formSubmissionService,
+} from "@/services/form-submission.service";
+import { getCurrentPosition } from "@/shared/evidence";
+import { useToast } from "@/shared/toast";
+import { useLanguage } from "@/shared/i18n";
 import {
   createBlankFormTemplate,
   createMoneySafeCountTemplate,
@@ -60,6 +72,14 @@ const formTypeOptions = [
   "Quality Check",
   "Maintenance",
   "Custom",
+];
+
+const visibilityOperatorOptions: Array<{ value: FieldVisibilityOperator; label: string }> = [
+  { value: "equals", label: visibilityOperatorLabels.equals },
+  { value: "not_equals", label: visibilityOperatorLabels.not_equals },
+  { value: "contains", label: visibilityOperatorLabels.contains },
+  { value: "is_empty", label: visibilityOperatorLabels.is_empty },
+  { value: "is_not_empty", label: visibilityOperatorLabels.is_not_empty },
 ];
 
 const fieldTypeLabel: Record<FormFieldType, string> = {
@@ -125,25 +145,37 @@ const columns: EnterpriseColumn<FormTemplate>[] = [
 ];
 
 function OutletManualFormsWorkspace() {
+  const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
   const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
+  const { refreshPendingCount, pendingSyncCount } = useOfflineSync();
+  const toast = useToast();
   const { activeTemplates, isLoading, isError } = useActiveFormTemplates();
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [responses, setResponses] = useState<TaskFormResponses>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const submitMutation = useMutation({
     mutationFn: formSubmissionService.submitManualForm,
   });
 
   useEffect(() => {
+    const requestedTemplateId = searchParams.get("templateId");
+    if (requestedTemplateId) {
+      setSelectedTemplateId(requestedTemplateId);
+      return;
+    }
+
     if (!selectedTemplateId && activeTemplates[0]?.id) {
       setSelectedTemplateId(activeTemplates[0].id);
     }
-  }, [activeTemplates, selectedTemplateId]);
+  }, [activeTemplates, searchParams, selectedTemplateId]);
 
   const selectedTemplate =
     activeTemplates.find((template) => template.id === selectedTemplateId) ??
@@ -167,42 +199,74 @@ function OutletManualFormsWorkspace() {
       return;
     }
 
+    rememberRecentTemplate(selectedTemplate.id);
+
+    const submitLocation = await getCurrentPosition();
+    const payload = buildFormSubmissionCreatePayload({
+      templateId: selectedTemplate.id,
+      outletId,
+      submittedBy,
+      fields: selectedTemplate.fields,
+      responses,
+    });
+
+    setIsSubmitting(true);
+
     try {
-      await submitMutation.mutateAsync({
-        templateId: selectedTemplate.id,
-        outletId,
-        submittedBy,
-        fields: selectedTemplate.fields,
-        responses,
+      if (isOnline) {
+        await submitMutation.mutateAsync({
+          templateId: selectedTemplate.id,
+          outletId,
+          submittedBy,
+          fields: selectedTemplate.fields,
+          responses,
+        });
+
+        setResponses({});
+        setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+        return;
+      }
+
+      await enqueueMutation({
+        id: createLocalId(),
+        type: "FORM_SUBMIT",
+        taskId: `form:${selectedTemplate.id}`,
+        label: selectedTemplate.name,
+        payload: {
+          ...payload,
+          latitude: submitLocation?.latitude ?? null,
+          longitude: submitLocation?.longitude ?? null,
+          accuracy_m: submitLocation?.accuracy_m ?? null,
+        },
+        createdAt: new Date().toISOString(),
+        status: "pending",
       });
 
+      await refreshPendingCount();
       setResponses({});
-      setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+      setNotice(
+        `${selectedTemplate.name} disimpan lokal (${pendingSyncCount + 1} menunggu sinkron).`
+      );
+      toast.success("Form disimpan offline dan akan disinkronkan saat online.");
     } catch {
       setNotice("Submit form gagal. Periksa koneksi API dan coba lagi.");
+      toast.error("Gagal menyimpan form.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className="space-y-6 p-4 pb-28 sm:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Manual Form</p>
-          <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Submit manual outlet forms anytime for incidents, maintenance notes, or other events
-            that are not available as scheduled tasks.
-          </p>
+          <p className="text-sm font-medium text-emerald-700">{t("forms.manual.eyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("forms.manual.title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("forms.manual.subtitle")}</p>
+          {!isOnline ? (
+            <p className="mt-2 text-xs font-semibold text-amber-700">{t("forms.manual.offlineHint")}</p>
+          ) : null}
         </div>
-
-        <button
-          type="button"
-          onClick={() => void submitManualForm()}
-          disabled={!selectedTemplate || submitMutation.isPending}
-          className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          {submitMutation.isPending ? "Submitting..." : "Submit Form"}
-        </button>
       </div>
 
       {notice ? (
@@ -213,42 +277,33 @@ function OutletManualFormsWorkspace() {
 
       {isLoading ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Loading active form templates...
+          {t("forms.manual.loading")}
         </div>
       ) : null}
 
-      {isError ? (
+      {isError && activeTemplates.length === 0 ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          Failed to load form templates from backend.
+          {t("forms.manual.loadError")}{" "}
+          {isOnline ? t("forms.manual.checkApi") : t("forms.manual.offlineCacheEmpty")}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="text-sm font-semibold text-slate-700">Form Template</label>
-        <select
-          value={selectedTemplateId}
-          onChange={(event) => {
-            setSelectedTemplateId(event.target.value);
-            setResponses({});
-            setNotice(null);
-          }}
-          className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-emerald-600 lg:max-w-xl"
-        >
-          {activeTemplates.map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name}
-            </option>
-          ))}
-        </select>
+      <FormLibraryPanel
+        compact
+        selectedTemplateId={selectedTemplateId}
+        onSelectTemplate={(template) => {
+          setSelectedTemplateId(template.id);
+          setResponses({});
+          setNotice(null);
+          rememberRecentTemplate(template.id);
+        }}
+      />
 
-        {selectedTemplate ? (
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-            {selectedTemplate.description}
-          </p>
-        ) : (
-          <p className="mt-3 text-sm text-slate-500">No active form templates available.</p>
-        )}
-      </section>
+      {selectedTemplate ? (
+        <p className="max-w-2xl text-sm leading-6 text-slate-500">{selectedTemplate.description}</p>
+      ) : (
+        <p className="text-sm text-slate-500">No active form templates available.</p>
+      )}
 
       {selectedTemplate ? (
         <SectionedFormRenderer
@@ -257,6 +312,17 @@ function OutletManualFormsWorkspace() {
           onChange={setResponses}
         />
       ) : null}
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <button
+          type="button"
+          onClick={() => void submitManualForm()}
+          disabled={!selectedTemplate || isSubmitting || submitMutation.isPending}
+          className="w-full rounded-2xl bg-emerald-700 px-5 py-4 text-base font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:max-w-xs"
+        >
+          {isSubmitting || submitMutation.isPending ? "Submitting..." : "Submit Form"}
+        </button>
+      </div>
     </main>
   );
 }
@@ -323,6 +389,21 @@ export function FormsWorkspace() {
     onError: (error) => {
       const message =
         error instanceof Error ? error.message : "Gagal menghapus template dari backend.";
+      setSaveError(message);
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: formTemplateService.duplicate,
+    onSuccess: (duplicatedTemplate) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() });
+      setTemplates((currentTemplates) => [duplicatedTemplate, ...currentTemplates]);
+      setSelectedTemplateId(duplicatedTemplate.id);
+      setSaveError(null);
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "Gagal menduplikasi template.";
       setSaveError(message);
     },
   });
@@ -485,6 +566,15 @@ export function FormsWorkspace() {
     updateSelectedTemplate({ fields: nextFields });
   }
 
+  async function duplicateSelectedTemplate() {
+    if (!selectedTemplate || !isPersistedTemplateId(selectedTemplate.id)) {
+      setSaveError("Simpan template terlebih dahulu sebelum menduplikasi.");
+      return;
+    }
+
+    await duplicateMutation.mutateAsync(selectedTemplate.id);
+  }
+
   async function deleteSelectedTemplate() {
     if (!selectedTemplate) return;
 
@@ -604,6 +694,20 @@ export function FormsWorkspace() {
             >
               <Plus className="size-4" />
               New Form
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void duplicateSelectedTemplate()}
+              disabled={
+                !hasSelectedTemplate ||
+                !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
+                duplicateMutation.isPending
+              }
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              <Copy className="size-4" />
+              {duplicateMutation.isPending ? "Duplicating..." : "Duplicate Template"}
             </button>
 
             <button
@@ -1146,54 +1250,126 @@ export function FormsWorkspace() {
                       </div>
                     ) : null}
 
-                    {field.type !== "yes_no" ? (
-                      <div className="grid gap-2 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Visibilitas kondisional
+                      </p>
+                      <div className="mt-2 grid gap-2 md:grid-cols-3">
                         <select
-                          value={field.options?.showWhenFieldId ?? ""}
+                          value={field.options?.visibilityRule?.fieldId ?? field.options?.showWhenFieldId ?? ""}
                           disabled={isAreaWorkspace}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const fieldId = event.target.value;
+                            if (!fieldId) {
+                              updateField(field.id, {
+                                options: {
+                                  ...field.options,
+                                  visibilityRule: undefined,
+                                  showWhenFieldId: undefined,
+                                  showWhenValue: undefined,
+                                },
+                              });
+                              return;
+                            }
+
                             updateField(field.id, {
                               options: {
                                 ...field.options,
-                                showWhenFieldId: event.target.value || undefined,
+                                showWhenFieldId: undefined,
+                                showWhenValue: undefined,
+                                visibilityRule: {
+                                  fieldId,
+                                  operator: field.options?.visibilityRule?.operator ?? "equals",
+                                  value: field.options?.visibilityRule?.value ?? "No",
+                                },
                               },
-                            })
-                          }
+                            });
+                          }}
                           className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
                         >
-                          <option value="">Always visible</option>
+                          <option value="">Selalu tampil</option>
                           {selectedTemplate.fields
-                            .filter(
-                              (candidate) =>
-                                candidate.type === "yes_no" && candidate.id !== field.id
-                            )
+                            .filter((candidate) => candidate.id !== field.id)
                             .map((candidate) => (
                               <option key={candidate.id} value={candidate.id}>
-                                Show when: {candidate.label}
+                                {candidate.label}
                               </option>
                             ))}
                         </select>
 
-                        {field.options?.showWhenFieldId ? (
-                          <select
-                            value={field.options?.showWhenValue ?? "Yes"}
-                            disabled={isAreaWorkspace}
-                            onChange={(event) =>
-                              updateField(field.id, {
-                                options: {
-                                  ...field.options,
-                                  showWhenValue: event.target.value,
-                                },
-                              })
-                            }
-                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                          >
-                            <option value="Yes">Answer is Yes</option>
-                            <option value="No">Answer is No</option>
-                          </select>
+                        {field.options?.visibilityRule?.fieldId ||
+                        field.options?.showWhenFieldId ? (
+                          <>
+                            <select
+                              value={
+                                field.options?.visibilityRule?.operator ??
+                                (field.options?.showWhenFieldId ? "equals" : "equals")
+                              }
+                              disabled={isAreaWorkspace}
+                              onChange={(event) => {
+                                const operator = event.target.value as FieldVisibilityOperator;
+                                const currentFieldId =
+                                  field.options?.visibilityRule?.fieldId ??
+                                  field.options?.showWhenFieldId ??
+                                  "";
+
+                                updateField(field.id, {
+                                  options: {
+                                    ...field.options,
+                                    showWhenFieldId: undefined,
+                                    showWhenValue: undefined,
+                                    visibilityRule: {
+                                      fieldId: currentFieldId,
+                                      operator,
+                                      value: field.options?.visibilityRule?.value ?? "No",
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                            >
+                              {visibilityOperatorOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {field.options?.visibilityRule?.operator !== "is_empty" &&
+                            field.options?.visibilityRule?.operator !== "is_not_empty" ? (
+                              <input
+                                value={field.options?.visibilityRule?.value ?? ""}
+                                disabled={isAreaWorkspace}
+                                onChange={(event) => {
+                                  const currentFieldId =
+                                    field.options?.visibilityRule?.fieldId ??
+                                    field.options?.showWhenFieldId ??
+                                    "";
+
+                                  updateField(field.id, {
+                                    options: {
+                                      ...field.options,
+                                      visibilityRule: {
+                                        fieldId: currentFieldId,
+                                        operator:
+                                          field.options?.visibilityRule?.operator ?? "equals",
+                                        value: event.target.value,
+                                      },
+                                    },
+                                  });
+                                }}
+                                placeholder="Nilai (mis. No, Fail)"
+                                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                              />
+                            ) : (
+                              <div className="flex h-10 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500">
+                                Operator tidak memerlukan nilai
+                              </div>
+                            )}
+                          </>
                         ) : null}
                       </div>
-                    ) : null}
+                    </div>
                   </div>
                 ) : null}
 
@@ -1205,6 +1381,12 @@ export function FormsWorkspace() {
                   {isSystemResponsibleField ? (
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
                       Wajib sistem
+                    </span>
+                  ) : null}
+
+                  {field.options?.visibilityRule?.fieldId || field.options?.showWhenFieldId ? (
+                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                      Conditional
                     </span>
                   ) : null}
 

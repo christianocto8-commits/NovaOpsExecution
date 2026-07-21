@@ -57,6 +57,17 @@ __pycache__/
 
 # Local reports
 display-report.txt
+build-out.txt
+pytest-result.txt
+verify-login.txt
+
+# Local backups (scripts/backup-novaops-local.*)
+backups/
+
+# Temp build / verify artifacts
+_web_build_tmp/
+_standalone.tar.gz
+**/.next.bak-deploy/
 
 # Deploy artifacts
 standalone-deploy.tar.gz

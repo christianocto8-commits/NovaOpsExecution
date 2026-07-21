@@ -17,8 +17,18 @@ import {
   getExecutionSessions,
   updateExecutionSession,
 } from "@/services/execution-session.service";
+import {
+  formSubmissionService,
+  type FormSubmissionCreatePayload,
+} from "@/services/form-submission.service";
 import { taskService } from "@/services/task.service";
 import type { EvidenceUploadResponse } from "@/shared/evidence/upload-evidence";
+
+export type SyncQueueResult = {
+  processed: number;
+  failed: number;
+  errors: string[];
+};
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -127,6 +137,13 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
     (payload.answers_json as Record<string, unknown>) ?? {}
   );
 
+  const existingSessionId =
+    typeof payload.existingSessionId === "number" ? payload.existingSessionId : null;
+
+  if (existingSessionId) {
+    await deleteExecutionSession(existingSessionId);
+  }
+
   await taskService.submitExecution(mutation.taskId, {
     form_template_id: (payload.form_template_id as number | null) ?? null,
     answers_json: answersJson,
@@ -136,6 +153,46 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
   });
 
   await deleteLocalDraft(mutation.taskId);
+}
+
+async function resolveFormSubmissionAnswers(answers: FormSubmissionCreatePayload["answers"]) {
+  return Promise.all(
+    answers.map(async (answer) => {
+      const resolved: (typeof answers)[number] = { ...answer };
+
+      if (typeof resolved.answer_text === "string" && isOfflineEvidenceUrl(resolved.answer_text)) {
+        resolved.answer_text = await resolveOfflineEvidenceUrl(resolved.answer_text);
+      }
+
+      if (typeof resolved.evidence_url === "string" && isOfflineEvidenceUrl(resolved.evidence_url)) {
+        resolved.evidence_url = await resolveOfflineEvidenceUrl(resolved.evidence_url);
+      }
+
+      if (resolved.answer_json) {
+        resolved.answer_json = await replaceOfflineUrlsInValue(resolved.answer_json);
+      }
+
+      return resolved;
+    })
+  );
+}
+
+async function processFormSubmit(mutation: QueuedMutation) {
+  const payload = mutation.payload;
+  const rawAnswers = (payload.answers as FormSubmissionCreatePayload["answers"]) ?? [];
+  const answers = await resolveFormSubmissionAnswers(rawAnswers);
+
+  await formSubmissionService.create({
+    form_template_id: Number(payload.form_template_id),
+    outlet_id: Number(payload.outlet_id),
+    submitted_by: Number(payload.submitted_by),
+    status: "submitted",
+    responsible_person_name:
+      typeof payload.responsible_person_name === "string"
+        ? payload.responsible_person_name
+        : null,
+    answers,
+  });
 }
 
 async function processMutation(mutation: QueuedMutation) {
@@ -152,6 +209,8 @@ async function processMutation(mutation: QueuedMutation) {
       await processExecutionDraft(mutation);
     } else if (mutation.type === "EXECUTION_SUBMIT") {
       await processExecutionSubmit(mutation);
+    } else if (mutation.type === "FORM_SUBMIT") {
+      await processFormSubmit(mutation);
     }
 
     await deleteMutation(mutation.id);
@@ -167,23 +226,30 @@ async function processMutation(mutation: QueuedMutation) {
   }
 }
 
-export async function processMutationQueue() {
+export async function processMutationQueue(): Promise<SyncQueueResult> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    return { processed: 0, failed: 0 };
+    return { processed: 0, failed: 0, errors: [] };
   }
 
   const mutations = await getPendingMutations();
   let processed = 0;
   let failed = 0;
+  const errors: string[] = [];
 
   for (const mutation of mutations) {
     try {
       await processMutation(mutation);
       processed += 1;
-    } catch {
+    } catch (error) {
       failed += 1;
+      const message =
+        error instanceof Error
+          ? error.message
+          : mutation.error ?? "Sinkronisasi gagal.";
+      const label = mutation.label ? `${mutation.label}: ` : "";
+      errors.push(`${label}${message}`);
     }
   }
 
-  return { processed, failed };
+  return { processed, failed, errors };
 }

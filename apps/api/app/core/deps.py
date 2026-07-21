@@ -1,6 +1,7 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.modules.api_keys.models import ApiKey
+from app.modules.api_keys.service import ApiKeyService
 from app.modules.identity.models import User as IdentityUser
 from app.modules.tasks.identity_bridge import (
     get_default_identity_outlet,
@@ -17,6 +20,7 @@ from app.modules.tasks.identity_bridge import (
 
 # Standard Enterprise Bearer Authentication
 bearer_scheme = HTTPBearer(auto_error=True)
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _resolve_legacy_user(db: Session, subject: str) -> User | None:
@@ -84,3 +88,35 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
+
+
+def get_optional_api_key(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    db: Session = Depends(get_db),
+) -> ApiKey | None:
+    if not x_api_key:
+        return None
+
+    return ApiKeyService(db).authenticate(x_api_key)
+
+
+def require_jwt_or_api_key(required_scope: str):
+    def dependency(
+        credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
+        x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+        db: Session = Depends(get_db),
+    ) -> User | ApiKey:
+        if x_api_key:
+            api_key = ApiKeyService(db).authenticate(x_api_key, required_scope=required_scope)
+            if api_key:
+                return api_key
+
+        if credentials is not None:
+            return get_current_user(credentials, db)
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Valid JWT or X-API-Key required",
+        )
+
+    return dependency

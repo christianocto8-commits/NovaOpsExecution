@@ -109,7 +109,48 @@ export async function deleteEvidenceBlob(id: string) {
   await withStore(OFFLINE_STORES.EVIDENCE_BLOBS, "readwrite", (store) => store.delete(id));
 }
 
+export async function getAllMutations(): Promise<QueuedMutation[]> {
+  return getAllFromStore<QueuedMutation>(OFFLINE_STORES.MUTATION_QUEUE);
+}
+
+export async function getFailedMutations(): Promise<QueuedMutation[]> {
+  const mutations = await getAllMutations();
+
+  return mutations
+    .filter((mutation) => mutation.status === "failed")
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+export async function getPendingSyncTaskIds(): Promise<Set<string>> {
+  const mutations = await getPendingMutations();
+  const taskIds = new Set<string>();
+
+  mutations.forEach((mutation) => {
+    if (mutation.type === "EXECUTION_SUBMIT" || mutation.type === "EXECUTION_DRAFT") {
+      taskIds.add(mutation.taskId);
+    }
+  });
+
+  return taskIds;
+}
+
+export async function removePendingMutationsForTask(taskId: string, type?: QueuedMutation["type"]) {
+  const mutations = await getAllMutations();
+  const toRemove = mutations.filter(
+    (mutation) =>
+      mutation.taskId === taskId &&
+      (mutation.status === "pending" || mutation.status === "failed") &&
+      (!type || mutation.type === type)
+  );
+
+  await Promise.all(toRemove.map((mutation) => deleteMutation(mutation.id)));
+}
+
 export async function enqueueMutation(mutation: QueuedMutation) {
+  if (mutation.type === "EXECUTION_SUBMIT") {
+    await removePendingMutationsForTask(mutation.taskId, "EXECUTION_SUBMIT");
+  }
+
   await withStore(OFFLINE_STORES.MUTATION_QUEUE, "readwrite", (store) => store.put(mutation));
 }
 

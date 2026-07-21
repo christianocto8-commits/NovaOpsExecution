@@ -1,0 +1,11 @@
+[Unit]
+Description=Run NovaOps VPS backup daily
+
+[Timer]
+OnBootSec=15min
+OnCalendar=daily
+Persistent=true
+Unit=novaops-backup.service
+
+[Install]
+WantedBy=timers.target

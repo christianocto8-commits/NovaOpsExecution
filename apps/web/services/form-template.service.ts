@@ -1,7 +1,13 @@
 import { api } from "@/services/api";
 import { createLocalId } from "@/lib/local-id";
 import { cacheFormTemplates, getCachedFormTemplate, getCachedFormTemplates } from "@/lib/offline/store";
-import type { FormField, FormFieldOptions, FormFieldValidation, FormTemplate } from "@/features/forms/types";
+import type {
+  FieldVisibilityOperator,
+  FormField,
+  FormFieldOptions,
+  FormFieldValidation,
+  FormTemplate,
+} from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import {
   ensureResponsiblePersonField,
@@ -132,10 +138,39 @@ export type BackendFormTemplateCreate = {
   }>;
 };
 
+const visibilityOperators = new Set<FieldVisibilityOperator>([
+  "equals",
+  "not_equals",
+  "contains",
+  "is_empty",
+  "is_not_empty",
+]);
+
+function parseVisibilityRule(options: Record<string, unknown>) {
+  const rawRule = options.visibilityRule;
+  if (!rawRule || typeof rawRule !== "object") return undefined;
+
+  const rule = rawRule as Record<string, unknown>;
+  const fieldId = typeof rule.fieldId === "string" ? rule.fieldId : undefined;
+  const operator =
+    typeof rule.operator === "string" && visibilityOperators.has(rule.operator as FieldVisibilityOperator)
+      ? (rule.operator as FieldVisibilityOperator)
+      : undefined;
+
+  if (!fieldId || !operator) return undefined;
+
+  return {
+    fieldId,
+    operator,
+    value: typeof rule.value === "string" ? rule.value : undefined,
+  };
+}
+
 function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
   if (!optionsJson || typeof optionsJson !== "object") return undefined;
 
   const options = optionsJson as FormFieldOptions & Record<string, unknown>;
+  const visibilityRule = parseVisibilityRule(options);
 
   return {
     currency: typeof options.currency === "string" ? options.currency : undefined,
@@ -147,6 +182,7 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       typeof options.showWhenFieldId === "string" ? options.showWhenFieldId : undefined,
     showWhenValue:
       typeof options.showWhenValue === "string" ? options.showWhenValue : undefined,
+    visibilityRule,
     choices: Array.isArray(options.choices)
       ? options.choices.filter((value): value is string => typeof value === "string")
       : undefined,
@@ -325,5 +361,14 @@ export const formTemplateService = {
     return api<void>(`/api/v1/form-templates/${templateId}`, {
       method: "DELETE",
     });
+  },
+
+  async duplicate(templateId: string) {
+    const duplicated = await api<BackendFormTemplate>(
+      `/api/v1/form-templates/${templateId}/duplicate`,
+      { method: "POST" }
+    );
+
+    return mapBackendFormTemplate(duplicated);
   },
 };

@@ -63,6 +63,16 @@ class UserRepository:
         )
         return self.db.scalar(statement)
 
+    def find_by_email(self, email: str) -> User | None:
+        normalized = email.strip().lower()
+
+        statement = (
+            select(User)
+            .where(User.email == normalized)
+            .options(*user_load_options())
+        )
+        return self.db.scalar(statement)
+
     def email_or_username_exists(
         self,
         *,

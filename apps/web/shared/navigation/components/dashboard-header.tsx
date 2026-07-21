@@ -5,11 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Menu } from "lucide-react";
 
 import { NotificationHeaderButton } from "@/features/notifications/components/notification-header-button";
+import { AnnouncementHeaderBadge } from "@/features/announcements/components/announcement-header-badge";
+import { PwaInstallPrompt } from "@/features/pwa/components/pwa-install-prompt";
 
 import { AuthContext } from "@/providers/AuthProvider";
 import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
+import { QuickCrewSwitch } from "@/shared/navigation/components/quick-crew-switch";
 
 type DashboardHeaderProps = {
   workspace: CurrentWorkspace;
@@ -49,7 +52,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
             className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden"
           >
             <Menu className="size-5" />
-            <span className="sr-only">Open menu</span>
+            <span className="sr-only">{t("header.openMenu")}</span>
           </button>
 
           {showBackButton ? (
@@ -59,7 +62,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
               className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
             >
               <ArrowLeft className="size-5" />
-              <span className="sr-only">Back</span>
+              <span className="sr-only">{t("header.back")}</span>
             </button>
           ) : null}
 
@@ -79,6 +82,13 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
 
         <div className="flex items-center gap-2 sm:gap-3">
           <OfflineSyncBadge />
+          {workspace.mode === "outlet" ? (
+            <>
+              <PwaInstallPrompt compact />
+              <QuickCrewSwitch outletName={workspace.outletName} compact />
+            </>
+          ) : null}
+          <AnnouncementHeaderBadge />
           <NotificationHeaderButton />
 
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] sm:block">

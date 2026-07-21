@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react"
 import { useQuery } from "@tanstack/react-query";
 
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
+import { PwaInstallPrompt } from "@/features/pwa/components/pwa-install-prompt";
 import { ChecklistSubmitResultModal,
   OutletTaskExecutionDrawer,
   TaskDetailDrawer,
@@ -17,6 +18,7 @@ import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
 import { Task } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
 import { queryKeys } from "@/lib/query/keys";
+import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { formTemplateService } from "@/services/form-template.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
 import {
@@ -297,11 +299,13 @@ function MobileTaskRow({
   highlighted,
   onOpen,
   formTemplates,
+  isPendingSync,
 }: {
   task: Task;
   highlighted: boolean;
   onOpen: () => void;
   formTemplates: FormTemplate[];
+  isPendingSync?: boolean;
 }) {
   const progress = getTaskExecutionProgressPercentage(task, formTemplates);
   const draftProgress = getTaskDraftProgress(task, formTemplates);
@@ -316,7 +320,7 @@ function MobileTaskRow({
       data-task-row-id={task.id}
       onClick={onOpen}
       className={[
-        "grid w-full grid-cols-[56px_minmax(0,1fr)] gap-3 border-b border-slate-200 px-3 py-4 text-left transition last:border-b-0 hover:bg-slate-50",
+        "grid w-full grid-cols-[56px_minmax(0,1fr)] gap-3 border-b border-slate-200 px-3 py-5 text-left transition last:border-b-0 hover:bg-slate-50 active:bg-slate-100",
         highlighted ? "bg-emerald-50" : "bg-white",
       ].join(" ")}
     >
@@ -335,6 +339,11 @@ function MobileTaskRow({
               {task.executionDraft ? (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                   Draft Saved
+                </span>
+              ) : null}
+              {isPendingSync ? (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                  Menunggu sync
                 </span>
               ) : null}
               {task.priority === "High" ? (
@@ -366,6 +375,7 @@ function CollapsibleTaskSection({
   formTemplates,
   collapsed,
   onToggle,
+  pendingTaskIds,
 }: {
   section: MobileTaskSection;
   highlightedTaskId: string | null;
@@ -373,6 +383,7 @@ function CollapsibleTaskSection({
   formTemplates: FormTemplate[];
   collapsed: boolean;
   onToggle: () => void;
+  pendingTaskIds: Set<string>;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -406,6 +417,7 @@ function CollapsibleTaskSection({
               highlighted={highlightedTaskId === task.id}
               onOpen={() => onOpenTask(task)}
               formTemplates={formTemplates}
+              isPendingSync={pendingTaskIds.has(task.id)}
             />
           ))}
         </div>
@@ -424,6 +436,7 @@ function TaskGroupedList({
   onExpandAll,
   onCollapseAll,
   emptyMessage,
+  pendingTaskIds,
 }: {
   groups: MobileTaskSection[];
   highlightedTaskId: string | null;
@@ -434,6 +447,7 @@ function TaskGroupedList({
   onExpandAll: () => void;
   onCollapseAll: () => void;
   emptyMessage: string;
+  pendingTaskIds: Set<string>;
 }) {
   if (groups.length === 0) {
     return (
@@ -477,6 +491,7 @@ function TaskGroupedList({
             formTemplates={formTemplates}
             collapsed={collapsed}
             onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
+            pendingTaskIds={pendingTaskIds}
           />
         );
       })}
@@ -527,6 +542,7 @@ export function TasksWorkspace() {
     isOnline,
     pendingLocalSyncCount,
   } = useTaskWorkspace();
+  const { pendingTaskIds } = useOfflineSync();
 
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -775,7 +791,12 @@ export function TasksWorkspace() {
         ) : null}
       </div>
 
-      {isOutletWorkspace ? <PushNotificationPrompt /> : null}
+      {isOutletWorkspace ? (
+        <>
+          <PwaInstallPrompt />
+          <PushNotificationPrompt />
+        </>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
@@ -856,6 +877,7 @@ export function TasksWorkspace() {
             onExpandAll={expandAllTaskGroups}
             onCollapseAll={collapseAllTaskGroups}
             emptyMessage="Tidak ada task yang cocok dengan filter ini."
+            pendingTaskIds={pendingTaskIds}
           />
         </div>
       </section>

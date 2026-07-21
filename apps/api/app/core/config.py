@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     s3_secret_key: str | None = None
     s3_region: str | None = None
 
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_redirect_uri: str | None = None
+    google_frontend_success_url: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -146,6 +151,13 @@ def get_settings() -> Settings:
         s3_access_key=_sanitize_env_value(os.environ.get("S3_ACCESS_KEY", "") or "") or None,
         s3_secret_key=os.environ.get("S3_SECRET_KEY") or None,
         s3_region=_sanitize_env_value(os.environ.get("S3_REGION", "") or "") or None,
+        google_client_id=_sanitize_env_value(os.environ.get("GOOGLE_CLIENT_ID", "") or "") or None,
+        google_client_secret=os.environ.get("GOOGLE_CLIENT_SECRET") or None,
+        google_redirect_uri=_sanitize_env_value(os.environ.get("GOOGLE_REDIRECT_URI", "") or "") or None,
+        google_frontend_success_url=_sanitize_env_value(
+            os.environ.get("GOOGLE_FRONTEND_SUCCESS_URL", "") or ""
+        )
+        or None,
     )
 
 

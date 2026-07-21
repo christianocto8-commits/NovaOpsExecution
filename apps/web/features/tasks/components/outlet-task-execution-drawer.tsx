@@ -12,7 +12,9 @@ import {
 import { useUnsavedChangesGuard } from "@/features/tasks/hooks/use-unsaved-changes-guard";
 import { Task, TaskExecutionForm } from "@/features/tasks/types";
 import { DraftSaveState } from "@/features/tasks/types/autosave";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { queryKeys } from "@/lib/query/keys";
+import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { formTemplateService } from "@/services/form-template.service";
 import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
@@ -78,6 +80,9 @@ export function OutletTaskExecutionDrawer({
   onSubmit,
 }: OutletTaskExecutionDrawerProps) {
   const toast = useToast();
+  const { isOnline } = useOnlineStatus();
+  const { pendingTaskIds } = useOfflineSync();
+  const isPendingSync = task ? pendingTaskIds.has(task.id) : false;
   const [highlightedFieldIds, setHighlightedFieldIds] = useState<string[]>([]);
   const [saveState, setSaveState] = useState<DraftSaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -217,6 +222,8 @@ export function OutletTaskExecutionDrawer({
                   {template
                     ? `${template.name} - ${progress.completed}/${progress.total} required`
                     : "No form template assigned"}
+                  {!isOnline ? " · Offline mode" : null}
+                  {isPendingSync ? " · Menunggu sinkron" : null}
                 </p>
               </div>
 
@@ -363,12 +370,12 @@ export function OutletTaskExecutionDrawer({
           </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4 lg:px-8">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 lg:px-8">
           <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
             <button
               type="button"
               onClick={handleCancel}
-              className="col-span-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1"
+              className="col-span-2 min-h-[48px] rounded-2xl border border-slate-200 px-4 py-3.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1"
             >
               Cancel
             </button>
@@ -383,7 +390,7 @@ export function OutletTaskExecutionDrawer({
                   : form.operatorName
                 ).trim() || saveState === "saving"
               }
-              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+              className="min-h-[48px] rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
               {saveState === "saving" ? "Saving..." : "Save Draft"}
             </button>
@@ -392,9 +399,9 @@ export function OutletTaskExecutionDrawer({
               type="button"
               onClick={handleSubmit}
               disabled={saveState === "saving"}
-              className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="min-h-[48px] rounded-2xl bg-emerald-700 px-4 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {saveState === "saving" ? "Saving..." : "Submit"}
+              {saveState === "saving" ? "Saving..." : !isOnline ? "Submit (Offline)" : "Submit"}
             </button>
           </div>
         </div>

@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
+import { buildApiUrl } from "@/lib/api-url";
 import { getMe, login } from "@/services/auth.service";
+import { useLanguage } from "@/shared/i18n";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
 const REMEMBER_KEY = "novaops_remember_identifier";
+const REMEMBER_OUTLET_CONTEXT_KEY = "novaops_remember_outlet_context";
+const GOOGLE_OAUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
+
+function getSafeReturnUrl(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return value;
+}
 
 function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["outlet_access"]) {
   localStorage.removeItem("novaops_outlet_id");
@@ -40,6 +53,27 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
 }
 
 export default function LoginPage() {
+  const { t } = useLanguage();
+
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6">
+          <div className="text-sm text-slate-500">{t("login.loading")}</div>
+        </main>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
+  const { t } = useLanguage();
+  const searchParams = useSearchParams();
+  const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
+  const rememberOutlet = searchParams.get("rememberOutlet") === "1";
+  const [rememberedOutletName, setRememberedOutletName] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -54,7 +88,19 @@ export default function LoginPage() {
       setIdentifier(rememberedIdentifier);
       setRememberMe(true);
     }
-  }, []);
+
+    if (rememberOutlet) {
+      try {
+        const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
+        if (savedContext) {
+          const parsed = JSON.parse(savedContext) as { outletName?: string };
+          setRememberedOutletName(parsed.outletName ?? null);
+        }
+      } catch {
+        setRememberedOutletName(null);
+      }
+    }
+  }, [rememberOutlet]);
 
   async function handleLogin() {
     if (loading) return;
@@ -79,16 +125,40 @@ export default function LoginPage() {
 
       const currentUser = await getMe();
       storeOutletContext(currentUser.outlet_access);
+
+      let outletContext = getWorkspaceOutletContext(currentUser.outlet_access);
+
+      if (rememberOutlet) {
+        try {
+          const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
+          if (savedContext) {
+            const parsed = JSON.parse(savedContext) as {
+              outletId?: string;
+              outletName?: string;
+              outletCode?: string;
+            };
+
+            outletContext = {
+              outletId: parsed.outletId ?? outletContext.outletId,
+              outletName: parsed.outletName ?? outletContext.outletName,
+              outletCode: parsed.outletCode ?? outletContext.outletCode,
+            };
+          }
+        } catch {
+          // Fall back to user outlet context.
+        }
+      }
+
       setStoredWorkspaceRole(
         getWorkspaceRoleFromSlug(currentUser.role.slug),
-        getWorkspaceOutletContext(currentUser.outlet_access)
+        outletContext
       );
 
-      setMessage("Login success. Redirecting...");
-      window.location.assign("/dashboard");
+      setMessage(t("login.success"));
+      window.location.assign(returnUrl);
     } catch (error) {
       console.error(error);
-      setMessage(error instanceof Error ? error.message : "Unable to connect to API");
+      setMessage(error instanceof Error ? error.message : t("login.error"));
       setLoading(false);
     }
   }
@@ -98,12 +168,17 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-3xl border border-[#DDE8E1] bg-white p-10 shadow-sm">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#3D6B49]">
-            NOVAOPS ENTERPRISE
+            {t("login.brand")}
           </p>
 
-          <h1 className="mt-3 text-5xl font-bold text-[#1E1E1E]">Sign in</h1>
+          <h1 className="mt-3 text-5xl font-bold text-[#1E1E1E]">{t("login.title")}</h1>
 
-          <p className="mt-3 text-sm text-slate-500">Multi Outlet Operations Platform</p>
+          <p className="mt-3 text-sm text-slate-500">{t("login.subtitle")}</p>
+          {rememberedOutletName ? (
+            <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+              {t("login.rememberOutlet", { outlet: rememberedOutletName })}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-5">
@@ -111,7 +186,7 @@ export default function LoginPage() {
             className="w-full rounded-2xl border border-slate-200 px-5 py-4 text-sm outline-none focus:border-[#3D6B49]"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="Username or email"
+            placeholder={t("login.identifierPlaceholder")}
             autoComplete="username"
           />
 
@@ -121,7 +196,7 @@ export default function LoginPage() {
               className="w-full rounded-2xl border border-slate-200 px-5 py-4 pr-24 text-sm outline-none focus:border-[#3D6B49]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={t("login.passwordPlaceholder")}
               autoComplete="current-password"
               onKeyDown={(event) => {
                 if (event.key === "Enter") void handleLogin();
@@ -133,7 +208,7 @@ export default function LoginPage() {
               onClick={() => setShowPassword((current) => !current)}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#3D6B49]"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? t("login.hidePassword") : t("login.showPassword")}
             </button>
           </div>
 
@@ -151,7 +226,7 @@ export default function LoginPage() {
               }}
               className="h-4 w-4 rounded border-slate-300 accent-[#3D6B49]"
             />
-            Remember username
+            {t("login.rememberUsername")}
           </label>
 
           <button
@@ -160,8 +235,32 @@ export default function LoginPage() {
             onClick={() => void handleLogin()}
             className="w-full rounded-2xl bg-[#274733] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#1F3A2A] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Signing in..." : "Login"}
+            {loading ? t("login.signingIn") : t("login.submit")}
           </button>
+
+          {GOOGLE_OAUTH_ENABLED && (
+            <>
+              <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span>{t("login.or")}</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  window.location.href = buildApiUrl("/api/v1/auth/google/login");
+                }}
+                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span aria-hidden="true" className="text-lg">
+                  G
+                </span>
+                {t("login.google")}
+              </button>
+            </>
+          )}
 
           {message && (
             <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">

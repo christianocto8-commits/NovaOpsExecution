@@ -1,5 +1,6 @@
 import { api } from "@/services/api";
 import type { FormField } from "@/features/forms/types";
+import { getVisibleFields } from "@/features/forms/utils/field-visibility";
 import {
   isMoneyAmountFilled,
   isMoneyDenominationFilled,
@@ -105,6 +106,25 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
     .filter((answer) => answer !== null) as FormSubmissionAnswerPayload[];
 }
 
+export function buildFormSubmissionCreatePayload(args: {
+  templateId: string;
+  outletId: number;
+  submittedBy: number;
+  fields: FormField[];
+  responses: TaskFormResponses;
+}): FormSubmissionCreatePayload {
+  const visibleFields = getVisibleFields(args.fields, args.responses);
+
+  return {
+    form_template_id: Number(args.templateId),
+    outlet_id: args.outletId,
+    submitted_by: args.submittedBy,
+    status: "submitted",
+    responsible_person_name: getResponsiblePersonValue(args.fields, args.responses) || null,
+    answers: buildAnswers(visibleFields, args.responses),
+  };
+}
+
 export const formSubmissionService = {
   async list(params?: { outletId?: number; formTemplateId?: number; status?: string }) {
     const searchParams = new URLSearchParams();
@@ -142,13 +162,6 @@ export const formSubmissionService = {
     fields: FormField[];
     responses: TaskFormResponses;
   }) {
-    return this.create({
-      form_template_id: Number(args.templateId),
-      outlet_id: args.outletId,
-      submitted_by: args.submittedBy,
-      status: "submitted",
-      responsible_person_name: getResponsiblePersonValue(args.fields, args.responses) || null,
-      answers: buildAnswers(args.fields, args.responses),
-    });
+    return this.create(buildFormSubmissionCreatePayload(args));
   },
 };

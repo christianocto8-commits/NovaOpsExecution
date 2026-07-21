@@ -9,6 +9,8 @@ from app.models.form_answer import FormAnswer
 from app.models.form_submission import FormSubmission
 from app.models.user import User
 from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse
+from app.services.checklist_scoring import score_checklist
+from app.services.field_visibility import validate_conditional_required_fields
 
 router = APIRouter(prefix="/form-submissions", tags=["Form Submissions"])
 
@@ -19,12 +21,33 @@ def create_form_submission(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    responses = {
+        str(answer.form_field_id): (
+            answer.answer_text
+            or (str(answer.answer_number) if answer.answer_number is not None else "")
+            or ("yes" if answer.answer_boolean is True else "no" if answer.answer_boolean is False else "")
+        )
+        for answer in payload.answers
+    }
+
+    validate_conditional_required_fields(
+        db,
+        form_template_id=payload.form_template_id,
+        responses=responses,
+    )
+
+    checklist_result = score_checklist(
+        db,
+        form_template_id=payload.form_template_id,
+        answers_json={"responses": responses},
+    )
+
     submission = FormSubmission(
         form_template_id=payload.form_template_id,
         outlet_id=payload.outlet_id,
         submitted_by=payload.submitted_by or current_user.id,
         status=payload.status,
-        score=payload.score,
+        score=payload.score if payload.score is not None else checklist_result["score"],
         responsible_person_name=payload.responsible_person_name,
         submitted_at=datetime.now(timezone.utc),
     )

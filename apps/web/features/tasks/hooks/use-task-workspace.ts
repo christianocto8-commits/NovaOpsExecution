@@ -724,6 +724,7 @@ export function useTaskWorkspace() {
         id: createLocalId(),
         type: "EXECUTION_DRAFT",
         taskId: selectedTask.id,
+        label: selectedTask.title,
         payload: {
           task_id: Number(selectedTask.id),
           form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),
@@ -853,6 +854,7 @@ export function useTaskWorkspace() {
         id: createLocalId(),
         type: "EXECUTION_SUBMIT",
         taskId: selectedTask.id,
+        label: selectedTask.title,
         payload: {
           task_id: Number(selectedTask.id),
           form_template_id: getNumericFormTemplateId(selectedTask.formTemplateId),

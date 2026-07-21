@@ -1,15 +1,23 @@
-﻿from datetime import UTC, datetime, timedelta
+﻿import re
+import secrets
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.modules.identity.models import User
-from app.modules.identity.repository import RefreshTokenRepository, UserRepository
+from app.modules.identity.repository import (
+    OutletRepository,
+    RefreshTokenRepository,
+    RoleRepository,
+    UserRepository,
+)
 from app.modules.identity.schemas import TokenResponse
 from app.modules.identity.security import (
     create_access_token,
     create_raw_refresh_token,
+    hash_password,
     hash_token,
     verify_password,
 )
@@ -20,6 +28,8 @@ class AuthService:
         self.db = db
         self.users = UserRepository(db)
         self.refresh_tokens = RefreshTokenRepository(db)
+        self.roles = RoleRepository(db)
+        self.outlets = OutletRepository(db)
         self.settings = get_settings()
 
     def authenticate(self, *, identifier: str, password: str) -> User:
@@ -49,15 +59,18 @@ class AuthService:
             "token_version": 1,
         }
 
-    def login(
+    def issue_tokens_for_user(
         self,
+        user: User,
         *,
-        identifier: str,
-        password: str,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> TokenResponse:
-        user = self.authenticate(identifier=identifier, password=password)
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive",
+            )
 
         access_token = create_access_token(
             subject=user.id,
@@ -82,4 +95,87 @@ class AuthService:
             access_token=access_token,
             refresh_token=raw_refresh_token,
             expires_in_minutes=self.settings.access_token_expire_minutes,
+        )
+
+    def login(
+        self,
+        *,
+        identifier: str,
+        password: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> TokenResponse:
+        user = self.authenticate(identifier=identifier, password=password)
+        return self.issue_tokens_for_user(
+            user,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
+    def _build_unique_username(self, *, email: str, full_name: str) -> str:
+        local_part = email.split("@", 1)[0]
+        slug = re.sub(r"[^a-z0-9._-]+", "", local_part.lower()) or "user"
+        slug = slug[:40]
+
+        candidate = slug
+        suffix = 1
+
+        while self.users.find_by_identifier(candidate):
+            candidate = f"{slug[:35]}{suffix}"
+            suffix += 1
+
+        if not candidate:
+            candidate = re.sub(r"[^a-z0-9]+", "", full_name.lower())[:40] or f"user{secrets.token_hex(3)}"
+
+        return candidate
+
+    def login_or_create_google_user(
+        self,
+        *,
+        email: str,
+        full_name: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> TokenResponse:
+        user = self.users.find_by_email(email)
+
+        if not user:
+            outlet_role = self.roles.find_by_slug("outlet")
+            if not outlet_role:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Default outlet role is not configured",
+                )
+
+            default_outlet = self.outlets.list()[0] if self.outlets.list() else None
+            username = self._build_unique_username(email=email, full_name=full_name)
+
+            user = User(
+                email=email,
+                username=username,
+                full_name=full_name or username,
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                role_id=outlet_role.id,
+                outlet_id=default_outlet.id if default_outlet else None,
+                is_active=True,
+            )
+            user = self.users.create(user)
+
+            if default_outlet:
+                from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet
+
+                get_or_create_legacy_outlet(self.db, default_outlet)
+
+            self.db.commit()
+            user = self.users.find_by_email(email)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create Google user",
+                )
+
+        return self.issue_tokens_for_user(
+            user,
+            ip_address=ip_address,
+            user_agent=user_agent,
         )

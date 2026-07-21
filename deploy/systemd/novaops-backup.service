@@ -1,0 +1,8 @@
+[Unit]
+Description=NovaOps VPS backup (DB + evidence)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=NOVAOPS_BACKUP_RETENTION=14
+ExecStart=/opt/novaops/scripts/backup-novaops-vps.sh

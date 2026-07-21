@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Bell, CheckCircle2, RefreshCw, Send } from "lucide-react";
 
 import { useNotificationsWorkspace } from "@/features/notifications/hooks/use-notifications-workspace";
+import { AnnouncementsPanel } from "@/features/announcements/components/announcements-panel";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -421,6 +422,8 @@ export function NotificationsWorkspace() {
           ))}
         </div>
       )}
+
+      <AnnouncementsPanel />
     </main>
   );
 }

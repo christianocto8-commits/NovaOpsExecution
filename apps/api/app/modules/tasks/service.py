@@ -14,6 +14,7 @@ from app.modules.notifications.task_notifications import (
     notify_task_completed_supervisors,
     notify_task_recipient,
 )
+from app.services.activity_events import record_activity_event
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
@@ -28,6 +29,7 @@ from app.repositories.outlet_repository import OutletRepository
 from app.services.geofence import is_within_geofence
 from app.services.checklist_scoring import score_checklist
 from app.services.execution_validation import validate_task_execution_answers
+from app.services.field_visibility import validate_conditional_required_fields
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.services.workflow_triggers import (
     maybe_trigger_checklist_fail_workflow,
@@ -264,6 +266,27 @@ class TaskService:
         self.db.refresh(task)
 
         if payload.status == "completed":
+            actor = self.db.get(User, actor_id)
+            actor_name = actor.name if actor and actor.name else f"User {actor_id}"
+            capa_action = (
+                "capa_resolved"
+                if task.source_type == "corrective_action"
+                else "task_completed"
+            )
+            record_activity_event(
+                self.db,
+                action=capa_action,
+                summary=(
+                    f"CAPA diselesaikan: {task.title}"
+                    if capa_action == "capa_resolved"
+                    else f"Task selesai: {task.title}"
+                ),
+                outlet_id=task.outlet_id,
+                actor_id=actor_id,
+                actor_name=actor_name,
+                resource_type="task",
+                resource_id=str(task.id),
+            )
             notify_task_completed_supervisors(
                 self.db,
                 task=task,
@@ -332,6 +355,14 @@ class TaskService:
         if form_template_id is None and task.source_type == "form_template":
             form_template_id = task.source_id
 
+        responses = payload.answers_json.get("responses") or {}
+        if form_template_id and isinstance(responses, dict):
+            validate_conditional_required_fields(
+                self.db,
+                form_template_id=form_template_id,
+                responses=responses,
+            )
+
         checklist_result = score_checklist(
             self.db,
             form_template_id=form_template_id,
@@ -382,6 +413,8 @@ class TaskService:
                 new_value=task.status,
             )
         )
+
+        corrective_task: Task | None = None
 
         if (
             workspace_settings.auto_corrective_action
@@ -439,6 +472,55 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(task)
+
+        actor = self.db.get(User, actor_id)
+        actor_name = actor.name if actor and actor.name else f"User {actor_id}"
+
+        checklist_action = (
+            "checklist_submitted"
+            if checklist_result.get("status") == "pass"
+            else "checklist_failed"
+        )
+        record_activity_event(
+            self.db,
+            action=checklist_action,
+            summary=f"Checklist {checklist_result.get('status')} untuk {task.title} ({checklist_result.get('score')}%)",
+            outlet_id=task.outlet_id,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            resource_type="task",
+            resource_id=str(task.id),
+            metadata={
+                "checklist_status": checklist_result.get("status"),
+                "score": checklist_result.get("score"),
+            },
+        )
+
+        if corrective_task is not None:
+            self.db.refresh(corrective_task)
+            record_activity_event(
+                self.db,
+                action="capa_created",
+                summary=f"CAPA dibuat: {corrective_task.title}",
+                outlet_id=task.outlet_id,
+                actor_id=actor_id,
+                actor_name=actor_name,
+                resource_type="task",
+                resource_id=str(corrective_task.id),
+                metadata={"parent_task_id": task.id},
+            )
+
+        if completed:
+            record_activity_event(
+                self.db,
+                action="task_completed",
+                summary=f"Task selesai: {task.title}",
+                outlet_id=task.outlet_id,
+                actor_id=actor_id,
+                actor_name=actor_name,
+                resource_type="task",
+                resource_id=str(task.id),
+            )
 
         if checklist_result.get("status") != "pass":
             notify_checklist_failure_supervisors(

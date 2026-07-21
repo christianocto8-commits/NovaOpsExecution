@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models.form_field import FormField
+from app.services.field_visibility import is_field_visible
 from app.services.workspace_settings import get_workspace_settings
 
 YES_VALUES = {"yes", "ya", "true", "1"}
@@ -223,8 +224,12 @@ def score_checklist(
     passed_weight = 0.0
     failed_items: list[dict[str, Any]] = []
     critical_failures: list[dict[str, Any]] = []
+    section_stats: dict[str, dict[str, float | int]] = {}
 
     for field in fields:
+        if not is_field_visible(field, responses):
+            continue
+
         value = _get_response(responses, field.id)
         allow_na = _field_allows_na(field)
 
@@ -242,11 +247,22 @@ def score_checklist(
         total_scorable += 1
         total_weight += weight
 
+        section_name = (field.help_text or "General").strip() or "General"
+        section_bucket = section_stats.setdefault(
+            section_name,
+            {"passed": 0, "failed": 0, "total": 0, "weight": 0.0, "passed_weight": 0.0},
+        )
+        section_bucket["total"] = int(section_bucket["total"]) + 1
+        section_bucket["weight"] = float(section_bucket["weight"]) + weight
+
         if passed:
             passed_count += 1
             passed_weight += weight
+            section_bucket["passed"] = int(section_bucket["passed"]) + 1
+            section_bucket["passed_weight"] = float(section_bucket["passed_weight"]) + weight
         else:
             failed_count += 1
+            section_bucket["failed"] = int(section_bucket["failed"]) + 1
             item = {
                 "field_id": field.id,
                 "label": field.label,
@@ -259,6 +275,19 @@ def score_checklist(
                 critical_failures.append(item)
 
     score = round((passed_weight / total_weight) * 100) if total_weight > 0 else 100
+
+    section_scores: dict[str, dict[str, Any]] = {}
+    for section_name, bucket in section_stats.items():
+        section_weight = float(bucket["weight"])
+        section_passed_weight = float(bucket["passed_weight"])
+        section_scores[section_name] = {
+            "passed": int(bucket["passed"]),
+            "failed": int(bucket["failed"]),
+            "total": int(bucket["total"]),
+            "pass_rate": round((section_passed_weight / section_weight) * 100)
+            if section_weight > 0
+            else 100,
+        }
 
     if critical_failures:
         status = "fail"
@@ -277,5 +306,6 @@ def score_checklist(
         "na_count": na_count,
         "failed_items": failed_items,
         "critical_failures": critical_failures,
+        "section_scores": section_scores,
         "status": status,
     }

@@ -287,3 +287,52 @@ def test_score_checklist_weighted_score(db: Session):
 
     assert result["score"] == 75
     assert result["failed_count"] == 1
+
+
+def test_score_checklist_section_scores(db: Session):
+    template = FormTemplate(
+        title="Section Score Template",
+        description="Section scoring test",
+        form_type="test",
+        outlet_id=None,
+        created_by=1,
+        is_active=True,
+    )
+    db.add(template)
+    db.flush()
+
+    opening_field = FormField(
+        form_template_id=template.id,
+        label="Opening check",
+        field_type="yes_no",
+        is_required=True,
+        help_text="Opening",
+        sort_order=0,
+    )
+    kitchen_field = FormField(
+        form_template_id=template.id,
+        label="Kitchen check",
+        field_type="yes_no",
+        is_required=True,
+        help_text="Kitchen",
+        sort_order=1,
+    )
+    db.add_all([opening_field, kitchen_field])
+    db.commit()
+    db.refresh(opening_field)
+    db.refresh(kitchen_field)
+
+    result = score_checklist(
+        db,
+        form_template_id=template.id,
+        answers_json={
+            "responses": {
+                str(opening_field.id): "yes",
+                str(kitchen_field.id): "no",
+            }
+        },
+    )
+
+    assert "section_scores" in result
+    assert result["section_scores"]["Opening"]["pass_rate"] == 100
+    assert result["section_scores"]["Kitchen"]["pass_rate"] == 0

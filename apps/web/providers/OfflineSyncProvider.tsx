@@ -13,14 +13,21 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useOnlineStatus } from "@/hooks/use-online-status";
-import { getPendingMutationCount } from "@/lib/offline/store";
+import {
+  getFailedMutations,
+  getPendingMutationCount,
+  getPendingSyncTaskIds,
+} from "@/lib/offline/store";
 import { processMutationQueue } from "@/lib/offline/sync-engine";
 import { queryKeys } from "@/lib/query/keys";
 
 type OfflineSyncContextValue = {
   isOnline: boolean;
   pendingSyncCount: number;
+  failedSyncCount: number;
+  pendingTaskIds: Set<string>;
   isSyncing: boolean;
+  lastSyncErrors: string[];
   syncNow: () => Promise<void>;
   refreshPendingCount: () => Promise<void>;
 };
@@ -33,15 +40,27 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { isOnline } = useOnlineStatus();
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [failedSyncCount, setFailedSyncCount] = useState(0);
+  const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncErrors, setLastSyncErrors] = useState<string[]>([]);
   const isSyncingRef = useRef(false);
 
   const refreshPendingCount = useCallback(async () => {
     try {
-      const count = await getPendingMutationCount();
+      const [count, failed, taskIds] = await Promise.all([
+        getPendingMutationCount(),
+        getFailedMutations(),
+        getPendingSyncTaskIds(),
+      ]);
+
       setPendingSyncCount(count);
+      setFailedSyncCount(failed.length);
+      setPendingTaskIds(taskIds);
     } catch {
       setPendingSyncCount(0);
+      setFailedSyncCount(0);
+      setPendingTaskIds(new Set());
     }
   }, []);
 
@@ -52,12 +71,15 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
 
     try {
-      await processMutationQueue();
+      const result = await processMutationQueue();
+      setLastSyncErrors(result.errors);
+
       await refreshPendingCount();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
         queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: ["local-drafts"] }),
+        queryClient.invalidateQueries({ queryKey: ["form-submissions"] }),
       ]);
     } finally {
       isSyncingRef.current = false;
@@ -68,22 +90,18 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    getPendingMutationCount()
-      .then((count) => {
-        if (!cancelled) {
-          setPendingSyncCount(count);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPendingSyncCount(0);
-        }
-      });
+    refreshPendingCount().catch(() => {
+      if (!cancelled) {
+        setPendingSyncCount(0);
+        setFailedSyncCount(0);
+        setPendingTaskIds(new Set());
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshPendingCount]);
 
   useEffect(() => {
     if (isOnline) {
@@ -95,11 +113,23 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     () => ({
       isOnline,
       pendingSyncCount,
+      failedSyncCount,
+      pendingTaskIds,
       isSyncing,
+      lastSyncErrors,
       syncNow,
       refreshPendingCount,
     }),
-    [isOnline, pendingSyncCount, isSyncing, syncNow, refreshPendingCount]
+    [
+      isOnline,
+      pendingSyncCount,
+      failedSyncCount,
+      pendingTaskIds,
+      isSyncing,
+      lastSyncErrors,
+      syncNow,
+      refreshPendingCount,
+    ]
   );
 
   return <OfflineSyncContext.Provider value={value}>{children}</OfflineSyncContext.Provider>;

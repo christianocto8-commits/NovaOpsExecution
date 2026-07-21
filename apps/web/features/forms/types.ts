@@ -14,12 +14,28 @@
   | "money_amount"
   | "responsible_person";
 
+export type FieldVisibilityOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "is_empty"
+  | "is_not_empty";
+
+export type FieldVisibilityRule = {
+  fieldId: string;
+  operator: FieldVisibilityOperator;
+  value?: string;
+};
+
 export type FormFieldOptions = {
   denominations?: number[];
   currency?: string;
   system?: boolean;
+  /** @deprecated use visibilityRule */
   showWhenFieldId?: string;
+  /** @deprecated use visibilityRule */
   showWhenValue?: string;
+  visibilityRule?: FieldVisibilityRule;
   choices?: string[];
   allow_na?: boolean;
   maxStars?: number;

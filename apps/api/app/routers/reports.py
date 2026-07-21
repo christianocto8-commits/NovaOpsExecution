@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_jwt_or_api_key
 from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.tasks.router import resolve_task_outlet_access
@@ -43,9 +43,9 @@ def _completion_rate(completed: int, total: int) -> int:
 @router.get("/summary", response_model=ReportSummary)
 def get_report_summary(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    _auth=Depends(require_jwt_or_api_key("read:reports")),
 ):
-    del current_user
+    del _auth
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold

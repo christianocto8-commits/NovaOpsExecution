@@ -24,6 +24,17 @@ export const queryKeys = {
       ["audit", "events", filters] as const,
   },
 
+  activity: {
+    feed: (filters: Record<string, string | number | undefined>) =>
+      ["activity", "feed", filters] as const,
+  },
+
+  announcements: {
+    all: () => ["announcements", "all"] as const,
+    active: () => ["announcements", "active"] as const,
+    unreadCount: () => ["announcements", "unread-count"] as const,
+  },
+
   history: {
     executionSessions: () => ["history", "execution-sessions"] as const,
     formSubmissions: () => ["history", "form-submissions"] as const,

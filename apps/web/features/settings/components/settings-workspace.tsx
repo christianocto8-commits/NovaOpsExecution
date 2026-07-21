@@ -12,6 +12,7 @@ import {
 
 import { changePassword, type SettingsResponse } from "@/features/settings/settings-api";
 import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
+import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
@@ -905,6 +906,8 @@ export function SettingsWorkspace() {
       </div>
 
       <OutletLocationPanel onNotice={(message) => setNotice(message)} />
+
+      <ApiKeysPanel />
 
       <BulkImportPanel onNotice={(message) => setNotice(message)} />
 

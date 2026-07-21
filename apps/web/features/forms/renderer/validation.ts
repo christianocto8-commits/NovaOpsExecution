@@ -1,4 +1,5 @@
 ﻿import { FormField } from "@/features/forms/types";
+import { getVisibleFields } from "@/features/forms/utils/field-visibility";
 import {
   isMoneyAmountFilled,
   isMoneyDenominationFilled,
@@ -42,7 +43,8 @@ function isFieldFilled(field: FormField, responses: TaskFormResponses) {
 }
 
 export function getMissingRequiredFields(fields: FormField[], responses: TaskFormResponses) {
-  const missingTemplateFields = fields.filter(
+  const visibleFields = getVisibleFields(fields, responses);
+  const missingTemplateFields = visibleFields.filter(
     (field) => field.required && !isFieldFilled(field, responses)
   );
 
