@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { createContext, ReactNode, useCallback, useMemo, useState } from "react";
+import { createContext, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
 import type { NovaRole } from "@/shared/navigation/role-config";
@@ -101,6 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    if (status === "idle") {
+      void restoreSession();
+    }
+  }, [status, restoreSession]);
 
   const logout = useCallback(() => {
     logoutService();

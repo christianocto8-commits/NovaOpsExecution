@@ -8,6 +8,11 @@ type AuthGuardProps = {
   children: React.ReactNode;
 };
 
+function hasStoredToken() {
+  if (typeof window === "undefined") return false;
+  return Boolean(localStorage.getItem("novaops_token"));
+}
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const auth = useContext(AuthContext);
@@ -17,15 +22,28 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   useEffect(() => {
-    if (auth.status === "idle") {
-      void auth.restoreSession();
-      return;
-    }
-
     if (auth.status === "unauthenticated") {
       router.replace("/login");
     }
-  }, [auth, router]);
+  }, [auth.status, router]);
+
+  useEffect(() => {
+    if (auth.status !== "idle" && auth.status !== "loading") {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (!hasStoredToken()) {
+        router.replace("/login");
+      }
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [auth.status, router]);
+
+  if (auth.status === "idle" && !hasStoredToken()) {
+    return null;
+  }
 
   if (auth.loading) {
     return (
