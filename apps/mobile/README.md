@@ -79,9 +79,13 @@ Requires macOS + Xcode:
 
 iOS folder is **not committed** until generated on a Mac; follow the same `server.url` dev pattern as Android.
 
-## Production build (future)
+## Production / Store release
 
-Static export to `out/` requires a dedicated Next.js export build. Current default is `standalone` for VPS deploy. For store release, add a separate `build:mobile` target.
+See [docs/NATIVE_STORE_RELEASE.md](../../docs/NATIVE_STORE_RELEASE.md).
+
+```powershell
+npm run release:android
+```
 
 ## Notes
 

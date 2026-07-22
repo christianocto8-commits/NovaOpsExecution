@@ -107,7 +107,11 @@ class Settings(BaseSettings):
     saml_idp_entity_id: str | None = None
     saml_idp_sso_url: str | None = None
     saml_idp_metadata_url: str | None = None
+    saml_idp_x509_cert: str | None = None
     saml_frontend_success_url: str | None = None
+
+    firebase_credentials_path: str | None = None
+    firebase_credentials_json: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -194,10 +198,16 @@ def get_settings() -> Settings:
             os.environ.get("SAML_IDP_METADATA_URL", "") or ""
         )
         or None,
+        saml_idp_x509_cert=os.environ.get("SAML_IDP_X509_CERT") or None,
         saml_frontend_success_url=_sanitize_env_value(
             os.environ.get("SAML_FRONTEND_SUCCESS_URL", "") or ""
         )
         or None,
+        firebase_credentials_path=_sanitize_env_value(
+            os.environ.get("FIREBASE_CREDENTIALS_PATH", "") or ""
+        )
+        or None,
+        firebase_credentials_json=os.environ.get("FIREBASE_CREDENTIALS_JSON") or None,
     )
 
 
