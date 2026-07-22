@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   Bell,
@@ -10,11 +11,18 @@ import {
   Users,
 } from "lucide-react";
 
-import { changePassword, type SettingsResponse } from "@/features/settings/settings-api";
+import {
+  changePassword,
+  resetWorkspace,
+  WORKSPACE_SETTINGS_DEFAULTS,
+  type SettingsResponse,
+} from "@/features/settings/settings-api";
 import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
 import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
 import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
+import { clearOfflineClientData } from "@/lib/offline/store";
+import { useConfirmation } from "@/shared/confirmation";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
@@ -22,6 +30,9 @@ import { outletService } from "@/services/outlet.service";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
+
+const TASK_SECTION_COLLAPSE_KEY = "novaops_task_section_collapsed";
+const RECENT_TEMPLATES_KEY = "novaops-recent-form-templates";
 
 type OwnerAdminState = {
   organization_name: string;
@@ -62,41 +73,41 @@ type OwnerAdminState = {
 };
 
 const defaults: OwnerAdminState = {
-  organization_name: "NovaOps",
-  workspace_name: "Main Workspace",
-  timezone: "Asia/Jakarta",
-  default_language: "id",
-  task_auto_archive_days: 30,
-  evidence_required: true,
-  approval_required: false,
-  email_notifications: true,
-  sms_notifications: false,
-  dashboard_alerts: true,
-  overdue_alerts: true,
-  session_timeout_minutes: 120,
-  enforce_role_permissions: true,
-  default_task_due_time: "09:00",
-  daily_reminder_window: "06:00",
-  pass_threshold: 85,
-  corrective_action_sla_hours: 24,
-  photo_required_by_default: true,
-  max_upload_mb: 10,
-  timestamp_watermark: true,
-  gps_watermark: true,
-  geofence_enabled: false,
-  geofence_radius_meters: 200,
-  outlet_grouping: "region",
-  default_user_role: "outlet_manager",
-  digest_frequency: "daily",
-  two_factor_required: false,
-  password_rotation_days: 90,
-  webhook_enabled: false,
-  auto_workflow_on_checklist_fail: false,
-  checklist_fail_workflow_code: "",
-  auto_workflow_on_task_completed: false,
-  task_completed_workflow_code: "",
-  brand_logo_url: "",
-  brand_primary_color: "#047857",
+  organization_name: WORKSPACE_SETTINGS_DEFAULTS.organization_name,
+  workspace_name: WORKSPACE_SETTINGS_DEFAULTS.workspace_name,
+  timezone: WORKSPACE_SETTINGS_DEFAULTS.timezone,
+  default_language: WORKSPACE_SETTINGS_DEFAULTS.default_language,
+  task_auto_archive_days: WORKSPACE_SETTINGS_DEFAULTS.task_auto_archive_days,
+  evidence_required: WORKSPACE_SETTINGS_DEFAULTS.evidence_required,
+  approval_required: WORKSPACE_SETTINGS_DEFAULTS.approval_required,
+  email_notifications: WORKSPACE_SETTINGS_DEFAULTS.email_notifications,
+  sms_notifications: WORKSPACE_SETTINGS_DEFAULTS.sms_notifications,
+  dashboard_alerts: WORKSPACE_SETTINGS_DEFAULTS.dashboard_alerts,
+  overdue_alerts: WORKSPACE_SETTINGS_DEFAULTS.overdue_alerts,
+  session_timeout_minutes: WORKSPACE_SETTINGS_DEFAULTS.session_timeout_minutes,
+  enforce_role_permissions: WORKSPACE_SETTINGS_DEFAULTS.enforce_role_permissions,
+  default_task_due_time: WORKSPACE_SETTINGS_DEFAULTS.default_task_due_time,
+  daily_reminder_window: WORKSPACE_SETTINGS_DEFAULTS.daily_reminder_window,
+  pass_threshold: WORKSPACE_SETTINGS_DEFAULTS.pass_threshold,
+  corrective_action_sla_hours: WORKSPACE_SETTINGS_DEFAULTS.corrective_action_sla_hours,
+  photo_required_by_default: WORKSPACE_SETTINGS_DEFAULTS.photo_required_by_default,
+  max_upload_mb: WORKSPACE_SETTINGS_DEFAULTS.max_upload_mb,
+  timestamp_watermark: WORKSPACE_SETTINGS_DEFAULTS.timestamp_watermark,
+  gps_watermark: WORKSPACE_SETTINGS_DEFAULTS.gps_watermark,
+  geofence_enabled: WORKSPACE_SETTINGS_DEFAULTS.geofence_enabled,
+  geofence_radius_meters: WORKSPACE_SETTINGS_DEFAULTS.geofence_radius_meters,
+  outlet_grouping: WORKSPACE_SETTINGS_DEFAULTS.outlet_grouping,
+  default_user_role: WORKSPACE_SETTINGS_DEFAULTS.default_user_role,
+  digest_frequency: WORKSPACE_SETTINGS_DEFAULTS.digest_frequency,
+  two_factor_required: WORKSPACE_SETTINGS_DEFAULTS.two_factor_required,
+  password_rotation_days: WORKSPACE_SETTINGS_DEFAULTS.password_rotation_days,
+  webhook_enabled: WORKSPACE_SETTINGS_DEFAULTS.webhook_enabled,
+  auto_workflow_on_checklist_fail: WORKSPACE_SETTINGS_DEFAULTS.auto_workflow_on_checklist_fail,
+  checklist_fail_workflow_code: WORKSPACE_SETTINGS_DEFAULTS.checklist_fail_workflow_code,
+  auto_workflow_on_task_completed: WORKSPACE_SETTINGS_DEFAULTS.auto_workflow_on_task_completed,
+  task_completed_workflow_code: WORKSPACE_SETTINGS_DEFAULTS.task_completed_workflow_code,
+  brand_logo_url: WORKSPACE_SETTINGS_DEFAULTS.brand_logo_url,
+  brand_primary_color: WORKSPACE_SETTINGS_DEFAULTS.brand_primary_color,
 };
 
 function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): OwnerAdminState {
@@ -386,6 +397,77 @@ function RoleAccessSection({
           </div>
         ))}
       </div>
+    </SectionCard>
+  );
+}
+
+function ResetWorkspacePanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const confirm = useConfirmation();
+  const queryClient = useQueryClient();
+  const { reload } = useSettings();
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleReset() {
+    if (confirmPhrase.trim().toUpperCase() !== "RESET") {
+      onNotice('Ketik "RESET" untuk konfirmasi.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Reset Workspace ke Default",
+      description:
+        "Semua task, form, submission, draft, notifikasi, dan data operasional akan dihapus permanen. Pengaturan workspace akan dikembalikan ke default. User, outlet, dan login admin tetap dipertahankan.\n\nLanjutkan?",
+      variant: "danger",
+      confirmText: "Reset ke default",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      const result = await resetWorkspace(confirmPhrase);
+      await clearOfflineClientData();
+      localStorage.removeItem(TASK_SECTION_COLLAPSE_KEY);
+      localStorage.removeItem(RECENT_TEMPLATES_KEY);
+      await reload();
+      await queryClient.invalidateQueries();
+      setConfirmPhrase("");
+      onNotice(result.message);
+      window.location.reload();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal mereset workspace.");
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Reset Workspace (Smoke Test)">
+      <p className="mb-4 text-sm text-red-700">
+        Fitur ini menghapus semua task, form, submission, draft, riwayat notifikasi, dan data
+        operasional lainnya. Pengaturan workspace dikembalikan ke default. User, outlet, role, dan
+        login admin tetap dipertahankan. Gunakan hanya untuk smoke testing.
+      </p>
+      <EnterpriseField label='Ketik "RESET" untuk konfirmasi'>
+        <EnterpriseInput
+          value={confirmPhrase}
+          onChange={(event) => setConfirmPhrase(event.target.value)}
+          placeholder="RESET"
+          autoComplete="off"
+        />
+      </EnterpriseField>
+      <button
+        type="button"
+        onClick={() => void handleReset()}
+        disabled={isResetting || confirmPhrase.trim().toUpperCase() !== "RESET"}
+        className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        {isResetting ? "Mereset..." : "Reset ke default"}
+      </button>
     </SectionCard>
   );
 }
@@ -923,6 +1005,8 @@ export function SettingsWorkspace() {
       <ApiKeysPanel />
 
       <BulkImportPanel onNotice={(message) => setNotice(message)} />
+
+      <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="Role Guide">

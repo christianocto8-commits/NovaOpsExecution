@@ -28,7 +28,7 @@ def _normalize_form_template_payload(data: Any) -> Any:
         elif isinstance(category, str) and category.strip():
             payload["form_type"] = category.strip()
         else:
-            payload["form_type"] = "Checklist"
+            payload["form_type"] = "uncategorized"
     else:
         payload["form_type"] = form_type.strip()
 

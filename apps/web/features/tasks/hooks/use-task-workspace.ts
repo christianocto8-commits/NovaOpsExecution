@@ -16,6 +16,7 @@ import {
 } from "@/features/tasks/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem, getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
+import { parsePhotoFieldValue } from "@/shared/evidence/photo-value";
 import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
@@ -183,9 +184,34 @@ function parseEvidenceGallery(value: string): EvidenceItem[] {
   }
 }
 
-function hasPhotoEvidence(evidenceText: string) {
+function isPhotoUrl(url: string) {
+  return /uploads\/evidence|\.(jpg|jpeg|png|webp|heic)/i.test(url);
+}
+
+function hasPhotoInFormResponses(formResponses: TaskExecutionForm["formResponses"]) {
+  return Object.values(formResponses).some((value) => {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) return false;
+
+    const photoValue = parsePhotoFieldValue(trimmed);
+    if (photoValue?.url && isPhotoUrl(photoValue.url)) return true;
+
+    return isPhotoUrl(trimmed);
+  });
+}
+
+function hasPhotoEvidence(
+  evidenceText: string,
+  formResponses: TaskExecutionForm["formResponses"]
+) {
   const galleryItems = parseEvidenceGallery(evidenceText);
-  return galleryItems.some((item) => /uploads\/evidence|\.(jpg|jpeg|png|webp|heic)/i.test(item.url));
+  if (galleryItems.some((item) => isPhotoUrl(item.url))) return true;
+
+  return hasPhotoInFormResponses(formResponses);
+}
+
+function hasAnyFormResponse(formResponses: TaskExecutionForm["formResponses"]) {
+  return Object.values(formResponses).some((value) => String(value ?? "").trim().length > 0);
 }
 
 function validateExecutionSubmit(
@@ -195,12 +221,18 @@ function validateExecutionSubmit(
     evidence_required?: boolean;
   } | null
 ) {
-  if (settings?.photo_required_by_default && !hasPhotoEvidence(form.evidenceText)) {
+  if (
+    settings?.photo_required_by_default &&
+    !hasPhotoEvidence(form.evidenceText, form.formResponses)
+  ) {
     return "Bukti foto wajib diunggah.";
   }
 
   if (settings?.evidence_required) {
-    const hasEvidence = Boolean(form.evidenceText.trim()) || Boolean(form.note.trim());
+    const hasEvidence =
+      Boolean(form.note.trim()) ||
+      Boolean(form.evidenceText.trim()) ||
+      hasAnyFormResponse(form.formResponses);
     if (!hasEvidence) {
       return "Evidence atau catatan wajib diisi.";
     }
@@ -553,6 +585,7 @@ export function useTaskWorkspace() {
       autoPublish: task.autoPublish ?? false,
       dueTime: task.dueTime ?? getTimeFromDue(task.due, defaultTaskDueTime),
       weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
+      monthlyPublishDay: task.monthlyPublishDay ?? 1,
     });
     setIsFormOpen(true);
   }

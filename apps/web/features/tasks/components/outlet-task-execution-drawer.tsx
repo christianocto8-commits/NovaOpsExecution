@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
@@ -17,7 +17,6 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { queryKeys } from "@/lib/query/keys";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { formTemplateService } from "@/services/form-template.service";
-import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { SaveIndicator } from "@/shared/status";
 import { useLanguage } from "@/shared/i18n";
@@ -45,30 +44,8 @@ function hasFormData(form: TaskExecutionForm) {
   return (
     Boolean(form.operatorName.trim()) ||
     Boolean(form.note.trim()) ||
-    Boolean(form.evidenceText.trim()) ||
     Object.values(form.formResponses).some((value) => String(value ?? "").trim())
   );
-}
-
-function parseEvidenceItems(value: string): EvidenceItem[] {
-  if (!value.trim()) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter(
-      (item): item is EvidenceItem =>
-        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
-    );
-  } catch {
-    return [];
-  }
-}
-
-function serializeEvidenceItems(items: EvidenceItem[]) {
-  return JSON.stringify(items);
 }
 
 export function OutletTaskExecutionDrawer({
@@ -98,8 +75,6 @@ export function OutletTaskExecutionDrawer({
   const template = templateQuery.data ?? null;
   const templateSettings = template ? getTemplateSettings(template.fields) : { require_execution_note: true };
   const responsiblePersonField = template ? getResponsiblePersonField(template.fields) : undefined;
-
-  const evidenceItems = useMemo(() => parseEvidenceItems(form.evidenceText), [form.evidenceText]);
 
   const missingRequiredFields = template
     ? getMissingRequiredFields(template.fields, form.formResponses)
@@ -135,16 +110,23 @@ export function OutletTaskExecutionDrawer({
     onClose();
   }
 
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (!confirmLeave()) return;
+      onClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, confirmLeave, onClose]);
+
   async function handleCancel() {
     if (!confirmLeave()) return;
     onCancel();
-  }
-
-  function handleEvidenceChange(items: EvidenceItem[]) {
-    updateForm({
-      ...form,
-      evidenceText: serializeEvidenceItems(items),
-    });
   }
 
   async function handleSaveDraft() {
@@ -212,7 +194,7 @@ export function OutletTaskExecutionDrawer({
   if (!open || !task) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] bg-[#F7FAF8]" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-[80] bg-[#F7FAF8]">
       <div className="flex h-[100dvh] w-full flex-col bg-[#F7FAF8]">
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:px-6 sm:py-5 lg:px-8">
           <div className="mx-auto w-full max-w-6xl">
@@ -368,12 +350,6 @@ export function OutletTaskExecutionDrawer({
                   className="mt-3 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
                 />
               </section>
-
-              <EvidenceGallery
-                value={evidenceItems}
-                onChange={handleEvidenceChange}
-                outletName={task?.outlet}
-              />
             </div>
           </div>
         </div>

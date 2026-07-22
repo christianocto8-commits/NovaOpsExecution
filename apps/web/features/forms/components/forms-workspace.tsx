@@ -12,6 +12,10 @@ import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
 import { getTemplateSettings, setTemplateRequireExecutionNote } from "@/features/forms/utils/template-settings";
 import { visibilityOperatorLabels } from "@/features/forms/utils/field-visibility";
 import { FormField, FormFieldType, FormTemplate, FieldVisibilityOperator } from "@/features/forms/types";
+import {
+  getFormCategoryLabel,
+  ZENPUT_FORM_CATEGORIES,
+} from "@/features/forms/constants/form-categories";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +35,6 @@ import { useToast } from "@/shared/toast";
 import { useLanguage } from "@/shared/i18n";
 import {
   createBlankFormTemplate,
-  createMoneySafeCountTemplate,
   formTemplateService,
   isPersistedTemplateId,
   type FormTemplateVersion,
@@ -63,20 +66,6 @@ const fieldTypeOptions: Array<{
   { value: "responsible_person", label: "Nama pelaksana" },
   { value: "money_denomination", label: "Hitung denom uang" },
   { value: "money_amount", label: "Nominal uang" },
-];
-
-const formTypeOptions = [
-  "Daily",
-  "Checklist",
-  "Audit",
-  "Cleaning",
-  "Cleaning Audit",
-  "Opening",
-  "Closing",
-  "Inventory",
-  "Quality Check",
-  "Maintenance",
-  "Custom",
 ];
 
 const visibilityOperatorOptions: Array<{ value: FieldVisibilityOperator; label: string }> = [
@@ -127,10 +116,10 @@ const columns: EnterpriseColumn<FormTemplate>[] = [
   },
   {
     key: "category",
-    header: "Type",
+    header: "Category",
     render: (form) => (
-      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold capitalize text-slate-700">
-        {form.category}
+      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+        {getFormCategoryLabel(form.category)}
       </span>
     ),
   },
@@ -368,6 +357,7 @@ export function FormsWorkspace() {
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
@@ -512,16 +502,31 @@ export function FormsWorkspace() {
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
+      if (categoryFilter !== "all" && template.category !== categoryFilter) {
+        return false;
+      }
+
       const normalizedQuery = query.trim().toLowerCase();
 
       if (!normalizedQuery) return true;
 
-      return [template.name, template.category, template.description]
+      return [template.name, getFormCategoryLabel(template.category), template.description]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [query, templates]);
+  }, [categoryFilter, query, templates]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    counts.set("all", templates.length);
+
+    templates.forEach((template) => {
+      counts.set(template.category, (counts.get(template.category) ?? 0) + 1);
+    });
+
+    return counts;
+  }, [templates]);
 
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) ??
@@ -536,15 +541,9 @@ export function FormsWorkspace() {
   const canManageTemplates = can("form.create") || can("form.edit");
   const hasSelectedTemplate = Boolean(selectedTemplate);
 
-  function createTemplate() {
+  function createTemplate(categoryId = "uncategorized") {
     const newTemplate = createBlankFormTemplate();
-
-    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
-    setSelectedTemplateId(newTemplate.id);
-  }
-
-  function createMoneySafeCountForm() {
-    const newTemplate = createMoneySafeCountTemplate();
+    newTemplate.category = categoryId;
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
     setSelectedTemplateId(newTemplate.id);
@@ -768,17 +767,8 @@ export function FormsWorkspace() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={createMoneySafeCountForm}
+              onClick={() => createTemplate(categoryFilter === "all" ? "uncategorized" : categoryFilter)}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
-            >
-              <Plus className="size-4" />
-              Money Safe Count
-            </button>
-
-            <button
-              type="button"
-              onClick={createTemplate}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
             >
               <Plus className="size-4" />
               {t("forms.admin.newForm")}
@@ -850,7 +840,40 @@ export function FormsWorkspace() {
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
         <aside className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Categories</p>
+          <div className="mt-3 space-y-1">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={[
+                "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition",
+                categoryFilter === "all"
+                  ? "bg-emerald-50 font-semibold text-emerald-800"
+                  : "text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              <span>All forms</span>
+              <span className="text-xs">{categoryCounts.get("all") ?? 0}</span>
+            </button>
+            {ZENPUT_FORM_CATEGORIES.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setCategoryFilter(category.id)}
+                className={[
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition",
+                  categoryFilter === category.id
+                    ? "bg-emerald-50 font-semibold text-emerald-800"
+                    : "text-slate-600 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <span>{category.label}</span>
+                <span className="text-xs">{categoryCounts.get(category.id) ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
             <Search className="size-4 text-slate-400" />
             <input
               value={query}
@@ -863,8 +886,8 @@ export function FormsWorkspace() {
           <div className="mt-4 space-y-2">
             {filteredTemplates.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                Belum ada template. Klik <span className="font-semibold">New Form</span> untuk
-                mulai.
+                Belum ada template di kategori ini. Klik{" "}
+                <span className="font-semibold">{t("forms.admin.newForm")}</span> untuk mulai.
               </p>
             ) : null}
 
@@ -881,7 +904,9 @@ export function FormsWorkspace() {
                 ].join(" ")}
               >
                 <p className="text-sm font-semibold text-slate-900">{template.name}</p>
-                <p className="mt-1 text-xs text-slate-500">{template.fields.length} items</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {getFormCategoryLabel(template.category)} · {template.fields.length} items
+                </p>
               </button>
             ))}
           </div>
@@ -892,26 +917,18 @@ export function FormsWorkspace() {
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 p-8 text-center">
               <p className="text-lg font-semibold text-slate-900">Belum ada form template</p>
               <p className="max-w-md text-sm text-slate-500">
-                Buat template baru untuk task outlet, atau gunakan preset Money Safe Count untuk
-                penghitungan setoran dan laporan cash vs EDC.
+                Buat template baru dan assign ke kategori operasional seperti di Zenput (Opening,
+                Food Safety, Audit, dll.).
               </p>
               {!isAreaWorkspace ? (
                 <div className="flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
-                    onClick={createTemplate}
-                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
-                  >
-                    <Plus className="size-4" />
-                    New Form
-                  </button>
-                  <button
-                    type="button"
-                    onClick={createMoneySafeCountForm}
+                    onClick={() => createTemplate()}
                     className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
                   >
                     <Plus className="size-4" />
-                    Money Safe Count
+                    {t("forms.admin.newForm")}
                   </button>
                 </div>
               ) : null}
@@ -1576,7 +1593,7 @@ export function FormsWorkspace() {
 
           <div className="mt-5 space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-700">Form Type</label>
+              <label className="text-xs font-semibold text-slate-700">Category</label>
               <select
                 value={selectedTemplate.category}
                 disabled={isAreaWorkspace}
@@ -1587,12 +1604,15 @@ export function FormsWorkspace() {
                 }
                 className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                {formTypeOptions.map((taskType) => (
-                  <option key={taskType} value={taskType}>
-                    {taskType}
+                {ZENPUT_FORM_CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-slate-500">
+                {getFormCategoryLabel(selectedTemplate.category)} — folder kategori operasional
+              </p>
             </div>
 
             <div>

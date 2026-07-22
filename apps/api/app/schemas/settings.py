@@ -63,6 +63,16 @@ class SettingsResponse(BaseModel):
     brand_primary_color: str = "#047857"
 
 
+class WorkspaceResetRequest(BaseModel):
+    confirm_phrase: str
+
+
+class WorkspaceResetResponse(BaseModel):
+    settings_reset: bool
+    deleted: dict[str, int]
+    message: str
+
+
 class SettingsUpdate(BaseModel):
     organization_name: str | None = None
     workspace_name: str | None = None
@@ -123,3 +133,13 @@ class SettingsUpdate(BaseModel):
     password_rotation_days: int | None = None
     brand_logo_url: str | None = None
     brand_primary_color: str | None = None
+
+
+class WorkspaceResetRequest(BaseModel):
+    confirm_phrase: str
+
+
+class WorkspaceResetResponse(BaseModel):
+    settings_reset: bool
+    deleted: dict[str, int]
+    message: str

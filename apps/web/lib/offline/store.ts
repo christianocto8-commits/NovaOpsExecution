@@ -174,3 +174,11 @@ export async function getPendingMutationCount(): Promise<number> {
   const mutations = await getPendingMutations();
   return mutations.length;
 }
+
+export async function clearOfflineClientData(): Promise<void> {
+  const stores = Object.values(OFFLINE_STORES);
+
+  await Promise.all(
+    stores.map((storeName) => withStore(storeName, "readwrite", (store) => store.clear()))
+  );
+}

@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.identity.dependencies import get_current_active_user, require_role
 from app.modules.identity.models import User as IdentityUser
-from app.schemas.settings import SettingsResponse, SettingsUpdate
+from app.schemas.settings import (
+    SettingsResponse,
+    SettingsUpdate,
+    WorkspaceResetRequest,
+    WorkspaceResetResponse,
+)
+from app.services.workspace_reset import reset_workspace_for_smoke_test
 from app.services.workspace_settings import (
     get_or_create_settings_row,
     get_workspace_settings,
@@ -34,3 +40,27 @@ def update_settings(
     del current_user
 
     return update_workspace_settings(db, payload)
+
+
+@router.post("/reset-workspace", response_model=WorkspaceResetResponse)
+def reset_workspace(
+    payload: WorkspaceResetRequest,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    del current_user
+
+    if payload.confirm_phrase.strip().upper() != "RESET":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ketik RESET untuk konfirmasi.",
+        )
+
+    result = reset_workspace_for_smoke_test(db)
+    total_deleted = sum(result["deleted"].values())
+
+    return WorkspaceResetResponse(
+        settings_reset=result["settings_reset"],
+        deleted=result["deleted"],
+        message=f"Workspace direset ke default. {total_deleted} baris data operasional dihapus.",
+    )

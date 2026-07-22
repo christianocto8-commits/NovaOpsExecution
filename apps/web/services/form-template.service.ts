@@ -12,70 +12,20 @@ import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import {
   ensureResponsiblePersonField,
 } from "@/features/forms/utils/system-fields";
+import {
+  getFormCategoryLabel,
+  normalizeFormCategoryId,
+} from "@/features/forms/constants/form-categories";
 
 export function isPersistedTemplateId(templateId: string) {
   return /^\d+$/.test(templateId);
-}
-
-export function createMoneySafeCountTemplate(): FormTemplate {
-  return {
-    id: `local-${createLocalId()}`,
-    name: "Money Safe Count",
-    category: "Closing",
-    description:
-      "Penghitungan setoran uang tunai per denominasi dan laporan penjualan cash vs EDC.",
-    status: "Draft",
-    fields: ensureResponsiblePersonField([
-      {
-        id: `local-field-${createLocalId()}`,
-        label: "Uang Tunai Setoran",
-        type: "money_denomination",
-        required: true,
-        section: "Penghitungan Setoran",
-        options: {
-          currency: "IDR",
-          denominations: DEFAULT_IDR_DENOMINATIONS,
-        },
-      },
-      {
-        id: `local-field-${createLocalId()}`,
-        label: "Total Penjualan Cash",
-        type: "money_amount",
-        required: true,
-        section: "Laporan Penjualan",
-        options: { currency: "IDR" },
-      },
-      {
-        id: `local-field-${createLocalId()}`,
-        label: "Total Penjualan EDC",
-        type: "money_amount",
-        required: true,
-        section: "Laporan Penjualan",
-        options: { currency: "IDR" },
-      },
-      {
-        id: `local-field-${createLocalId()}`,
-        label: "Catatan / Selisih",
-        type: "textarea",
-        required: false,
-        section: "Catatan",
-      },
-      {
-        id: `local-field-${createLocalId()}`,
-        label: "Tanda tangan PIC",
-        type: "signature",
-        required: true,
-        section: "Evidence & Sign Off",
-      },
-    ]),
-  };
 }
 
 export function createBlankFormTemplate(): FormTemplate {
   return {
     id: `local-${createLocalId()}`,
     name: "New Form Template",
-    category: "Daily",
+    category: "uncategorized",
     description: "Reusable form template for task execution.",
     status: "Draft",
     fields: ensureResponsiblePersonField([
@@ -243,7 +193,9 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
   return {
     id: String(template.id),
     name: template.title,
-    category: template.form_type === "draft" ? "Custom" : template.form_type || "Checklist",
+    category: normalizeFormCategoryId(
+      template.form_type === "draft" ? "uncategorized" : template.form_type
+    ),
     description: template.description ?? "",
     status,
     fields: ensureResponsiblePersonField(
@@ -276,7 +228,7 @@ function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
   return {
     title,
     description: template.description?.trim() || null,
-    form_type: isDraft ? "draft" : template.category?.trim() || "Checklist",
+    form_type: isDraft ? "draft" : normalizeFormCategoryId(template.category),
     outlet_id: null,
     is_active: template.status === "Active",
     fields: toBackendFields(ensureResponsiblePersonField(template.fields)),

@@ -21,6 +21,7 @@ type TaskDetailDrawerProps = {
   task: Task | null;
   onClose: () => void;
   onEdit?: (task: Task) => void;
+  onDelete?: (task: Task) => void;
 };
 
 function getChecklistStatusClass(status: string) {
@@ -73,7 +74,7 @@ function getActivityStyle(type: TaskActivityType) {
   return { icon: ClipboardList, className: "border-slate-200 bg-white text-slate-600" };
 }
 
-export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProps) {
+export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetailDrawerProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const photoEvidence = useMemo(
@@ -95,8 +96,14 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
   const activities = task.activity ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-slate-50 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-slate-50 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Task Detail</p>
@@ -139,14 +146,27 @@ export function TaskDetailDrawer({ task, onClose, onEdit }: TaskDetailDrawerProp
             {task.description ? (
               <p className="mt-4 text-sm leading-6 text-slate-600">{task.description}</p>
             ) : null}
-            {onEdit ? (
-              <button
-                type="button"
-                onClick={() => onEdit(task)}
-                className="mt-4 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
-              >
-                Edit Task
-              </button>
+            {onEdit || onDelete ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {onEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(task)}
+                    className="rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
+                  >
+                    Edit Task
+                  </button>
+                ) : null}
+                {onDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(task)}
+                    className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100"
+                  >
+                    Delete Task
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </section>
 

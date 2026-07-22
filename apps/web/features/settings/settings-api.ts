@@ -62,6 +62,68 @@ export type SettingsResponse = {
   brand_primary_color: string;
 };
 
+export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
+  organization_name: "NovaOps Enterprise",
+  workspace_name: "Operations Workspace",
+  timezone: "Asia/Jakarta",
+  default_language: "en",
+  task_auto_archive_days: 30,
+  evidence_required: true,
+  approval_required: false,
+  email_notifications: true,
+  sms_notifications: false,
+  dashboard_alerts: true,
+  overdue_alerts: true,
+  session_timeout_minutes: 120,
+  enforce_role_permissions: true,
+  date_format: "dd/MM/yyyy",
+  currency: "IDR",
+  dashboard_landing: "dashboard",
+  outlet_grouping: "region",
+  operating_hours_policy: "inherit-brand",
+  outlet_manager_required: true,
+  outlet_template_auto_assign: true,
+  default_user_role: "outlet_manager",
+  invite_approval_required: true,
+  manager_can_reassign_tasks: true,
+  default_task_due_time: "09:00",
+  daily_reminder_window: "06:00",
+  escalation_after_hours: 4,
+  recurring_publish_mode: "auto",
+  form_category_mode: "operational",
+  template_version_lock: true,
+  note_required_by_default: true,
+  signature_required_by_default: false,
+  reopen_submissions: true,
+  lock_edits_after_submit: true,
+  auto_corrective_action: true,
+  digest_frequency: "daily",
+  scheduled_report_audience: "owner-and-admin",
+  pass_threshold: 85,
+  critical_escalation: true,
+  corrective_action_sla_hours: 24,
+  photo_required_by_default: true,
+  max_upload_mb: 10,
+  timestamp_watermark: true,
+  gps_watermark: true,
+  geofence_enabled: false,
+  geofence_radius_meters: 200,
+  audit_retention_days: 180,
+  login_history_visible: true,
+  template_history_visible: true,
+  export_format: "xlsx",
+  webhook_enabled: false,
+  auto_workflow_on_checklist_fail: false,
+  checklist_fail_workflow_code: "",
+  auto_workflow_on_task_completed: false,
+  task_completed_workflow_code: "",
+  api_status_mode: "connected",
+  two_factor_required: false,
+  password_rotation_days: 90,
+  brand_logo_url: "",
+  brand_primary_color: "#047857",
+};
+
 export type SettingsPayload = Partial<SettingsResponse>;
 
 export async function getSettings() {
@@ -87,3 +149,15 @@ export async function changePassword(payload: PasswordChangePayload) {
   });
 }
 
+export type WorkspaceResetResponse = {
+  settings_reset: boolean;
+  deleted: Record<string, number>;
+  message: string;
+};
+
+export async function resetWorkspace(confirmPhrase: string) {
+  return api<WorkspaceResetResponse>("/api/v1/settings/reset-workspace", {
+    method: "POST",
+    body: JSON.stringify({ confirm_phrase: confirmPhrase }),
+  });
+}

@@ -46,7 +46,7 @@ export type TaskFormTemplate = {
   id: string;
   name: string;
   description: string;
-  category: "Opening" | "Closing" | "Cleaning" | "Inventory" | "Audit";
+  category: string;
   fields: TaskFormField[];
 };
 

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
+import { getFormCategoryLabel } from "@/features/forms/constants/form-categories";
 import { getIdentityOutlets, getIdentityUsers } from "@/services/identity.service";
 import {
   applyAssigneeSelection,
@@ -239,7 +240,7 @@ export function TaskFormDrawer({
             {selectedTemplate ? (
               <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-sm font-semibold text-emerald-900">
-                  {selectedTemplate.category} - {selectedTemplate.fields.length} fields
+                  {getFormCategoryLabel(selectedTemplate.category)} - {selectedTemplate.fields.length} fields
                 </p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
                   {selectedTemplate.description}

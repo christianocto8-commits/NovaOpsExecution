@@ -234,6 +234,25 @@ function formatMobileTime(task: Task) {
   }).toLowerCase();
 }
 
+function shouldHideOutletOverdueTask(task: Task, now: Date) {
+  const dueDate = parseTaskDueDate(task);
+  if (!dueDate) return false;
+
+  const dayAfterDue = getDayStart(dueDate);
+  dayAfterDue.setDate(dayAfterDue.getDate() + 1);
+
+  if (getDayStart(now) >= dayAfterDue) {
+    return true;
+  }
+
+  const twoHoursAfterDue = dueDate.getTime() + 2 * 60 * 60 * 1000;
+  if (now.getTime() >= twoHoursAfterDue) {
+    return true;
+  }
+
+  return false;
+}
+
 function getMobileSections(tasks: Task[], incompleteOnly: boolean, templates: FormTemplate[]) {
   const now = new Date();
   const todayStart = getDayStart(now);
@@ -252,6 +271,10 @@ function getMobileSections(tasks: Task[], incompleteOnly: boolean, templates: Fo
   eligibleTasks.forEach((task) => {
     const progress = getTaskExecutionProgressPercentage(task, templates);
     const dueDate = parseTaskDueDate(task);
+
+    if (progress < 100 && shouldHideOutletOverdueTask(task, now)) {
+      return;
+    }
 
     if (progress === 100) {
       completed.push(task);
@@ -530,6 +553,7 @@ export function TasksWorkspace() {
     submitTaskForm,
     openTaskDetail,
     closeDetail,
+    deleteTask,
     executionForm,
     setExecutionForm,
     isExecutionOpen,
@@ -905,6 +929,13 @@ export function TasksWorkspace() {
           task={selectedTask}
           onClose={closeDetail}
           onEdit={isOwnerAdminWorkspace ? openEditTask : undefined}
+          onDelete={
+            isOwnerAdminWorkspace
+              ? (task) => {
+                  void deleteTask(task.id);
+                }
+              : undefined
+          }
         />
       ) : null}
 
