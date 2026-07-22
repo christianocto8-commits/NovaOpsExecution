@@ -20,6 +20,7 @@ import { formTemplateService } from "@/services/form-template.service";
 import { EvidenceGallery, EvidenceItem } from "@/shared/evidence";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { SaveIndicator } from "@/shared/status";
+import { useLanguage } from "@/shared/i18n";
 import { useToast } from "@/shared/toast";
 
 type OutletTaskExecutionDrawerProps = {
@@ -80,6 +81,7 @@ export function OutletTaskExecutionDrawer({
   onSaveDraft,
   onSubmit,
 }: OutletTaskExecutionDrawerProps) {
+  const { t } = useLanguage();
   const toast = useToast();
   const { isOnline } = useOnlineStatus();
   const { pendingTaskIds } = useOfflineSync();
@@ -116,7 +118,7 @@ export function OutletTaskExecutionDrawer({
 
   const { confirmLeave } = useUnsavedChangesGuard({
     enabled: guardEnabled,
-    message: "Form belum tersimpan. Tetap keluar dari task ini?",
+    message: t("execution.unsavedGuard"),
   });
 
   function updateForm(nextForm: TaskExecutionForm) {
@@ -153,7 +155,7 @@ export function OutletTaskExecutionDrawer({
       setSaveState("saved");
     } catch {
       setSaveState("error");
-      toast.error("Save draft gagal. Coba lagi.");
+      toast.error(t("execution.toast.draftFailed"));
     }
   }
 
@@ -163,12 +165,12 @@ export function OutletTaskExecutionDrawer({
       : form.operatorName;
 
     if (!responsibleName.trim()) {
-      toast.warning("Nama pelaksana wajib diisi.");
+      toast.warning(t("execution.toast.operatorRequired"));
       return;
     }
 
     if (templateSettings.require_execution_note && !form.note.trim()) {
-      toast.warning("Execution Note wajib diisi.");
+      toast.warning(t("execution.toast.noteRequired"));
       return;
     }
 
@@ -190,7 +192,9 @@ export function OutletTaskExecutionDrawer({
         setHighlightedFieldIds([]);
       }, 3500);
 
-      toast.warning(`Lengkapi ${missingRequiredFields.length} field wajib.`);
+      toast.warning(
+        t("execution.toast.fieldsRequired").replace("{count}", String(missingRequiredFields.length))
+      );
       return;
     }
 
@@ -201,7 +205,7 @@ export function OutletTaskExecutionDrawer({
       setSaveState("saved");
     } catch {
       setSaveState("error");
-      toast.error("Submit task gagal. Coba lagi.");
+      toast.error(t("execution.toast.submitFailed"));
     }
   }
 
@@ -215,7 +219,7 @@ export function OutletTaskExecutionDrawer({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700">
-                  Task Execution
+                  {t("execution.eyebrow")}
                 </p>
                 <h2 className="mt-1 line-clamp-2 text-lg font-bold text-slate-950 sm:text-xl lg:text-2xl">
                   {task.title}
@@ -223,9 +227,9 @@ export function OutletTaskExecutionDrawer({
                 <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                   {template
                     ? `${template.name} - ${progress.completed}/${progress.total} required`
-                    : "No form template assigned"}
-                  {!isOnline ? " · Offline mode" : null}
-                  {isPendingSync ? " · Menunggu sinkron" : null}
+                    : t("execution.noTemplate")}
+                  {!isOnline ? t("execution.offlineSuffix") : null}
+                  {isPendingSync ? t("execution.pendingSyncSuffix") : null}
                 </p>
               </div>
 
@@ -260,10 +264,8 @@ export function OutletTaskExecutionDrawer({
           <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_360px] lg:px-8">
             <div className="min-w-0 space-y-4 sm:space-y-6">
               <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:rounded-3xl">
-                <p className="text-sm font-semibold text-emerald-900">Selesaikan task seperti checklist lapangan</p>
-                <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  Isi item wajib, tambahkan catatan seperlunya, lalu unggah bukti. Draft bisa disimpan kapan saja.
-                </p>
+                <p className="text-sm font-semibold text-emerald-900">{t("execution.guideTitle")}</p>
+                <p className="mt-1 text-sm leading-6 text-emerald-800">{t("execution.guideBody")}</p>
               </section>
 
               {template ? (
@@ -296,9 +298,7 @@ export function OutletTaskExecutionDrawer({
             <div className="space-y-4 lg:sticky lg:top-28 lg:self-start">
               {missingRequiredFields.length > 0 ? (
                 <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:rounded-3xl">
-                  <p className="text-sm font-bold text-amber-900">
-                    Masih ada field wajib yang belum diisi.
-                  </p>
+                  <p className="text-sm font-bold text-amber-900">{t("execution.missingRequired")}</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
                     {missingRequiredFields.map((field) => (
                       <li key={field.id}>{field.label}</li>
@@ -308,22 +308,23 @@ export function OutletTaskExecutionDrawer({
               ) : null}
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                <p className="text-sm font-bold text-slate-950">Pelaksana</p>
+                <p className="text-sm font-bold text-slate-950">{t("execution.operator")}</p>
                 <div className="mt-4 grid gap-4">
                   {!responsiblePersonField ? (
                     <div>
-                      <label className="text-sm font-semibold text-slate-700">Nama pelaksana</label>
+                      <label className="text-sm font-semibold text-slate-700">{t("execution.operatorName")}</label>
                       <input
                         value={form.operatorName}
                         onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
-                        placeholder="Contoh: Fajar"
+                        placeholder={t("execution.operatorPlaceholder")}
                         className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
                       />
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                      Nama pelaksana diisi di bagian <span className="font-bold">Pelaksana Tugas</span>{" "}
-                      pada form.
+                      {t("execution.responsibleHint", {
+                        section: t("execution.responsibleSection"),
+                      })}
                       {form.operatorName.trim() ? (
                         <p className="mt-2 font-semibold">{form.operatorName}</p>
                       ) : null}
@@ -331,7 +332,7 @@ export function OutletTaskExecutionDrawer({
                   )}
 
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">Posisi</label>
+                    <label className="text-sm font-semibold text-slate-700">{t("execution.position")}</label>
                     <select
                       value={form.operatorPosition}
                       onChange={(event) =>
@@ -354,15 +355,15 @@ export function OutletTaskExecutionDrawer({
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
                 <label className="text-sm font-bold text-slate-950">
-                  Execution Note
+                  {t("execution.note")}
                   {!templateSettings.require_execution_note ? (
-                    <span className="ml-2 text-xs font-semibold text-slate-400">(Opsional)</span>
+                    <span className="ml-1 font-normal text-slate-500">{t("execution.noteOptional")}</span>
                   ) : null}
                 </label>
                 <textarea
                   value={form.note}
                   onChange={(event) => updateForm({ ...form, note: event.target.value })}
-                  placeholder="Tulis catatan singkat hasil pengerjaan task"
+                  placeholder={t("execution.notePlaceholder")}
                   rows={5}
                   className="mt-3 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
                 />
@@ -384,7 +385,7 @@ export function OutletTaskExecutionDrawer({
               onClick={handleCancel}
               className="col-span-2 min-h-[48px] rounded-2xl border border-slate-200 px-4 py-3.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1"
             >
-              Cancel
+              {t("execution.cancel")}
             </button>
 
             <button
@@ -399,7 +400,7 @@ export function OutletTaskExecutionDrawer({
               }
               className="min-h-[48px] rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
-              {saveState === "saving" ? "Saving..." : "Save Draft"}
+              {saveState === "saving" ? t("execution.saving") : t("execution.saveDraft")}
             </button>
 
             <button
@@ -408,7 +409,11 @@ export function OutletTaskExecutionDrawer({
               disabled={saveState === "saving"}
               className="min-h-[48px] rounded-2xl bg-emerald-700 px-4 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {saveState === "saving" ? "Saving..." : !isOnline ? "Submit (Offline)" : "Submit"}
+              {saveState === "saving"
+                ? t("execution.saving")
+                : !isOnline
+                  ? t("execution.submitOffline")
+                  : t("execution.submit")}
             </button>
           </div>
         </div>

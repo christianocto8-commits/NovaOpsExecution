@@ -12,7 +12,10 @@
     "typecheck": "tsc --noEmit",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build",
     "cap:sync": "npx cap sync",
-    "cap:android": "npx cap open android"
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
+    "test:e2e": "playwright test",
+    "test:e2e:offline": "playwright test e2e/offline-sync.spec.ts"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.2",
@@ -36,6 +39,8 @@
   "devDependencies": {
     "@capacitor/android": "^7.4.2",
     "@capacitor/cli": "^7.4.2",
+    "@capacitor/ios": "^7.6.8",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

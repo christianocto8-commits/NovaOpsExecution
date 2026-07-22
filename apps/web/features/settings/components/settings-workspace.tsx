@@ -13,6 +13,7 @@ import {
 import { changePassword, type SettingsResponse } from "@/features/settings/settings-api";
 import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
 import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
+import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
@@ -855,6 +856,8 @@ export function SettingsWorkspace() {
           </p>
         </SectionCard>
       </div>
+
+      <IntegrationsStatusPanel />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Integrations & Automation">

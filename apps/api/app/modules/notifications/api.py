@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.modules.identity.dependencies import get_current_user, require_permission
 from app.modules.identity.models import User
 from app.modules.notifications.push_repository import PushSubscriptionRepository
+from app.modules.notifications.device_push_repository import DevicePushTokenRepository
 from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import (
     MessageResponse,
@@ -21,6 +22,8 @@ from app.modules.notifications.schemas import (
     PushSubscriptionRead,
     PushSubscriptionUnsubscribe,
     PushTestResponse,
+    DevicePushTokenRegister,
+    DevicePushTokenRead,
 )
 from app.modules.notifications.service import NotificationService, NotificationTemplateService
 
@@ -163,6 +166,49 @@ def unsubscribe_push_notifications(
         )
 
     return {"message": "Push subscription removed"}
+
+
+@router.post(
+    "/push/register-device",
+    response_model=DevicePushTokenRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_device_push_token(
+    payload: DevicePushTokenRegister,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    x_outlet_id: str | None = Header(default=None, alias="X-Outlet-Id"),
+):
+    outlet_id = payload.outlet_id or _parse_outlet_uuid(x_outlet_id)
+
+    return DevicePushTokenRepository(db).upsert(
+        user_id=user.id,
+        token=payload.token.strip(),
+        platform=payload.platform.strip().lower(),
+        outlet_id=outlet_id,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.delete(
+    "/push/register-device",
+    response_model=MessageResponse,
+)
+def unregister_device_push_token(
+    payload: DevicePushTokenRegister,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    removed = DevicePushTokenRepository(db).delete_by_token(payload.token.strip(), user.id)
+
+    if not removed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device push token not found",
+        )
+
+    return {"message": "Device push token removed"}
 
 
 @router.post(

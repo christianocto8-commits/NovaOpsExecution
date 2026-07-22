@@ -10,6 +10,7 @@ def test_integrations_status_owner(client: TestClient, auth_headers: dict[str, s
     payload = response.json()
     assert "google_oauth" in payload
     assert "oidc_sso" in payload
+    assert "saml_sso" in payload
     assert "sms_twilio" in payload
     assert "web_push_vapid" in payload
     assert "webhooks" in payload

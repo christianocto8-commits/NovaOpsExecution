@@ -102,6 +102,13 @@ class Settings(BaseSettings):
     oidc_redirect_uri: str | None = None
     oidc_frontend_success_url: str | None = None
 
+    saml_sp_entity_id: str | None = None
+    saml_sp_acs_url: str | None = None
+    saml_idp_entity_id: str | None = None
+    saml_idp_sso_url: str | None = None
+    saml_idp_metadata_url: str | None = None
+    saml_frontend_success_url: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -177,6 +184,18 @@ def get_settings() -> Settings:
         oidc_redirect_uri=_sanitize_env_value(os.environ.get("OIDC_REDIRECT_URI", "") or "") or None,
         oidc_frontend_success_url=_sanitize_env_value(
             os.environ.get("OIDC_FRONTEND_SUCCESS_URL", "") or ""
+        )
+        or None,
+        saml_sp_entity_id=_sanitize_env_value(os.environ.get("SAML_SP_ENTITY_ID", "") or "") or None,
+        saml_sp_acs_url=_sanitize_env_value(os.environ.get("SAML_SP_ACS_URL", "") or "") or None,
+        saml_idp_entity_id=_sanitize_env_value(os.environ.get("SAML_IDP_ENTITY_ID", "") or "") or None,
+        saml_idp_sso_url=_sanitize_env_value(os.environ.get("SAML_IDP_SSO_URL", "") or "") or None,
+        saml_idp_metadata_url=_sanitize_env_value(
+            os.environ.get("SAML_IDP_METADATA_URL", "") or ""
+        )
+        or None,
+        saml_frontend_success_url=_sanitize_env_value(
+            os.environ.get("SAML_FRONTEND_SUCCESS_URL", "") or ""
         )
         or None,
     )

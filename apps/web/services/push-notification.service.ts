@@ -30,4 +30,14 @@ export const pushNotificationService = {
       { method: "POST" },
     );
   },
+
+  registerDevice(payload: { token: string; platform: "android" | "ios"; outlet_id?: string }) {
+    return api<{ id: string; token: string; platform: string }>(
+      "/api/v1/notifications/push/register-device",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
 };

@@ -7,6 +7,8 @@ from app.modules.identity.dependencies import require_role
 from app.modules.identity.google_oauth import is_google_oauth_configured
 from app.modules.identity.models import User as IdentityUser
 from app.modules.identity.oidc_oauth import is_oidc_configured
+from app.modules.identity.saml_sso import is_saml_configured
+from app.modules.integrations.fcm import is_fcm_configured
 from app.services.sms_service import is_sms_configured
 from app.services.workspace_settings import get_workspace_settings
 from app.core.database import get_db
@@ -33,6 +35,10 @@ def integrations_status(
             "configured": is_oidc_configured(),
             "issuer": settings.oidc_issuer_url or None,
         },
+        "saml_sso": {
+            "configured": is_saml_configured(),
+            "entity_id": settings.saml_sp_entity_id or None,
+        },
         "sms_twilio": {
             "configured": is_sms_configured(),
             "enabled": workspace.sms_notifications,
@@ -45,7 +51,7 @@ def integrations_status(
         },
         "native_push": {
             "capacitor_android": True,
-            "fcm_configured": False,
+            "fcm_configured": is_fcm_configured(),
         },
         "video_evidence": {
             "enabled": True,

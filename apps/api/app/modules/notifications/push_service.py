@@ -7,12 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.modules.notifications.push_repository import PushSubscriptionRepository
+from app.modules.notifications.device_push_repository import DevicePushTokenRepository
 
 
 class PushNotificationService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = PushSubscriptionRepository(db)
+        self.device_repository = DevicePushTokenRepository(db)
         self.settings = get_settings()
 
     @property
@@ -32,7 +34,14 @@ class PushNotificationService:
             return {"attempted": 0, "sent": 0, "failed": 0, "removed": 0}
 
         subscriptions = self.repository.list_for_user(user_id)
-        result = {"attempted": len(subscriptions), "sent": 0, "failed": 0, "removed": 0}
+        device_tokens = self.device_repository.list_for_user(user_id)
+        result = {
+            "attempted": len(subscriptions),
+            "sent": 0,
+            "failed": 0,
+            "removed": 0,
+            "device_tokens": len(device_tokens),
+        }
 
         if not subscriptions:
             return result

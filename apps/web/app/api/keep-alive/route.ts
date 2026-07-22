@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const API_TARGET = (
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.API_PROXY_TARGET ??
-  "https://novaops-api.onrender.com"
+  (process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://novaops-api.onrender.com")
 ).replace(/\/+$/, "");
 
 export async function GET() {

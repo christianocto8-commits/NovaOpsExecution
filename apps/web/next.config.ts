@@ -5,7 +5,7 @@ const useRelativeApi = process.env.NEXT_PUBLIC_USE_RELATIVE_API === "true";
 const API_PROXY_TARGET = (
   process.env.API_PROXY_TARGET ??
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://103.247.10.145"
+  (process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "http://103.247.10.145")
 ).replace(/\/+$/, "");
 
 const isLocalApiTarget =

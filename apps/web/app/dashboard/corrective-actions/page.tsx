@@ -7,10 +7,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService, type BackendTaskStatus } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
+import { useLanguage } from "@/shared/i18n";
 
 type StatusFilter = "all" | "open" | "in_progress" | "completed";
 
-function getSlaLabel(task: Task) {
+type Translate = (
+  key: string,
+  values?: Record<string, string | number>
+) => string;
+
+function getSlaLabel(task: Task, t: Translate) {
   if (task.backendStatus === "completed" || !task.due) return null;
 
   const due = new Date(task.due);
@@ -21,7 +27,10 @@ function getSlaLabel(task: Task) {
   if (diffMs <= 0) {
     const overdueHours = Math.ceil(Math.abs(diffMs) / (1000 * 60 * 60));
     return {
-      label: overdueHours <= 1 ? "Terlambat" : `${overdueHours}j terlambat`,
+      label:
+        overdueHours <= 1
+          ? t("capa.overdue")
+          : t("capa.overdueHours", { hours: overdueHours }),
       tone: "overdue" as const,
     };
   }
@@ -31,31 +40,37 @@ function getSlaLabel(task: Task) {
 
   if (hoursLeft >= 24) {
     const daysLeft = Math.ceil(hoursLeft / 24);
-    return { label: `${daysLeft}h tersisa`, tone: "ok" as const };
+    return { label: t("capa.daysLeft", { days: daysLeft }), tone: "ok" as const };
   }
 
   if (hoursLeft < 4) {
     return {
-      label: minutesLeft > 0 ? `${hoursLeft}j ${minutesLeft}m tersisa` : `${hoursLeft}j tersisa`,
+      label:
+        minutesLeft > 0
+          ? t("capa.hoursMinutesLeft", { hours: hoursLeft, minutes: minutesLeft })
+          : t("capa.hoursLeft", { hours: hoursLeft }),
       tone: "urgent" as const,
     };
   }
 
   return {
-    label: minutesLeft > 0 ? `${hoursLeft}j ${minutesLeft}m tersisa` : `${hoursLeft}j tersisa`,
+    label:
+      minutesLeft > 0
+        ? t("capa.hoursMinutesLeft", { hours: hoursLeft, minutes: minutesLeft })
+        : t("capa.hoursLeft", { hours: hoursLeft }),
     tone: "ok" as const,
   };
 }
 
-function getWorkflowLabel(task: Task) {
+function getWorkflowLabel(task: Task, t: Translate) {
   const status = task.backendStatus ?? "open";
 
   if (status === "completed") {
-    return task.verifiedAt ? "Terverifikasi" : "Selesai";
+    return task.verifiedAt ? t("capa.verified") : t("capa.completed");
   }
-  if (status === "in_progress") return "Dalam Proses";
-  if (status === "blocked") return "Terblokir";
-  return "Open";
+  if (status === "in_progress") return t("capa.inProgress");
+  if (status === "blocked") return t("capa.blocked");
+  return t("capa.open");
 }
 
 function getWorkflowBadgeClass(task: Task) {
@@ -73,14 +88,15 @@ function getWorkflowBadgeClass(task: Task) {
   return "bg-red-50 text-red-700";
 }
 
-function getReason(task: Task) {
+function getReason(task: Task, t: Translate) {
   if (task.description?.includes("Failed items:")) {
     return task.description.split("Failed items:")[1]?.trim() || task.description;
   }
-  return task.description || "Tinjau corrective action dan verifikasi setelah perbaikan selesai.";
+  return task.description || t("capa.defaultReason");
 }
 
 export default function CorrectiveActionsPage() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -122,27 +138,25 @@ export default function CorrectiveActionsPage() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-red-700">Corrective Actions</p>
-          <h1 className="text-2xl font-semibold text-slate-950">CAPA Follow-up Board</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Task perbaikan otomatis dari checklist gagal. Alur: Open → Dalam Proses → Terverifikasi.
-          </p>
+          <p className="text-sm font-medium text-red-700">{t("capa.eyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("capa.title")}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("capa.subtitle")}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <label className="rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
             <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Status
+              {t("capa.filterStatus")}
             </span>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
               className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 outline-none"
             >
-              <option value="all">Semua</option>
-              <option value="open">Open</option>
-              <option value="in_progress">Dalam Proses</option>
-              <option value="completed">Terverifikasi</option>
+              <option value="all">{t("capa.filterAll")}</option>
+              <option value="open">{t("capa.filterOpen")}</option>
+              <option value="in_progress">{t("capa.filterInProgress")}</option>
+              <option value="completed">{t("capa.filterVerified")}</option>
             </select>
           </label>
 
@@ -151,7 +165,7 @@ export default function CorrectiveActionsPage() {
             className="rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-sm"
             style={{ backgroundColor: "var(--brand-primary)" }}
           >
-            Kembali ke Compliance
+            {t("capa.backCompliance")}
           </Link>
         </div>
       </div>
@@ -160,44 +174,42 @@ export default function CorrectiveActionsPage() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {correctiveActionsQuery.error instanceof Error
             ? correctiveActionsQuery.error.message
-            : "Gagal memuat corrective actions."}
+            : t("capa.loadError")}
         </div>
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Open</p>
+          <p className="text-sm text-slate-500">{t("capa.open")}</p>
           <p className="mt-2 text-3xl font-bold text-red-700">{openCount}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Dalam Proses</p>
+          <p className="text-sm text-slate-500">{t("capa.inProgress")}</p>
           <p className="mt-2 text-3xl font-bold text-blue-700">{inProgressCount}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Urgent</p>
+          <p className="text-sm text-slate-500">{t("capa.urgent")}</p>
           <p className="mt-2 text-3xl font-bold text-amber-700">{urgentCount}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Terverifikasi</p>
+          <p className="text-sm text-slate-500">{t("capa.verified")}</p>
           <p className="mt-2 text-3xl font-bold text-emerald-700">{verifiedCount}</p>
         </div>
       </section>
 
       {correctiveActionsQuery.isLoading ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
-          Memuat corrective actions...
+          {t("capa.loading")}
         </div>
       ) : filteredActions.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="font-bold text-slate-800">Belum ada corrective action</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Checklist gagal akan membuat task perbaikan terhubung di sini.
-          </p>
+          <p className="font-bold text-slate-800">{t("capa.emptyTitle")}</p>
+          <p className="mt-1 text-sm text-slate-500">{t("capa.emptyBody")}</p>
         </div>
       ) : (
         <section className="grid gap-4 xl:grid-cols-2">
           {filteredActions.map((task) => {
-            const sla = getSlaLabel(task);
+            const sla = getSlaLabel(task, t);
             const backendStatus = task.backendStatus ?? "open";
 
             return (
@@ -205,12 +217,12 @@ export default function CorrectiveActionsPage() {
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                      CAPA {task.id}
-                      {task.sourceId ? ` · Sumber task ${task.sourceId}` : ""}
+                      {t("capa.capaId", { id: task.id })}
+                      {task.sourceId ? t("capa.sourceTask", { id: task.sourceId }) : ""}
                     </p>
                     <h2 className="mt-1 text-lg font-bold text-slate-950">{task.title}</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      {task.outlet} · Due {task.due || "-"}
+                      {task.outlet} · {t("capa.dueLabel")} {task.due || "-"}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -220,7 +232,7 @@ export default function CorrectiveActionsPage() {
                         getWorkflowBadgeClass(task),
                       ].join(" ")}
                     >
-                      {getWorkflowLabel(task)}
+                      {getWorkflowLabel(task, t)}
                     </span>
                     {sla ? (
                       <span
@@ -233,7 +245,7 @@ export default function CorrectiveActionsPage() {
                               : "bg-slate-100 text-slate-700",
                         ].join(" ")}
                       >
-                        SLA: {sla.label}
+                        {t("capa.slaPrefix")} {sla.label}
                       </span>
                     ) : null}
                   </div>
@@ -241,25 +253,25 @@ export default function CorrectiveActionsPage() {
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Status</p>
-                    <p className="mt-1 text-sm font-bold text-slate-950">{getWorkflowLabel(task)}</p>
+                    <p className="text-xs text-slate-500">{t("capa.statusLabel")}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-950">{getWorkflowLabel(task, t)}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Urgency</p>
+                    <p className="text-xs text-slate-500">{t("capa.urgencyLabel")}</p>
                     <p className="mt-1 text-sm font-bold text-slate-950">{task.priority}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Assignee</p>
+                    <p className="text-xs text-slate-500">{t("capa.assigneeLabel")}</p>
                     <p className="mt-1 text-sm font-bold text-slate-950">{task.assignee}</p>
                   </div>
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-                    Tindakan Diperlukan
+                    {t("capa.actionRequired")}
                   </p>
                   <p className="mt-2 whitespace-pre-line text-sm leading-6 text-red-800">
-                    {getReason(task)}
+                    {getReason(task, t)}
                   </p>
                 </div>
 
@@ -273,7 +285,7 @@ export default function CorrectiveActionsPage() {
                     className="mt-5 rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ backgroundColor: "var(--brand-primary)" }}
                   >
-                    {statusMutation.isPending ? "Memperbarui..." : "Mulai Perbaikan"}
+                    {statusMutation.isPending ? t("capa.updating") : t("capa.startFix")}
                   </button>
                 ) : null}
 
@@ -285,13 +297,15 @@ export default function CorrectiveActionsPage() {
                     className="mt-5 rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ backgroundColor: "var(--brand-primary)" }}
                   >
-                    {statusMutation.isPending ? "Memverifikasi..." : "Verifikasi & Tutup"}
+                    {statusMutation.isPending ? t("capa.verifying") : t("capa.verifyClose")}
                   </button>
                 ) : null}
 
                 {task.verifiedAt ? (
                   <p className="mt-4 text-xs text-emerald-700">
-                    Diverifikasi pada {new Date(task.verifiedAt).toLocaleString("id-ID")}
+                    {t("capa.verifiedAt", {
+                      date: new Date(task.verifiedAt).toLocaleString("id-ID"),
+                    })}
                   </p>
                 ) : null}
               </article>

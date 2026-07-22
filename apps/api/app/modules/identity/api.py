@@ -1,5 +1,5 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -19,6 +19,15 @@ from app.modules.identity.oidc_oauth import (
     exchange_oidc_code_for_profile,
     is_oidc_configured,
     verify_oidc_state,
+)
+from app.modules.identity.saml_sso import (
+    build_saml_frontend_success_redirect,
+    build_saml_login_redirect,
+    build_sp_metadata_xml,
+    create_saml_state,
+    is_saml_configured,
+    process_saml_acs,
+    verify_saml_state,
 )
 from app.modules.identity.models import User
 from app.modules.identity.schemas import LoginRequest, TokenResponse
@@ -157,6 +166,79 @@ def oidc_callback(
     )
 
     redirect_url = build_oidc_frontend_success_redirect(
+        access_token=token_response.access_token,
+        refresh_token=token_response.refresh_token,
+        expires_in_minutes=token_response.expires_in_minutes,
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/saml/metadata")
+def saml_metadata() -> Response:
+    if not is_saml_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SAML SSO is not configured",
+        )
+
+    return Response(content=build_sp_metadata_xml(), media_type="application/samlmetadata+xml")
+
+
+@router.get("/saml/login")
+def saml_login() -> RedirectResponse:
+    if not is_saml_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SAML SSO is not configured",
+        )
+
+    relay_state = create_saml_state()
+    return RedirectResponse(
+        url=build_saml_login_redirect(relay_state=relay_state),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/saml/acs")
+async def saml_acs(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if not is_saml_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SAML SSO is not configured",
+        )
+
+    form = await request.form()
+    relay_state = str(form.get("RelayState") or "")
+    if not relay_state or not verify_saml_state(relay_state):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid SAML RelayState",
+        )
+
+    try:
+        profile = process_saml_acs(
+            http_host=request.headers.get("host", "localhost"),
+            script_name="/api/v1/auth/saml/acs",
+            post_data={key: str(value) for key, value in form.items()},
+        )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    token_response = AuthService(db).login_or_create_google_user(
+        email=profile["email"],
+        full_name=profile["full_name"],
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    redirect_url = build_saml_frontend_success_redirect(
         access_token=token_response.access_token,
         refresh_token=token_response.refresh_token,
         expires_in_minutes=token_response.expires_in_minutes,

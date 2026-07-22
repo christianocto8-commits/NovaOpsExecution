@@ -122,3 +122,21 @@ class PushSubscriptionRead(BaseModel):
 class PushTestResponse(BaseModel):
     message: str
     result: dict[str, int]
+
+
+class DevicePushTokenRegister(BaseModel):
+    token: str = Field(min_length=8, max_length=512)
+    platform: str = Field(pattern="^(android|ios)$")
+    outlet_id: UUID | None = None
+
+
+class DevicePushTokenRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: UUID
+    token: str
+    platform: str
+    outlet_id: UUID | None = None
+    created_at: datetime
+    updated_at: datetime

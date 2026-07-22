@@ -13,7 +13,9 @@ const REMEMBER_KEY = "novaops_remember_identifier";
 const REMEMBER_OUTLET_CONTEXT_KEY = "novaops_remember_outlet_context";
 const GOOGLE_OAUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
 const OIDC_SSO_ENABLED = process.env.NEXT_PUBLIC_OIDC_SSO_ENABLED === "true";
+const SAML_SSO_ENABLED = process.env.NEXT_PUBLIC_SAML_SSO_ENABLED === "true";
 const OIDC_SSO_LABEL = process.env.NEXT_PUBLIC_OIDC_SSO_LABEL?.trim() || "Sign in with SSO";
+const SAML_SSO_LABEL = process.env.NEXT_PUBLIC_SAML_SSO_LABEL?.trim() || "Sign in with SAML SSO";
 
 function getSafeReturnUrl(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -295,6 +297,19 @@ function LoginPageContent() {
               className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {OIDC_SSO_LABEL}
+            </button>
+          )}
+
+          {SAML_SSO_ENABLED && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                window.location.href = buildApiUrl("/api/v1/auth/saml/login");
+              }}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {SAML_SSO_LABEL}
             </button>
           )}
 
