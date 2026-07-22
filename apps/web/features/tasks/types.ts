@@ -1,6 +1,6 @@
 export type TaskStatus = "Pending" | "In Progress" | "Completed";
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
-export type TaskRecurrence = "once" | "daily" | "weekly";
+export type TaskRecurrence = "once" | "daily" | "weekly" | "monthly";
 export type TaskShift = "morning" | "evening" | "midnight";
 export type TaskWeeklyPublishDay =
   "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
@@ -117,6 +117,8 @@ export type TaskExecution = {
   checklist?: ChecklistScore;
 };
 
+export type TaskAssigneeSelection = "outlet_team" | "area_manager" | `user:${number}`;
+
 export type Task = {
   id: string;
   title: string;
@@ -125,6 +127,7 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   assignee: string;
+  assignedToId?: number | null;
   due: string;
   description: string;
   formTemplateId?: string;
@@ -139,6 +142,7 @@ export type Task = {
   autoPublish?: boolean;
   dueTime?: string;
   weeklyPublishDay?: TaskWeeklyPublishDay;
+  monthlyPublishDay?: number;
   activity?: TaskActivity[];
   executionDraft?: TaskExecutionForm;
   execution?: TaskExecution;
@@ -151,6 +155,8 @@ export type TaskFormState = {
   status: TaskStatus;
   priority: TaskPriority;
   assignee: string;
+  assignedToId?: number | null;
+  assigneeSelection?: TaskAssigneeSelection;
   due: string;
   description: string;
   formTemplateId: string;
@@ -161,4 +167,5 @@ export type TaskFormState = {
   autoPublish: boolean;
   dueTime: string;
   weeklyPublishDay: TaskWeeklyPublishDay;
+  monthlyPublishDay: number;
 };

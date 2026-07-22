@@ -21,6 +21,8 @@ class TaskSchedule(Base):
 
     due_time = Column(String(5), nullable=False, default="09:00")
     weekly_publish_day = Column(String(20), nullable=True)
+    monthly_publish_day = Column(Integer, nullable=True)
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     auto_publish = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)

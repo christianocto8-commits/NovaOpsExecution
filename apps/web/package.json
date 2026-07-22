@@ -10,9 +10,13 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/network": "^7.0.1",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-query-devtools": "^5.101.2",
@@ -29,6 +33,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.4.2",
+    "@capacitor/cli": "^7.4.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

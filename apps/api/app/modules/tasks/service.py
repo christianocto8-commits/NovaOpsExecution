@@ -29,7 +29,10 @@ from app.repositories.outlet_repository import OutletRepository
 from app.services.geofence import is_within_geofence
 from app.services.checklist_scoring import score_checklist
 from app.services.execution_validation import validate_task_execution_answers
-from app.services.field_visibility import validate_conditional_required_fields
+from app.services.field_visibility import (
+    enrich_responses_for_task_execution,
+    validate_conditional_required_fields,
+)
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.services.workflow_triggers import (
     maybe_trigger_checklist_fail_workflow,
@@ -139,7 +142,41 @@ class TaskService:
         self.db.commit()
         self.db.refresh(task)
 
+        try:
+            dispatch_webhook_event(
+                self.db,
+                event_type="task.created",
+                outlet_id=task.outlet_id,
+                payload={
+                    "task_id": task.id,
+                    "title": task.title,
+                    "outlet_id": task.outlet_id,
+                    "assigned_to": task.assigned_to,
+                    "priority": task.priority,
+                    "source_type": task.source_type,
+                },
+            )
+        except Exception:
+            pass
+
         if payload.assigned_to:
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="task.assigned",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "assigned_to": task.assigned_to,
+                        "assigned_by": actor_id,
+                        "source_type": task.source_type,
+                    },
+                )
+            except Exception:
+                pass
+
             notify_task_recipient(
                 self.db,
                 task=task,
@@ -211,6 +248,24 @@ class TaskService:
         self.db.refresh(task)
 
         if "assigned_to" in update_data and previous_assignee != task.assigned_to and task.assigned_to:
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="task.assigned",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "assigned_to": task.assigned_to,
+                        "previous_assignee": previous_assignee,
+                        "assigned_by": actor_id,
+                        "source_type": task.source_type,
+                    },
+                )
+            except Exception:
+                pass
+
             notify_task_recipient(
                 self.db,
                 task=task,
@@ -349,14 +404,24 @@ class TaskService:
                     detail=message or "Outside outlet geofence.",
                 )
 
-        validate_task_execution_answers(self.db, payload.answers_json)
-
         form_template_id = payload.form_template_id
         if form_template_id is None and task.source_type == "form_template":
             form_template_id = task.source_id
 
+        validate_task_execution_answers(
+            self.db,
+            payload.answers_json,
+            form_template_id=form_template_id,
+        )
+
         responses = payload.answers_json.get("responses") or {}
         if form_template_id and isinstance(responses, dict):
+            responses = enrich_responses_for_task_execution(
+                self.db,
+                form_template_id=form_template_id,
+                responses=responses,
+                answers_json=payload.answers_json,
+            )
             validate_conditional_required_fields(
                 self.db,
                 form_template_id=form_template_id,

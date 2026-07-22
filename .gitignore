@@ -66,6 +66,8 @@ backups/
 
 # Temp build / verify artifacts
 _web_build_tmp/
+_deploy_build/
+.next-build-temp/
 _standalone.tar.gz
 **/.next.bak-deploy/
 

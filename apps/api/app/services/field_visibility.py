@@ -92,6 +92,38 @@ def _is_filled(value: str) -> bool:
     return bool(value.strip())
 
 
+def enrich_responses_for_task_execution(
+    db: Session,
+    *,
+    form_template_id: int,
+    responses: dict[str, Any],
+    answers_json: dict[str, Any],
+) -> dict[str, Any]:
+    enriched = dict(responses)
+    operator = answers_json.get("operator")
+    if not isinstance(operator, dict):
+        return enriched
+
+    operator_name = str(operator.get("name") or "").strip()
+    if not operator_name:
+        return enriched
+
+    responsible_person_fields = (
+        db.query(FormField)
+        .filter(
+            FormField.form_template_id == form_template_id,
+            FormField.field_type == "responsible_person",
+        )
+        .all()
+    )
+
+    for field in responsible_person_fields:
+        if not _is_filled(_get_response(enriched, field.id)):
+            enriched[str(field.id)] = operator_name
+
+    return enriched
+
+
 def validate_conditional_required_fields(
     db: Session,
     *,

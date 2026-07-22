@@ -3,6 +3,13 @@ import { cacheTasks, getCachedTasks } from "@/lib/offline/store";
 import { taskScheduleService } from "@/services/task-schedule.service";
 import type { Task, TaskFormState, TaskPriority, TaskShift, TaskStatus } from "@/features/tasks/types";
 
+export type OutletMember = {
+  id: number;
+  name: string;
+  email: string;
+  role_name: string | null;
+};
+
 export type BackendTaskStatus = "open" | "in_progress" | "blocked" | "completed" | "cancelled";
 export type BackendTaskPriority = "low" | "medium" | "high" | "urgent";
 
@@ -25,7 +32,7 @@ export type BackendTask = {
   approved_at: string | null;
   schedule_id: number | null;
   shift: string | null;
-  recurrence: "daily" | "weekly" | "once" | null;
+  recurrence: "daily" | "weekly" | "monthly" | "once" | null;
   due_time: string | null;
   weekly_publish_day: string | null;
   auto_publish: boolean | null;
@@ -98,7 +105,11 @@ export function mapBackendTask(task: BackendTask): Task {
   const outletName = task.outlet_name ?? `Outlet ${task.outlet_id}`;
   const recurrence = task.recurrence ?? "once";
   const shifts: TaskShift[] =
-    recurrence === "weekly" ? [] : task.shift ? [task.shift as TaskShift] : ["morning"];
+    recurrence === "weekly" || recurrence === "monthly"
+      ? []
+      : task.shift
+        ? [task.shift as TaskShift]
+        : ["morning"];
 
   return {
     id: String(task.id),
@@ -108,6 +119,7 @@ export function mapBackendTask(task: BackendTask): Task {
     status: toFrontendStatus(task.status),
     priority: toFrontendPriority(task.priority),
     assignee: task.assigned_to ? `User ${task.assigned_to}` : "Outlet Team",
+    assignedToId: task.assigned_to,
     due: formatDueDate(task.due_date),
     description: task.description ?? "",
     formTemplateId: parseSourceFormTemplateId(task),
@@ -143,7 +155,7 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
   return {
     title: form.title.trim(),
     description: form.description.trim() || null,
-    assigned_to: null,
+    assigned_to: form.assignedToId ?? null,
     priority: toBackendPriority(form.priority),
     due_date: form.recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
     source_type: isBackendTemplate
@@ -154,6 +166,12 @@ function toBackendPayload(form: TaskFormState): BackendTaskCreate {
 }
 
 export const taskService = {
+  async listOutletMembers(outletId: string) {
+    return api<OutletMember[]>("/api/v1/tasks/outlet-members", {
+      headers: { "X-Outlet-Id": outletId },
+    });
+  },
+
   async list(sourceType?: string) {
     try {
       const query = sourceType ? `?source_type=${encodeURIComponent(sourceType)}` : "";
@@ -195,7 +213,8 @@ export const taskService = {
         outletId: form.targetOutletIds?.[0] ?? form.outletId,
         status: "Pending",
         priority: form.priority,
-        assignee: form.assignee,
+        assignee: form.assignee || "Outlet Team",
+        assignedToId: form.assignedToId ?? null,
         due: form.dueTime,
         description: form.description,
         formTemplateId: form.formTemplateId,

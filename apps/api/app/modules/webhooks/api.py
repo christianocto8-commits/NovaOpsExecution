@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.identity.dependencies import require_role
 from app.modules.identity.models import User as IdentityUser
-from app.modules.webhooks.schemas import WebhookCreate, WebhookRead, WebhookReadWithSecret, WebhookUpdate
+from app.modules.webhooks.schemas import (
+    WebhookCreate,
+    WebhookDeliveryRead,
+    WebhookRead,
+    WebhookReadWithSecret,
+    WebhookUpdate,
+)
+from app.services.webhook_dispatcher import list_recent_deliveries
 from app.modules.webhooks.service import WebhookService
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -19,6 +26,21 @@ def list_webhooks(
 ):
     del current_user
     return WebhookService(db).list_webhooks()
+
+
+@router.get("/deliveries", response_model=list[WebhookDeliveryRead])
+def list_webhook_deliveries(
+    limit: int = 50,
+    subscription_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    del current_user
+    return list_recent_deliveries(
+        db,
+        limit=min(max(limit, 1), 200),
+        subscription_id=subscription_id,
+    )
 
 
 @router.post("", response_model=WebhookReadWithSecret, status_code=status.HTTP_201_CREATED)

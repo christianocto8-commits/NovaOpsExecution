@@ -33,9 +33,12 @@ export async function registerPushServiceWorker() {
     throw new Error("Browser tidak mendukung push notification.");
   }
 
-  const registration = await navigator.serviceWorker.register("/sw.js", {
-    scope: "/",
-  });
+  const { registerAppServiceWorker } = await import("@/lib/pwa/register-service-worker");
+  const registration = await registerAppServiceWorker();
+
+  if (!registration) {
+    throw new Error("Service worker tidak dapat didaftarkan.");
+  }
 
   return registration;
 }

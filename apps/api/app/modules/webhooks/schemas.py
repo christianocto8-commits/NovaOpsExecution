@@ -6,7 +6,15 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-WEBHOOK_EVENT_TYPES = ("task.completed", "checklist.failed", "task.overdue")
+WEBHOOK_EVENT_TYPES = (
+    "task.created",
+    "task.assigned",
+    "task.completed",
+    "checklist.failed",
+    "task.overdue",
+    "form.submitted",
+    "schedule.published",
+)
 
 
 class WebhookCreate(BaseModel):
@@ -42,3 +50,18 @@ class WebhookRead(BaseModel):
 
 class WebhookReadWithSecret(WebhookRead):
     secret: str
+
+
+class WebhookDeliveryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    subscription_id: UUID
+    event_type: str
+    url: str
+    status: str
+    attempt_count: int
+    http_status: int | None = None
+    error_message: str | None = None
+    created_at: datetime
+    delivered_at: datetime | None = None

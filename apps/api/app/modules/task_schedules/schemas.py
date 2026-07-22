@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-TaskScheduleRecurrence = Literal["daily", "weekly"]
+TaskScheduleRecurrence = Literal["daily", "weekly", "monthly"]
 TaskScheduleShift = Literal["morning", "evening", "midnight"]
 TaskWeeklyPublishDay = Literal[
     "monday",
@@ -27,6 +27,8 @@ class TaskScheduleCreate(BaseModel):
     outlet_ids: list[str] = Field(min_length=1)
     due_time: str = "09:00"
     weekly_publish_day: TaskWeeklyPublishDay | None = None
+    monthly_publish_day: int | None = Field(default=None, ge=1, le=28)
+    assigned_to: int | None = None
     auto_publish: bool = True
 
     @field_validator("form_template_id", mode="before")
@@ -47,6 +49,8 @@ class TaskScheduleUpdate(BaseModel):
     outlet_ids: list[str] | None = None
     due_time: str | None = None
     weekly_publish_day: TaskWeeklyPublishDay | None = None
+    monthly_publish_day: int | None = Field(default=None, ge=1, le=28)
+    assigned_to: int | None = None
     auto_publish: bool | None = None
     is_active: bool | None = None
 
@@ -62,6 +66,8 @@ class TaskScheduleResponse(BaseModel):
     outlet_ids_json: list[str]
     due_time: str
     weekly_publish_day: str | None
+    monthly_publish_day: int | None
+    assigned_to: int | None
     auto_publish: bool
     is_active: bool
     created_by: int

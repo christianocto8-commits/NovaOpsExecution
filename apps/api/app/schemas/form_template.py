@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -111,6 +112,17 @@ class FormTemplateResponse(BaseModel):
     created_by: int
     is_active: bool
     fields: list[FormFieldResponse] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class FormTemplateVersionResponse(BaseModel):
+    id: int
+    form_template_id: int
+    version_number: int
+    created_by: int
+    created_at: datetime
 
     class Config:
         from_attributes = True

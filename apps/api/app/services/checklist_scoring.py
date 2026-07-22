@@ -227,6 +227,8 @@ def score_checklist(
     section_stats: dict[str, dict[str, float | int]] = {}
 
     for field in fields:
+        if field.field_type == "responsible_person":
+            continue
         if not is_field_visible(field, responses):
             continue
 

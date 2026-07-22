@@ -9,6 +9,7 @@ export type SettingsResponse = {
   evidence_required: boolean;
   approval_required: boolean;
   email_notifications: boolean;
+  sms_notifications: boolean;
   dashboard_alerts: boolean;
   overdue_alerts: boolean;
   session_timeout_minutes: number;

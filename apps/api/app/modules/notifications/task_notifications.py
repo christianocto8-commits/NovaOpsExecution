@@ -16,6 +16,7 @@ from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.services.email_service import EmailService
+from app.services.sms_service import send_sms
 from app.services.workspace_settings import get_workspace_settings
 
 
@@ -49,6 +50,23 @@ def _send_email_if_enabled(
         return
 
     EmailService().send(identity_user.email, subject, body)
+
+
+def _send_sms_if_enabled(
+    db: Session,
+    *,
+    identity_user_id: UUID,
+    body: str,
+) -> None:
+    settings = get_workspace_settings(db)
+    if not settings.sms_notifications:
+        return
+
+    identity_user = db.get(IdentityUser, identity_user_id)
+    if not identity_user or not identity_user.phone:
+        return
+
+    send_sms(to_number=identity_user.phone, body=body)
 
 
 def notify_task_recipient(
@@ -100,6 +118,12 @@ def notify_task_recipient(
         identity_user_id=identity_user_id,
         subject=subject,
         body=body,
+    )
+
+    _send_sms_if_enabled(
+        db,
+        identity_user_id=identity_user_id,
+        body=f"{subject}. {body}",
     )
 
 

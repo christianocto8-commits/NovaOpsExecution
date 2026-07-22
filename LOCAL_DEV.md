@@ -131,13 +131,88 @@ Console MinIO: http://localhost:9001 (minioadmin / minioadmin). Restart API sete
 
 ## Google SSO (MVP)
 
-1. Buat OAuth Client di Google Cloud Console (Web application).
-2. Authorized redirect URI: `http://localhost:8000/api/v1/auth/google/callback`
-3. Isi `apps/api/.env` dengan `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, dan URL di atas.
-4. Di `apps/web/.env.local`: `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true`
+1. Buat OAuth Client di [Google Cloud Console](https://console.cloud.google.com/) (Web application).
+2. **Authorized redirect URI:** `http://localhost:8000/api/v1/auth/google/callback`
+3. Isi `apps/api/.env`:
+
+```env
+GOOGLE_CLIENT_ID=<client-id>
+GOOGLE_CLIENT_SECRET=<client-secret>
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+GOOGLE_FRONTEND_SUCCESS_URL=http://localhost:3000/login/oauth-callback
+```
+
+4. Isi `apps/web/.env.local`:
+
+```env
+NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true
+```
+
 5. Restart API + Web → tombol **Sign in with Google** muncul di `/login`.
+6. Setelah login Google, browser diarahkan ke `/login/oauth-callback?access_token=...&refresh_token=...` — halaman ini menyimpan token dan redirect ke `/dashboard`.
+
+Lihat juga: `apps/api/.env.example`, `apps/web/.env.local.example`, dan root `.env.example`.
 
 User Google baru otomatis dibuat dengan role **outlet** (outlet pertama jika ada). Email/password login tetap berfungsi.
+
+## Integrations parity (webhooks + SMS)
+
+### Webhooks dengan delivery log
+
+1. Admin → `/dashboard/settings` → aktifkan **Webhook delivery**
+2. Admin → `/dashboard/webhooks` → daftarkan endpoint + pilih event
+3. Trigger event (selesaikan task, submit form, dll.)
+4. Cek **Recent deliveries** — status `delivered` / `failed`, retry otomatis 2x
+
+Tes API:
+
+```powershell
+cd apps\api
+python -m pytest tests/test_webhook_delivery_log.py -v
+```
+
+### SMS (Twilio)
+
+1. Isi `apps/api/.env`:
+
+```env
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_NUMBER=+1...
+```
+
+2. Admin → Settings → aktifkan **SMS notifications**
+3. Pastikan user crew punya **phone** terisi di profil identity
+4. Trigger task overdue / assign → SMS terkirim (selain in-app + push + email)
+
+Tes API:
+
+```powershell
+python -m pytest tests/test_sms_service.py -v
+```
+
+## Mobile / offline parity
+
+### Service worker on boot
+
+Service worker (`sw.js`) didaftarkan saat app load — tidak perlu subscribe push dulu. Offline shell cache aktif segera setelah halaman pertama load.
+
+### Connectivity probe
+
+`useOnlineStatus` memeriksa `navigator.onLine` + ping `/api/keep-alive` setiap 30 detik. Di Capacitor native, `@capacitor/network` dipakai jika tersedia.
+
+### Capacitor Android (dev)
+
+```powershell
+cd apps\web
+npm install
+npx cap add android
+# Uncomment server.url di capacitor.config.ts (10.0.2.2 untuk emulator)
+npm run cap:sync
+npm run cap:android
+```
+
+Lihat `apps/mobile/README.md`.
 
 ## Fase F — Offline mobile
 

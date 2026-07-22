@@ -10,6 +10,7 @@ from app.models.task_comment import TaskComment
 from app.models.task_assignment import TaskAssignment
 
 from app.models.form_template import FormTemplate
+from app.models.form_template_version import FormTemplateVersion
 from app.models.form_field import FormField
 from app.models.form_schedule import FormSchedule
 from app.models.form_submission import FormSubmission

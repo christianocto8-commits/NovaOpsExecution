@@ -10,6 +10,7 @@ class SettingsResponse(BaseModel):
     evidence_required: bool = True
     approval_required: bool = False
     email_notifications: bool = True
+    sms_notifications: bool = False
     dashboard_alerts: bool = True
     overdue_alerts: bool = True
     session_timeout_minutes: int = 120
@@ -71,6 +72,7 @@ class SettingsUpdate(BaseModel):
     evidence_required: bool | None = None
     approval_required: bool | None = None
     email_notifications: bool | None = None
+    sms_notifications: bool | None = None
     dashboard_alerts: bool | None = None
     overdue_alerts: bool | None = None
     session_timeout_minutes: int | None = None

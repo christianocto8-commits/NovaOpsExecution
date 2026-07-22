@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 
+import { ServiceWorkerBootstrap } from "@/components/ServiceWorkerBootstrap";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -12,6 +13,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <QueryProvider>
       <AuthProvider>
         <OfflineSyncProvider>
+          <ServiceWorkerBootstrap />
           <PopupProvider>{children}</PopupProvider>
         </OfflineSyncProvider>
       </AuthProvider>

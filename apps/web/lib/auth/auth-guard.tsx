@@ -41,10 +41,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return () => window.clearTimeout(timeout);
   }, [auth.status, router]);
 
-  if (auth.status === "idle" && !hasStoredToken()) {
-    return null;
-  }
-
   if (auth.loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8]">

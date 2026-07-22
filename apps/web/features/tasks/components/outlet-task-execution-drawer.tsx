@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
+import { getTemplateSettings } from "@/features/forms/utils/template-settings";
 import {
   getResponsiblePersonField,
   getResponsiblePersonValue,
@@ -93,6 +94,7 @@ export function OutletTaskExecutionDrawer({
     enabled: Boolean(task?.formTemplateId),
   });
   const template = templateQuery.data ?? null;
+  const templateSettings = template ? getTemplateSettings(template.fields) : { require_execution_note: true };
   const responsiblePersonField = template ? getResponsiblePersonField(template.fields) : undefined;
 
   const evidenceItems = useMemo(() => parseEvidenceItems(form.evidenceText), [form.evidenceText]);
@@ -165,7 +167,7 @@ export function OutletTaskExecutionDrawer({
       return;
     }
 
-    if (!form.note.trim()) {
+    if (templateSettings.require_execution_note && !form.note.trim()) {
       toast.warning("Execution Note wajib diisi.");
       return;
     }
@@ -351,7 +353,12 @@ export function OutletTaskExecutionDrawer({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                <label className="text-sm font-bold text-slate-950">Execution Note</label>
+                <label className="text-sm font-bold text-slate-950">
+                  Execution Note
+                  {!templateSettings.require_execution_note ? (
+                    <span className="ml-2 text-xs font-semibold text-slate-400">(Opsional)</span>
+                  ) : null}
+                </label>
                 <textarea
                   value={form.note}
                   onChange={(event) => updateForm({ ...form, note: event.target.value })}

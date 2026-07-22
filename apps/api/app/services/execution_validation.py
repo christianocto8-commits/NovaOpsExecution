@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.services.template_settings import template_requires_execution_note
 from app.services.workspace_settings import get_workspace_settings
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
@@ -74,11 +75,22 @@ def is_photo_evidence_url(url: str) -> bool:
     return normalized.endswith(IMAGE_EXTENSIONS)
 
 
-def validate_task_execution_answers(db: Session, answers_json: dict[str, Any]) -> None:
+def validate_task_execution_answers(
+    db: Session,
+    answers_json: dict[str, Any],
+    *,
+    form_template_id: int | None = None,
+) -> None:
     settings = get_workspace_settings(db)
     evidence_urls = extract_evidence_urls(answers_json)
     note = answers_json.get("note")
     has_note = isinstance(note, str) and note.strip()
+
+    if form_template_id and template_requires_execution_note(db, form_template_id) and not has_note:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Execution Note wajib diisi.",
+        )
 
     if settings.evidence_required and not evidence_urls and not has_note:
         raise HTTPException(

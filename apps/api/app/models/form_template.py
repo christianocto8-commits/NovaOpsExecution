@@ -21,5 +21,10 @@ class FormTemplate(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     fields = relationship("FormField", back_populates="form_template")
+    versions = relationship(
+        "FormTemplateVersion",
+        back_populates="form_template",
+        cascade="all, delete-orphan",
+    )
     schedules = relationship("FormSchedule", back_populates="form_template")
     submissions = relationship("FormSubmission", back_populates="form_template")

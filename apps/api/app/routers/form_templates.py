@@ -13,6 +13,7 @@ from app.models.form_field import FormField
 from app.models.form_schedule import FormSchedule
 from app.models.form_submission import FormSubmission
 from app.models.form_template import FormTemplate
+from app.models.form_template_version import FormTemplateVersion
 from app.models.task_schedule import TaskSchedule
 from app.models.user import User
 from app.modules.identity.models import User as IdentityUser
@@ -26,6 +27,12 @@ from app.schemas.form_template import (
     FormTemplateCreate,
     FormTemplateResponse,
     FormTemplateUpdate,
+    FormTemplateVersionResponse,
+)
+from app.services.form_template_versions import (
+    list_form_template_versions,
+    restore_form_template_version,
+    snapshot_form_template,
 )
 
 router = APIRouter(prefix="/form-templates", tags=["Form Templates"])
@@ -202,6 +209,42 @@ def get_form_template(
     return _get_template_or_404(db, form_template_id)
 
 
+def _template_has_meaningful_changes(
+    form_template: FormTemplate,
+    payload: FormTemplateUpdate,
+) -> bool:
+    update_data = payload.model_dump(exclude_unset=True, exclude={"fields"})
+    for key, value in update_data.items():
+        if getattr(form_template, key) != value:
+            return True
+
+    if payload.fields is None:
+        return False
+
+    current_fields = sorted(form_template.fields or [], key=lambda item: item.sort_order)
+    incoming_fields = payload.fields
+
+    if len(current_fields) != len(incoming_fields):
+        return True
+
+    for current, incoming in zip(current_fields, incoming_fields):
+        incoming_data = incoming.model_dump()
+        comparable = {
+            "label": current.label,
+            "field_type": current.field_type,
+            "placeholder": current.placeholder,
+            "help_text": current.help_text,
+            "is_required": current.is_required,
+            "options_json": current.options_json,
+            "validation_json": current.validation_json,
+            "sort_order": current.sort_order,
+        }
+        if comparable != incoming_data:
+            return True
+
+    return False
+
+
 @router.patch("/{form_template_id}", response_model=FormTemplateResponse)
 def update_form_template(
     form_template_id: int,
@@ -209,9 +252,10 @@ def update_form_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(_resolve_form_actor),
 ):
-    del current_user
-
     form_template = _get_template_or_404(db, form_template_id)
+
+    if _template_has_meaningful_changes(form_template, payload):
+        snapshot_form_template(db, form_template, created_by=current_user.id)
 
     update_data = payload.model_dump(exclude_unset=True, exclude={"fields"})
     for key, value in update_data.items():
@@ -220,6 +264,50 @@ def update_form_template(
     if payload.fields is not None:
         _sync_fields(db, form_template, payload.fields)
 
+    db.commit()
+    return _get_template_or_404(db, form_template_id)
+
+
+@router.get("/{form_template_id}/versions", response_model=list[FormTemplateVersionResponse])
+def get_form_template_versions(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    del current_user
+    _get_template_or_404(db, form_template_id)
+    return list_form_template_versions(db, form_template_id)
+
+
+@router.post(
+    "/{form_template_id}/versions/{version_id}/restore",
+    response_model=FormTemplateResponse,
+)
+def restore_form_template_version_endpoint(
+    form_template_id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    form_template = _get_template_or_404(db, form_template_id)
+    version = (
+        db.query(FormTemplateVersion)
+        .filter(
+            FormTemplateVersion.id == version_id,
+            FormTemplateVersion.form_template_id == form_template_id,
+        )
+        .first()
+    )
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Form template version not found")
+
+    restore_form_template_version(
+        db,
+        form_template,
+        version,
+        created_by=current_user.id,
+    )
     db.commit()
     return _get_template_or_404(db, form_template_id)
 

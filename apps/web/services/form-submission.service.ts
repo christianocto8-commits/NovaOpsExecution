@@ -162,6 +162,6 @@ export const formSubmissionService = {
     fields: FormField[];
     responses: TaskFormResponses;
   }) {
-    return this.create(buildFormSubmissionCreatePayload(args));
+    return formSubmissionService.create(buildFormSubmissionCreatePayload(args));
   },
 };

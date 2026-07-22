@@ -31,6 +31,7 @@ type OwnerAdminState = {
   evidence_required: boolean;
   approval_required: boolean;
   email_notifications: boolean;
+  sms_notifications: boolean;
   dashboard_alerts: boolean;
   overdue_alerts: boolean;
   session_timeout_minutes: number;
@@ -68,6 +69,7 @@ const defaults: OwnerAdminState = {
   evidence_required: true,
   approval_required: false,
   email_notifications: true,
+  sms_notifications: false,
   dashboard_alerts: true,
   overdue_alerts: true,
   session_timeout_minutes: 120,
@@ -106,6 +108,7 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     evidence_required: Boolean(settings?.evidence_required ?? defaults.evidence_required),
     approval_required: Boolean(settings?.approval_required ?? defaults.approval_required),
     email_notifications: Boolean(settings?.email_notifications ?? defaults.email_notifications),
+    sms_notifications: Boolean(settings?.sms_notifications ?? defaults.sms_notifications),
     dashboard_alerts: Boolean(settings?.dashboard_alerts ?? defaults.dashboard_alerts),
     overdue_alerts: Boolean(settings?.overdue_alerts ?? defaults.overdue_alerts),
     session_timeout_minutes: Number(settings?.session_timeout_minutes ?? defaults.session_timeout_minutes),
@@ -466,19 +469,24 @@ function OutletSettingsWorkspace({
   notice,
   setNotice,
   outletName,
+  t,
 }: {
   settings?: SettingsResponse;
   notice: string | null;
   setNotice: (message: string | null) => void;
   outletName?: string;
+  t: (key: string) => string;
 }) {
   return (
     <main className="space-y-6 p-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700">Outlet Workspace</p>
-        <h1 className="text-2xl font-semibold text-slate-950">Outlet Settings</h1>
+        <p className="text-sm font-medium text-emerald-700">{t("settings.outletWorkspaceEyebrow")}</p>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("settings.outletWorkspaceTitle")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Pengaturan outlet fokus ke akun, keamanan, dan ringkasan aturan kerja untuk {outletName ?? "outlet ini"}.
+          {t("settings.outletWorkspaceDescription").replace(
+            "{outlet}",
+            outletName ?? "outlet ini"
+          )}
         </p>
       </div>
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
@@ -526,19 +534,19 @@ function AreaManagerSettingsWorkspace({
   settings,
   notice,
   setNotice,
+  t,
 }: {
   settings?: SettingsResponse;
   notice: string | null;
   setNotice: (message: string | null) => void;
+  t: (key: string) => string;
 }) {
   return (
     <main className="space-y-6 p-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700">Area Operations</p>
-        <h1 className="text-2xl font-semibold text-slate-950">Area Manager Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Area manager dapat memantau outlet, task, draft, dan laporan area tanpa masuk ke pengaturan inti organisasi.
-        </p>
+        <p className="text-sm font-medium text-emerald-700">{t("settings.areaEyebrow")}</p>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("settings.areaTitle")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("settings.areaDescription")}</p>
       </div>
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
       <div className="grid gap-4 xl:grid-cols-4">
@@ -582,7 +590,7 @@ function AreaManagerSettingsWorkspace({
 }
 
 export function SettingsWorkspace() {
-  const { setLanguage } = useLanguage();
+  const { setLanguage, t } = useLanguage();
   const workspace = useSyncExternalStore(subscribeWorkspace, getWorkspaceSnapshot, getServerWorkspaceSnapshot);
   const { settings, isLoading, error, reload, saveSettings, saveError, isSaving } = useSettings();
   const [state, setState] = useState<OwnerAdminState>(defaults);
@@ -636,6 +644,7 @@ export function SettingsWorkspace() {
         notice={notice}
         setNotice={setNotice}
         outletName={workspace.outletName}
+        t={t}
       />
     );
   }
@@ -646,6 +655,7 @@ export function SettingsWorkspace() {
         settings={settings}
         notice={notice}
         setNotice={setNotice}
+        t={t}
       />
     );
   }
@@ -654,11 +664,9 @@ export function SettingsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Owner & Admin Control</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Workspace Settings</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Owner/admin memegang full access untuk organisasi, task publishing, governance, dan keamanan workspace.
-          </p>
+          <p className="text-sm font-medium text-emerald-700">{t("settings.ownerEyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("settings.ownerTitle")}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("settings.ownerDescription")}</p>
         </div>
         <button
           type="button"
@@ -667,7 +675,7 @@ export function SettingsWorkspace() {
           className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           style={{ backgroundColor: "var(--brand-primary)" }}
         >
-          {isSaving ? "Menyimpan..." : "Simpan pengaturan"}
+          {isSaving ? t("common.saving") : t("common.saveSettings")}
         </button>
       </div>
 
@@ -839,9 +847,11 @@ export function SettingsWorkspace() {
             <ActionCard title="Dashboard alerts" description="Tampilkan alert operasional di dashboard." action={<EnterpriseCheckbox checked={state.dashboard_alerts} onChange={(event) => update("dashboard_alerts", event.target.checked)} />} />
             <ActionCard title="Overdue alerts" description="Peringatan untuk task yang melewati due time." action={<EnterpriseCheckbox checked={state.overdue_alerts} onChange={(event) => update("overdue_alerts", event.target.checked)} />} />
             <ActionCard title="Email notifications" description="Kirim email operasional untuk checklist gagal, overdue, dan due soon." action={<EnterpriseCheckbox checked={state.email_notifications} onChange={(event) => update("email_notifications", event.target.checked)} />} />
+            <ActionCard title="SMS notifications" description="Kirim SMS ke nomor telepon user (Twilio) untuk alert task overdue dan assign." action={<EnterpriseCheckbox checked={state.sms_notifications} onChange={(event) => update("sms_notifications", event.target.checked)} />} />
           </div>
           <p className="mt-4 text-sm text-slate-500">
             Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).
+            SMS membutuhkan `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` dan nomor telepon user terisi.
           </p>
         </SectionCard>
       </div>

@@ -169,4 +169,73 @@ def test_submit_execution_passing_checklist_does_not_create_corrective_action(
         .filter(Task.source_type == "corrective_action", Task.source_id == task.id)
         .all()
     )
-    assert corrective_tasks == []
+    assert session == []
+
+
+def test_submit_execution_requires_execution_note_by_default(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db: Session,
+):
+    template_id, fields = _create_checklist_template(db)
+    task = _create_task(db, template_id=template_id)
+
+    response = client.post(
+        f"/api/v1/tasks/{task.id}/submit-execution",
+        headers={**auth_headers, "X-Outlet-Id": str(task.outlet_id)},
+        json={
+            "form_template_id": template_id,
+            "answers_json": {
+                "operator": {"name": "QA Operator", "position": "Crew"},
+                "note": "",
+                "evidence": '[{"id":"1","url":"/uploads/evidence/test.png"}]',
+                "responses": {
+                    str(fields[0].id): "yes",
+                    str(fields[1].id): "4",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Execution Note wajib diisi" in response.json()["detail"]
+
+
+def test_submit_execution_allows_missing_note_when_template_opted_out(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db: Session,
+):
+    template_id, fields = _create_checklist_template(db)
+    db.add(
+        FormField(
+            form_template_id=template_id,
+            label="Nama pelaksana / PIC",
+            field_type="responsible_person",
+            is_required=True,
+            sort_order=99,
+            options_json={"system": True, "require_execution_note": False},
+        )
+    )
+    db.commit()
+    task = _create_task(db, template_id=template_id)
+
+    response = client.post(
+        f"/api/v1/tasks/{task.id}/submit-execution",
+        headers={**auth_headers, "X-Outlet-Id": str(task.outlet_id)},
+        json={
+            "form_template_id": template_id,
+            "answers_json": {
+                "operator": {"name": "QA Operator", "position": "Crew"},
+                "note": "",
+                "evidence": '[{"id":"1","url":"/uploads/evidence/test.png"}]',
+                "responses": {
+                    str(fields[0].id): "yes",
+                    str(fields[1].id): "4",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["checklist"]["status"] == "pass"

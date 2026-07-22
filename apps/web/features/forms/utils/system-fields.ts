@@ -22,7 +22,12 @@ export function createResponsiblePersonField(): FormField {
 }
 
 export function ensureResponsiblePersonField(fields: FormField[]) {
+  const existing = getResponsiblePersonField(fields);
   const otherFields = fields.filter((field) => !isResponsiblePersonField(field));
+
+  if (existing) {
+    return [existing, ...otherFields];
+  }
 
   return [createResponsiblePersonField(), ...otherFields];
 }

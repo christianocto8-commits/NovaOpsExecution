@@ -1,6 +1,13 @@
 import { api } from "@/services/api";
 
-export type WebhookEventType = "task.completed" | "checklist.failed" | "task.overdue";
+export type WebhookEventType =
+  | "task.created"
+  | "task.assigned"
+  | "task.completed"
+  | "checklist.failed"
+  | "task.overdue"
+  | "form.submitted"
+  | "schedule.published";
 
 export type WebhookSubscription = {
   id: string;
@@ -26,9 +33,13 @@ export type WebhookCreatePayload = {
 export type WebhookUpdatePayload = Partial<WebhookCreatePayload>;
 
 export const WEBHOOK_EVENT_OPTIONS: { value: WebhookEventType; label: string }[] = [
+  { value: "task.created", label: "Task created" },
+  { value: "task.assigned", label: "Task assigned" },
   { value: "task.completed", label: "Task completed" },
   { value: "checklist.failed", label: "Checklist failed" },
   { value: "task.overdue", label: "Task overdue" },
+  { value: "form.submitted", label: "Form submitted" },
+  { value: "schedule.published", label: "Schedule published" },
 ];
 
 export async function listWebhooks() {
@@ -53,4 +64,21 @@ export async function deleteWebhook(id: string) {
   return api<void>(`/api/v1/webhooks/${id}`, {
     method: "DELETE",
   });
+}
+
+export type WebhookDelivery = {
+  id: string;
+  subscription_id: string;
+  event_type: WebhookEventType;
+  url: string;
+  status: "delivered" | "failed" | "pending";
+  attempt_count: number;
+  http_status: number | null;
+  error_message: string | null;
+  created_at: string;
+  delivered_at: string | null;
+};
+
+export async function listWebhookDeliveries(limit = 25) {
+  return api<WebhookDelivery[]>(`/api/v1/webhooks/deliveries?limit=${limit}`);
 }

@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Eye, GripVertical, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, Copy, Eye, GripVertical, History, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
 
 import { FormLibraryPanel, rememberRecentTemplate } from "@/features/forms/components/form-library-panel";
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
+import { getTemplateSettings, setTemplateRequireExecutionNote } from "@/features/forms/utils/template-settings";
 import { visibilityOperatorLabels } from "@/features/forms/utils/field-visibility";
 import { FormField, FormFieldType, FormTemplate, FieldVisibilityOperator } from "@/features/forms/types";
 import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
@@ -23,7 +24,9 @@ import {
   buildFormSubmissionCreatePayload,
   formSubmissionService,
 } from "@/services/form-submission.service";
-import { getCurrentPosition } from "@/shared/evidence";
+import { getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { outletService } from "@/services/outlet.service";
 import { useToast } from "@/shared/toast";
 import { useLanguage } from "@/shared/i18n";
 import {
@@ -31,6 +34,7 @@ import {
   createMoneySafeCountTemplate,
   formTemplateService,
   isPersistedTemplateId,
+  type FormTemplateVersion,
 } from "@/services/form-template.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { Modal } from "@/shared/ui/overlay/modal";
@@ -154,6 +158,7 @@ function OutletManualFormsWorkspace() {
   );
   const { user } = useAuth();
   const { isOnline } = useOnlineStatus();
+  const { settings } = useSettings();
   const { refreshPendingCount, pendingSyncCount } = useOfflineSync();
   const toast = useToast();
   const { activeTemplates, isLoading, isError } = useActiveFormTemplates();
@@ -202,6 +207,27 @@ function OutletManualFormsWorkspace() {
     rememberRecentTemplate(selectedTemplate.id);
 
     const submitLocation = await getCurrentPosition();
+
+    if (settings?.geofence_enabled) {
+      try {
+        const currentOutlet = await outletService.getCurrent();
+        const geofenceError = checkGeofencePrecheck({
+          submitter: submitLocation,
+          outletLat: currentOutlet.outlet.latitude,
+          outletLon: currentOutlet.outlet.longitude,
+          radiusMeters: settings.geofence_radius_meters ?? 200,
+        });
+
+        if (geofenceError) {
+          toast.error(geofenceError);
+          return;
+        }
+      } catch {
+        toast.error("Gagal memverifikasi lokasi outlet untuk geofence.");
+        return;
+      }
+    }
+
     const payload = buildFormSubmissionCreatePayload({
       templateId: selectedTemplate.id,
       outletId,
@@ -328,6 +354,7 @@ function OutletManualFormsWorkspace() {
 }
 
 export function FormsWorkspace() {
+  const { t } = useLanguage();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -344,6 +371,12 @@ export function FormsWorkspace() {
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewResponses, setPreviewResponses] = useState<TaskFormResponses>({});
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versions, setVersions] = useState<FormTemplateVersion[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionsError, setVersionsError] = useState<string | null>(null);
+  const [restoringVersionId, setRestoringVersionId] = useState<number | null>(null);
+  const toast = useToast();
 
   const saveMutation = useMutation({
     mutationFn: async (template: FormTemplate) => {
@@ -407,6 +440,54 @@ export function FormsWorkspace() {
       setSaveError(message);
     },
   });
+
+  async function openVersionHistory() {
+    if (!selectedTemplate || !isPersistedTemplateId(selectedTemplate.id)) return;
+
+    setVersionsOpen(true);
+    setVersionsLoading(true);
+    setVersionsError(null);
+
+    try {
+      const items = await formTemplateService.listVersions(selectedTemplate.id);
+      setVersions(items);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : t("forms.admin.versionLoadError");
+      setVersionsError(message);
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  async function restoreTemplateVersion(versionId: number, versionNumber: number) {
+    if (!selectedTemplate || !isPersistedTemplateId(selectedTemplate.id)) return;
+
+    setRestoringVersionId(versionId);
+
+    try {
+      const restoredTemplate = await formTemplateService.restoreVersion(
+        selectedTemplate.id,
+        versionId
+      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() });
+      setTemplates((currentTemplates) =>
+        currentTemplates.map((template) =>
+          template.id === restoredTemplate.id ? restoredTemplate : template
+        )
+      );
+      setSelectedTemplateId(restoredTemplate.id);
+      setLastSavedAt(new Date().toISOString());
+      toast.success(t("forms.admin.versionRestored").replace("{version}", String(versionNumber)));
+      setVersionsOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("forms.admin.versionLoadError");
+      toast.error(message);
+    } finally {
+      setRestoringVersionId(null);
+    }
+  }
 
   useEffect(() => {
     if (!templatesQuery.data) return;
@@ -622,12 +703,15 @@ export function FormsWorkspace() {
   const evidenceItems =
     selectedTemplate?.fields.filter((field) => ["photo", "signature"].includes(field.type)).length ??
     0;
+  const templateSettings = selectedTemplate
+    ? getTemplateSettings(selectedTemplate.fields)
+    : { require_execution_note: true };
 
   if (templatesQuery.isLoading) {
     return (
       <main className="space-y-6 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Loading form templates...
+          {t("forms.admin.loading")}
         </div>
       </main>
     );
@@ -637,12 +721,10 @@ export function FormsWorkspace() {
     <main className="space-y-6 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Form Library</p>
-          <h1 className="text-2xl font-semibold text-slate-950">My Form</h1>
+          <p className="text-sm font-medium text-emerald-700">{t("forms.admin.eyebrow")}</p>
+          <h1 className="text-2xl font-semibold text-slate-950">{t("forms.admin.title")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            {isAreaWorkspace
-              ? "Area manager dapat melihat template form aktif sebagai referensi operasional, tanpa mengubah library template."
-              : "Create reusable form templates for Task. Scheduling and auto-publish live inside Task."}
+            {isAreaWorkspace ? t("forms.admin.subtitleArea") : t("forms.admin.subtitle")}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span
@@ -652,16 +734,21 @@ export function FormsWorkspace() {
                   : "bg-amber-50 text-amber-700"
               }`}
             >
-              {templatesQuery.isSuccess ? "Backend templates connected" : "Connecting to backend"}
+              {templatesQuery.isSuccess
+                ? t("forms.admin.backendConnected")
+                : t("forms.admin.backendConnecting")}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Check className="size-3.5 text-emerald-600" />
               {lastSavedAt
-                ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : "Ready to save"}
+                ? t("forms.admin.savedAt").replace(
+                    "{time}",
+                    new Date(lastSavedAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  )
+                : t("forms.admin.readyToSave")}
             </span>
           </div>
           {saveError ? <p className="mt-2 text-sm text-red-600">{saveError}</p> : null}
@@ -669,12 +756,11 @@ export function FormsWorkspace() {
 
         {isAreaWorkspace ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Read only for Area Manager
+            {t("forms.admin.readOnlyArea")}
           </div>
         ) : !canManageTemplates ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Akun ini hanya bisa melihat template. Login sebagai Admin/Owner untuk membuat atau
-            menyimpan template form.
+            {t("forms.admin.viewOnlyHint")}
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -693,7 +779,21 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
             >
               <Plus className="size-4" />
-              New Form
+              {t("forms.admin.newForm")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void openVersionHistory()}
+              disabled={
+                !hasSelectedTemplate ||
+                !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
+                versionsLoading
+              }
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              <History className="size-4" />
+              {t("forms.admin.versionHistory")}
             </button>
 
             <button
@@ -707,7 +807,7 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Copy className="size-4" />
-              {duplicateMutation.isPending ? "Duplicating..." : "Duplicate Template"}
+              {duplicateMutation.isPending ? t("forms.admin.duplicating") : t("forms.admin.duplicate")}
             </button>
 
             <button
@@ -720,7 +820,7 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Eye className="size-4" />
-              Preview
+              {t("forms.admin.preview")}
             </button>
 
             <button
@@ -730,7 +830,7 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Save className="size-4" />
-              {saveMutation.isPending ? "Saving..." : "Save Draft"}
+              {saveMutation.isPending ? t("forms.admin.saving") : t("forms.admin.saveDraft")}
             </button>
 
             <button
@@ -740,7 +840,7 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               <Save className="size-4" />
-              {saveMutation.isPending ? "Saving..." : "Save Template"}
+              {saveMutation.isPending ? t("forms.admin.saving") : t("forms.admin.saveTemplate")}
             </button>
           </div>
         )}
@@ -1510,6 +1610,29 @@ export function FormsWorkspace() {
                 <option value="Archived">Archived</option>
               </select>
             </div>
+
+            <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={templateSettings.require_execution_note}
+                disabled={isAreaWorkspace}
+                onChange={(event) =>
+                  updateSelectedTemplate({
+                    fields: setTemplateRequireExecutionNote(
+                      selectedTemplate.fields,
+                      event.target.checked
+                    ),
+                  })
+                }
+                className="mt-0.5 rounded border-slate-300"
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Wajibkan catatan pelaksanaan</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Jika dimatikan, Execution Note opsional saat submit task.
+                </span>
+              </span>
+            </label>
           </div>
             </>
           )}
@@ -1517,8 +1640,8 @@ export function FormsWorkspace() {
       </div>
 
       <EnterpriseDataTable
-        title="My Form Library"
-        description="Reusable form templates that can be selected inside Task."
+        title={t("forms.admin.tableTitle")}
+        description={t("forms.admin.tableDescription")}
         columns={columns}
         data={templates}
         getRowId={(form) => form.id}
@@ -1526,6 +1649,50 @@ export function FormsWorkspace() {
           setSelectedTemplateId(form.id);
         }}
       />
+
+      <Modal
+        open={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
+        title={t("forms.admin.versionHistoryTitle")}
+        description={t("forms.admin.versionHistoryDescription")}
+        size="md"
+      >
+        {versionsLoading ? (
+          <p className="text-sm text-slate-500">{t("forms.admin.loading")}</p>
+        ) : versionsError ? (
+          <p className="text-sm text-red-600">{versionsError}</p>
+        ) : versions.length === 0 ? (
+          <p className="text-sm text-slate-500">{t("forms.admin.versionEmpty")}</p>
+        ) : (
+          <div className="space-y-3">
+            {versions.map((version) => (
+              <div
+                key={version.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    v{version.version_number}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(version.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={restoringVersionId === version.id}
+                  onClick={() => void restoreTemplateVersion(version.id, version.version_number)}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {restoringVersionId === version.id
+                    ? t("forms.admin.versionRestoring")
+                    : t("forms.admin.versionRestore")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       {selectedTemplate ? (
         <Modal

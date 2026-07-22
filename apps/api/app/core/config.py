@@ -92,6 +92,10 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = None
     google_frontend_success_url: str | None = None
 
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from_number: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -158,6 +162,9 @@ def get_settings() -> Settings:
             os.environ.get("GOOGLE_FRONTEND_SUCCESS_URL", "") or ""
         )
         or None,
+        twilio_account_sid=_sanitize_env_value(os.environ.get("TWILIO_ACCOUNT_SID", "") or "") or None,
+        twilio_auth_token=os.environ.get("TWILIO_AUTH_TOKEN") or None,
+        twilio_from_number=_sanitize_env_value(os.environ.get("TWILIO_FROM_NUMBER", "") or "") or None,
     )
 
 

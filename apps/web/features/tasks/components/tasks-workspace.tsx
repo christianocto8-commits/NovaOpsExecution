@@ -32,6 +32,7 @@ import {
   upsertOutletTaskStoreItem,
 } from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
+import { useLanguage } from "@/shared/i18n";
 
 type MobileTaskSection = {
   id: string;
@@ -500,6 +501,7 @@ function TaskGroupedList({
 }
 
 export function TasksWorkspace() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const continuedDraftRef = useRef<string | null>(null);
   const workspace = useSyncExternalStore(
@@ -736,21 +738,26 @@ export function TasksWorkspace() {
     <main className="space-y-5 px-4 py-4 sm:space-y-6 sm:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Task Execution</p>
+          <p className="text-sm font-medium text-emerald-700">{t("tasks.eyebrow")}</p>
           <h1 className="text-2xl font-semibold text-slate-950">
-            {isOutletWorkspace ? `${workspace.outletName ?? "Outlet"} Tasks` : "Task"}
+            {isOutletWorkspace
+              ? t("tasks.titleOutlet").replace(
+                  "{outlet}",
+                  workspace.outletName ?? "Outlet"
+                )
+              : t("tasks.titleAdmin")}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             {isOutletWorkspace
-              ? "Kerjakan checklist outlet, simpan draft bila perlu, lalu submit bukti saat selesai."
+              ? t("tasks.subtitleOutlet")
               : isAreaWorkspace
-                ? "Pantau task outlet, cek progres draft, dan follow up execution tanpa mengubah task inti."
-                : "Assign, execute, review saved drafts, and verify outlet work with evidence and corrective actions."}
+                ? t("tasks.subtitleArea")
+                : t("tasks.subtitleAdmin")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Realtime
+                {t("tasks.realtime")}
               </span>
               <RealtimeClock />
             </div>
@@ -759,18 +766,18 @@ export function TasksWorkspace() {
                 isOnline ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
               }`}
             >
-              {isOnline ? "Online" : "Offline"}
+              {isOnline ? t("tasks.online") : t("tasks.offline")}
             </span>
             <span
               className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
                 isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
               }`}
             >
-              {isBackendConnected ? "Backend synced" : "Backend unavailable"}
+              {isBackendConnected ? t("tasks.backendSynced") : t("tasks.backendUnavailable")}
             </span>
             {pendingLocalSyncCount > 0 ? (
               <span className="inline-flex items-center rounded-2xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700">
-                {pendingLocalSyncCount} menunggu sinkron
+                {t("tasks.pendingSync").replace("{count}", String(pendingLocalSyncCount))}
               </span>
             ) : null}
           </div>
@@ -784,7 +791,7 @@ export function TasksWorkspace() {
                 onClick={openCreateTask}
                 className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
               >
-                Create Task
+                {t("tasks.createTask")}
               </button>
             ) : null}
           </div>
@@ -850,7 +857,7 @@ export function TasksWorkspace() {
                 className={`rounded-lg p-1.5 transition ${
                   mobileIncompleteOnly ? "bg-sky-50 text-sky-600" : "text-slate-400"
                 }`}
-                title={mobileIncompleteOnly ? "Hanya task belum selesai" : "Semua task"}
+                title={mobileIncompleteOnly ? t("tasks.incompleteOnly") : t("tasks.allTasks")}
               >
                 <SlidersHorizontal className="h-4 w-4" />
               </button>
@@ -930,6 +937,7 @@ export function TasksWorkspace() {
         open={Boolean(submitResult)}
         taskTitle={submitResult?.taskTitle ?? ""}
         checklist={submitResult?.checklist ?? null}
+        pendingSync={submitResult?.pendingSync}
         onClose={closeSubmitResult}
       />
     </main>

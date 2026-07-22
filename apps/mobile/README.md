@@ -1,51 +1,55 @@
-# NovaOps Mobile (Capacitor scaffold)
+# NovaOps Mobile (Capacitor)
 
-Scaffold only — **do not publish** to Play Store / App Store yet.
+Native shell for outlet crew — wraps the Next.js web app in Android/iOS WebView.
 
 ## Prerequisites
 
 - Node.js 20+
-- Android Studio (for Android)
-- Xcode (for iOS, macOS only)
-- Local stack running: `.\novaops.ps1 dev`
+- Android Studio (Android)
+- Xcode (iOS, macOS only)
+- Local stack: `.\novaops.ps1 dev`
 
-## Setup (from repo root)
-
-```powershell
-cd apps\web
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init NovaOps com.novaops.execution --web-dir out
-```
-
-`capacitor.config.ts` is already present in `apps/web/`.
-
-## Build web assets for native shell
-
-Capacitor wraps the exported Next.js static output. For local dev/testing:
+## Setup
 
 ```powershell
 cd apps\web
-npm run build
+npm install
 npx cap add android
-npx cap copy android
-npx cap open android
 ```
 
-## Point app to local API (dev)
+`capacitor.config.ts` is in `apps/web/`.
 
-In `capacitor.config.ts`, optionally set:
+## Dev workflow (recommended)
 
-```ts
-server: {
-  url: "http://10.0.2.2:3000", // Android emulator → host machine
-  cleartext: true,
-}
+Capacitor loads the **live dev server** instead of static export:
+
+1. Start stack: `.\novaops.ps1 dev`
+2. Edit `apps/web/capacitor.config.ts` — uncomment `server.url`:
+   - Emulator: `http://10.0.2.2:3000`
+   - Physical device: `http://<LAN-IP>:3000`
+3. Sync and open Android Studio:
+
+```powershell
+npm run cap:sync
+npm run cap:android
 ```
 
-Use your LAN IP for physical devices.
+## What works in WebView
+
+| Feature | Status |
+|---------|--------|
+| IndexedDB offline queue | Yes |
+| Service worker shell cache | Yes (registered on app boot) |
+| Geofence + photo evidence | Yes (browser APIs) |
+| Capacitor Network status | Yes (`@capacitor/network`) |
+| Web Push (VAPID) | Limited in WebView |
+| Native FCM/APNs | Not yet — deferred |
+
+## Production build (future)
+
+Static export to `out/` requires a dedicated Next.js export build. Current default is `standalone` for VPS deploy. For store release, add a separate `build:mobile` target.
 
 ## Notes
 
-- Offline queue (IndexedDB) and service worker continue to work inside WebView.
-- Push notifications require native Firebase/APNs setup — not included in this scaffold.
-- Store signing, provisioning profiles, and release pipelines are deferred.
+- Do **not** publish to Play Store / App Store until signing pipeline is configured.
+- Push notifications on native require Firebase (Android) / APNs (iOS) — see roadmap.

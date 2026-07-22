@@ -17,6 +17,7 @@ import {
   type BackendTaskSchedule,
 } from "@/services/task-schedule.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
+import { useLanguage } from "@/shared/i18n";
 import { useToast } from "@/shared/toast";
 
 function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<string, string>) {
@@ -28,7 +29,7 @@ function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<st
     outlet: form.targetOutlets.join(", ") || "-",
     status: schedule.is_active ? "Active" : "Inactive",
     priority: form.priority,
-    assignee: "Scheduled",
+    assignee: form.assignee,
     due: schedule.next_publish_at
       ? new Date(schedule.next_publish_at).toLocaleString()
       : "Not scheduled",
@@ -41,11 +42,13 @@ function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<st
     autoPublish: form.autoPublish,
     dueTime: form.dueTime,
     weeklyPublishDay: form.weeklyPublishDay,
+    monthlyPublishDay: form.monthlyPublishDay,
   };
 }
 
 export function SchedulesWorkspace() {
   const toast = useToast();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
@@ -126,6 +129,11 @@ export function SchedulesWorkspace() {
       key: "outlets",
       header: "Outlets",
       render: (row) => row.outlet,
+    },
+    {
+      key: "assignee",
+      header: "Assignee",
+      render: (row) => row.assignee,
     },
     {
       key: "template",
@@ -217,6 +225,9 @@ export function SchedulesWorkspace() {
       recurrence: "daily",
       autoPublish: true,
       assignee: "Outlet Team",
+      assignedToId: null,
+      assigneeSelection: "outlet_team",
+      monthlyPublishDay: 1,
       formTemplateId: activeTemplates[0]?.id ?? "",
       shifts: ["morning"],
     });
@@ -234,12 +245,17 @@ export function SchedulesWorkspace() {
 
   async function submitScheduleForm() {
     if (scheduleForm.recurrence === "once") {
-      toast.error("Schedule harus daily atau weekly.");
+      toast.error("Schedule harus daily, weekly, atau monthly.");
       return;
     }
 
     if (scheduleForm.recurrence === "weekly" && !scheduleForm.weeklyPublishDay) {
       toast.error("Pilih hari publish untuk schedule weekly.");
+      return;
+    }
+
+    if (scheduleForm.recurrence === "monthly" && !scheduleForm.monthlyPublishDay) {
+      toast.error("Pilih tanggal publish untuk schedule monthly.");
       return;
     }
 
@@ -267,12 +283,10 @@ export function SchedulesWorkspace() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
-              Schedule Management
+              {t("schedules.eyebrow")}
             </p>
-            <h1 className="mt-1 text-3xl font-semibold text-slate-950">Task Schedules</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Kelola jadwal task recurring harian/mingguan, template form, outlet target, dan status aktif.
-            </p>
+            <h1 className="mt-1 text-3xl font-semibold text-slate-950">{t("schedules.title")}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-500">{t("schedules.description")}</p>
           </div>
 
           <button
@@ -281,7 +295,7 @@ export function SchedulesWorkspace() {
             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
           >
             <Plus className="size-4" />
-            New Schedule
+            {t("schedules.new")}
           </button>
         </div>
       </section>
@@ -289,19 +303,17 @@ export function SchedulesWorkspace() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <CalendarClock className="size-4 text-emerald-700" />
-          Active and inactive recurring schedules
+          {t("schedules.tableTitle")}
         </div>
 
         <EnterpriseDataTable
           columns={columns}
           data={rows}
           emptyTitle={
-            schedulesQuery.isLoading ? "Loading schedules..." : "Belum ada task schedule"
+            schedulesQuery.isLoading ? "Loading schedules..." : t("schedules.emptyTitle")
           }
           emptyDescription={
-            schedulesQuery.isLoading
-              ? undefined
-              : "Buat schedule baru untuk publish task otomatis."
+            schedulesQuery.isLoading ? undefined : t("schedules.emptyDescription")
           }
           searchPlaceholder="Search schedule, outlet, template..."
         />

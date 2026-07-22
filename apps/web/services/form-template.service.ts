@@ -187,6 +187,8 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       ? options.choices.filter((value): value is string => typeof value === "string")
       : undefined,
     allow_na: options.allow_na === true,
+    require_execution_note:
+      options.require_execution_note === undefined ? undefined : options.require_execution_note === true,
     maxStars:
       typeof options.maxStars === "number" && options.maxStars > 0
         ? Math.min(10, Math.round(options.maxStars))
@@ -371,4 +373,25 @@ export const formTemplateService = {
 
     return mapBackendFormTemplate(duplicated);
   },
+
+  async listVersions(templateId: string) {
+    return api<FormTemplateVersion[]>(`/api/v1/form-templates/${templateId}/versions`);
+  },
+
+  async restoreVersion(templateId: string, versionId: number) {
+    const restored = await api<BackendFormTemplate>(
+      `/api/v1/form-templates/${templateId}/versions/${versionId}/restore`,
+      { method: "POST" }
+    );
+
+    return mapBackendFormTemplate(restored);
+  },
+};
+
+export type FormTemplateVersion = {
+  id: number;
+  form_template_id: number;
+  version_number: number;
+  created_by: number;
+  created_at: string;
 };

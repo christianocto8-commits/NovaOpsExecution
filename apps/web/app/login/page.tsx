@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { buildApiUrl } from "@/lib/api-url";
@@ -68,11 +68,29 @@ export default function LoginPage() {
   );
 }
 
+function subscribeRememberStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function getRememberedIdentifierSnapshot() {
+  return localStorage.getItem(REMEMBER_KEY) ?? "";
+}
+
+function getServerRememberedIdentifierSnapshot() {
+  return "";
+}
+
 function LoginPageContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
   const rememberOutlet = searchParams.get("rememberOutlet") === "1";
+  const rememberedIdentifier = useSyncExternalStore(
+    subscribeRememberStorage,
+    getRememberedIdentifierSnapshot,
+    getServerRememberedIdentifierSnapshot
+  );
   const [rememberedOutletName, setRememberedOutletName] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -82,23 +100,23 @@ function LoginPageContent() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const rememberedIdentifier = localStorage.getItem(REMEMBER_KEY);
+    if (!rememberedIdentifier) return;
 
-    if (rememberedIdentifier) {
-      setIdentifier(rememberedIdentifier);
-      setRememberMe(true);
-    }
+    setIdentifier(rememberedIdentifier);
+    setRememberMe(true);
+  }, [rememberedIdentifier]);
 
-    if (rememberOutlet) {
-      try {
-        const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
-        if (savedContext) {
-          const parsed = JSON.parse(savedContext) as { outletName?: string };
-          setRememberedOutletName(parsed.outletName ?? null);
-        }
-      } catch {
-        setRememberedOutletName(null);
+  useEffect(() => {
+    if (!rememberOutlet) return;
+
+    try {
+      const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
+      if (savedContext) {
+        const parsed = JSON.parse(savedContext) as { outletName?: string };
+        setRememberedOutletName(parsed.outletName ?? null);
       }
+    } catch {
+      setRememberedOutletName(null);
     }
   }, [rememberOutlet]);
 
@@ -164,7 +182,10 @@ function LoginPageContent() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6">
+    <main
+      className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6"
+      suppressHydrationWarning
+    >
       <div className="w-full max-w-md rounded-3xl border border-[#DDE8E1] bg-white p-10 shadow-sm">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#3D6B49]">

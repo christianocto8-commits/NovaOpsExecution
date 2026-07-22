@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NovaOps</string>
+    <string name="title_activity_main">NovaOps</string>
+    <string name="package_name">com.novaops.execution</string>
+    <string name="custom_url_scheme">com.novaops.execution</string>
+</resources>

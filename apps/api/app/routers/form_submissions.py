@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse
 from app.services.checklist_scoring import score_checklist
 from app.services.field_visibility import validate_conditional_required_fields
+from app.services.webhook_dispatcher import dispatch_webhook_event
 
 router = APIRouter(prefix="/form-submissions", tags=["Form Submissions"])
 
@@ -73,6 +74,23 @@ def create_form_submission(
 
     if stored_submission is None:
         raise HTTPException(status_code=500, detail="Failed to persist form submission")
+
+    try:
+        dispatch_webhook_event(
+            db,
+            event_type="form.submitted",
+            outlet_id=stored_submission.outlet_id,
+            payload={
+                "submission_id": stored_submission.id,
+                "form_template_id": stored_submission.form_template_id,
+                "outlet_id": stored_submission.outlet_id,
+                "score": stored_submission.score,
+                "status": stored_submission.status,
+                "responsible_person_name": stored_submission.responsible_person_name,
+            },
+        )
+    except Exception:
+        pass
 
     return stored_submission
 

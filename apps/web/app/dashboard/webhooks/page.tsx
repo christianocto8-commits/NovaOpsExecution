@@ -7,6 +7,7 @@ import {
   WEBHOOK_EVENT_OPTIONS,
   createWebhook,
   deleteWebhook,
+  listWebhookDeliveries,
   listWebhooks,
   type WebhookEventType,
   type WebhookSubscription,
@@ -36,6 +37,12 @@ export default function WebhooksPage() {
   const webhooksQuery = useQuery({
     queryKey: ["webhooks"],
     queryFn: listWebhooks,
+    retry: false,
+  });
+
+  const deliveriesQuery = useQuery({
+    queryKey: ["webhook-deliveries"],
+    queryFn: () => listWebhookDeliveries(25),
     retry: false,
   });
 
@@ -258,6 +265,51 @@ export default function WebhooksPage() {
               <p className="text-sm text-slate-500">Belum ada webhook terdaftar.</p>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Recent deliveries</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Log pengiriman webhook dengan status, retry, dan error message.
+        </p>
+        <div className="mt-5 space-y-3">
+          {deliveriesQuery.isLoading ? (
+            <p className="text-sm text-slate-500">Loading delivery log...</p>
+          ) : (deliveriesQuery.data ?? []).length ? (
+            (deliveriesQuery.data ?? []).map((delivery) => (
+              <div
+                key={delivery.id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-950">{delivery.event_type}</p>
+                  <span
+                    className={[
+                      "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                      delivery.status === "delivered"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-red-100 text-red-800",
+                    ].join(" ")}
+                  >
+                    {delivery.status} · {delivery.attempt_count}x
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-slate-600">{delivery.url}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {new Date(delivery.created_at).toLocaleString()}
+                  {delivery.http_status ? ` · HTTP ${delivery.http_status}` : ""}
+                </p>
+                {delivery.error_message ? (
+                  <p className="mt-1 text-xs text-red-700">{delivery.error_message}</p>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">
+              Belum ada delivery. Aktifkan webhook di Settings dan trigger event operasional.
+            </p>
+          )}
         </div>
       </section>
     </main>

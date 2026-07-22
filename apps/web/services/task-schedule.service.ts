@@ -12,6 +12,8 @@ export type BackendTaskSchedule = {
   outlet_ids_json: string[];
   due_time: string;
   weekly_publish_day: TaskWeeklyPublishDay | null;
+  monthly_publish_day: number | null;
+  assigned_to: number | null;
   auto_publish: boolean;
   is_active: boolean;
   created_by: number;
@@ -26,11 +28,13 @@ type CreateTaskSchedulePayload = {
   description: string | null;
   form_template_id: number | null;
   priority: string;
-  recurrence: "daily" | "weekly";
+  recurrence: "daily" | "weekly" | "monthly";
   shifts: TaskShift[];
   outlet_ids: string[];
   due_time: string;
   weekly_publish_day: TaskWeeklyPublishDay | null;
+  monthly_publish_day: number | null;
+  assigned_to: number | null;
   auto_publish: boolean;
 };
 
@@ -74,17 +78,27 @@ function resolveFormTemplateId(formTemplateId: string): number | null {
   return numericTemplateId;
 }
 
+function resolveRecurrence(form: TaskFormState): CreateTaskSchedulePayload["recurrence"] {
+  if (form.recurrence === "weekly") return "weekly";
+  if (form.recurrence === "monthly") return "monthly";
+  return "daily";
+}
+
 function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
+  const recurrence = resolveRecurrence(form);
+
   return {
     title: form.title.trim(),
     description: form.description.trim() || null,
     form_template_id: resolveFormTemplateId(form.formTemplateId),
     priority: toBackendPriority(form.priority),
-    recurrence: form.recurrence === "weekly" ? "weekly" : "daily",
-    shifts: form.recurrence === "weekly" ? [] : form.shifts,
+    recurrence,
+    shifts: recurrence === "daily" ? form.shifts : [],
     outlet_ids: resolveOutletIds(form),
     due_time: form.dueTime || "09:00",
-    weekly_publish_day: form.recurrence === "weekly" ? form.weeklyPublishDay : null,
+    weekly_publish_day: recurrence === "weekly" ? form.weeklyPublishDay : null,
+    monthly_publish_day: recurrence === "monthly" ? form.monthlyPublishDay || 1 : null,
+    assigned_to: form.assignedToId ?? null,
     auto_publish: form.autoPublish,
   };
 }
@@ -97,23 +111,38 @@ export function scheduleToFormState(
     (outletId) => outletNameById[outletId] ?? outletId
   );
 
+  const recurrence: TaskFormState["recurrence"] =
+    schedule.recurrence === "weekly"
+      ? "weekly"
+      : schedule.recurrence === "monthly"
+        ? "monthly"
+        : "daily";
+
+  const assigneeSelection =
+    schedule.assigned_to != null
+      ? (`user:${schedule.assigned_to}` as const)
+      : "outlet_team";
+
   return {
     title: schedule.title,
     outlet: targetOutlets[0] ?? "",
     outletId: schedule.outlet_ids_json[0],
     status: "Pending",
     priority: fromBackendPriority(schedule.priority),
-    assignee: "Outlet Team",
+    assignee: schedule.assigned_to ? `User ${schedule.assigned_to}` : "Outlet Team",
+    assignedToId: schedule.assigned_to,
+    assigneeSelection,
     due: "",
     description: schedule.description ?? "",
     formTemplateId: schedule.form_template_id ? String(schedule.form_template_id) : "",
-    recurrence: schedule.recurrence === "weekly" ? "weekly" : "daily",
+    recurrence,
     shifts: schedule.shifts_json.length > 0 ? schedule.shifts_json : ["morning"],
     targetOutlets,
     targetOutletIds: schedule.outlet_ids_json,
     autoPublish: schedule.auto_publish,
     dueTime: schedule.due_time,
     weeklyPublishDay: schedule.weekly_publish_day ?? "sunday",
+    monthlyPublishDay: schedule.monthly_publish_day ?? 1,
   };
 }
 

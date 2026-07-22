@@ -19,7 +19,10 @@ import { EvidenceItem, getCurrentPosition, checkGeofencePrecheck } from "@/share
 import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
+import { resolveAssigneeSelection } from "@/features/tasks/utils/assignee-options";
 import { taskService } from "@/services/task.service";
+import { formTemplateService } from "@/services/form-template.service";
+import { scoreChecklistClientSide } from "@/shared/checklist/checklist-scoring";
 import { outletService } from "@/services/outlet.service";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
@@ -62,7 +65,7 @@ function normalizeTask(task: Task): Task {
     ...task,
     formTemplateId: task.formTemplateId ?? "",
     recurrence,
-    shifts: recurrence === "weekly" ? [] : (task.shifts ?? ["morning"]),
+    shifts: recurrence === "weekly" || recurrence === "monthly" ? [] : (task.shifts ?? ["morning"]),
     targetOutlets: task.targetOutlets ?? [task.outlet],
     autoPublish: task.autoPublish ?? false,
     dueTime: task.dueTime ?? getTimeFromDue(task.due),
@@ -486,6 +489,7 @@ export function useTaskWorkspace() {
   const [submitResult, setSubmitResult] = useState<{
     taskTitle: string;
     checklist: ChecklistScore;
+    pendingSync?: boolean;
   } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExecutionOpen, setIsExecutionOpen] = useState(false);
@@ -520,6 +524,8 @@ export function useTaskWorkspace() {
     setTaskForm({
       ...emptyTaskForm,
       assignee: "Outlet Team",
+      assigneeSelection: "outlet_team",
+      assignedToId: null,
       dueTime: defaultTaskDueTime,
     });
     setIsFormOpen(true);
@@ -533,6 +539,11 @@ export function useTaskWorkspace() {
       status: task.status,
       priority: task.priority,
       assignee: task.assignee,
+      assignedToId: task.assignedToId ?? null,
+      assigneeSelection: resolveAssigneeSelection({
+        assignedToId: task.assignedToId,
+        assignee: task.assignee,
+      }),
       due: task.due,
       description: task.description,
       formTemplateId: task.formTemplateId ?? "",
@@ -915,11 +926,34 @@ export function useTaskWorkspace() {
         refreshPendingCount(),
       ]);
 
-      toast.success(
-        approvalRequired
-          ? "Evidence disimpan lokal dan akan disinkronkan."
-          : "Task selesai secara lokal dan akan disinkronkan."
-      );
+      let offlineChecklist: ChecklistScore | null = null;
+      if (selectedTask.formTemplateId) {
+        try {
+          const template = await formTemplateService.get(selectedTask.formTemplateId);
+          offlineChecklist = scoreChecklistClientSide({
+            fields: template.fields,
+            responses: executionForm.formResponses,
+            passThreshold: settings?.pass_threshold,
+          });
+        } catch {
+          offlineChecklist = null;
+        }
+      }
+
+      if (offlineChecklist) {
+        setSubmitResult({
+          taskTitle: selectedTask.title,
+          checklist: offlineChecklist,
+          pendingSync: true,
+        });
+      } else {
+        toast.success(
+          approvalRequired
+            ? "Evidence disimpan lokal dan akan disinkronkan."
+            : "Tersimpan offline — skor akan dihitung saat sync."
+        );
+      }
+
       closeExecution();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gagal menyelesaikan task secara lokal.";

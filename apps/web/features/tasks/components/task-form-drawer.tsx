@@ -5,7 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
-import { getIdentityOutlets } from "@/services/identity.service";
+import { getIdentityOutlets, getIdentityUsers } from "@/services/identity.service";
+import {
+  applyAssigneeSelection,
+  buildAssigneeOptions,
+  resolveAssigneeSelection,
+  type AssigneeSelection,
+} from "@/features/tasks/utils/assignee-options";
 import {
   TaskFormState,
   TaskPriority,
@@ -16,6 +22,7 @@ import {
 } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import { useSettings } from "@/features/settings/hooks/use-settings";
+import { taskService } from "@/services/task.service";
 
 type TaskFormDrawerProps = {
   open: boolean;
@@ -32,6 +39,7 @@ const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
   { value: "once", label: "Once" },
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
 ];
 const shiftOptions: Array<{ value: TaskShift; label: string; time: string }> = [
   { value: "morning", label: "Morning", time: "07:00" },
@@ -64,6 +72,11 @@ export function TaskFormDrawer({
     queryFn: getIdentityOutlets,
     retry: false,
   });
+  const identityUsersQuery = useQuery({
+    queryKey: queryKeys.identity.users,
+    queryFn: getIdentityUsers,
+    retry: false,
+  });
   const { activeTemplates: availableTemplates } = useActiveFormTemplates();
   const safeFormTemplateId = form.formTemplateId || availableTemplates[0]?.id || "";
   const selectedTemplate = availableTemplates.find(
@@ -89,23 +102,46 @@ export function TaskFormDrawer({
         : outletOptions[0]?.id
           ? [outletOptions[0].id]
           : [];
+  const primaryOutletId = selectedTargetOutletIds[0] ?? "";
+  const outletMembersQuery = useQuery({
+    queryKey: ["tasks", "outlet-members", primaryOutletId],
+    queryFn: () => taskService.listOutletMembers(primaryOutletId),
+    enabled: Boolean(primaryOutletId),
+    retry: false,
+  });
+  const assigneeOptions = useMemo(
+    () =>
+      buildAssigneeOptions({
+        identityUsers: identityUsersQuery.data ?? [],
+        outletMembers: outletMembersQuery.data ?? [],
+        selectedOutletIds: selectedTargetOutletIds.filter(Boolean),
+      }),
+    [identityUsersQuery.data, outletMembersQuery.data, selectedTargetOutletIds]
+  );
+  const assigneeSelection = resolveAssigneeSelection({
+    assignedToId: form.assignedToId,
+    assignee: form.assignee,
+    assigneeSelection: form.assigneeSelection,
+  });
   const selectedShiftCount = form.shifts.length;
   const isRecurringTask = form.recurrence !== "once";
   const isDailyTask = form.recurrence === "daily";
   const isWeeklyTask = form.recurrence === "weekly";
+  const isMonthlyTask = form.recurrence === "monthly";
   const autoPublishTaskCount = form.autoPublish
-    ? isWeeklyTask
-      ? selectedTargetOutlets.length
-      : selectedTargetOutlets.length * selectedShiftCount
+    ? isDailyTask
+      ? selectedTargetOutlets.length * selectedShiftCount
+      : selectedTargetOutlets.length
     : 0;
 
   const canSubmit =
     Boolean(form.title?.trim()) &&
-    Boolean(form.assignee?.trim()) &&
+    Boolean((form.assignee ?? "Outlet Team").trim()) &&
     (form.recurrence === "once"
       ? Boolean(form.due?.trim())
       : Boolean(form.dueTime?.trim()) &&
-        (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay))) &&
+        (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay)) &&
+        (form.recurrence !== "monthly" || Boolean(form.monthlyPublishDay))) &&
     Boolean(safeFormTemplateId.trim()) &&
     (form.recurrence === "once"
       ? outletOptions.length > 0
@@ -266,12 +302,30 @@ export function TaskFormDrawer({
 
           <div>
             <label className="text-sm font-semibold text-slate-700">Assignee</label>
-            <input
-              value={form.assignee ?? ""}
-              onChange={(event) => onChange({ ...form, assignee: event.target.value })}
-              placeholder="Contoh: Outlet Team"
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-            />
+            <select
+              value={assigneeSelection}
+              onChange={(event) => {
+                const selection = event.target.value as AssigneeSelection;
+                const nextAssignee = applyAssigneeSelection(selection, assigneeOptions);
+
+                onChange({
+                  ...form,
+                  assigneeSelection: selection,
+                  assignedToId: nextAssignee.assignedToId,
+                  assignee: nextAssignee.assignee,
+                });
+              }}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600"
+            >
+              {assigneeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-500">
+              Pilih tim outlet, area manager, atau user spesifik. Default: Outlet Team.
+            </p>
           </div>
 
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
@@ -302,8 +356,10 @@ export function TaskFormDrawer({
                       recurrence,
                       autoPublish: recurrence !== "once",
                       dueTime: form.dueTime || defaultTaskDueTime,
-                      shifts: recurrence === "weekly" ? [] : form.shifts,
+                      shifts: recurrence === "daily" ? form.shifts : [],
                       weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
+                      monthlyPublishDay:
+                        recurrence === "monthly" ? form.monthlyPublishDay || 1 : form.monthlyPublishDay,
                     });
                   }}
                   className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
@@ -361,6 +417,30 @@ export function TaskFormDrawer({
                   {weeklyPublishDayOptions.map((day) => (
                     <option key={day.value} value={day.value}>
                       {day.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {form.recurrence === "monthly" ? (
+              <div className="mt-4">
+                <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                  Publish Date (day of month)
+                </label>
+                <select
+                  value={String(form.monthlyPublishDay ?? 1)}
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      monthlyPublishDay: Number(event.target.value),
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                >
+                  {Array.from({ length: 28 }, (_, index) => index + 1).map((day) => (
+                    <option key={day} value={day}>
+                      Day {day}
                     </option>
                   ))}
                 </select>

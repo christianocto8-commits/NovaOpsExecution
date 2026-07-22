@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.webhooks.models import WebhookSubscription
+from app.modules.webhooks.models import WebhookDelivery, WebhookSubscription
 
 
 class WebhookRepository:
@@ -54,3 +54,16 @@ class WebhookRepository:
             matched.append(subscription)
 
         return matched
+
+    def list_recent_deliveries(
+        self,
+        *,
+        limit: int = 50,
+        subscription_id: UUID | None = None,
+    ) -> list[WebhookDelivery]:
+        statement = select(WebhookDelivery).order_by(WebhookDelivery.created_at.desc()).limit(limit)
+
+        if subscription_id is not None:
+            statement = statement.where(WebhookDelivery.subscription_id == subscription_id)
+
+        return list(self.db.scalars(statement).all())

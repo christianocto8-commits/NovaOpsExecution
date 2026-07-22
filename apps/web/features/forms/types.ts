@@ -31,6 +31,8 @@ export type FormFieldOptions = {
   denominations?: number[];
   currency?: string;
   system?: boolean;
+  /** Template-level setting persisted on the responsible person system field. */
+  require_execution_note?: boolean;
   /** @deprecated use visibilityRule */
   showWhenFieldId?: string;
   /** @deprecated use visibilityRule */

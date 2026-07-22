@@ -9,6 +9,7 @@ type ChecklistSubmitResultModalProps = {
   open: boolean;
   taskTitle: string;
   checklist: ChecklistScore | null;
+  pendingSync?: boolean;
   onClose: () => void;
 };
 
@@ -46,6 +47,7 @@ export function ChecklistSubmitResultModal({
   open,
   taskTitle,
   checklist,
+  pendingSync = false,
   onClose,
 }: ChecklistSubmitResultModalProps) {
   if (!checklist) return null;
@@ -75,6 +77,12 @@ export function ChecklistSubmitResultModal({
       }
     >
       <div className="space-y-5">
+        {pendingSync ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            Tersimpan offline — menunggu sinkron. Skor di bawah bersifat perkiraan.
+          </div>
+        ) : null}
+
         <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <StatusIcon className={`mt-0.5 size-5 shrink-0 ${meta.iconClass}`} />
           <div>
