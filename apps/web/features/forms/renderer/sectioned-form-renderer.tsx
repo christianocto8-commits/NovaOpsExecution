@@ -46,7 +46,7 @@ function getSectionTitle(field: FormField) {
 
   if (rawSection.trim()) return rawSection;
 
-  if (field.type === "photo" || field.type === "signature") {
+  if (field.type === "photo" || field.type === "video" || field.type === "signature") {
     return "Evidence & Sign Off";
   }
 

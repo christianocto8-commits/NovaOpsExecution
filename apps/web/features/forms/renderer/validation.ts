@@ -26,7 +26,7 @@ function isFieldFilled(field: FormField, responses: TaskFormResponses) {
     return isMoneyAmountFilled(value);
   }
 
-  if (field.type === "photo" || field.type === "signature") {
+  if (field.type === "photo" || field.type === "video" || field.type === "signature") {
     return value.trim().length > 0;
   }
 

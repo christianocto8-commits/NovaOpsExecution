@@ -21,6 +21,7 @@ from app.modules.workflows.workflow_api import router as workflow_router
 from app.modules.api_keys.api import router as api_keys_router
 from app.modules.announcements.api import router as announcement_router
 from app.modules.webhooks.api import router as webhooks_router
+from app.modules.integrations.api import router as integrations_router
 from app.routers.activity import router as activity_router
 from app.routers.audit import router as audit_router
 from app.routers.builder_documents import router as builder_document_router
@@ -56,6 +57,7 @@ api_router.include_router(activity_router)
 api_router.include_router(announcement_router)
 api_router.include_router(api_keys_router)
 api_router.include_router(webhooks_router)
+api_router.include_router(integrations_router)
 api_router.include_router(runtime_template_router)
 api_router.include_router(builder_document_router)
 

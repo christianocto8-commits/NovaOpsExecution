@@ -16,6 +16,7 @@ type PhotoFieldInputProps = {
   value: string;
   readOnly?: boolean;
   outletName?: string;
+  mediaMode?: "photo" | "video";
   onChange: (value: string) => void;
 };
 
@@ -30,6 +31,7 @@ export function PhotoFieldInput({
   value,
   readOnly = false,
   outletName,
+  mediaMode = "photo",
   onChange,
 }: PhotoFieldInputProps) {
   const { settings } = useSettings();
@@ -120,13 +122,19 @@ export function PhotoFieldInput({
       ? `${parsedValue.latitude.toFixed(5)}, ${parsedValue.longitude.toFixed(5)}`
       : null;
 
+  const isVideo = mediaMode === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(displayUrlValue);
+
   return (
     <div className="space-y-3">
       {value ? (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
           <div className="aspect-video max-h-56 w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={displayUrl} alt="Foto bukti" className="h-full w-full object-cover" />
+            {isVideo ? (
+              <video src={displayUrl} controls className="h-full w-full object-cover" />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={displayUrl} alt="Foto bukti" className="h-full w-full object-cover" />
+            )}
           </div>
 
           {locationLabel ? (
@@ -172,10 +180,22 @@ export function PhotoFieldInput({
             <ImageIcon className="size-8 text-emerald-700" />
           )}
           <span className="text-sm font-semibold">
-            {isUploading ? "Mengunggah..." : mobileMode ? "Ambil foto" : "Upload foto bukti"}
+            {isUploading
+              ? "Mengunggah..."
+              : mediaMode === "video"
+                ? mobileMode
+                  ? "Rekam video"
+                  : "Upload video bukti"
+                : mobileMode
+                  ? "Ambil foto"
+                  : "Upload foto bukti"}
           </span>
           <span className="text-xs text-slate-500">
-            {mobileMode ? "Kamera HP akan terbuka" : "Pilih file gambar dari perangkat"}
+            {mediaMode === "video"
+              ? "MP4, WEBM, atau MOV"
+              : mobileMode
+                ? "Kamera HP akan terbuka"
+                : "Pilih file gambar dari perangkat"}
           </span>
         </button>
       )}
@@ -195,8 +215,8 @@ export function PhotoFieldInput({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
-        capture={mobileMode ? "environment" : undefined}
+        accept={mediaMode === "video" ? "video/mp4,video/webm,video/quicktime,video/*" : "image/*"}
+        capture={mobileMode && mediaMode === "photo" ? "environment" : undefined}
         onChange={handleFileChange}
         className="hidden"
       />

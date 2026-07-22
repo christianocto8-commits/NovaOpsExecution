@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 
 import { ServiceWorkerBootstrap } from "@/components/ServiceWorkerBootstrap";
+import { NativePushBootstrap } from "@/components/NativePushBootstrap";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -14,6 +15,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       <AuthProvider>
         <OfflineSyncProvider>
           <ServiceWorkerBootstrap />
+          <NativePushBootstrap />
           <PopupProvider>{children}</PopupProvider>
         </OfflineSyncProvider>
       </AuthProvider>

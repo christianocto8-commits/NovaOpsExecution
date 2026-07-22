@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     twilio_auth_token: str | None = None
     twilio_from_number: str | None = None
 
+    oidc_issuer_url: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str | None = None
+    oidc_frontend_success_url: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -165,6 +171,14 @@ def get_settings() -> Settings:
         twilio_account_sid=_sanitize_env_value(os.environ.get("TWILIO_ACCOUNT_SID", "") or "") or None,
         twilio_auth_token=os.environ.get("TWILIO_AUTH_TOKEN") or None,
         twilio_from_number=_sanitize_env_value(os.environ.get("TWILIO_FROM_NUMBER", "") or "") or None,
+        oidc_issuer_url=_sanitize_env_value(os.environ.get("OIDC_ISSUER_URL", "") or "") or None,
+        oidc_client_id=_sanitize_env_value(os.environ.get("OIDC_CLIENT_ID", "") or "") or None,
+        oidc_client_secret=os.environ.get("OIDC_CLIENT_SECRET") or None,
+        oidc_redirect_uri=_sanitize_env_value(os.environ.get("OIDC_REDIRECT_URI", "") or "") or None,
+        oidc_frontend_success_url=_sanitize_env_value(
+            os.environ.get("OIDC_FRONTEND_SUCCESS_URL", "") or ""
+        )
+        or None,
     )
 
 

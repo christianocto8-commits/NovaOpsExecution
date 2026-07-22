@@ -43,7 +43,14 @@ npm run cap:android
 | Geofence + photo evidence | Yes (browser APIs) |
 | Capacitor Network status | Yes (`@capacitor/network`) |
 | Web Push (VAPID) | Limited in WebView |
-| Native FCM/APNs | Not yet — deferred |
+| Native FCM/APNs | Scaffold (`@capacitor/push-notifications` + `NativePushBootstrap`) |
+
+## Firebase Cloud Messaging (Android)
+
+1. Create Firebase project → Android app `com.novaops.execution`
+2. Download `google-services.json` → `apps/web/android/app/`
+3. Follow [Capacitor Push Notifications](https://capacitorjs.com/docs/apis/push-notifications) Gradle setup
+4. `npm run cap:sync` → rebuild in Android Studio
 
 ## Production build (future)
 

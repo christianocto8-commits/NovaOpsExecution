@@ -7,6 +7,7 @@
   | "date"
   | "time"
   | "photo"
+  | "video"
   | "signature"
   | "rating"
   | "barcode"

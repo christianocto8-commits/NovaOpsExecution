@@ -12,6 +12,14 @@ from app.modules.identity.google_oauth import (
     is_google_oauth_configured,
     verify_oauth_state,
 )
+from app.modules.identity.oidc_oauth import (
+    build_oidc_authorize_url,
+    build_oidc_frontend_success_redirect,
+    create_oidc_state,
+    exchange_oidc_code_for_profile,
+    is_oidc_configured,
+    verify_oidc_state,
+)
 from app.modules.identity.models import User
 from app.modules.identity.schemas import LoginRequest, TokenResponse
 from app.modules.identity.service import AuthService
@@ -87,6 +95,68 @@ def google_callback(
     )
 
     redirect_url = build_frontend_success_redirect(
+        access_token=token_response.access_token,
+        refresh_token=token_response.refresh_token,
+        expires_in_minutes=token_response.expires_in_minutes,
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/oidc/login")
+def oidc_login() -> RedirectResponse:
+    if not is_oidc_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC SSO is not configured",
+        )
+
+    state = create_oidc_state()
+    return RedirectResponse(url=build_oidc_authorize_url(state=state), status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/oidc/callback")
+def oidc_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    if not is_oidc_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC SSO is not configured",
+        )
+
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OIDC error: {error}",
+        )
+
+    if not code or not state or not verify_oidc_state(state):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OIDC callback",
+        )
+
+    try:
+        profile = exchange_oidc_code_for_profile(code=code)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    token_response = AuthService(db).login_or_create_google_user(
+        email=profile["email"],
+        full_name=profile["full_name"],
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    redirect_url = build_oidc_frontend_success_redirect(
         access_token=token_response.access_token,
         refresh_token=token_response.refresh_token,
         expires_in_minutes=token_response.expires_in_minutes,

@@ -28,6 +28,7 @@ const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
   date: "Tanggal",
   time: "Waktu",
   photo: "Foto bukti",
+  video: "Video bukti",
   signature: "Tanda tangan",
   rating: "Penilaian bintang",
   barcode: "Scan barcode / QR",
@@ -163,10 +164,11 @@ export function DynamicFormRenderer({
                   readOnly={readOnly}
                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
-              ) : field.type === "photo" ? (
+              ) : field.type === "photo" || field.type === "video" ? (
                 <PhotoFieldInput
                   value={value}
                   readOnly={readOnly}
+                  mediaMode={field.type === "video" ? "video" : "photo"}
                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
               ) : field.type === "signature" ? (

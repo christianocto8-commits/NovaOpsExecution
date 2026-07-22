@@ -15,13 +15,22 @@ router = APIRouter(prefix="/evidence-uploads", tags=["Evidence Uploads"])
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[2] / "uploads" / "evidence"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+ALLOWED_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+}
 
 
 def _safe_extension(filename: str, content_type: str | None) -> str:
     suffix = Path(filename or "").suffix.lower()
 
-    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}:
+    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".mp4", ".webm", ".mov"}:
         return suffix
 
     return {
@@ -30,6 +39,9 @@ def _safe_extension(filename: str, content_type: str | None) -> str:
         "image/webp": ".webp",
         "image/heic": ".heic",
         "image/heif": ".heif",
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
+        "video/quicktime": ".mov",
     }.get(content_type or "", ".jpg")
 
 
@@ -52,7 +64,7 @@ async def upload_evidence(
     if content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File evidence harus berupa gambar JPG, PNG, WEBP, atau HEIC.",
+            detail="File evidence harus berupa gambar (JPG/PNG/WEBP/HEIC) atau video (MP4/WEBM/MOV).",
         )
 
     content = await file.read()

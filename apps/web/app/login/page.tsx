@@ -12,6 +12,8 @@ import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 const REMEMBER_KEY = "novaops_remember_identifier";
 const REMEMBER_OUTLET_CONTEXT_KEY = "novaops_remember_outlet_context";
 const GOOGLE_OAUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
+const OIDC_SSO_ENABLED = process.env.NEXT_PUBLIC_OIDC_SSO_ENABLED === "true";
+const OIDC_SSO_LABEL = process.env.NEXT_PUBLIC_OIDC_SSO_LABEL?.trim() || "Sign in with SSO";
 
 function getSafeReturnUrl(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -281,6 +283,19 @@ function LoginPageContent() {
                 {t("login.google")}
               </button>
             </>
+          )}
+
+          {OIDC_SSO_ENABLED && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                window.location.href = buildApiUrl("/api/v1/auth/oidc/login");
+              }}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {OIDC_SSO_LABEL}
+            </button>
           )}
 
           {message && (
