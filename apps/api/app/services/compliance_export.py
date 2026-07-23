@@ -62,7 +62,11 @@ def _format_failed_items(checklist: dict | None) -> str:
     return "; ".join(parts)
 
 
-def _pass_fail_label(checklist: dict | None, task_status: str) -> str:
+def _pass_fail_label(
+    checklist: dict | None,
+    task_status: str,
+    due_date: datetime | None = None,
+) -> str:
     if checklist:
         status = checklist.get("status")
         if status == "pass":
@@ -74,6 +78,12 @@ def _pass_fail_label(checklist: dict | None, task_status: str) -> str:
 
     if task_status == "completed":
         return "Completed"
+    if due_date:
+        normalized_due = due_date
+        if normalized_due.tzinfo is None:
+            normalized_due = normalized_due.replace(tzinfo=timezone.utc)
+        if normalized_due < datetime.now(timezone.utc):
+            return "Overdue"
     if task_status == "cancelled":
         return "Cancelled"
     return "Pending"
@@ -141,7 +151,7 @@ def _build_export_rows(
                 task.title,
                 _format_date(event_date),
                 checklist.get("score") if checklist else "",
-                _pass_fail_label(checklist, task.status),
+                _pass_fail_label(checklist, task.status, task.due_date),
                 _format_failed_items(checklist),
                 assignee.name if assignee else "",
                 task.id,

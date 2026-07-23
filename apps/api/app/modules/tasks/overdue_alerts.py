@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
+from app.models.task_comment import TaskComment
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.notifications.models import NotificationEvent
 from app.modules.notifications.task_notifications import notify_task_recipient
@@ -53,8 +54,46 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
 
     alerts_created = 0
     skipped = 0
+    expired_tasks = 0
 
     for task in overdue_tasks:
+        due_date = task.due_date
+        if due_date and due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+
+        if due_date and due_date + timedelta(minutes=30) <= now:
+            previous_status = task.status
+            task.status = "cancelled"
+            db.add(
+                TaskComment(
+                    task_id=task.id,
+                    user_id=task.created_by,
+                    comment="Task expired 30 minutes after overdue and moved to overdue report.",
+                    event_type="overdue_expired",
+                    previous_value=previous_status,
+                    new_value=task.status,
+                )
+            )
+            expired_tasks += 1
+
+            try:
+                dispatch_webhook_event(
+                    db,
+                    event_type="task.overdue",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "status": task.status,
+                        "expired_after_minutes": 30,
+                    },
+                )
+            except Exception:
+                pass
+            continue
+
         already_notified = db.scalar(
             select(NotificationEvent.id).where(
                 NotificationEvent.event_type == "task_overdue",
@@ -101,8 +140,11 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
         except Exception:
             pass
 
+    db.commit()
+
     return {
         "overdue_tasks": len(overdue_tasks),
         "alerts_created": alerts_created,
         "skipped": skipped,
+        "expired_tasks": expired_tasks,
     }

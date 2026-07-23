@@ -18,7 +18,7 @@ function isBrowserProduction() {
   return typeof window !== "undefined" && !isBrowserLocalDev();
 }
 
-function useRelativeApiMode() {
+function shouldUseRelativeApiMode() {
   return process.env.NEXT_PUBLIC_USE_RELATIVE_API === "true";
 }
 
@@ -47,7 +47,7 @@ function isLocalSplitDev() {
 
 function shouldUseRelativeApi() {
   if (isLocalSplitDev()) return true;
-  return useRelativeApiMode() || isSameHostApi();
+  return shouldUseRelativeApiMode() || isSameHostApi();
 }
 
 function isSameHostApi() {

@@ -414,6 +414,12 @@ class TaskService:
                 detail="Task is already closed",
             )
 
+        if self._is_task_overdue(task):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task sudah overdue dan tidak bisa dikerjakan.",
+            )
+
         workspace_settings = get_workspace_settings(self.db)
 
         if workspace_settings.lms_training_gate_enabled and actor_identity_id:
@@ -738,6 +744,17 @@ class TaskService:
         self.db.commit()
         self.db.refresh(task)
         return task
+
+    def _is_task_overdue(self, task: Task, *, now: datetime | None = None) -> bool:
+        if not task.due_date:
+            return False
+
+        current = now or datetime.now(timezone.utc)
+        due_date = task.due_date
+        if due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+
+        return due_date < current
 
     def verify_task(
         self,

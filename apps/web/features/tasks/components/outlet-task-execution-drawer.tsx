@@ -212,7 +212,10 @@ export function OutletTaskExecutionDrawer({
     message: t("execution.unsavedGuard"),
   });
   const confirmLeaveRef = useRef(confirmLeave);
-  confirmLeaveRef.current = confirmLeave;
+
+  useEffect(() => {
+    confirmLeaveRef.current = confirmLeave;
+  }, [confirmLeave]);
 
   useEffect(() => {
     if (!open) return;

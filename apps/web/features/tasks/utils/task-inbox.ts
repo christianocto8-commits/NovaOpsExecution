@@ -23,6 +23,10 @@ export function isTaskCompleted(task: Task) {
 
 /** Tasks that should stay in the Task inbox (not yet finished). */
 export function isOpenTaskInInbox(task: Task) {
+  if (String(task.backendStatus ?? "").toLowerCase() === "cancelled") {
+    return false;
+  }
+
   return !isTaskCompleted(task);
 }
 

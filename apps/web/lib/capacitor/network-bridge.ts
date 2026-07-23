@@ -1,6 +1,6 @@
 type NetworkStatusListener = (connected: boolean) => void;
 
-let capacitorListeners = new Set<NetworkStatusListener>();
+const capacitorListeners = new Set<NetworkStatusListener>();
 let capacitorInitialized = false;
 
 function notifyCapacitorListeners(connected: boolean) {

@@ -90,7 +90,6 @@ def _build_report_summary(
             Task.due_date.isnot(None),
             Task.due_date < now,
             Task.status != "completed",
-            Task.status != "cancelled",
         )
         .scalar()
         or 0
@@ -173,7 +172,6 @@ def get_report_trends(
                 Task.due_date >= day_start,
                 Task.due_date < day_end,
                 Task.status != "completed",
-                Task.status != "cancelled",
             )
             .scalar()
             or 0
@@ -230,7 +228,6 @@ def get_outlet_reports(
                 Task.due_date.isnot(None),
                 Task.due_date < now,
                 Task.status != "completed",
-                Task.status != "cancelled",
             )
             .scalar()
             or 0

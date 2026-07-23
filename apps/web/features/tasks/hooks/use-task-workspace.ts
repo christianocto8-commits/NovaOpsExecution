@@ -59,6 +59,12 @@ function getTimeFromDue(value?: string, fallback = "09:00") {
   return timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : fallback;
 }
 
+function isTaskPastDue(task: Task) {
+  if (!task.due) return false;
+  const dueDate = new Date(task.due);
+  return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+}
+
 function normalizeTask(task: Task): Task {
   const recurrence = task.recurrence ?? "once";
 
@@ -900,6 +906,11 @@ export function useTaskWorkspace() {
 
     if (!isBackendTaskId(selectedTask.id)) {
       toast.error("Submit eksekusi hanya tersedia untuk task backend.");
+      return;
+    }
+
+    if (isTaskPastDue(selectedTask)) {
+      toast.error("Task sudah overdue dan tidak bisa dikerjakan.");
       return;
     }
 

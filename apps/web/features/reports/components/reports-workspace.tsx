@@ -106,7 +106,7 @@ type OutletTrackingGroup = {
 };
 
 function filterTasksForOutletAndDate(tasks: Task[], outlet: string, dateKey?: string) {
-  let filtered = tasks.filter((task) => task.outlet === outlet);
+  const filtered = tasks.filter((task) => task.outlet === outlet);
 
   if (!dateKey) return filtered;
 
@@ -445,6 +445,7 @@ export function ReportsWorkspace() {
   const formTemplates = formTemplatesQuery.data ?? [];
   const executionSessions = executionSessionsQuery.data ?? [];
   const [periodDays, setPeriodDays] = useState<7 | 30>(7);
+  const [periodAnchor] = useState(() => Date.now());
 
   const scopedTasks = useMemo(
     () => filterTasksForWorkspace(tasks, workspace),
@@ -457,7 +458,7 @@ export function ReportsWorkspace() {
   );
 
   const periodFilteredTasks = useMemo(() => {
-    const cutoff = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+    const cutoff = periodAnchor - periodDays * 24 * 60 * 60 * 1000;
     return enrichedScopedTasks
       .filter(isTaskWorkedOn)
       .filter((task) => {
@@ -469,7 +470,7 @@ export function ReportsWorkspace() {
         if (anchor == null) return true;
         return anchor >= cutoff;
       });
-  }, [enrichedScopedTasks, periodDays]);
+  }, [enrichedScopedTasks, periodAnchor, periodDays]);
 
   const reportRows = useMemo(() => periodFilteredTasks.map(toReportRow), [periodFilteredTasks]);
   const clientSummary = useMemo(() => getSummary(reportRows), [reportRows]);

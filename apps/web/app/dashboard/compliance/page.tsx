@@ -34,7 +34,7 @@ type ComplianceRow = {
   district: string;
   task: string;
   priority: string;
-  status: "Completed" | "In Progress" | "Pending" | "Overdue";
+  status: "Completed" | "In Progress" | "Pending" | "Overdue" | "Cancelled";
   completion: number;
   due: string;
   assignee: string;
@@ -118,6 +118,7 @@ function getStatusClass(status: ComplianceRow["status"]) {
   if (status === "Completed") return "bg-emerald-50 text-emerald-700";
   if (status === "In Progress") return "bg-blue-50 text-blue-700";
   if (status === "Overdue") return "bg-red-50 text-red-700";
+  if (status === "Cancelled") return "bg-slate-100 text-slate-600";
   return "bg-amber-50 text-amber-700";
 }
 
@@ -127,7 +128,7 @@ function getAverage(values: number[]) {
 }
 
 function groupByStatus(rows: ComplianceRow[]) {
-  const statuses: ComplianceRow["status"][] = ["Completed", "In Progress", "Pending", "Overdue"];
+  const statuses: ComplianceRow["status"][] = ["Completed", "In Progress", "Pending", "Overdue", "Cancelled"];
   return statuses.map((status) => ({
     name: status,
     value: rows.filter((row) => row.status === status).length,

@@ -1,4 +1,4 @@
-export type TaskStatus = "Pending" | "In Progress" | "Completed";
+export type TaskStatus = "Pending" | "In Progress" | "Completed" | "Cancelled";
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 export type TaskRecurrence = "once" | "daily" | "weekly" | "monthly";
 export type TaskShift = "morning" | "evening" | "midnight";
