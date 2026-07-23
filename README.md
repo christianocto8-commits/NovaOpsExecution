@@ -20,3 +20,8 @@ cd NovaOpsExecution
 .\bootstrap.ps1
 .\novaops.ps1 doctor
 .\novaops.ps1 dev
+```
+
+## Lanjutkan dengan AI (Codex / ChatGPT)
+
+Baca **`docs/HANDOFF.md`** — konteks lengkap repo, deploy, parity Zenput, aturan commit, dan prompt starter siap copy-paste.
