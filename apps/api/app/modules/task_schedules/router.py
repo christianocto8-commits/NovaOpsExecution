@@ -73,6 +73,7 @@ def delete_task_schedule(
 
 @router.post("/process", response_model=TaskScheduleProcessResult)
 def process_task_schedules(
+    force: bool = False,
     db: Session = Depends(get_db),
     x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
 ):
@@ -84,5 +85,5 @@ def process_task_schedules(
         )
 
     service = TaskScheduleService(db)
-    result = service.process_due_schedules()
+    result = service.process_due_schedules(force=force)
     return TaskScheduleProcessResult(**result)
