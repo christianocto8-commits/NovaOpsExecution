@@ -9,9 +9,11 @@ from app.modules.task_schedules.schemas import (
     TaskScheduleCreate,
     TaskScheduleProcessResult,
     TaskScheduleResponse,
+    TaskScheduleUpcomingResponse,
     TaskScheduleUpdate,
 )
 from app.modules.task_schedules.service import TaskScheduleService
+from app.modules.tasks.identity_bridge import get_identity_user_by_email, sync_identity_access
 
 router = APIRouter(prefix="/task-schedules", tags=["Task Schedules"])
 
@@ -37,6 +39,23 @@ def create_task_schedule(
 ):
     service = TaskScheduleService(db)
     return service.create_schedule(payload, actor_id=_get_actor_id(current_user))
+
+
+@router.get("/upcoming", response_model=list[TaskScheduleUpcomingResponse])
+def list_upcoming_task_schedules(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if identity_user:
+        _legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        db.commit()
+    else:
+        outlet_ids = []
+        full_access = False
+
+    service = TaskScheduleService(db)
+    return service.list_upcoming(outlet_ids=outlet_ids, all_outlets=full_access)
 
 
 @router.get("/{schedule_id}", response_model=TaskScheduleResponse)

@@ -23,6 +23,21 @@ export type BackendTaskSchedule = {
   updated_at: string;
 };
 
+export type BackendUpcomingTaskSchedule = {
+  id: string;
+  schedule_id: number;
+  title: string;
+  description: string | null;
+  form_template_id: number | null;
+  priority: string;
+  recurrence: TaskRecurrence;
+  shift: TaskShift | null;
+  outlet_id: number;
+  outlet_ref: string;
+  publish_at: string;
+  locked: boolean;
+};
+
 type CreateTaskSchedulePayload = {
   title: string;
   description: string | null;
@@ -156,6 +171,10 @@ export const taskScheduleService = {
 
   async list() {
     return api<BackendTaskSchedule[]>("/api/v1/task-schedules");
+  },
+
+  async listUpcoming() {
+    return api<BackendUpcomingTaskSchedule[]>("/api/v1/task-schedules/upcoming");
   },
 
   async get(scheduleId: number) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, Search } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -22,6 +22,10 @@ import { formatTaskSchedule } from "@/features/tasks/utils";
 import { queryKeys } from "@/lib/query/keys";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { formTemplateService } from "@/services/form-template.service";
+import {
+  taskScheduleService,
+  type BackendUpcomingTaskSchedule,
+} from "@/services/task-schedule.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
 import {
   getServerWorkspaceSnapshot,
@@ -240,12 +244,60 @@ function formatMobileTime(task: Task) {
   }).toLowerCase();
 }
 
+function formatUpcomingPublish(value?: string) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function mapUpcomingSchedule(item: BackendUpcomingTaskSchedule): Task {
+  const priority =
+    item.priority === "urgent"
+      ? "Critical"
+      : item.priority === "high"
+        ? "High"
+        : item.priority === "low"
+          ? "Low"
+          : "Medium";
+  const publishLabel = formatUpcomingPublish(item.publish_at);
+
+  return {
+    id: item.id,
+    title: item.shift ? `${item.title} (${item.shift})` : item.title,
+    outlet: `Outlet ${item.outlet_id}`,
+    outletId: String(item.outlet_id),
+    status: "Pending",
+    priority,
+    assignee: "Outlet Team",
+    due: item.publish_at,
+    description: item.description ?? "",
+    formTemplateId: item.form_template_id ? String(item.form_template_id) : undefined,
+    recurrence: item.recurrence,
+    shifts: item.shift ? [item.shift] : [],
+    targetOutlets: [`Outlet ${item.outlet_id}`],
+    targetOutletIds: [String(item.outlet_id)],
+    autoPublish: true,
+    dueTime: publishLabel,
+    isUpcoming: true,
+    publishAt: item.publish_at,
+    lockedReason: `Bisa dikerjakan setelah publish ${publishLabel}`,
+  };
+}
+
 function getMobileSections(tasks: Task[]) {
   const now = new Date();
   const todayStart = getDayStart(now);
   const weekEnd = getWeekEnd(now);
 
-  const eligibleTasks = tasks.filter((task) => isOpenTaskInInbox(task));
+  const upcoming = tasks.filter((task) => task.isUpcoming);
+  const eligibleTasks = tasks.filter((task) => !task.isUpcoming && isOpenTaskInInbox(task));
 
   const overdue: Task[] = [];
   const today: Task[] = [];
@@ -279,6 +331,7 @@ function getMobileSections(tasks: Task[]) {
   });
 
   return [
+    { id: "upcoming", title: "Upcoming", tasks: upcoming },
     { id: "overdue", title: `${overdue.length} Overdue`, tasks: overdue },
     { id: "today", title: "Today", tasks: today },
     { id: "due-this-week", title: "Due This Week", tasks: thisWeek },
@@ -301,7 +354,9 @@ function MobileTaskRow({
 }) {
   const progress = getTaskExecutionProgressPercentage(task, formTemplates);
   const draftProgress = getTaskDraftProgress(task, formTemplates);
+  const isUpcoming = Boolean(task.isUpcoming);
   const isOverdue = (() => {
+    if (isUpcoming) return false;
     const dueDate = parseTaskDueDate(task);
     return dueDate ? dueDate < getDayStart(new Date()) && progress < 100 : false;
   })();
@@ -360,6 +415,12 @@ function MobileTaskRow({
                   Draft Saved
                 </span>
               ) : null}
+              {isUpcoming ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  <Lock className="h-3 w-3" />
+                  Locked until publish
+                </span>
+              ) : null}
               {isPendingSync ? (
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                   Menunggu sync
@@ -373,12 +434,14 @@ function MobileTaskRow({
             </div>
           </div>
 
-          <span className="text-xs font-semibold text-slate-400">{progress}%</span>
+          <span className="text-xs font-semibold text-slate-400">
+            {isUpcoming ? "Soon" : `${progress}%`}
+          </span>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
-          <span className={isOverdue ? "text-red-500" : "text-sky-500"}>
-            {isOverdue ? "Overdue" : task.executionDraft ? "Draft" : "Open"}
+          <span className={isOverdue ? "text-red-500" : isUpcoming ? "text-slate-500" : "text-sky-500"}>
+            {isUpcoming ? task.lockedReason : isOverdue ? "Overdue" : task.executionDraft ? "Draft" : "Open"}
           </span>
           {draftProgress ? <ProgressChip percentage={draftProgress.percentage} /> : null}
         </div>
@@ -588,6 +651,17 @@ export function TasksWorkspace() {
   const isOwnerAdminWorkspace = !isOutletWorkspace && !isAreaWorkspace;
   const canCreateTask = isOwnerAdminWorkspace;
 
+  const upcomingSchedulesQuery = useQuery({
+    queryKey: ["task-schedules", "upcoming", workspace.mode, workspace.outletId],
+    queryFn: () => taskScheduleService.listUpcoming(),
+    enabled: isOutletWorkspace || isAreaWorkspace,
+    retry: false,
+  });
+  const upcomingTasks = useMemo(
+    () => (upcomingSchedulesQuery.data ?? []).map(mapUpcomingSchedule),
+    [upcomingSchedulesQuery.data]
+  );
+
   useEffect(() => {
     const continueDraftTaskId = searchParams.get("continueDraft");
 
@@ -693,9 +767,14 @@ export function TasksWorkspace() {
     return filterTasksForWorkspace(tasks, workspace);
   }, [isOutletWorkspace, tasks, workspace]);
 
+  const workspaceTasks = useMemo(
+    () => (isOutletWorkspace || isAreaWorkspace ? [...upcomingTasks, ...outletScopedTasks] : outletScopedTasks),
+    [isAreaWorkspace, isOutletWorkspace, outletScopedTasks, upcomingTasks]
+  );
+
   const openTasks = useMemo(
-    () => outletScopedTasks.filter(isOpenTaskInInbox),
-    [outletScopedTasks]
+    () => workspaceTasks.filter((task) => task.isUpcoming || isOpenTaskInInbox(task)),
+    [workspaceTasks]
   );
 
   const visibleTasks = useMemo(() => {
@@ -821,6 +900,14 @@ export function TasksWorkspace() {
   }, [visibleTasks, formTemplates]);
 
   function handleOpenTask(task: Task) {
+    if (task.isUpcoming) {
+      setHighlightedTaskId(task.id);
+      window.setTimeout(() => {
+        setHighlightedTaskId(null);
+      }, 2500);
+      return;
+    }
+
     setHighlightedTaskId(task.id);
 
     if (isOutletRole) {
@@ -1065,4 +1152,3 @@ export function TasksWorkspace() {
     </main>
   );
 }
-

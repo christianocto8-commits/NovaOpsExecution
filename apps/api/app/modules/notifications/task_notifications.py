@@ -7,9 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.models.outlet import Outlet as LegacyOutlet
 from app.models.task import Task
+from app.models.task_schedule import TaskSchedule
 from app.models.user import User
 from app.modules.identity.models import Outlet as IdentityOutlet
 from app.modules.identity.models import Role, User as IdentityUser
+from app.modules.notifications.models import NotificationDelivery, NotificationEvent
 from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OUTLET_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.push_service import PushNotificationService
@@ -172,7 +174,20 @@ def _task_incoming_recipients(
     task: Task,
     excluded_user_ids: set[UUID] | None = None,
 ) -> list[IdentityUser]:
-    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    return _recipients_for_legacy_outlet(
+        db,
+        legacy_outlet_id=task.outlet_id,
+        excluded_user_ids=excluded_user_ids,
+    )
+
+
+def _recipients_for_legacy_outlet(
+    db: Session,
+    *,
+    legacy_outlet_id: int,
+    excluded_user_ids: set[UUID] | None = None,
+) -> list[IdentityUser]:
+    identity_outlet = _resolve_identity_outlet(db, legacy_outlet_id)
     if not identity_outlet:
         return []
 
@@ -245,6 +260,94 @@ def notify_task_incoming_recipients(
             subject=subject,
             body=body,
         )
+
+
+def _schedule_upcoming_already_sent(
+    db: Session,
+    *,
+    source_entity_id: str,
+    recipient_user_id: UUID,
+) -> bool:
+    return (
+        db.query(NotificationDelivery.id)
+        .join(NotificationEvent, NotificationEvent.id == NotificationDelivery.event_id)
+        .filter(
+            NotificationEvent.event_type == "task_schedule_upcoming",
+            NotificationEvent.source_module == "task_schedules",
+            NotificationEvent.source_entity_id == source_entity_id,
+            NotificationDelivery.recipient_user_id == recipient_user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def notify_task_schedule_upcoming_recipients(
+    db: Session,
+    *,
+    schedule: TaskSchedule,
+    outlet_id: int,
+    outlet_ref: str,
+    publish_at,
+    shift: str | None = None,
+) -> int:
+    identity_outlet = _resolve_identity_outlet(db, outlet_id)
+    outlet_label = identity_outlet.name if identity_outlet else f"Outlet {outlet_id}"
+    shift_label = f" {shift}" if shift else ""
+    publish_label = publish_at.strftime("%d %b %Y %H:%M UTC")
+    source_entity_id = (
+        f"schedule:{schedule.id}:outlet:{outlet_ref}:"
+        f"shift:{shift or 'none'}:{publish_at.strftime('%Y%m%d%H%M')}"
+    )
+    subject = f"Task akan publish: {schedule.title}"
+    body = (
+        f'Task "{schedule.title}" untuk {outlet_label}{shift_label} '
+        f"akan muncul pada {publish_label}. Task belum bisa dikerjakan sebelum jam publish."
+    )
+    sent = 0
+
+    for recipient in _recipients_for_legacy_outlet(db, legacy_outlet_id=outlet_id):
+        if _schedule_upcoming_already_sent(
+            db,
+            source_entity_id=source_entity_id,
+            recipient_user_id=recipient.id,
+        ):
+            continue
+
+        payload = {
+            "schedule_id": schedule.id,
+            "schedule_title": schedule.title,
+            "outlet_id": outlet_id,
+            "outlet_ref": outlet_ref,
+            "shift": shift,
+            "publish_at": publish_at.isoformat(),
+            "event_type": "task_schedule_upcoming",
+        }
+
+        NotificationService(db).create_event(
+            NotificationEventCreate(
+                event_type="task_schedule_upcoming",
+                source_module="task_schedules",
+                source_entity_type="task_schedule",
+                source_entity_id=source_entity_id,
+                recipient_user_id=recipient.id,
+                channel=NotificationChannel.in_app,
+                subject=subject,
+                body=body,
+                payload_json=payload,
+            )
+        )
+
+        PushNotificationService(db).send_to_user(
+            recipient.id,
+            title=subject,
+            body=body,
+            url="/dashboard/tasks",
+            data=payload,
+        )
+        sent += 1
+
+    return sent
 
 
 def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:

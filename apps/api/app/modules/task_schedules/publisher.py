@@ -11,6 +11,7 @@ from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
 from app.modules.notifications.task_notifications import (
     notify_task_incoming_recipients,
+    notify_task_schedule_upcoming_recipients,
     resolve_identity_user_id,
 )
 from app.services.webhook_dispatcher import dispatch_webhook_event
@@ -48,10 +49,14 @@ class TaskSchedulePublisher:
         schedules_published = 0
         tasks_created = 0
         skipped_duplicates = 0
+        upcoming_notifications_sent = 0
 
         for schedule in schedules:
             if not schedule.auto_publish and not force:
                 continue
+
+            if not force:
+                upcoming_notifications_sent += self._notify_upcoming_schedule(schedule, current)
 
             if not force and not self._should_publish(schedule, current):
                 continue
@@ -59,7 +64,7 @@ class TaskSchedulePublisher:
             created, skipped = self._publish_schedule(schedule, current, force=force)
             if created > 0 or force:
                 schedule.last_published_at = current
-                schedule.next_publish_at = self._compute_next_publish_at(schedule, current)
+                schedule.next_publish_at = self.compute_next_publish_at(schedule, current)
                 schedules_published += 1
 
                 if created > 0:
@@ -90,6 +95,7 @@ class TaskSchedulePublisher:
             "schedules_published": schedules_published,
             "tasks_created": tasks_created,
             "skipped_duplicates": skipped_duplicates,
+            "upcoming_notifications_sent": upcoming_notifications_sent,
         }
 
     def _should_publish(self, schedule: TaskSchedule, current: datetime) -> bool:
@@ -291,43 +297,94 @@ class TaskSchedulePublisher:
             tzinfo=timezone.utc,
         )
 
-    def _compute_next_publish_at(self, schedule: TaskSchedule, current: datetime) -> datetime:
-        if schedule.recurrence == "weekly":
-            days_ahead = 7
-        elif schedule.recurrence == "monthly":
-            if current.month == 12:
-                next_day = current.replace(year=current.year + 1, month=1, day=1)
-            else:
-                next_day = current.replace(month=current.month + 1, day=1)
-            publish_day = min(schedule.monthly_publish_day or 1, 28)
-            next_day = next_day.replace(day=publish_day)
+    def _notify_upcoming_schedule(self, schedule: TaskSchedule, current: datetime) -> int:
+        publish_at = schedule.next_publish_at or self.compute_next_publish_at(schedule, current)
+        if publish_at <= current:
+            return 0
+
+        if publish_at - current > timedelta(hours=24):
+            return 0
+
+        sent = 0
+        for outlet_ref, shift in self.expand_schedule_targets(schedule):
             try:
-                hour, minute = [int(part) for part in schedule.due_time.split(":")]
-            except (TypeError, ValueError):
-                hour, minute = 9, 0
+                outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
+            except ValueError:
+                continue
 
-            return datetime(
-                year=next_day.year,
-                month=next_day.month,
-                day=next_day.day,
-                hour=hour,
-                minute=minute,
-                tzinfo=timezone.utc,
+            sent += notify_task_schedule_upcoming_recipients(
+                self.db,
+                schedule=schedule,
+                outlet_id=outlet_id,
+                outlet_ref=outlet_ref,
+                publish_at=publish_at,
+                shift=shift,
             )
-        else:
-            days_ahead = 1
 
-        next_day = current + timedelta(days=days_ahead)
+        return sent
+
+    def expand_schedule_targets(self, schedule: TaskSchedule) -> list[tuple[str, str | None]]:
+        outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
+        if schedule.recurrence in {"weekly", "monthly"}:
+            return [(outlet_ref, None) for outlet_ref in outlet_ids]
+
+        shifts = schedule.shifts_json or ["morning"]
+        return [(outlet_ref, shift) for outlet_ref in outlet_ids for shift in shifts]
+
+    def compute_next_publish_at(self, schedule: TaskSchedule, current: datetime) -> datetime:
         try:
             hour, minute = [int(part) for part in schedule.due_time.split(":")]
         except (TypeError, ValueError):
             hour, minute = 9, 0
 
-        return datetime(
-            year=next_day.year,
-            month=next_day.month,
-            day=next_day.day,
+        if schedule.recurrence == "weekly":
+            target_day = schedule.weekly_publish_day.lower() if schedule.weekly_publish_day else "monday"
+            target_index = {name.lower(): index for index, name in enumerate(day_name)}.get(target_day, 0)
+            days_ahead = (target_index - current.weekday()) % 7
+            candidate_day = current + timedelta(days=days_ahead)
+            candidate = datetime(
+                year=candidate_day.year,
+                month=candidate_day.month,
+                day=candidate_day.day,
+                hour=hour,
+                minute=minute,
+                tzinfo=timezone.utc,
+            )
+            return candidate if candidate > current else candidate + timedelta(days=7)
+
+        if schedule.recurrence == "monthly":
+            publish_day = min(schedule.monthly_publish_day or 1, 28)
+            candidate = datetime(
+                year=current.year,
+                month=current.month,
+                day=publish_day,
+                hour=hour,
+                minute=minute,
+                tzinfo=timezone.utc,
+            )
+            if candidate > current:
+                return candidate
+
+            if current.month == 12:
+                next_day = current.replace(year=current.year + 1, month=1, day=1)
+            else:
+                next_day = current.replace(month=current.month + 1, day=1)
+
+            return datetime(
+                year=next_day.year,
+                month=next_day.month,
+                day=publish_day,
+                hour=hour,
+                minute=minute,
+                tzinfo=timezone.utc,
+            )
+
+        candidate = datetime(
+            year=current.year,
+            month=current.month,
+            day=current.day,
             hour=hour,
             minute=minute,
             tzinfo=timezone.utc,
         )
+        return candidate if candidate > current else candidate + timedelta(days=1)

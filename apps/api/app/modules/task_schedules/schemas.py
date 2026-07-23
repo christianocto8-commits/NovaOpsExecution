@@ -85,8 +85,24 @@ class TaskScheduleResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TaskScheduleUpcomingResponse(BaseModel):
+    id: str
+    schedule_id: int
+    title: str
+    description: str | None
+    form_template_id: int | None
+    priority: str
+    recurrence: str
+    shift: str | None
+    outlet_id: int
+    outlet_ref: str
+    publish_at: datetime
+    locked: bool = True
+
+
 class TaskScheduleProcessResult(BaseModel):
     schedules_checked: int
     schedules_published: int
     tasks_created: int
     skipped_duplicates: int
+    upcoming_notifications_sent: int = 0

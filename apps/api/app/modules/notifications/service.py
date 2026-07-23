@@ -262,6 +262,9 @@ class NotificationService:
             if "corrective" in event_type or "capa" in event_type:
                 return "/dashboard/corrective-actions"
 
+            if event_type == "task_schedule_upcoming":
+                return "/dashboard/tasks"
+
             if task_id is not None:
                 return f"/dashboard/tasks?taskId={task_id}"
 

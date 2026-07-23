@@ -150,6 +150,9 @@ export type Task = {
   activity?: TaskActivity[];
   executionDraft?: TaskExecutionForm;
   execution?: TaskExecution;
+  isUpcoming?: boolean;
+  publishAt?: string;
+  lockedReason?: string;
 };
 
 export type TaskFormState = {

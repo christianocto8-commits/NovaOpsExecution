@@ -1,9 +1,15 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.task_schedule import TaskSchedule
 from app.modules.task_schedules.publisher import TaskSchedulePublisher
-from app.modules.task_schedules.schemas import TaskScheduleCreate, TaskScheduleUpdate
+from app.modules.task_schedules.schemas import (
+    TaskScheduleCreate,
+    TaskScheduleUpcomingResponse,
+    TaskScheduleUpdate,
+)
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.identity_bridge import resolve_legacy_outlet_id
 
@@ -42,11 +48,12 @@ class TaskScheduleService:
             created_by=actor_id,
         )
         self.db.add(schedule)
+        schedule.next_publish_at = self.publisher.compute_next_publish_at(
+            schedule,
+            datetime.now(timezone.utc),
+        )
         self.db.commit()
         self.db.refresh(schedule)
-
-        if schedule.auto_publish:
-            self.publisher.process_due_schedules(schedule_id=schedule.id, force=True)
 
         return schedule
 
@@ -75,6 +82,11 @@ class TaskScheduleService:
         for key, value in update_data.items():
             setattr(schedule, key, value)
 
+        schedule.next_publish_at = self.publisher.compute_next_publish_at(
+            schedule,
+            datetime.now(timezone.utc),
+        )
+
         self.db.commit()
         self.db.refresh(schedule)
         return schedule
@@ -86,6 +98,54 @@ class TaskScheduleService:
 
     def process_due_schedules(self, schedule_id: int | None = None, force: bool = False) -> dict[str, int]:
         return self.publisher.process_due_schedules(schedule_id=schedule_id, force=force)
+
+    def list_upcoming(
+        self,
+        *,
+        outlet_ids: list[int] | None,
+        all_outlets: bool = False,
+    ) -> list[TaskScheduleUpcomingResponse]:
+        now = datetime.now(timezone.utc)
+        schedules = (
+            self.db.query(TaskSchedule)
+            .filter(TaskSchedule.is_active.is_(True), TaskSchedule.auto_publish.is_(True))
+            .order_by(TaskSchedule.next_publish_at.asc().nullslast(), TaskSchedule.id.asc())
+            .all()
+        )
+        allowed_outlets = set(outlet_ids or [])
+        items: list[TaskScheduleUpcomingResponse] = []
+
+        for schedule in schedules:
+            publish_at = schedule.next_publish_at or self.publisher.compute_next_publish_at(schedule, now)
+            if publish_at <= now:
+                continue
+
+            for outlet_ref, shift in self.publisher.expand_schedule_targets(schedule):
+                try:
+                    outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
+                except ValueError:
+                    continue
+
+                if not all_outlets and outlet_id not in allowed_outlets:
+                    continue
+
+                items.append(
+                    TaskScheduleUpcomingResponse(
+                        id=f"UPCOMING-{schedule.id}-{outlet_id}-{shift or 'all'}-{publish_at.isoformat()}",
+                        schedule_id=schedule.id,
+                        title=schedule.title,
+                        description=schedule.description,
+                        form_template_id=schedule.form_template_id,
+                        priority=schedule.priority,
+                        recurrence=schedule.recurrence,
+                        shift=shift,
+                        outlet_id=outlet_id,
+                        outlet_ref=outlet_ref,
+                        publish_at=publish_at,
+                    )
+                )
+
+        return items
 
     def _validate_payload(self, payload: TaskScheduleCreate) -> None:
         if payload.recurrence == "weekly" and not payload.weekly_publish_day:
