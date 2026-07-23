@@ -30,3 +30,17 @@ export type IntegrationsStatus = {
 export async function fetchIntegrationsStatus() {
   return api<IntegrationsStatus>("/api/v1/integrations/status");
 }
+
+export type SmsTestResponse = {
+  success: boolean;
+  simulated: boolean;
+  message: string;
+  phone_number?: string | null;
+};
+
+export async function testSmsIntegration(phoneNumber?: string) {
+  return api<SmsTestResponse>("/api/v1/integrations/sms/test", {
+    method: "POST",
+    body: JSON.stringify({ phone_number: phoneNumber ?? null }),
+  });
+}

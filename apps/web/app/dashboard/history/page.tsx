@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ClipboardCheck, FileText, RefreshCw } from "lucide-react";
 
 import { useFormTemplates } from "@/features/forms/hooks/use-form-templates";
+import { OutletWorkedTasksPdfExportButton } from "@/features/reports/components/task-pdf-export-button";
+import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
+import { EvidenceReviewHub } from "@/features/evidence/components/evidence-review-hub";
 import {
   HistoryDetailDrawer,
   type HistoryDetailSelection,
@@ -19,6 +22,14 @@ import {
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
+import {
+  enrichTasksWithCompletedSessions,
+  getCompletedSessionsByTaskId,
+  resolveTaskSubmissionSelection,
+  taskIdsWithCompletedSessions,
+} from "@/features/history/utils/execution-session-history";
+import { taskBelongsToWorkspace } from "@/shared/navigation/outlet-scope";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 type HistoryItem = {
   id: string;
@@ -45,29 +56,26 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function taskMatchesOutlet(task: Task, outletName?: string, outletId?: string) {
-  if (!outletName && !outletId) return true;
-  if (outletId && task.outletId === outletId) return true;
-  if (outletName && task.outlet === outletName) return true;
-  return Boolean(outletName && task.targetOutlets?.includes(outletName));
-}
-
 function buildHistoryItems(args: {
-  tasks: Task[];
+  enrichedTasks: Task[];
   executionSessions: Awaited<ReturnType<typeof getExecutionSessions>>;
   formSubmissions: Awaited<ReturnType<typeof formSubmissionService.list>>;
   templateNameById: Map<string, string>;
-  outletName?: string;
-  outletId?: string;
+  workspace: ReturnType<typeof getWorkspaceSnapshot>;
 }) {
-  const { tasks, executionSessions, formSubmissions, templateNameById, outletName, outletId } =
-    args;
+  const { enrichedTasks, executionSessions, formSubmissions, templateNameById, workspace } = args;
 
-  const visibleTasks = tasks.filter((task) => taskMatchesOutlet(task, outletName, outletId));
+  const visibleTasks =
+    workspace.mode === "outlet"
+      ? enrichedTasks.filter((task) => taskBelongsToWorkspace(task, workspace))
+      : enrichedTasks;
+  const visibleTaskIds = new Set(visibleTasks.map((task) => task.id));
   const taskTitleById = new Map(visibleTasks.map((task) => [task.id, task.title]));
+  const sessionTaskIds = taskIdsWithCompletedSessions(executionSessions);
 
   const completedTaskItems: HistoryItem[] = visibleTasks
-    .filter((task) => task.status === "Completed")
+    .filter(isTaskWorkedOn)
+    .filter((task) => !sessionTaskIds.has(task.id))
     .map((task) => ({
       id: `task-${task.id}`,
       title: task.title,
@@ -80,6 +88,7 @@ function buildHistoryItems(args: {
 
   const sessionItems: HistoryItem[] = executionSessions
     .filter((session) => session.status === "completed" && session.task_id)
+    .filter((session) => visibleTaskIds.has(String(session.task_id)))
     .map((session) => {
       const taskId = String(session.task_id);
       const taskTitle = taskTitleById.get(taskId) ?? `Task ${taskId}`;
@@ -135,7 +144,11 @@ export default function HistoryPage() {
 
   const outletId =
     workspace.mode === "outlet" && workspace.outletId ? workspace.outletId : undefined;
-  const numericOutletId = outletId && /^\d+$/.test(outletId) ? Number(outletId) : undefined;
+  const numericOutletId =
+    workspace.mode === "outlet"
+      ? (workspace.legacyOutletId ??
+        (outletId && /^\d+$/.test(outletId) ? Number(outletId) : undefined))
+      : undefined;
 
   const taskQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
@@ -171,28 +184,39 @@ export default function HistoryPage() {
   const executionSessions = executionSessionsQuery.data ?? [];
   const formSubmissions = formSubmissionsQuery.data ?? [];
 
+  const enrichedTasks = useMemo(
+    () => enrichTasksWithCompletedSessions(tasks, executionSessions),
+    [tasks, executionSessions]
+  );
+
   const historyItems = useMemo(
     () =>
       buildHistoryItems({
-        tasks,
+        enrichedTasks,
         executionSessions,
         formSubmissions,
         templateNameById,
-        outletName: workspace.mode === "outlet" ? workspace.outletName : undefined,
-        outletId,
+        workspace,
       }),
-    [
-      tasks,
-      executionSessions,
-      formSubmissions,
-      templateNameById,
-      workspace.mode,
-      workspace.outletName,
-      outletId,
-    ]
+    [enrichedTasks, executionSessions, formSubmissions, templateNameById, workspace]
   );
 
-  const completedTasks = tasks.filter((task) => task.status === "Completed").length;
+  const completedSessionsByTaskId = useMemo(
+    () => getCompletedSessionsByTaskId(executionSessions),
+    [executionSessions]
+  );
+
+  const workedTasks = useMemo(
+    () => enrichedTasks.filter(isTaskWorkedOn),
+    [enrichedTasks]
+  );
+
+  const exportOutletName =
+    workspace.mode === "outlet"
+      ? (workspace.outletName ?? workedTasks[0]?.outlet ?? "")
+      : "";
+
+  const completedTasks = workedTasks.length;
   const isLoading =
     taskQuery.isLoading || executionSessionsQuery.isLoading || formSubmissionsQuery.isLoading;
   const isError =
@@ -207,7 +231,7 @@ export default function HistoryPage() {
 
   function openHistoryItem(item: HistoryItem) {
     if (item.task) {
-      setSelection({ kind: "task", task: item.task });
+      setSelection(resolveTaskSubmissionSelection(item.task, completedSessionsByTaskId));
       return;
     }
 
@@ -232,11 +256,11 @@ export default function HistoryPage() {
   }
 
   return (
-    <main className="space-y-6 p-6 pb-24 lg:pb-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Outlet Operations</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
             Task History
           </h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -244,17 +268,27 @@ export default function HistoryPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={refreshHistory}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
-        >
-          <RefreshCw className="size-4" />
-          Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {exportOutletName ? (
+            <OutletWorkedTasksPdfExportButton
+              outlet={exportOutletName}
+              tasks={workedTasks}
+              templates={templatesQuery.data ?? []}
+              label="Export PDF Task Selesai"
+            />
+          ) : null}
+          <button
+            type="button"
+            onClick={refreshHistory}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            <RefreshCw className="size-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Completed Tasks
@@ -282,6 +316,8 @@ export default function HistoryPage() {
         </div>
       ) : null}
 
+      <EvidenceReviewHub tasks={enrichedTasks} workspace={workspace} />
+
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
           <p className="text-sm font-bold text-slate-950">Activity Timeline</p>
@@ -307,7 +343,7 @@ export default function HistoryPage() {
                 key={item.id}
                 type="button"
                 onClick={() => openHistoryItem(item)}
-                className="flex w-full gap-4 p-5 text-left transition hover:bg-slate-50"
+                className="flex w-full gap-3 p-4 text-left transition hover:bg-slate-50 sm:gap-4 sm:p-5"
               >
                 <div
                   className={`mt-1 flex size-10 shrink-0 items-center justify-center rounded-xl ${
@@ -341,7 +377,11 @@ export default function HistoryPage() {
         )}
       </section>
 
-      <HistoryDetailDrawer selection={selection} onClose={() => setSelection(null)} />
+      <HistoryDetailDrawer
+        selection={selection}
+        onClose={() => setSelection(null)}
+        enrichedTasks={enrichedTasks}
+      />
     </main>
   );
 }

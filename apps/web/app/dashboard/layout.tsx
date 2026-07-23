@@ -14,7 +14,6 @@ import {
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { OperatorBottomNav } from "@/shared/navigation/components/operator-bottom-nav";
 import { BrandThemeProvider } from "@/shared/branding/brand-theme-provider";
 
 const SIDEBAR_STORAGE_KEY = "novaops_sidebar_collapsed";
@@ -102,16 +101,10 @@ function DashboardShell({ children }: { children: ReactNode }) {
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
         />
 
-        {canAccess ? (
-          <div className={workspace.mode === "outlet" ? "pb-20 lg:pb-0" : undefined}>
-            {children}
-          </div>
-        ) : (
-          <AccessDenied />
-        )}
+        <div className="min-w-0 overflow-x-hidden">
+          {canAccess ? children : <AccessDenied />}
+        </div>
       </div>
-
-      {workspace.mode === "outlet" ? <OperatorBottomNav /> : null}
     </div>
   );
 }

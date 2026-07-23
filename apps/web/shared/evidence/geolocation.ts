@@ -4,10 +4,15 @@ export type GeolocationResult = {
   accuracy_m?: number;
 };
 
-export async function getCurrentPosition(timeoutMs = 8000): Promise<GeolocationResult | null> {
+export async function getCurrentPosition(
+  timeoutMs = 8000,
+  options?: { highAccuracy?: boolean }
+): Promise<GeolocationResult | null> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return null;
   }
+
+  const highAccuracy = options?.highAccuracy ?? false;
 
   return new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(null), timeoutMs);
@@ -26,8 +31,8 @@ export async function getCurrentPosition(timeoutMs = 8000): Promise<GeolocationR
         resolve(null);
       },
       {
-        enableHighAccuracy: true,
-        maximumAge: 60_000,
+        enableHighAccuracy: highAccuracy,
+        maximumAge: highAccuracy ? 15_000 : 120_000,
         timeout: timeoutMs,
       }
     );

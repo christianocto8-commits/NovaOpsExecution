@@ -6,6 +6,7 @@ import { ImageIcon, MapPin, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { EvidenceItem } from "../types";
+import { useEvidenceDisplayUrl } from "../hooks/use-evidence-display-url";
 import { PhotoLightbox } from "./photo-lightbox";
 
 type EvidenceCardProps = {
@@ -15,6 +16,7 @@ type EvidenceCardProps = {
 
 export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const displayUrl = useEvidenceDisplayUrl(item.url);
   const hasLocation = item.latitude != null && item.longitude != null;
 
   return (
@@ -22,13 +24,13 @@ export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
       <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <button
           type="button"
-          onClick={() => item.url && setLightboxOpen(true)}
+          onClick={() => displayUrl && setLightboxOpen(true)}
           className="flex aspect-video w-full items-center justify-center bg-slate-50"
           aria-label="Open evidence photo"
         >
-          {item.url ? (
+          {displayUrl ? (
             <img
-              src={item.url}
+              src={displayUrl}
               alt={item.caption ?? "Evidence"}
               className="h-full w-full object-cover transition group-hover:scale-[1.02]"
             />
@@ -70,7 +72,7 @@ export function EvidenceCard({ item, onRemove }: EvidenceCardProps) {
 
       <PhotoLightbox
         open={lightboxOpen}
-        images={[{ url: item.url, caption: item.caption }]}
+        images={[{ url: displayUrl || item.url, caption: item.caption }]}
         activeIndex={0}
         onClose={() => setLightboxOpen(false)}
         onNavigate={() => undefined}

@@ -181,6 +181,7 @@ class WorkflowInstanceRead(BaseModel):
     context_json: dict | None = None
     created_at: datetime
     updated_at: datetime
+    has_escalation: bool = False
 
 
 class WorkflowActionRequest(BaseModel):

@@ -11,9 +11,10 @@ from app.modules.webhooks.schemas import (
     WebhookDeliveryRead,
     WebhookRead,
     WebhookReadWithSecret,
+    WebhookTestResponse,
     WebhookUpdate,
 )
-from app.services.webhook_dispatcher import list_recent_deliveries
+from app.services.webhook_dispatcher import list_recent_deliveries, send_test_webhook
 from app.modules.webhooks.service import WebhookService
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -83,3 +84,20 @@ def delete_webhook(
     del current_user
     WebhookService(db).delete_webhook(webhook_id)
     return None
+
+
+@router.post("/{webhook_id}/test", response_model=WebhookTestResponse)
+def test_webhook(
+    webhook_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    del current_user
+    subscription = WebhookService(db).get_webhook(webhook_id)
+    delivered, http_status, error_message = send_test_webhook(db, subscription=subscription)
+
+    return WebhookTestResponse(
+        delivered=delivered,
+        http_status=http_status,
+        error_message=error_message,
+    )

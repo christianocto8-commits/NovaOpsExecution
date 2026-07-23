@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
+
+from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
 
 from app.modules.workflows.models import (
     WorkflowApprovalHistory,
@@ -11,6 +15,7 @@ from app.modules.workflows.models import (
     WorkflowDefinition,
     WorkflowEscalationRule,
     WorkflowInstance,
+    WorkflowInstanceStatus,
     WorkflowInstanceStep,
     WorkflowInstanceStepStatus,
     WorkflowStep,
@@ -149,6 +154,59 @@ class WorkflowInstanceRepository:
     def find_by_id(self, instance_id: UUID) -> WorkflowInstance | None:
         statement = select(WorkflowInstance).where(WorkflowInstance.id == instance_id)
         return self.db.scalar(statement)
+
+    def list_pending_for_user(
+        self,
+        *,
+        user_id: UUID,
+        role_id: UUID,
+        outlet_ids: set[UUID],
+        role_slug: str,
+    ) -> list[WorkflowInstance]:
+        instances = self.list()
+        pending_statuses = {
+            WorkflowInstanceStatus.pending_approval,
+            WorkflowInstanceStatus.submitted,
+        }
+
+        if role_slug in {OWNER_ROLE, ADMIN_ROLE}:
+            return [instance for instance in instances if instance.status in pending_statuses]
+
+        step_repository = WorkflowInstanceStepRepository(self.db)
+        matched: list[WorkflowInstance] = []
+
+        for instance in instances:
+            if instance.status not in pending_statuses:
+                continue
+
+            steps = step_repository.list_by_instance(instance.id)
+            active_step = next(
+                (step for step in steps if step.status == WorkflowInstanceStepStatus.active),
+                None,
+            )
+
+            if not active_step:
+                continue
+
+            if active_step.assigned_to_user_id == user_id:
+                matched.append(instance)
+                continue
+
+            if active_step.assigned_role_id == role_id:
+                matched.append(instance)
+                continue
+
+            context_outlet_id = None
+            if instance.context_json and instance.context_json.get("outlet_id"):
+                try:
+                    context_outlet_id = UUID(str(instance.context_json["outlet_id"]))
+                except (TypeError, ValueError):
+                    context_outlet_id = None
+
+            if context_outlet_id and context_outlet_id in outlet_ids:
+                matched.append(instance)
+
+        return matched
 
     def create(self, instance: WorkflowInstance) -> WorkflowInstance:
         self.db.add(instance)

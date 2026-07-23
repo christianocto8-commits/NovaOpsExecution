@@ -16,13 +16,14 @@ import {
   getFormCategoryLabel,
   ZENPUT_FORM_CATEGORIES,
 } from "@/features/forms/constants/form-categories";
-import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import { TaskFormResponses } from "@/features/tasks/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { createLocalId } from "@/lib/local-id";
 import { enqueueMutation } from "@/lib/offline/store";
 import { queryKeys } from "@/lib/query/keys";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
+import { useLanguage } from "@/shared/i18n";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import {
   buildFormSubmissionCreatePayload,
@@ -32,7 +33,6 @@ import { getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { outletService } from "@/services/outlet.service";
 import { useToast } from "@/shared/toast";
-import { useLanguage } from "@/shared/i18n";
 import {
   createBlankFormTemplate,
   formTemplateService,
@@ -64,8 +64,6 @@ const fieldTypeOptions: Array<{
   { value: "rating", label: "Penilaian bintang" },
   { value: "barcode", label: "Scan barcode / QR" },
   { value: "responsible_person", label: "Nama pelaksana" },
-  { value: "money_denomination", label: "Hitung denom uang" },
-  { value: "money_amount", label: "Nominal uang" },
 ];
 
 const visibilityOperatorOptions: Array<{ value: FieldVisibilityOperator; label: string }> = [
@@ -89,8 +87,8 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   signature: "Tanda tangan",
   rating: "Penilaian bintang",
   barcode: "Scan barcode / QR",
-  money_denomination: "Hitung denom uang",
-  money_amount: "Nominal uang",
+  money_denomination: "Angka",
+  money_amount: "Angka",
   responsible_person: "Nama pelaksana",
 };
 
@@ -180,10 +178,11 @@ function OutletManualFormsWorkspace() {
   async function submitManualForm() {
     if (!selectedTemplate || !user) return;
 
-    const outletId = Number(workspace.outletId ?? user.outlet_access.outlet_id);
+    const outletId =
+      workspace.legacyOutletId ?? user.outlet_access.legacy_outlet_id ?? null;
     const submittedBy = Number(user.user.id);
 
-    if (!Number.isFinite(outletId)) {
+    if (outletId == null || !Number.isFinite(outletId)) {
       setNotice("Outlet context belum tersedia. Login ulang sebagai operator outlet.");
       return;
     }
@@ -274,7 +273,7 @@ function OutletManualFormsWorkspace() {
   }
 
   return (
-    <main className="space-y-6 p-4 pb-28 sm:p-6">
+    <main className={`${mobileDashboardMainClass} pb-24 sm:pb-6`}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("forms.manual.eyebrow")}</p>
@@ -581,19 +580,6 @@ export function FormsWorkspace() {
           nextField.required = true;
           nextField.section = nextField.section ?? "Pelaksana Tugas";
           nextField.options = { system: true };
-        }
-
-        if (updates.type === "money_denomination" && !nextField.options?.denominations) {
-          nextField.options = {
-            currency: "IDR",
-            denominations: DEFAULT_IDR_DENOMINATIONS,
-          };
-          nextField.section = nextField.section ?? "Penghitungan Setoran";
-        }
-
-        if (updates.type === "money_amount" && !nextField.options) {
-          nextField.options = { currency: "IDR" };
-          nextField.section = nextField.section ?? "Laporan Penjualan";
         }
 
         if (updates.type === "select" && !nextField.options?.choices?.length) {
@@ -1522,18 +1508,6 @@ export function FormsWorkspace() {
                   {["photo", "signature"].includes(field.type) ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                       Evidence
-                    </span>
-                  ) : null}
-
-                  {field.type === "money_denomination" ? (
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                      Auto subtotal
-                    </span>
-                  ) : null}
-
-                  {field.type === "money_amount" ? (
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                      IDR format
                     </span>
                   ) : null}
 

@@ -17,6 +17,7 @@ type DynamicFormRendererProps = {
   onChange: (responses: TaskFormResponses) => void;
   readOnly?: boolean;
   highlightedFieldIds?: string[];
+  hiddenFieldIds?: string[];
 };
 
 const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
@@ -43,8 +44,11 @@ export function DynamicFormRenderer({
   onChange,
   readOnly = false,
   highlightedFieldIds = [],
+  hiddenFieldIds = [],
 }: DynamicFormRendererProps) {
-  const visibleFields = getVisibleFields(fields, responses);
+  const visibleFields = getVisibleFields(fields, responses).filter(
+    (field) => !hiddenFieldIds.includes(field.id)
+  );
 
   function updateResponse(fieldId: string, value: string) {
     onChange({

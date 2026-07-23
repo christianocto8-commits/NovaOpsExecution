@@ -50,6 +50,8 @@ class OutletRead(BaseModel):
     status: str
     address: str | None = None
     phone: str | None = None
+    operating_hours_open: str | None = None
+    operating_hours_close: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,6 +70,8 @@ class OutletUpdate(BaseModel):
     address: str | None = None
     phone: str | None = None
     status: str | None = None
+    operating_hours_open: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    operating_hours_close: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
 
 
 class UserRead(BaseModel):
@@ -75,6 +79,7 @@ class UserRead(BaseModel):
     email: str
     username: str
     full_name: str
+    phone_number: str | None = None
     is_active: bool
     last_login: datetime | None = None
     role: RoleRead
@@ -125,6 +130,7 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     full_name: str = Field(min_length=2, max_length=160)
     password: str = Field(min_length=8, max_length=128)
+    phone_number: str | None = Field(default=None, max_length=40)
     role_id: UUID
     outlet_id: UUID | None = None
     outlet_ids: list[UUID] = []
@@ -136,6 +142,7 @@ class UserUpdate(BaseModel):
     username: str | None = Field(default=None, min_length=3, max_length=80)
     full_name: str | None = Field(default=None, min_length=2, max_length=160)
     password: str | None = Field(default=None, min_length=8, max_length=128)
+    phone_number: str | None = Field(default=None, max_length=40)
     role_id: UUID | None = None
     outlet_id: UUID | None = None
     outlet_ids: list[UUID] | None = None
@@ -180,6 +187,8 @@ class AuthContextOutletAccessResponse(BaseModel):
     outlet_ids: list[UUID] = []
     outlet_name: str | None = None
     outlet_code: str | None = None
+    legacy_outlet_id: int | None = None
+    legacy_outlet_ids: list[int] = []
     outlets: list[OutletRead] = []
 
 

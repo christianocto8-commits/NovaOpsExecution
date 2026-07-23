@@ -9,6 +9,8 @@ from app.models.task import Task
 from app.models.task_assignment import TaskAssignment
 from app.models.task_comment import TaskComment
 from app.models.user import User
+from app.modules.identity.models import User as IdentityUser
+from app.modules.lms.service import LmsService
 from app.modules.notifications.task_notifications import (
     notify_checklist_failure_supervisors,
     notify_task_completed_supervisors,
@@ -28,6 +30,10 @@ from app.modules.tasks.schemas import (
 from app.repositories.outlet_repository import OutletRepository
 from app.services.geofence import is_within_geofence
 from app.services.checklist_scoring import score_checklist
+from app.services.iot_checklist_bridge import (
+    build_iot_failed_items,
+    merge_iot_failures_into_checklist,
+)
 from app.services.execution_validation import validate_task_execution_answers
 from app.services.field_visibility import (
     enrich_responses_for_task_execution,
@@ -303,8 +309,6 @@ class TaskService:
 
         if payload.status == "completed":
             task.completed_at = datetime.now(timezone.utc)
-            if task.source_type == "corrective_action":
-                task.verified_at = datetime.now(timezone.utc)
 
         self.repo.create_comment(
             TaskComment(
@@ -389,6 +393,18 @@ class TaskService:
 
         workspace_settings = get_workspace_settings(self.db)
 
+        if workspace_settings.lms_training_gate_enabled and actor_identity_id:
+            identity_user = self.db.get(IdentityUser, actor_identity_id)
+            if identity_user and LmsService(self.db).has_incomplete_required_training(identity_user):
+                titles = LmsService(self.db).incomplete_required_module_titles(identity_user)
+                detail = "Complete required training before submitting tasks."
+                if titles:
+                    detail = f"{detail} Missing: {', '.join(titles[:3])}"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=detail,
+                )
+
         if workspace_settings.geofence_enabled:
             outlet = OutletRepository(self.db).get_outlet_by_id(task.outlet_id)
             allowed, message = is_within_geofence(
@@ -432,6 +448,16 @@ class TaskService:
             self.db,
             form_template_id=form_template_id,
             answers_json=payload.answers_json,
+        )
+        iot_failures = build_iot_failed_items(
+            self.db,
+            legacy_outlet_id=outlet_id,
+            settings=workspace_settings,
+        )
+        checklist_result = merge_iot_failures_into_checklist(
+            checklist_result,
+            iot_failures,
+            pass_threshold=workspace_settings.pass_threshold,
         )
         answers_with_checklist = {
             **payload.answers_json,
@@ -644,7 +670,7 @@ class TaskService:
             except Exception:
                 pass
 
-        return task, checklist_result
+        return task, checklist_result, corrective_task
 
     def review_task(
         self,
@@ -683,6 +709,46 @@ class TaskService:
                 event_type="review_approved" if approved else "review_rejected",
                 previous_value=previous_status,
                 new_value=task.status,
+            )
+        )
+
+        self.db.commit()
+        self.db.refresh(task)
+        return task
+
+    def verify_task(
+        self,
+        task_id: int,
+        outlet_id: int,
+        actor_id: int,
+    ) -> Task:
+        task = self.get_task(task_id, outlet_id)
+
+        if task.source_type != "corrective_action":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only corrective action tasks can be manager-verified",
+            )
+
+        if task.status != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task must be completed before manager verification",
+            )
+
+        if task.verified_at:
+            return task
+
+        task.verified_at = datetime.now(timezone.utc)
+
+        self.repo.create_comment(
+            TaskComment(
+                task_id=task.id,
+                user_id=actor_id,
+                comment="CAPA verified by manager",
+                event_type="capa_verified",
+                previous_value=None,
+                new_value=task.verified_at.isoformat(),
             )
         )
 

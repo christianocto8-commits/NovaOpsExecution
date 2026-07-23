@@ -169,3 +169,32 @@ def list_recent_deliveries(
 ) -> list[WebhookDelivery]:
     repository = WebhookRepository(db)
     return repository.list_recent_deliveries(limit=limit, subscription_id=subscription_id)
+
+
+def send_test_webhook(
+    db: Session,
+    *,
+    subscription: WebhookSubscription,
+) -> tuple[bool, int | None, str | None]:
+    envelope = {
+        "event": "webhook.test",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "data": {
+            "message": "NovaOps webhook test ping",
+            "subscription_id": str(subscription.id),
+        },
+    }
+
+    delivered = _deliver_with_retry(
+        db,
+        subscription=subscription,
+        event_type="webhook.test",
+        envelope=envelope,
+    )
+
+    latest = list_recent_deliveries(db, limit=1, subscription_id=subscription.id)
+    if latest:
+        record = latest[0]
+        return delivered, record.http_status, record.error_message
+
+    return delivered, None, None

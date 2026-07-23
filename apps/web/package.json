@@ -16,6 +16,7 @@
     "cap:ios": "npx cap open ios",
     "build:mobile": "next build",
     "release:android": "npm run build:mobile && npm run cap:sync",
+    "prepare:capacitor": "node scripts/prepare-capacitor.mjs",
     "test:e2e": "playwright test",
     "test:e2e:offline": "playwright test e2e/offline-sync.spec.ts"
   },

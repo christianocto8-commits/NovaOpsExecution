@@ -31,7 +31,11 @@ function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["out
   localStorage.removeItem("outlet_id");
 
   const preferredOutletId =
-    outletAccess.scope === "single" ? (outletAccess.outlet_id ?? outletAccess.outlet_ids[0]) : null;
+    outletAccess.scope === "single"
+      ? outletAccess.legacy_outlet_id != null
+        ? String(outletAccess.legacy_outlet_id)
+        : (outletAccess.outlet_id ?? outletAccess.outlet_ids[0])
+      : null;
 
   if (preferredOutletId) {
     localStorage.setItem("novaops_outlet_id", preferredOutletId);
@@ -47,6 +51,7 @@ function getWorkspaceOutletContext(
     outletId: outletAccess.outlet_id ?? outletAccess.outlet_ids?.[0] ?? preferredOutlet?.id,
     outletName: outletAccess.outlet_name ?? preferredOutlet?.name,
     outletCode: outletAccess.outlet_code ?? preferredOutlet?.code,
+    legacyOutletId: outletAccess.legacy_outlet_id ?? undefined,
   };
 }
 
@@ -155,13 +160,12 @@ function LoginPageContent() {
           const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
           if (savedContext) {
             const parsed = JSON.parse(savedContext) as {
-              outletId?: string;
               outletName?: string;
               outletCode?: string;
             };
 
             outletContext = {
-              outletId: parsed.outletId ?? outletContext.outletId,
+              ...outletContext,
               outletName: parsed.outletName ?? outletContext.outletName,
               outletCode: parsed.outletCode ?? outletContext.outletCode,
             };
@@ -187,10 +191,27 @@ function LoginPageContent() {
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6"
+      className="min-h-screen bg-[#F7FAF8]"
       suppressHydrationWarning
     >
-      <div className="w-full max-w-md rounded-3xl border border-[#DDE8E1] bg-white p-10 shadow-sm">
+      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="hidden flex-col justify-between bg-[#274733] p-10 text-white lg:flex">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">
+              {t("login.brand")}
+            </p>
+            <h1 className="mt-6 text-4xl font-bold leading-tight">{t("login.heroTitle")}</h1>
+            <p className="mt-4 max-w-md text-sm leading-7 text-emerald-100">{t("login.heroBody")}</p>
+          </div>
+          <ul className="space-y-3 text-sm text-emerald-100">
+            <li>• {t("login.heroBullet1")}</li>
+            <li>• {t("login.heroBullet2")}</li>
+            <li>• {t("login.heroBullet3")}</li>
+          </ul>
+        </section>
+
+        <section className="flex items-center justify-center px-6 py-10">
+      <div className="w-full max-w-md rounded-3xl border border-[#DDE8E1] bg-white p-8 shadow-sm sm:p-10">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#3D6B49]">
             {t("login.brand")}
@@ -264,7 +285,7 @@ function LoginPageContent() {
           </button>
 
           {GOOGLE_OAUTH_ENABLED && (
-            <>
+            <div className="space-y-3">
               <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
                 <span className="h-px flex-1 bg-slate-200" />
                 <span>{t("login.or")}</span>
@@ -284,34 +305,40 @@ function LoginPageContent() {
                 </span>
                 {t("login.google")}
               </button>
-            </>
+            </div>
           )}
 
-          {OIDC_SSO_ENABLED && (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                window.location.href = buildApiUrl("/api/v1/auth/oidc/login");
-              }}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {OIDC_SSO_LABEL}
-            </button>
-          )}
-
-          {SAML_SSO_ENABLED && (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                window.location.href = buildApiUrl("/api/v1/auth/saml/login");
-              }}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {SAML_SSO_LABEL}
-            </button>
-          )}
+          {(OIDC_SSO_ENABLED || SAML_SSO_ENABLED) ? (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                {t("login.ssoGroup")}
+              </p>
+              {OIDC_SSO_ENABLED ? (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    window.location.href = buildApiUrl("/api/v1/auth/oidc/login");
+                  }}
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {OIDC_SSO_LABEL}
+                </button>
+              ) : null}
+              {SAML_SSO_ENABLED ? (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    window.location.href = buildApiUrl("/api/v1/auth/saml/login");
+                  }}
+                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {SAML_SSO_LABEL}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {message && (
             <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
@@ -319,6 +346,8 @@ function LoginPageContent() {
             </div>
           )}
         </div>
+      </div>
+        </section>
       </div>
     </main>
   );

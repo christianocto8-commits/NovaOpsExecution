@@ -25,7 +25,7 @@ OPERATIONAL_TEMPLATES: list[dict] = [
         "fields": [
             {"label": "Store unlocked and lights on", "field_type": "yes_no", "is_required": True, "sort_order": 0},
             {"label": "Equipment pre-check completed", "field_type": "yes_no", "is_required": True, "sort_order": 1},
-            {"label": "Opening cash float (IDR)", "field_type": "money_amount", "is_required": True, "sort_order": 2},
+            {"label": "Opening cash float (IDR)", "field_type": "number", "is_required": True, "sort_order": 2},
             {"label": "Opening photo evidence", "field_type": "photo", "is_required": True, "sort_order": 3},
             {"label": "Opening notes", "field_type": "textarea", "is_required": False, "sort_order": 4},
         ],
@@ -80,7 +80,7 @@ OPERATIONAL_TEMPLATES: list[dict] = [
         "form_type": "closing",
         "fields": [
             {"label": "All equipment powered down", "field_type": "yes_no", "is_required": True, "sort_order": 0},
-            {"label": "Closing cash count (IDR)", "field_type": "money_amount", "is_required": True, "sort_order": 1},
+            {"label": "Closing cash count (IDR)", "field_type": "number", "is_required": True, "sort_order": 1},
             {"label": "Waste disposal completed", "field_type": "yes_no", "is_required": True, "sort_order": 2},
             {"label": "Responsible person", "field_type": "responsible_person", "is_required": True, "sort_order": 3},
             {"label": "Closing signature", "field_type": "signature", "is_required": True, "sort_order": 4},
@@ -116,6 +116,22 @@ def _get_outlet_ids(db) -> list[str]:
     return [str(outlet.id) for outlet in outlets]
 
 
+def _normalize_legacy_money_fields(db, template: FormTemplate) -> None:
+    """Align legacy money widgets with Zenput-style number fields."""
+    legacy_types = {"money_amount", "money_denomination"}
+    fields = db.scalars(
+        select(FormField).where(FormField.form_template_id == template.id)
+    ).all()
+
+    for field in fields:
+        if field.field_type not in legacy_types:
+            continue
+
+        field.field_type = "number"
+        if field.help_text in {"Penghitungan Setoran", "Laporan Penjualan"}:
+            field.help_text = None
+
+
 def ensure_operational_templates() -> None:
     settings = get_settings()
     if not settings.bootstrap_admin_enabled:
@@ -139,6 +155,7 @@ def ensure_operational_templates() -> None:
             )
             if existing:
                 template = existing
+                _normalize_legacy_money_fields(db, template)
             else:
                 template = FormTemplate(
                     title=spec["title"],

@@ -23,6 +23,7 @@ type SectionedFormRendererProps = {
   onChange: (responses: TaskFormResponses) => void;
   readOnly?: boolean;
   highlightedFieldIds?: string[];
+  hiddenFieldIds?: string[];
 };
 
 type FieldSection = {
@@ -37,6 +38,7 @@ type SectionCardProps = {
   onChange: (responses: TaskFormResponses) => void;
   readOnly: boolean;
   highlightedFieldIds: string[];
+  hiddenFieldIds: string[];
   isOpen: boolean;
   onToggle: () => void;
 };
@@ -120,6 +122,7 @@ function SectionCard({
   onChange,
   readOnly,
   highlightedFieldIds,
+  hiddenFieldIds,
   isOpen,
   onToggle,
 }: SectionCardProps) {
@@ -182,6 +185,7 @@ function SectionCard({
               onChange={onChange}
               readOnly={readOnly}
               highlightedFieldIds={highlightedFieldIds}
+              hiddenFieldIds={hiddenFieldIds}
             />
 
             {section.title === "Laporan Penjualan" && salesTotal > 0 ? (
@@ -203,6 +207,7 @@ export function SectionedFormRenderer({
   onChange,
   readOnly = false,
   highlightedFieldIds = [],
+  hiddenFieldIds = [],
 }: SectionedFormRendererProps) {
   const visibleFields = useMemo(
     () => getVisibleFields(fields, responses),
@@ -268,6 +273,7 @@ export function SectionedFormRenderer({
           onChange={onChange}
           readOnly={readOnly}
           highlightedFieldIds={highlightedFieldIds}
+          hiddenFieldIds={hiddenFieldIds}
           isOpen={openSections[section.id] ?? true}
           onToggle={() => toggleSection(section.id)}
         />

@@ -22,6 +22,8 @@ export type IdentityOutlet = {
   status: string;
   address: string | null;
   phone: string | null;
+  operating_hours_open?: string | null;
+  operating_hours_close?: string | null;
 };
 
 export type IdentityUser = {
@@ -57,7 +59,10 @@ export type CreateIdentityOutletPayload = {
   status?: string;
 };
 
-export type UpdateIdentityOutletPayload = Partial<CreateIdentityOutletPayload>;
+export type UpdateIdentityOutletPayload = Partial<CreateIdentityOutletPayload> & {
+  operating_hours_open?: string | null;
+  operating_hours_close?: string | null;
+};
 
 export async function getIdentityUsers() {
   return api<IdentityUser[]>("/api/v1/identity/users");

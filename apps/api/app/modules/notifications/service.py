@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -18,6 +18,7 @@ from app.modules.notifications.repository import (
     NotificationTemplateRepository,
 )
 from app.modules.notifications.schemas import (
+    NotificationDeliveryRead,
     NotificationEventCreate,
     NotificationTemplateCreate,
     NotificationTemplateUpdate,
@@ -125,14 +126,18 @@ class NotificationService:
         )
         self.event_repository.create(event)
 
+        now = datetime.now(timezone.utc)
+        is_in_app = payload.channel == NotificationChannel.in_app
+
         delivery = NotificationDelivery(
             event_id=event.id,
             recipient_user_id=payload.recipient_user_id,
             recipient_role_id=payload.recipient_role_id,
             channel=payload.channel,
-            status=NotificationStatus.pending,
+            status=NotificationStatus.sent if is_in_app else NotificationStatus.pending,
             subject=subject,
             body=body,
+            sent_at=now if is_in_app else None,
         )
         self.delivery_repository.create(delivery)
 
@@ -143,6 +148,48 @@ class NotificationService:
     def list_user_deliveries(self, user_id: UUID) -> list[NotificationDelivery]:
         return self.delivery_repository.list_for_user(user_id)
 
+    def resolve_delivery_url(self, delivery: NotificationDelivery) -> str:
+        return self._resolve_delivery_url(delivery)
+
+    def list_user_delivery_reads(self, user_id: UUID) -> list[NotificationDeliveryRead]:
+        deliveries = self.list_user_deliveries(user_id)
+
+        return [
+            NotificationDeliveryRead.model_validate(delivery).model_copy(
+                update={"action_url": self._resolve_delivery_url(delivery)}
+            )
+            for delivery in deliveries
+        ]
+
+    def get_unread_count(self, user_id: UUID) -> int:
+        return self.delivery_repository.count_unread_for_user(user_id)
+
+    def mark_read(self, delivery_id: UUID, user_id: UUID) -> NotificationDelivery:
+        delivery = self.delivery_repository.get_by_id_for_user(delivery_id, user_id)
+
+        if not delivery:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Notification delivery not found",
+            )
+
+        return self.delivery_repository.mark_read(delivery, datetime.now(timezone.utc))
+
+    def mark_all_read(self, user_id: UUID, delivery_ids: list[UUID] | None = None) -> int:
+        now = datetime.now(timezone.utc)
+
+        if not delivery_ids:
+            return self.delivery_repository.mark_all_read_for_user(user_id, now)
+
+        marked = 0
+        for delivery_id in delivery_ids:
+            delivery = self.delivery_repository.get_by_id_for_user(delivery_id, user_id)
+            if delivery and delivery.read_at is None:
+                self.delivery_repository.mark_read(delivery, now)
+                marked += 1
+
+        return marked
+
     def process_pending(self) -> dict:
         deliveries = self.delivery_repository.list_pending()
         push_service = PushNotificationService(self.db)
@@ -152,7 +199,12 @@ class NotificationService:
             delivery.attempt_count += 1
 
             try:
-                if delivery.channel == NotificationChannel.push:
+                if delivery.channel == NotificationChannel.in_app:
+                    delivery.status = NotificationStatus.sent
+                    delivery.sent_at = datetime.now(timezone.utc)
+                    delivery.last_error = None
+                    result["sent"] += 1
+                elif delivery.channel == NotificationChannel.push:
                     if not delivery.recipient_user_id:
                         raise ValueError("Push delivery missing recipient_user_id")
 
@@ -204,11 +256,16 @@ class NotificationService:
         payload = self._delivery_payload(delivery)
 
         if isinstance(payload, dict):
+            event_type = str(payload.get("event_type") or "").lower()
             task_id = payload.get("task_id")
+
+            if "corrective" in event_type or "capa" in event_type:
+                return "/dashboard/corrective-actions"
+
             if task_id is not None:
                 return f"/dashboard/tasks?taskId={task_id}"
 
-        return "/dashboard/tasks"
+        return "/dashboard/notifications"
 
     def _render(self, template: str | None, payload: dict) -> str | None:
         if template is None:

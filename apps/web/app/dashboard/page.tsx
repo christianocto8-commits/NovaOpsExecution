@@ -5,15 +5,20 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useDashboardReports } from "@/features/dashboard/hooks/use-dashboard-reports";
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
+import { ApprovalInboxPanel } from "@/features/workflows/components/approval-inbox-panel";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
+import { formatTaskDue } from "@/features/tasks/utils";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { RealtimeClock } from "@/shared/realtime";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 function isOverdue(task: Task) {
   if (!task.due || task.status === "Completed") return false;
@@ -116,21 +121,23 @@ function PriorityQueue({ tasks, outletMode }: { tasks: Task[]; outletMode?: bool
     <div className="mt-5 divide-y divide-slate-100">
       {tasks.length > 0 ? (
         tasks.map((task) => (
-          <div key={task.id} className="grid gap-3 py-4 md:grid-cols-[1fr_160px_120px]">
-            <div>
+          <div key={task.id} className="space-y-3 border-b border-slate-100 py-4 last:border-b-0 md:grid md:grid-cols-[1fr_160px_120px] md:gap-3 md:space-y-0">
+            <div className="min-w-0">
               <p className="font-semibold text-slate-950">{task.title}</p>
               <p className="mt-1 text-sm text-slate-500">
                 {outletMode ? "" : `${task.outlet} - `}
-                Due {task.due || "-"}
+                Due {formatTaskDue(task.due)}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-slate-400">Status</p>
-              <p className="mt-1 text-sm font-semibold text-slate-800">{getStatusLabel(task)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Urgency</p>
-              <p className="mt-1 text-sm font-semibold text-slate-800">{task.priority}</p>
+            <div className="flex items-center justify-between gap-3 md:block">
+              <div>
+                <p className="text-xs text-slate-400">Status</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{getStatusLabel(task)}</p>
+              </div>
+              <div className="text-right md:text-left">
+                <p className="text-xs text-slate-400">Urgency</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{task.priority}</p>
+              </div>
             </div>
           </div>
         ))
@@ -149,6 +156,8 @@ export default function DashboardPage() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
+  const { settings } = useSettings();
+  const capaEnabled = isCapaEnabled(settings);
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.listAll,
@@ -168,7 +177,7 @@ export default function DashboardPage() {
 
   if (workspace.mode === "outlet") {
     return (
-      <main className="space-y-6 p-6">
+      <main className={mobileDashboardMainClass}>
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
             <p className="text-sm font-medium text-emerald-700">Outlet Dashboard</p>
@@ -208,7 +217,7 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4 md:gap-4">
           <MetricCard
             label="Completion"
             value={`${getComplianceRate(visibleTasks)}%`}
@@ -328,6 +337,59 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
+            <p className="text-sm font-semibold text-slate-950">Outlet Score Snapshot</p>
+            <p className="mt-1 text-xs text-slate-500">Compliance score by outlet from live task data.</p>
+          </div>
+          <Link href="/dashboard/compliance" className="text-sm font-bold text-emerald-700">
+            Full compliance →
+          </Link>
+        </div>
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+          {outletProgress.slice(0, 8).map((item) => (
+            <Link
+              key={item.outlet}
+              href={`/dashboard/history?outlet=${encodeURIComponent(item.outlet)}`}
+              className="min-w-[140px] shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-300 hover:bg-white"
+            >
+              <p className="truncate text-sm font-bold text-slate-950">{item.outlet}</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-700">{item.progress}%</p>
+              <p className="mt-1 text-xs text-slate-500">{item.open} open</p>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/compliance"
+            className="rounded-full bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+          >
+            Compliance
+          </Link>
+          <Link
+            href="/dashboard/reports"
+            className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+          >
+            Reports
+          </Link>
+          {capaEnabled ? (
+            <Link
+              href="/dashboard/corrective-actions"
+              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+            >
+              CAPA
+            </Link>
+          ) : null}
+          <Link
+            href="/dashboard/evidence"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            Evidence
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
             <p className="text-sm font-semibold text-slate-950">Priority Attention</p>
             <p className="mt-1 text-xs text-slate-500">
               Real backend tasks that need action first.
@@ -346,6 +408,8 @@ export default function DashboardPage() {
           <PriorityQueue tasks={priorityQueue} />
         )}
       </section>
+
+      <ApprovalInboxPanel compact limit={5} />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">

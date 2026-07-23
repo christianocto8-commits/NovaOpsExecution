@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService, type BackendTaskStatus } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
 import { useLanguage } from "@/shared/i18n";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
+import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { CorrectiveActionDetailDrawer } from "@/features/tasks/components/corrective-action-detail-drawer";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 type StatusFilter = "all" | "open" | "in_progress" | "completed";
 
@@ -97,8 +107,16 @@ function getReason(task: Task, t: Translate) {
 
 export default function CorrectiveActionsPage() {
   const { t } = useLanguage();
+  const { settings } = useSettings();
+  const capaEnabled = isCapaEnabled(settings);
   const queryClient = useQueryClient();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const correctiveActionsQuery = useQuery({
     queryKey: [...queryKeys.sop.tasks(), "corrective-actions"],
@@ -115,9 +133,19 @@ export default function CorrectiveActionsPage() {
     },
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: (taskId: string) => taskService.verify(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.sop.tasks(), "corrective-actions"] });
+    },
+  });
+
+  const isManager = workspace.mode !== "outlet";
+
   const correctiveActions = useMemo(
-    () => correctiveActionsQuery.data ?? [],
-    [correctiveActionsQuery.data]
+    () => filterTasksForWorkspace(correctiveActionsQuery.data ?? [], workspace),
+    [correctiveActionsQuery.data, workspace]
   );
 
   const filteredActions = useMemo(() => {
@@ -135,7 +163,7 @@ export default function CorrectiveActionsPage() {
   ).length;
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-red-700">{t("capa.eyebrow")}</p>
@@ -169,6 +197,13 @@ export default function CorrectiveActionsPage() {
           </Link>
         </div>
       </div>
+
+      {!capaEnabled ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">{t("capa.disabledTitle")}</p>
+          <p className="mt-1 text-amber-800">{t("capa.disabledBody")}</p>
+        </div>
+      ) : null}
 
       {correctiveActionsQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -213,7 +248,19 @@ export default function CorrectiveActionsPage() {
             const backendStatus = task.backendStatus ?? "open";
 
             return (
-              <article key={task.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article
+                key={task.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedTask(task)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedTask(task);
+                  }
+                }}
+                className="cursor-pointer rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+              >
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -278,9 +325,10 @@ export default function CorrectiveActionsPage() {
                 {backendStatus === "open" ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      statusMutation.mutate({ taskId: task.id, status: "in_progress" })
-                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      statusMutation.mutate({ taskId: task.id, status: "in_progress" });
+                    }}
                     disabled={statusMutation.isPending}
                     className="mt-5 rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ backgroundColor: "var(--brand-primary)" }}
@@ -292,12 +340,30 @@ export default function CorrectiveActionsPage() {
                 {backendStatus === "in_progress" ? (
                   <button
                     type="button"
-                    onClick={() => statusMutation.mutate({ taskId: task.id, status: "completed" })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      statusMutation.mutate({ taskId: task.id, status: "completed" });
+                    }}
                     disabled={statusMutation.isPending}
                     className="mt-5 rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ backgroundColor: "var(--brand-primary)" }}
                   >
-                    {statusMutation.isPending ? t("capa.verifying") : t("capa.verifyClose")}
+                    {statusMutation.isPending ? t("capa.updating") : t("capa.completeFix")}
+                  </button>
+                ) : null}
+
+                {backendStatus === "completed" && isManager && !task.verifiedAt ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      verifyMutation.mutate(task.id);
+                    }}
+                    disabled={verifyMutation.isPending}
+                    className="mt-5 rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ backgroundColor: "var(--brand-primary)" }}
+                  >
+                    {verifyMutation.isPending ? t("capa.verifying") : t("capa.managerVerify")}
                   </button>
                 ) : null}
 
@@ -313,6 +379,8 @@ export default function CorrectiveActionsPage() {
           })}
         </section>
       )}
+
+      <CorrectiveActionDetailDrawer task={selectedTask} onClose={() => setSelectedTask(null)} />
     </main>
   );
 }

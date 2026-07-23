@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { BarChartCard, DonutChartCard, LineChartCard } from "@/shared/analytics/charts";
 import {
   getChecklistTrend30Days,
   getOutletScoreHeatmap,
 } from "@/features/compliance/utils/compliance-trend";
-import { useSettings } from "@/features/settings/hooks/use-settings";
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
@@ -206,6 +208,7 @@ function getHeatmapClass(tone: "strong" | "watch" | "risk" | "empty") {
 }
 
 export default function ComplianceCenterPage() {
+  const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -214,6 +217,7 @@ export default function ComplianceCenterPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const { settings } = useSettings();
   const passThreshold = settings?.pass_threshold ?? 85;
+  const capaEnabled = isCapaEnabled(settings);
   const { activeTemplates } = useActiveFormTemplates();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
@@ -507,12 +511,14 @@ export default function ComplianceCenterPage() {
             Open Task
           </Link>
 
-          <Link
-            href="/dashboard/corrective-actions"
-            className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
-          >
-            Corrective Actions
-          </Link>
+          {capaEnabled ? (
+            <Link
+              href="/dashboard/corrective-actions"
+              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
+            >
+              Corrective Actions
+            </Link>
+          ) : null}
 
           <button
             type="button"
@@ -598,9 +604,15 @@ export default function ComplianceCenterPage() {
               <p className="text-sm font-semibold text-slate-950">{isAreaWorkspace ? "Area Action Queue" : "Owner Action Queue"}</p>
               <p className="mt-1 text-xs text-slate-500">{isAreaWorkspace ? "Real tasks in your area that need follow-up." : "Real tasks that are overdue or incomplete."}</p>
             </div>
-            <Link href="/dashboard/corrective-actions" className="text-sm font-bold text-emerald-700">
-              Review all
-            </Link>
+            {capaEnabled ? (
+              <Link href="/dashboard/corrective-actions" className="text-sm font-bold text-emerald-700">
+                Review all
+              </Link>
+            ) : (
+              <Link href="/dashboard/tasks" className="text-sm font-bold text-emerald-700">
+                Review all
+              </Link>
+            )}
           </div>
 
           <div className="mt-5 space-y-3">
@@ -750,14 +762,19 @@ export default function ComplianceCenterPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {outletHeatmap.length ? (
               outletHeatmap.map((item) => (
-                <div
+                <button
                   key={item.outlet}
-                  className={`rounded-2xl border p-4 ${getHeatmapClass(item.tone)}`}
+                  type="button"
+                  onClick={() =>
+                    router.push(`/dashboard/history?outlet=${encodeURIComponent(item.outlet)}`)
+                  }
+                  className={`rounded-2xl border p-4 text-left transition hover:scale-[1.01] hover:shadow-md ${getHeatmapClass(item.tone)}`}
                 >
                   <p className="text-sm font-bold">{item.outlet}</p>
                   <p className="mt-2 text-2xl font-bold">{item.score}%</p>
                   <p className="mt-1 text-xs opacity-80">{item.submissions} submission(s)</p>
-                </div>
+                  <p className="mt-2 text-[11px] font-semibold opacity-70">View history →</p>
+                </button>
               ))
             ) : (
               <p className="text-sm text-slate-500">

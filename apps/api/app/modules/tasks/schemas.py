@@ -34,6 +34,8 @@ class TaskUpdate(BaseModel):
     assigned_to: int | None = None
     priority: TaskPriority | None = None
     due_date: datetime | None = None
+    source_type: str | None = None
+    source_id: int | None = None
 
 
 class TaskStatusUpdate(BaseModel):
@@ -130,6 +132,9 @@ class TaskResponse(BaseModel):
     source_type: str | None
     source_id: int | None
     form_template_id: int | None = None
+    form_template_name: str | None = None
+    checklist_field_count: int = 0
+    checklist_preview: list[str] = Field(default_factory=list)
 
     priority: str
     status: str
@@ -164,3 +169,4 @@ class TaskDetailResponse(TaskResponse):
 class TaskExecutionSubmitResponse(BaseModel):
     task: TaskResponse
     checklist: dict[str, Any] | None = None
+    corrective_task: TaskResponse | None = None

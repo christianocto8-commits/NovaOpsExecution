@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Menu } from "lucide-react";
 
 import { NotificationHeaderButton } from "@/features/notifications/components/notification-header-button";
-import { AnnouncementHeaderBadge } from "@/features/announcements/components/announcement-header-badge";
-import { PwaInstallPrompt } from "@/features/pwa/components/pwa-install-prompt";
+import { AnnouncementHeaderButton } from "@/features/announcements/components/announcement-header-button";
 
 import { AuthContext } from "@/providers/AuthProvider";
 import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
+import { CommandTrigger } from "@/shared/command-center/components/command-trigger";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
 import { QuickCrewSwitch } from "@/shared/navigation/components/quick-crew-switch";
 
@@ -41,15 +41,19 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
 
   const parentRoute = useMemo(() => getParentRoute(pathname), [pathname]);
   const showBackButton = pathname !== "/dashboard";
+  const isOutletWorkspace = workspace.mode === "outlet";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/90 px-4 py-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/90 px-3 py-3 backdrop-blur-xl sm:px-6 sm:py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenMobileMenu}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden"
+            className={[
+              "flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden",
+              isOutletWorkspace ? "opacity-70" : "",
+            ].join(" ")}
           >
             <Menu className="size-5" />
             <span className="sr-only">{t("header.openMenu")}</span>
@@ -59,7 +63,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
             <button
               type="button"
               onClick={() => router.push(parentRoute)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
+              className="hidden size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] sm:flex"
             >
               <ArrowLeft className="size-5" />
               <span className="sr-only">{t("header.back")}</span>
@@ -80,25 +84,30 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <OfflineSyncBadge />
-          {workspace.mode === "outlet" ? (
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+          {!isOutletWorkspace ? (
             <>
-              <PwaInstallPrompt compact />
-              <QuickCrewSwitch outletName={workspace.outletName} compact />
+              <CommandTrigger />
+              <CommandTrigger compact />
             </>
           ) : null}
-          <AnnouncementHeaderBadge />
+          <OfflineSyncBadge />
+          {workspace.mode === "outlet" ? (
+            <div className="hidden md:block">
+              <QuickCrewSwitch outletName={workspace.outletName} compact />
+            </div>
+          ) : null}
+          <AnnouncementHeaderButton />
           <NotificationHeaderButton />
 
-          <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] sm:block">
+          <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] md:block">
             {workspace.roleLabel}
           </div>
 
           <button
             type="button"
             onClick={() => auth?.logout()}
-            className="rounded-full border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 sm:px-4"
+            className="rounded-full border border-red-100 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 sm:px-4 sm:text-xs"
           >
             {t("common.logout")}
           </button>

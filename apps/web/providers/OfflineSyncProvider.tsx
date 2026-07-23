@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { prefetchOutletWorkpack } from "@/lib/offline/prefetch-outlet-workpack";
 import {
   getFailedMutations,
   getPendingMutationCount,
@@ -21,15 +22,24 @@ import {
 import { processMutationQueue } from "@/lib/offline/sync-engine";
 import { queryKeys } from "@/lib/query/keys";
 
+export type WorkpackStats = {
+  taskCount: number;
+  templateCount: number;
+  lastPrefetchedAt: string | null;
+};
+
 type OfflineSyncContextValue = {
   isOnline: boolean;
   pendingSyncCount: number;
   failedSyncCount: number;
   pendingTaskIds: Set<string>;
   isSyncing: boolean;
+  isPrefetching: boolean;
+  workpackStats: WorkpackStats | null;
   lastSyncErrors: string[];
   syncNow: () => Promise<void>;
   refreshPendingCount: () => Promise<void>;
+  refreshWorkpack: () => Promise<void>;
 };
 
 const OfflineSyncContext = createContext<OfflineSyncContextValue | null>(null);
@@ -44,7 +54,31 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncErrors, setLastSyncErrors] = useState<string[]>([]);
+  const [workpackStats, setWorkpackStats] = useState<WorkpackStats | null>(null);
+  const [isPrefetching, setIsPrefetching] = useState(false);
   const isSyncingRef = useRef(false);
+  const hasPrefetchedRef = useRef(false);
+
+  const refreshWorkpack = useCallback(async () => {
+    if (!isOnline || typeof window === "undefined") return;
+    if (!localStorage.getItem("novaops_token")) return;
+
+    setIsPrefetching(true);
+
+    try {
+      const result = await prefetchOutletWorkpack();
+      setWorkpackStats({
+        taskCount: result.taskCount,
+        templateCount: result.templateCount,
+        lastPrefetchedAt: new Date().toISOString(),
+      });
+      hasPrefetchedRef.current = true;
+    } catch {
+      // Best-effort cache warm-up; ignore transient network errors.
+    } finally {
+      setIsPrefetching(false);
+    }
+  }, [isOnline]);
 
   const refreshPendingCount = useCallback(async () => {
     try {
@@ -81,11 +115,18 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ["local-drafts"] }),
         queryClient.invalidateQueries({ queryKey: ["form-submissions"] }),
       ]);
+      await refreshWorkpack();
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isOnline, queryClient, refreshPendingCount]);
+  }, [isOnline, refreshWorkpack, queryClient, refreshPendingCount]);
+
+  useEffect(() => {
+    if (!isOnline || hasPrefetchedRef.current) return;
+
+    void refreshWorkpack();
+  }, [isOnline, refreshWorkpack]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,9 +157,12 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       failedSyncCount,
       pendingTaskIds,
       isSyncing,
+      isPrefetching,
+      workpackStats,
       lastSyncErrors,
       syncNow,
       refreshPendingCount,
+      refreshWorkpack,
     }),
     [
       isOnline,
@@ -126,9 +170,12 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       failedSyncCount,
       pendingTaskIds,
       isSyncing,
+      isPrefetching,
+      workpackStats,
       lastSyncErrors,
       syncNow,
       refreshPendingCount,
+      refreshWorkpack,
     ]
   );
 

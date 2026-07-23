@@ -65,3 +65,10 @@ class WebhookDeliveryRead(BaseModel):
     error_message: str | None = None
     created_at: datetime
     delivered_at: datetime | None = None
+
+
+class WebhookTestResponse(BaseModel):
+    delivered: bool
+    event_type: str = "webhook.test"
+    http_status: int | None = None
+    error_message: str | None = None

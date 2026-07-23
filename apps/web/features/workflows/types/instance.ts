@@ -22,6 +22,7 @@ export interface WorkflowInstance {
   context_json?: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
+  has_escalation?: boolean;
 }
 
 export interface WorkflowInstanceCreate {

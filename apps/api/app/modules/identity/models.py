@@ -47,6 +47,8 @@ class Outlet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    operating_hours_open: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    operating_hours_close: Mapped[str | None] = mapped_column(String(5), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
 
     organization: Mapped["Organization"] = relationship(back_populates="outlets")
@@ -94,6 +96,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+
+    phone_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

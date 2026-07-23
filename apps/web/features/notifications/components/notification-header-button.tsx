@@ -1,30 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 
-import {
-  NotificationSlidePanel,
-  getNotificationBadgeCount,
-} from "@/features/notifications/components/notification-slide-panel";
-import { notificationKeys } from "@/features/notifications/hooks/use-notifications-workspace";
+import { NotificationSlidePanel } from "@/features/notifications/components/notification-slide-panel";
+import { useNotificationUnreadCount } from "@/features/notifications/hooks/use-notifications-workspace";
 import { useLanguage } from "@/shared/i18n";
-import { notificationService } from "@/services/notification.service";
 
 export function NotificationHeaderButton() {
   const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  const inboxQuery = useQuery({
-    queryKey: notificationKeys.inbox(),
-    queryFn: notificationService.listMine,
-    retry: false,
+  const unreadCountQuery = useNotificationUnreadCount({
     refetchInterval: mounted ? 30_000 : 60_000,
   });
 
-  const badgeCount = getNotificationBadgeCount(inboxQuery.data ?? []);
+  const badgeCount = unreadCountQuery.data?.unread_count ?? 0;
 
   useEffect(() => {
     if (!mounted) return;
@@ -36,6 +28,7 @@ export function NotificationHeaderButton() {
 
   function openPanel() {
     setMounted(true);
+    setVisible(true);
   }
 
   function closePanel() {

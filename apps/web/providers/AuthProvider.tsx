@@ -49,6 +49,7 @@ function getWorkspaceOutletContext(currentUser: AuthUser) {
       preferredOutlet?.id,
     outletName: currentUser.outlet_access.outlet_name ?? preferredOutlet?.name,
     outletCode: currentUser.outlet_access.outlet_code ?? preferredOutlet?.code,
+    legacyOutletId: currentUser.outlet_access.legacy_outlet_id ?? undefined,
   };
 }
 
@@ -60,9 +61,11 @@ function storeOutletApiContext(currentUser: AuthUser) {
   if (currentUser.outlet_access.scope !== "single") return;
 
   const outletId =
-    currentUser.outlet_access.outlet_id ??
-    currentUser.outlet_access.outlet_ids?.[0] ??
-    currentUser.outlet_access.outlets?.[0]?.id;
+    currentUser.outlet_access.legacy_outlet_id != null
+      ? String(currentUser.outlet_access.legacy_outlet_id)
+      : currentUser.outlet_access.outlet_id ??
+        currentUser.outlet_access.outlet_ids?.[0] ??
+        currentUser.outlet_access.outlets?.[0]?.id;
 
   if (outletId) {
     localStorage.setItem("novaops_outlet_id", outletId);

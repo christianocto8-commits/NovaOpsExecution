@@ -82,3 +82,16 @@ export type WebhookDelivery = {
 export async function listWebhookDeliveries(limit = 25) {
   return api<WebhookDelivery[]>(`/api/v1/webhooks/deliveries?limit=${limit}`);
 }
+
+export type WebhookTestResult = {
+  delivered: boolean;
+  event_type: string;
+  http_status: number | null;
+  error_message: string | null;
+};
+
+export async function testWebhook(id: string) {
+  return api<WebhookTestResult>(`/api/v1/webhooks/${id}/test`, {
+    method: "POST",
+  });
+}

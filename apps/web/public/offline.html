@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#047857" />
+    <title>NovaOps — Offline</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+        color: #0f172a;
+      }
+      .card {
+        max-width: 420px;
+        width: 100%;
+        border-radius: 24px;
+        border: 1px solid #d1fae5;
+        background: #fff;
+        padding: 28px 24px;
+        box-shadow: 0 10px 40px rgba(4, 120, 87, 0.08);
+        text-align: center;
+      }
+      .logo {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 16px;
+        border-radius: 16px;
+        background: #047857;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 800;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+      }
+      p {
+        margin: 0 0 20px;
+        color: #64748b;
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 20px;
+        border-radius: 999px;
+        background: #047857;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo" aria-hidden="true">N</div>
+      <h1>You're offline</h1>
+      <p>
+        NovaOps can't reach the network right now. Open the operator home if you
+        prefetched tasks, or try again when you're back online.
+      </p>
+      <a href="/dashboard/operator">Open operator home</a>
+    </div>
+  </body>
+</html>

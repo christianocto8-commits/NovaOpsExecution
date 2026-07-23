@@ -71,8 +71,10 @@ class NotificationDeliveryRead(BaseModel):
     last_error: str | None = None
     scheduled_at: datetime | None = None
     sent_at: datetime | None = None
+    read_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    action_url: str | None = None
 
 
 class NotificationEventRead(BaseModel):
@@ -91,6 +93,14 @@ class NotificationEventRead(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class UnreadCountResponse(BaseModel):
+    unread_count: int
+
+
+class MarkNotificationsRead(BaseModel):
+    delivery_ids: list[UUID] | None = None
 
 
 class PushSubscriptionKeys(BaseModel):
@@ -140,3 +150,25 @@ class DevicePushTokenRead(BaseModel):
     outlet_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class NotificationPreferencesRead(BaseModel):
+    email_enabled: bool = True
+    push_enabled: bool = True
+    digest_enabled: bool = False
+    sms_enabled: bool = False
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    email_enabled: bool | None = None
+    push_enabled: bool | None = None
+    digest_enabled: bool | None = None
+    sms_enabled: bool | None = None
+
+
+class HistoryNotesRead(BaseModel):
+    notes: dict[str, str] = Field(default_factory=dict)
+
+
+class HistoryNotesUpdate(BaseModel):
+    notes: dict[str, str] = Field(default_factory=dict)

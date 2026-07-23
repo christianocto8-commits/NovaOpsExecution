@@ -3,11 +3,12 @@ import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func
+from sqlalchemy import func, true
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_jwt_or_api_key
+from app.core.deps import get_current_user
 from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.tasks.router import resolve_task_outlet_access
@@ -40,23 +41,52 @@ def _completion_rate(completed: int, total: int) -> int:
     return round((completed / total) * 100)
 
 
-def _build_report_summary(db: Session) -> ReportSummary:
+def _task_outlet_scope(
+    outlet_id: int | None,
+    outlet_ids: list[int] | None,
+    full_access: bool,
+) -> ColumnElement[bool]:
+    if outlet_id is not None:
+        return Task.outlet_id == outlet_id
+    if outlet_ids is not None:
+        return Task.outlet_id.in_(outlet_ids)
+    if not full_access:
+        return Task.id == -1
+    return true()
+
+
+def _build_report_summary(
+    db: Session,
+    *,
+    outlet_id: int | None = None,
+    outlet_ids: list[int] | None = None,
+    full_access: bool = True,
+) -> ReportSummary:
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
-    total = db.query(func.count(Task.id)).scalar() or 0
+    outlet_scope = _task_outlet_scope(outlet_id, outlet_ids, full_access)
+
+    total = db.query(func.count(Task.id)).filter(outlet_scope).scalar() or 0
     completed = (
-        db.query(func.count(Task.id)).filter(Task.status == "completed").scalar() or 0
+        db.query(func.count(Task.id))
+        .filter(outlet_scope, Task.status == "completed")
+        .scalar()
+        or 0
     )
     open_tasks = (
         db.query(func.count(Task.id))
-        .filter(Task.status.in_(["open", "in_progress", "blocked"]))
+        .filter(
+            outlet_scope,
+            Task.status.in_(["open", "in_progress", "blocked"]),
+        )
         .scalar()
         or 0
     )
     overdue_tasks = (
         db.query(func.count(Task.id))
         .filter(
+            outlet_scope,
             Task.due_date.isnot(None),
             Task.due_date < now,
             Task.status != "completed",
@@ -80,20 +110,36 @@ def _build_report_summary(db: Session) -> ReportSummary:
 
 @router.get("/summary", response_model=ReportSummary)
 def get_report_summary(
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
-    _auth=Depends(require_jwt_or_api_key("read:reports")),
+    current_user=Depends(get_current_user),
 ):
-    del _auth
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
 
-    return _build_report_summary(db)
+    return _build_report_summary(
+        db,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        full_access=full_access,
+    )
 
 
 @router.get("/trends", response_model=list[ReportTrendPoint])
 def get_report_trends(
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    outlet_scope = _task_outlet_scope(
+        outlet_id,
+        None if outlet_id else outlet_ids,
+        full_access,
+    )
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
@@ -110,6 +156,7 @@ def get_report_trends(
         completed = (
             db.query(func.count(Task.id))
             .filter(
+                outlet_scope,
                 Task.status == "completed",
                 Task.completed_at.isnot(None),
                 Task.completed_at >= day_start,
@@ -121,6 +168,7 @@ def get_report_trends(
         overdue = (
             db.query(func.count(Task.id))
             .filter(
+                outlet_scope,
                 Task.due_date.isnot(None),
                 Task.due_date >= day_start,
                 Task.due_date < day_end,
@@ -132,7 +180,11 @@ def get_report_trends(
         )
         day_total = (
             db.query(func.count(Task.id))
-            .filter(Task.created_at >= day_start, Task.created_at < day_end)
+            .filter(
+                outlet_scope,
+                Task.created_at >= day_start,
+                Task.created_at < day_end,
+            )
             .scalar()
             or 0
         )

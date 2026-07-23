@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -20,11 +22,21 @@ from app.modules.integrations.setup_helpers import (
     get_twilio_setup_steps,
     get_vapid_setup_steps,
 )
-from app.services.sms_service import is_sms_configured
+from app.services.sms_service import is_sms_configured, send_sms
 from app.services.workspace_settings import get_workspace_settings
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/integrations", tags=["Integrations"])
+
+
+class SmsTestRequest(BaseModel):
+    phone_number: str | None = Field(default=None, max_length=40)
+
+
+class SmsTestResponse(BaseModel):
+    success: bool
+    simulated: bool
+    message: str
+    phone_number: str | None = None
 
 
 @router.get("/status")
@@ -82,7 +94,8 @@ def integrations_status(
             "capacitor_android": True,
             "fcm_configured": is_fcm_client_configured(),
             "fcm_send_ready": is_fcm_send_ready(),
-            "setup_steps": get_fcm_setup_steps() if not is_fcm_send_ready() else [],
+            "live_ready": is_fcm_send_ready() or vapid_configured,
+            "setup_steps": get_fcm_setup_steps() if not (is_fcm_send_ready() or vapid_configured) else [],
         },
         "video_evidence": {
             "enabled": True,
@@ -91,13 +104,57 @@ def integrations_status(
             "setup_steps": [],
         },
         "iot_sensors": {
-            "enabled": False,
-            "live_ready": False,
-            "setup_steps": ["See docs/IOT_LMS_ROADMAP.md — not yet implemented"],
+            "enabled": True,
+            "live_ready": True,
+            "auto_fail_checklist": True,
+            "setup_steps": [
+                "Set IOT_INGEST_API_KEY or create API key with iot:ingest scope",
+                "POST sensor readings to /api/v1/iot/ingest with X-API-Key header",
+                "Enable iot_auto_fail_enabled in Settings for checklist auto-fail",
+            ],
         },
         "lms_training": {
-            "enabled": False,
-            "live_ready": False,
-            "setup_steps": ["See docs/IOT_LMS_ROADMAP.md — not yet implemented"],
+            "enabled": True,
+            "live_ready": True,
+            "server_gate_enabled": True,
+            "setup_steps": [
+                "Create training modules in /dashboard/training/manage",
+                "Assign required_for_roles to gate crew training",
+                "Enable lms_training_gate_enabled in Settings",
+            ],
         },
     }
+
+
+@router.post("/sms/test", response_model=SmsTestResponse)
+def test_sms_integration(
+    payload: SmsTestRequest | None = None,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    del db
+    target_number = (payload.phone_number if payload and payload.phone_number else None) or current_user.phone_number
+
+    if not target_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide phone_number or set phone_number on your user profile",
+        )
+
+    body = "NovaOps SMS test — integration channel is reachable."
+
+    if not is_sms_configured():
+        return SmsTestResponse(
+            success=True,
+            simulated=True,
+            message="Twilio is not configured — simulated success in development mode.",
+            phone_number=target_number,
+        )
+
+    delivered = send_sms(to_number=target_number, body=body)
+    return SmsTestResponse(
+        success=delivered,
+        simulated=False,
+        message="SMS sent via Twilio" if delivered else "Twilio send failed — check credentials and number",
+        phone_number=target_number,
+    )

@@ -3,6 +3,9 @@ import autoTable from "jspdf-autotable";
 
 import type { FormField, FormTemplate } from "@/features/forms/types";
 import type { Task, TaskShift } from "@/features/tasks/types";
+import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
+import { collectSubmissionEvidenceItems } from "@/shared/evidence/submission-evidence";
+import { getOfflineEvidenceBlobUrl, isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 
 type OutletWorkReportParams = {
   outlet: string;
@@ -27,7 +30,14 @@ function sanitizeFileName(value: string) {
 
 function getTemplateForTask(task: Task, templates: FormTemplate[]) {
   if (!task.formTemplateId) return null;
-  return templates.find((template) => template.id === task.formTemplateId) ?? null;
+  return (
+    templates.find(
+      (template) =>
+        template.id === task.formTemplateId ||
+        template.id === String(task.formTemplateId) ||
+        String(template.id) === task.formTemplateId
+    ) ?? null
+  );
 }
 
 function inferShiftFromDueValue(dueValue?: string): TaskShift {
@@ -61,9 +71,7 @@ function formatDateLabel(value?: string) {
   }).format(date);
 }
 
-export function isTaskWorkedOn(task: Task) {
-  return Boolean(task.execution || task.executionDraft || task.status === "Completed");
-}
+export { isTaskWorkedOn };
 
 export function filterWorkedTasksForOutlet(tasks: Task[], outlet: string) {
   return tasks
@@ -80,7 +88,7 @@ export function countWorkedTasksForOutlet(tasks: Task[], outlet: string) {
 }
 
 function formatStatusLabel(task: Task) {
-  if (task.status === "Completed" || task.execution) return "Selesai";
+  if (isTaskWorkedOn(task)) return "Selesai";
   if (task.executionDraft) return "Draft tersimpan";
   if (task.status === "In Progress") return "Sedang dikerjakan";
   return task.status;
@@ -137,16 +145,29 @@ function getTaskNote(task: Task) {
   return task.execution?.note ?? task.executionDraft?.note ?? "-";
 }
 
-function getEvidenceSummary(task: Task) {
-  const evidenceText = task.executionDraft?.evidenceText ?? "";
-  const executionEvidence = task.execution?.evidence ?? [];
-
-  if (executionEvidence.length > 0) {
-    return executionEvidence.map((item) => item.label ?? item.value).join("; ");
+function getEvidencePayload(task: Task) {
+  const draftEvidence = task.executionDraft?.evidenceText;
+  if (typeof draftEvidence === "string" && draftEvidence.trim()) {
+    return draftEvidence;
   }
 
-  if (evidenceText.trim()) {
-    return evidenceText.length > 120 ? `${evidenceText.slice(0, 120)}...` : evidenceText;
+  const executionEvidence = task.execution?.evidence ?? [];
+  if (executionEvidence.length === 1 && executionEvidence[0]?.value) {
+    return executionEvidence[0].value;
+  }
+
+  return executionEvidence;
+}
+
+function getEvidenceSummary(task: Task) {
+  const items = collectSubmissionEvidenceItems({
+    evidencePayload: getEvidencePayload(task),
+    formResponses: getExecutionResponses(task),
+    taskEvidence: task.execution?.evidence,
+  });
+
+  if (items.length > 0) {
+    return `${items.length} foto bukti terlampir`;
   }
 
   return "-";
@@ -174,6 +195,127 @@ function buildTaskResultRows(task: Task, template: FormTemplate | null) {
   return [["Ringkasan pekerjaan", getTaskNote(task)]];
 }
 
+function getTaskEvidencePhotos(task: Task) {
+  return collectSubmissionEvidenceItems({
+    evidencePayload: getEvidencePayload(task),
+    formResponses: getExecutionResponses(task),
+    taskEvidence: task.execution?.evidence,
+  });
+}
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  const token = localStorage.getItem("novaops_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function resolvePhotoDataUrl(url: string): Promise<string | null> {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (isOfflineEvidenceUrl(trimmed)) {
+    return getOfflineEvidenceBlobUrl(trimmed);
+  }
+
+  if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+
+  try {
+    const response = await fetch(trimmed, {
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
+
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function detectImageFormat(dataUrl: string): "JPEG" | "PNG" | "WEBP" {
+  if (dataUrl.startsWith("data:image/png")) return "PNG";
+  if (dataUrl.startsWith("data:image/webp")) return "WEBP";
+  return "JPEG";
+}
+
+async function appendEvidencePhotos(
+  doc: jsPDF,
+  task: Task,
+  startY: number
+): Promise<number> {
+  const photos = getTaskEvidencePhotos(task);
+  if (photos.length === 0) return startY;
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - 28;
+  let cursorY = startY + 8;
+
+  doc.setFontSize(10);
+  doc.text("Foto Bukti", 14, cursorY);
+  cursorY += 6;
+
+  for (const [index, photo] of photos.entries()) {
+    const dataUrl = await resolvePhotoDataUrl(photo.url);
+    if (!dataUrl) continue;
+
+    let imgWidth = contentWidth;
+    let imgHeight = 52;
+
+    try {
+      const props = doc.getImageProperties(dataUrl);
+      imgHeight = (props.height * imgWidth) / props.width;
+      if (imgHeight > 70) {
+        imgHeight = 70;
+        imgWidth = (props.width * imgHeight) / props.height;
+      }
+    } catch {
+      imgHeight = 52;
+    }
+
+    if (cursorY + imgHeight > pageHeight - 16) {
+      doc.addPage();
+      cursorY = 20;
+    }
+
+    const caption = photo.caption?.trim() || `Bukti ${index + 1}`;
+    doc.setFontSize(8);
+    doc.text(caption, 14, cursorY);
+    cursorY += 4;
+
+    try {
+      doc.addImage(
+        dataUrl,
+        detectImageFormat(dataUrl),
+        14,
+        cursorY,
+        imgWidth,
+        imgHeight,
+        undefined,
+        "FAST"
+      );
+      cursorY += imgHeight + 8;
+    } catch {
+      doc.setFontSize(8);
+      doc.text("(Foto tidak dapat dimuat)", 14, cursorY);
+      cursorY += 8;
+    }
+  }
+
+  return cursorY;
+}
+
 function drawDocumentHeader(doc: jsPDF, outlet: string, subtitle?: string) {
   const generatedAt = new Date().toLocaleString("id-ID");
 
@@ -196,7 +338,7 @@ function drawDocumentHeader(doc: jsPDF, outlet: string, subtitle?: string) {
   return 46;
 }
 
-function renderTaskWorkReportSection(
+async function renderTaskWorkReportSection(
   doc: jsPDF,
   task: Task,
   templates: FormTemplate[],
@@ -271,7 +413,8 @@ function renderTaskWorkReportSection(
     },
   });
 
-  return (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
+  cursorY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
+  return appendEvidencePhotos(doc, task, cursorY + 4);
 }
 
 function addPageFooters(doc: jsPDF) {
@@ -287,7 +430,7 @@ function addPageFooters(doc: jsPDF) {
   }
 }
 
-export function exportOutletWorkReportPdf({
+export async function exportOutletWorkReportPdf({
   outlet,
   tasks,
   templates,
@@ -311,20 +454,20 @@ export function exportOutletWorkReportPdf({
     subtitle ?? `${workedTasks.length} task dengan hasil pekerjaan`
   );
 
-  workedTasks.forEach((task, index) => {
+  for (const [index, task] of workedTasks.entries()) {
     if (index > 0) {
       doc.addPage();
       cursorY = 20;
     }
 
-    cursorY = renderTaskWorkReportSection(doc, task, templates, cursorY) + 12;
-  });
+    cursorY = (await renderTaskWorkReportSection(doc, task, templates, cursorY)) + 12;
+  }
 
   addPageFooters(doc);
   doc.save(`laporan-pekerjaan-${sanitizeFileName(outlet)}.pdf`);
 }
 
-export function exportSingleTaskWorkReportPdf(task: Task, templates: FormTemplate[]) {
+export async function exportSingleTaskWorkReportPdf(task: Task, templates: FormTemplate[]) {
   if (!isTaskWorkedOn(task)) {
     throw new Error("Task belum memiliki hasil pekerjaan yang bisa diexport.");
   }
@@ -336,7 +479,7 @@ export function exportSingleTaskWorkReportPdf(task: Task, templates: FormTemplat
   });
 
   drawDocumentHeader(doc, task.outlet, `Task: ${task.title}`);
-  renderTaskWorkReportSection(doc, task, templates, 52);
+  await renderTaskWorkReportSection(doc, task, templates, 52);
   addPageFooters(doc);
   doc.save(`laporan-task-${sanitizeFileName(task.title)}-${sanitizeFileName(task.outlet)}.pdf`);
 }

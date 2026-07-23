@@ -44,6 +44,10 @@ export const workflowService = {
     return api<WorkflowInstance[]>("/api/v1/workflows/instances");
   },
 
+  listPendingForMe() {
+    return api<WorkflowInstance[]>("/api/v1/workflows/instances/pending-for-me");
+  },
+
   getInstance(instanceId: UUID) {
     return api<WorkflowInstance>(`/api/v1/workflows/instances/${instanceId}`);
   },

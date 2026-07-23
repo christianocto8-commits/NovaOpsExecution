@@ -3,6 +3,7 @@
 import { Download, Share, X } from "lucide-react";
 
 import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { useLanguage } from "@/shared/i18n";
 import { useToast } from "@/shared/toast";
 
 type PwaInstallPromptProps = {
@@ -11,6 +12,7 @@ type PwaInstallPromptProps = {
 
 export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
   const toast = useToast();
+  const { t } = useLanguage();
   const pwa = usePwaInstall();
 
   if (pwa.isInstalled || !pwa.canPrompt) {
@@ -19,14 +21,14 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
 
   async function handleInstall() {
     if (pwa.isIos) {
-      toast.info("Di iPhone/iPad: tap Share → Add to Home Screen.");
+      toast.info(t("pwa.iosHint"));
       return;
     }
 
     const installed = await pwa.promptInstall();
 
     if (installed) {
-      toast.success("NovaOps terpasang di perangkat Anda.");
+      toast.success(t("pwa.installed"));
     }
   }
 
@@ -36,10 +38,10 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
         type="button"
         onClick={() => void handleInstall()}
         disabled={pwa.isLoading}
-        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
       >
         <Download className="size-3.5" />
-        Install app
+        {t("pwa.installCompact")}
       </button>
     );
   }
@@ -50,7 +52,7 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
         type="button"
         onClick={pwa.dismissPrompt}
         className="absolute right-3 top-3 rounded-full p-1 text-emerald-600 hover:bg-emerald-100"
-        aria-label="Tutup"
+        aria-label={t("pwa.dismiss")}
       >
         <X className="size-4" />
       </button>
@@ -59,11 +61,9 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
         <div className="flex items-start gap-3">
           {pwa.isIos ? <Share className="mt-0.5 size-4 shrink-0" /> : <Download className="mt-0.5 size-4 shrink-0" />}
           <div>
-            <p className="font-semibold">Pasang NovaOps di layar utama</p>
+            <p className="font-semibold">{t("pwa.title")}</p>
             <p className="mt-1 text-emerald-800/90">
-              {pwa.isIos
-                ? "Tap ikon Share di Safari, lalu pilih Add to Home Screen untuk akses cepat seperti app native."
-                : "Install PWA untuk akses cepat task checklist — bahkan saat sinyal lemah."}
+              {pwa.isIos ? t("pwa.iosBody") : t("pwa.body")}
             </p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
           disabled={pwa.isLoading}
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
-          {pwa.isLoading ? "Memproses..." : pwa.isIos ? "Cara install" : "Install"}
+          {pwa.isLoading ? t("pwa.processing") : pwa.isIos ? t("pwa.iosAction") : t("pwa.install")}
         </button>
       </div>
     </div>

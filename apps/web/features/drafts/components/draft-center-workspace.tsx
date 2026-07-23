@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useConfirmation } from "@/shared/confirmation";
 import { useToast } from "@/shared/toast";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { queryKeys } from "@/lib/query/keys";
 import { formTemplateService } from "@/services/form-template.service";
 import {
@@ -330,7 +331,7 @@ export function DraftCenterWorkspace() {
   }
 
   return (
-    <main className="space-y-5 px-4 py-4 sm:space-y-6 sm:p-6">
+    <main className={mobileDashboardMainClass}>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>

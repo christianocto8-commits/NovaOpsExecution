@@ -1,9 +1,11 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.modules.notifications.models import (
+    NotificationChannel,
     NotificationDelivery,
     NotificationEvent,
     NotificationStatus,
@@ -88,3 +90,47 @@ class NotificationDeliveryRepository:
         self.db.commit()
         self.db.refresh(delivery)
         return delivery
+
+    def get_by_id_for_user(self, delivery_id: UUID, user_id: UUID) -> NotificationDelivery | None:
+        statement = select(NotificationDelivery).where(
+            NotificationDelivery.id == delivery_id,
+            NotificationDelivery.recipient_user_id == user_id,
+        )
+        return self.db.scalar(statement)
+
+    def mark_read(self, delivery: NotificationDelivery, read_at: datetime) -> NotificationDelivery:
+        if delivery.read_at is None:
+            delivery.read_at = read_at
+        return self.save(delivery)
+
+    def mark_all_read_for_user(self, user_id: UUID, read_at: datetime) -> int:
+        statement = (
+            update(NotificationDelivery)
+            .where(
+                NotificationDelivery.recipient_user_id == user_id,
+                NotificationDelivery.read_at.is_(None),
+                NotificationDelivery.channel == NotificationChannel.in_app,
+                NotificationDelivery.status.notin_(
+                    [NotificationStatus.cancelled, NotificationStatus.failed]
+                ),
+            )
+            .values(read_at=read_at)
+        )
+        result = self.db.execute(statement)
+        self.db.commit()
+        return int(result.rowcount or 0)
+
+    def count_unread_for_user(self, user_id: UUID) -> int:
+        statement = (
+            select(func.count())
+            .select_from(NotificationDelivery)
+            .where(
+                NotificationDelivery.recipient_user_id == user_id,
+                NotificationDelivery.read_at.is_(None),
+                NotificationDelivery.channel == NotificationChannel.in_app,
+                NotificationDelivery.status.notin_(
+                    [NotificationStatus.cancelled, NotificationStatus.failed]
+                ),
+            )
+        )
+        return int(self.db.scalar(statement) or 0)

@@ -1,6 +1,16 @@
 import { User } from "../types";
 import { getUserRoleClass, getUserStatusClass } from "../utils";
 
+function getPermissionChips(role: User["role"]) {
+  if (role === "Owner/Admin") {
+    return ["Full admin", "Users", "Settings", "Integrations", "All outlets"];
+  }
+  if (role === "Area Manager") {
+    return ["Area outlets", "Compliance", "Reports", "Evidence", "CAPA"];
+  }
+  return ["Own outlet", "Tasks", "Forms", "History", "Offline sync"];
+}
+
 type UserDetailDrawerProps = {
   user: User | null;
   onClose: () => void;
@@ -73,6 +83,16 @@ export function UserDetailDrawer({ user, onClose }: UserDetailDrawerProps) {
               >
                 {user.role}
               </span>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {getPermissionChips(user.role).map((chip) => (
+                  <span
+                    key={chip}
+                    className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">

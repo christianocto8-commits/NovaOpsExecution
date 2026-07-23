@@ -3,14 +3,28 @@ import { CurrentWorkspace } from "./role-config";
 
 type PermissionChecker = (permission: string) => boolean;
 
+export type NavigationOptions = {
+  capaEnabled?: boolean;
+};
+
+function isCapaNavigationItem(item: NavigationItem) {
+  return item.id === "corrective-actions";
+}
+
 const outletNavigationItemIds = new Set([
   "dashboard",
+  "operator",
   "tasks",
   "forms",
+  "reports",
+  "announcements",
   "notifications",
   "activity",
   "drafts",
   "history",
+  "corrective-actions",
+  "evidence",
+  "training",
   "settings",
 ]);
 
@@ -22,14 +36,17 @@ const areaManagerNavigationItemIds = new Set([
   "compliance",
   "corrective-actions",
   "drafts",
+  "evidence",
   "forms",
   "history",
+  "iot",
   "notifications",
   "outlets",
   "reports",
   "schedules",
   "settings",
   "tasks",
+  "training",
   "workflows",
 ]);
 
@@ -62,8 +79,18 @@ export function canAccessNavigationItem(
   return canAccessItem(can, item, workspace);
 }
 
-export function getNavigationForPermissions(can: PermissionChecker, workspace?: CurrentWorkspace) {
-  return navigationItems.filter((item) => canAccessItem(can, item, workspace));
+export function getNavigationForPermissions(
+  can: PermissionChecker,
+  workspace?: CurrentWorkspace,
+  options?: NavigationOptions
+) {
+  return navigationItems.filter((item) => {
+    if (options?.capaEnabled === false && isCapaNavigationItem(item)) {
+      return false;
+    }
+
+    return canAccessItem(can, item, workspace);
+  });
 }
 
 export function canAccessPath(

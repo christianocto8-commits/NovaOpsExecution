@@ -11,6 +11,26 @@ function getToken() {
 function getOutletId() {
   if (typeof window === "undefined") return null;
 
+  try {
+    const workspaceContext = localStorage.getItem("novaops_workspace_context");
+    if (workspaceContext) {
+      const parsed = JSON.parse(workspaceContext) as {
+        legacyOutletId?: number;
+        outletId?: string;
+      };
+
+      if (parsed?.legacyOutletId != null) {
+        return String(parsed.legacyOutletId);
+      }
+
+      if (parsed?.outletId) {
+        return parsed.outletId;
+      }
+    }
+  } catch {
+    // ignore malformed workspace context
+  }
+
   return (
     localStorage.getItem("novaops_outlet_id") ??
     localStorage.getItem("current_outlet_id") ??

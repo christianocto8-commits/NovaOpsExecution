@@ -9,6 +9,7 @@ export type CurrentWorkspace = {
   outletId?: string;
   outletName?: string;
   outletCode?: string;
+  legacyOutletId?: number;
 };
 
 export const defaultWorkspace: CurrentWorkspace = {

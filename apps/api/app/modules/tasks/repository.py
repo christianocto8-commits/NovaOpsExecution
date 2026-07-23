@@ -48,6 +48,8 @@ class TaskRepository:
         return (
             self.db.query(Task)
             .options(
+                joinedload(Task.schedule),
+                joinedload(Task.outlet),
                 joinedload(Task.comments),
                 joinedload(Task.assignments).joinedload(TaskAssignment.user),
             )

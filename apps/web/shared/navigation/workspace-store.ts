@@ -9,6 +9,7 @@ type StoredWorkspaceContext = {
   outletId?: string;
   outletName?: string;
   outletCode?: string;
+  legacyOutletId?: number;
 };
 
 let cachedSnapshotKey = "";

@@ -21,7 +21,7 @@ import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { resolveAssigneeSelection } from "@/features/tasks/utils/assignee-options";
-import { taskService } from "@/services/task.service";
+import { taskService, hasValidTaskFormTemplate, resolveTaskFormTemplate } from "@/services/task.service";
 import { formTemplateService } from "@/services/form-template.service";
 import { scoreChecklistClientSide } from "@/shared/checklist/checklist-scoring";
 import { outletService } from "@/services/outlet.service";
@@ -365,9 +365,29 @@ function mergeBackendTasksWithDrafts(
     const parsedExecution = completedSession ? parseExecutionSession(completedSession) : null;
 
     if (parsedExecution) {
+      const reviewStatus =
+        normalizedTask.execution?.reviewStatus ??
+        (normalizedTask.approvedAt
+          ? "approved"
+          : normalizedTask.backendStatus === "completed"
+            ? "pending_review"
+            : undefined);
+      const completedFromSession = Boolean(parsedExecution.completedAt);
+      const nextStatus: Task["status"] =
+        normalizedTask.status === "Completed" ||
+        normalizedTask.backendStatus === "completed" ||
+        completedFromSession
+          ? "Completed"
+          : normalizedTask.status;
+
       return normalizeTask({
         ...normalizedTask,
-        execution: normalizedTask.execution ?? parsedExecution,
+        status: nextStatus,
+        execution: {
+          ...(normalizedTask.execution ?? parsedExecution),
+          ...parsedExecution,
+          reviewStatus,
+        },
         executionDraft: undefined,
       });
     }
@@ -509,12 +529,6 @@ export function useTaskWorkspace() {
         accuracy_m: location?.accuracy_m ?? null,
       });
     },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
-        queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY }),
-      ]);
-    },
   });
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -522,6 +536,7 @@ export function useTaskWorkspace() {
     taskTitle: string;
     checklist: ChecklistScore;
     pendingSync?: boolean;
+    correctiveActionId?: string;
   } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExecutionOpen, setIsExecutionOpen] = useState(false);
@@ -615,7 +630,26 @@ export function useTaskWorkspace() {
       outlets.map((outlet) => ({ id: outlet.id, name: outlet.name }))
     );
 
-    if (readyForm.recurrence === "once" && !readyForm.outletId) {
+    let templates: Awaited<ReturnType<typeof formTemplateService.list>> = [];
+    try {
+      templates = await formTemplateService.list();
+    } catch {
+      templates = [];
+    }
+
+    const activeTemplateIds = templates
+      .filter((template) => template.status === "Active")
+      .map((template) => template.id);
+    const resolvedForm = resolveTaskFormTemplate(readyForm, activeTemplateIds);
+
+    if (!hasValidTaskFormTemplate(resolvedForm.formTemplateId)) {
+      toast.error(
+        "Form template belum dipilih. Buat dan publish form checklist di menu Forms, lalu pilih template Active saat membuat task."
+      );
+      return;
+    }
+
+    if (resolvedForm.recurrence === "once" && !resolvedForm.outletId) {
       toast.error(
         "Outlet belum dipilih. Buat outlet di menu Outlets terlebih dahulu, lalu coba lagi."
       );
@@ -623,8 +657,8 @@ export function useTaskWorkspace() {
     }
 
     if (
-      readyForm.recurrence !== "once" &&
-      (!readyForm.targetOutletIds || readyForm.targetOutletIds.length === 0)
+      resolvedForm.recurrence !== "once" &&
+      (!resolvedForm.targetOutletIds || resolvedForm.targetOutletIds.length === 0)
     ) {
       toast.error("Pilih minimal satu outlet untuk task recurring.");
       return;
@@ -640,12 +674,12 @@ export function useTaskWorkspace() {
       }
 
       if (editingTaskId && isBackendTaskId(editingTaskId)) {
-        await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: readyForm });
+        await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: resolvedForm });
         toast.success("Task berhasil diperbarui.");
       } else {
-        await createTaskMutation.mutateAsync(readyForm);
+        await createTaskMutation.mutateAsync(resolvedForm);
         toast.success(
-          readyForm.recurrence !== "once"
+          resolvedForm.recurrence !== "once"
             ? "Schedule recurring berhasil dibuat."
             : "Task berhasil dibuat."
         );
@@ -745,9 +779,9 @@ export function useTaskWorkspace() {
           await createExecutionSession(payload);
         }
 
-        await queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY });
-        toast.success("Draft eksekusi tersimpan.");
         closeExecution();
+        toast.success("Draft eksekusi tersimpan.");
+        refreshExecutionQueries();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal menyimpan draft.";
         toast.error(message);
@@ -810,11 +844,24 @@ export function useTaskWorkspace() {
     }
   }
 
+  function refreshExecutionQueries() {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() }),
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.sop.tasks(), "corrective-actions"],
+      }),
+      queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.history.executionSessions() }),
+    ]);
+  }
+
   function closeSubmitResult() {
     setSubmitResult(null);
   }
 
-  async function submitTaskExecution() {
+  async function submitTaskExecution(
+    knownLocation?: { latitude: number; longitude: number; accuracy_m?: number } | null
+  ) {
     if (!selectedTask) return;
 
     if (!isBackendTaskId(selectedTask.id)) {
@@ -831,10 +878,17 @@ export function useTaskWorkspace() {
     let submitLocation: { latitude: number; longitude: number; accuracy_m?: number } | null = null;
 
     if (settings?.geofence_enabled) {
-      submitLocation = await getCurrentPosition();
+      submitLocation =
+        knownLocation ??
+        (await getCurrentPosition(1500, { highAccuracy: false }));
+
+      const cachedOutlet = queryClient.getQueryData<Awaited<ReturnType<typeof outletService.getCurrent>>>([
+        "outlet",
+        "current",
+      ]);
 
       try {
-        const currentOutlet = await outletService.getCurrent();
+        const currentOutlet = cachedOutlet ?? (await outletService.getCurrent());
         const geofenceError = checkGeofencePrecheck({
           submitter: submitLocation,
           outletLat: currentOutlet.outlet.latitude,
@@ -849,8 +903,6 @@ export function useTaskWorkspace() {
       } catch {
         // Backend will enforce geofence if outlet context is unavailable client-side.
       }
-    } else {
-      submitLocation = await getCurrentPosition();
     }
 
     if (isOnline && backendConnected) {
@@ -858,7 +910,7 @@ export function useTaskWorkspace() {
         const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
 
         if (existingDraftSession) {
-          await deleteExecutionSession(existingDraftSession.id);
+          void deleteExecutionSession(existingDraftSession.id);
         }
 
         const result = await completeTaskMutation.mutateAsync({
@@ -868,16 +920,32 @@ export function useTaskWorkspace() {
         });
 
         const checklist = parseSubmitChecklist(result.checklist);
+
+        queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
+          (currentTasks ?? []).map((task) =>
+            task.id === selectedTask.id
+              ? normalizeTask({
+                  ...task,
+                  status: "Completed",
+                  executionDraft: undefined,
+                })
+              : task
+          )
+        );
+
+        closeExecution();
+
         if (checklist) {
           setSubmitResult({
             taskTitle: selectedTask.title,
             checklist,
+            correctiveActionId: result.correctiveTask?.id,
           });
         } else {
-          toast.success("Task selesai dan evidence tersimpan.");
+          toast.success("Task selesai.");
         }
 
-        closeExecution();
+        refreshExecutionQueries();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
         toast.error(message);

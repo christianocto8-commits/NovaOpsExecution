@@ -63,10 +63,10 @@ def _send_sms_if_enabled(
         return
 
     identity_user = db.get(IdentityUser, identity_user_id)
-    if not identity_user or not identity_user.phone:
+    if not identity_user or not identity_user.phone_number:
         return
 
-    send_sms(to_number=identity_user.phone, body=body)
+    send_sms(to_number=identity_user.phone_number, body=body)
 
 
 def notify_task_recipient(

@@ -131,10 +131,14 @@ export type Task = {
   due: string;
   description: string;
   formTemplateId?: string;
+  formTemplateName?: string;
+  checklistFieldCount?: number;
+  checklistPreview?: string[];
   sourceType?: string;
   sourceId?: string;
   backendStatus?: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
   verifiedAt?: string;
+  approvedAt?: string;
   recurrence?: TaskRecurrence;
   shifts?: TaskShift[];
   targetOutlets?: string[];

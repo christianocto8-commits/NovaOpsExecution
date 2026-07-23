@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
-import { PwaInstallPrompt } from "@/features/pwa/components/pwa-install-prompt";
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { ChecklistSubmitResultModal,
   OutletTaskExecutionDrawer,
   TaskDetailDrawer,
   TaskFormDrawer,
 } from "@/features/tasks/components";
+import { TaskWeekCalendarStrip } from "@/features/tasks/components/task-week-calendar-strip";
 import type { FormTemplate } from "@/features/forms/types";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
 import { Task } from "@/features/tasks/types";
@@ -26,6 +28,10 @@ import {
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
+import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { isOpenTaskInInbox, isTaskCompleted } from "@/features/tasks/utils/task-inbox";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
+import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
 import {
   setCorrectiveAction,
   updateOutletTaskStoreItem,
@@ -42,7 +48,15 @@ type MobileTaskSection = {
 
 const TASK_SECTION_COLLAPSE_KEY = "novaops_task_section_collapsed";
 
-function getDefaultSectionCollapsed(sectionId: string, taskCount: number) {
+function getDefaultSectionCollapsed(sectionId: string, taskCount: number, isOutletRole = false) {
+  if (isOutletRole) {
+    if (sectionId === "completed") {
+      return taskCount > 8;
+    }
+
+    return false;
+  }
+
   if (sectionId === "overdue" || sectionId === "today") {
     return false;
   }
@@ -107,19 +121,11 @@ function getTaskDraftProgress(task: Task, templates: FormTemplate[]) {
 }
 
 function getTaskExecutionProgressPercentage(task: Task, templates: FormTemplate[]) {
+  if (isTaskCompleted(task)) return 100;
+
   const draftProgress = getTaskDraftProgress(task, templates);
 
   if (draftProgress) return draftProgress.percentage;
-
-  const normalizedStatus = String(task.status).toLowerCase();
-
-  if (
-    normalizedStatus.includes("completed") ||
-    normalizedStatus.includes("submitted") ||
-    normalizedStatus.includes("done")
-  ) {
-    return 100;
-  }
 
   return 0;
 }
@@ -234,52 +240,20 @@ function formatMobileTime(task: Task) {
   }).toLowerCase();
 }
 
-function shouldHideOutletOverdueTask(task: Task, now: Date) {
-  const dueDate = parseTaskDueDate(task);
-  if (!dueDate) return false;
-
-  const dayAfterDue = getDayStart(dueDate);
-  dayAfterDue.setDate(dayAfterDue.getDate() + 1);
-
-  if (getDayStart(now) >= dayAfterDue) {
-    return true;
-  }
-
-  const twoHoursAfterDue = dueDate.getTime() + 2 * 60 * 60 * 1000;
-  if (now.getTime() >= twoHoursAfterDue) {
-    return true;
-  }
-
-  return false;
-}
-
-function getMobileSections(tasks: Task[], incompleteOnly: boolean, templates: FormTemplate[]) {
+function getMobileSections(tasks: Task[]) {
   const now = new Date();
   const todayStart = getDayStart(now);
   const weekEnd = getWeekEnd(now);
 
-  const eligibleTasks = incompleteOnly
-    ? tasks.filter((task) => getTaskExecutionProgressPercentage(task, templates) < 100)
-    : tasks;
+  const eligibleTasks = tasks.filter((task) => isOpenTaskInInbox(task));
 
   const overdue: Task[] = [];
   const today: Task[] = [];
   const thisWeek: Task[] = [];
   const later: Task[] = [];
-  const completed: Task[] = [];
 
   eligibleTasks.forEach((task) => {
-    const progress = getTaskExecutionProgressPercentage(task, templates);
     const dueDate = parseTaskDueDate(task);
-
-    if (progress < 100 && shouldHideOutletOverdueTask(task, now)) {
-      return;
-    }
-
-    if (progress === 100) {
-      completed.push(task);
-      return;
-    }
 
     if (!dueDate) {
       later.push(task);
@@ -304,18 +278,12 @@ function getMobileSections(tasks: Task[], incompleteOnly: boolean, templates: Fo
     later.push(task);
   });
 
-  const sections: MobileTaskSection[] = [
+  return [
     { id: "overdue", title: `${overdue.length} Overdue`, tasks: overdue },
     { id: "today", title: "Today", tasks: today },
     { id: "due-this-week", title: "Due This Week", tasks: thisWeek },
     { id: "later", title: "Later", tasks: later },
-  ];
-
-  if (!incompleteOnly) {
-    sections.push({ id: "completed", title: "Completed", tasks: completed });
-  }
-
-  return sections.filter((section) => section.tasks.length > 0);
+  ].filter((section) => section.tasks.length > 0);
 }
 
 function MobileTaskRow({
@@ -359,6 +327,33 @@ function MobileTaskRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-slate-800">{task.title}</p>
+            {task.description?.trim() ? (
+              <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-slate-500">
+                {task.description.trim()}
+              </p>
+            ) : null}
+            {task.formTemplateName || (task.checklistFieldCount ?? 0) > 0 ? (
+              <p className="mt-1 text-[12px] font-medium text-emerald-700">
+                {task.formTemplateName ?? "Checklist"}
+                {(task.checklistFieldCount ?? 0) > 0
+                  ? ` · ${task.checklistFieldCount} item`
+                  : ""}
+              </p>
+            ) : null}
+            {(task.checklistPreview?.length ?? 0) > 0 ? (
+              <ul className="mt-1 space-y-0.5">
+                {task.checklistPreview!.slice(0, 3).map((label) => (
+                  <li key={label} className="truncate text-[11px] text-slate-400">
+                    • {label}
+                  </li>
+                ))}
+                {(task.checklistFieldCount ?? 0) > 3 ? (
+                  <li className="text-[11px] text-slate-400">
+                    +{(task.checklistFieldCount ?? 0) - 3} item lainnya
+                  </li>
+                ) : null}
+              </ul>
+            ) : null}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {task.executionDraft ? (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
@@ -461,6 +456,7 @@ function TaskGroupedList({
   onCollapseAll,
   emptyMessage,
   pendingTaskIds,
+  isOutletRole = false,
 }: {
   groups: MobileTaskSection[];
   highlightedTaskId: string | null;
@@ -472,6 +468,7 @@ function TaskGroupedList({
   onCollapseAll: () => void;
   emptyMessage: string;
   pendingTaskIds: Set<string>;
+  isOutletRole?: boolean;
 }) {
   if (groups.length === 0) {
     return (
@@ -503,7 +500,11 @@ function TaskGroupedList({
       ) : null}
 
       {groups.map((section) => {
-        const defaultCollapsed = getDefaultSectionCollapsed(section.id, section.tasks.length);
+        const defaultCollapsed = getDefaultSectionCollapsed(
+          section.id,
+          section.tasks.length,
+          isOutletRole
+        );
         const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
 
         return (
@@ -525,8 +526,13 @@ function TaskGroupedList({
 
 export function TasksWorkspace() {
   const { t } = useLanguage();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { settings } = useSettings();
+  const capaEnabled = isCapaEnabled(settings);
   const continuedDraftRef = useRef<string | null>(null);
+  const handledTaskIdRef = useRef<string | null>(null);
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -535,7 +541,8 @@ export function TasksWorkspace() {
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [mobileSearch, setMobileSearch] = useState("");
-  const [mobileIncompleteOnly, setMobileIncompleteOnly] = useState(true);
+  const [calendarView, setCalendarView] = useState(false);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date());
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
     readStoredCollapseState()
   );
@@ -559,7 +566,6 @@ export function TasksWorkspace() {
     isExecutionOpen,
     openExecution,
     closeExecution,
-    cancelExecutionChanges,
     saveExecutionDraft,
     submitTaskExecution,
     submitResult,
@@ -568,7 +574,7 @@ export function TasksWorkspace() {
     isOnline,
     pendingLocalSyncCount,
   } = useTaskWorkspace();
-  const { pendingTaskIds } = useOfflineSync();
+  const { pendingTaskIds, workpackStats } = useOfflineSync();
 
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -616,16 +622,54 @@ export function TasksWorkspace() {
     }, 3500);
   }, [isOutletWorkspace, searchParams, tasks, openExecution]);
 
+  function clearTaskDeepLinkParams(...keys: Array<"taskId" | "continueDraft">) {
+    const params = new URLSearchParams(searchParams.toString());
+    let changed = false;
+
+    keys.forEach((key) => {
+      if (params.has(key)) {
+        params.delete(key);
+        changed = true;
+      }
+    });
+
+    if (!changed) return;
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function handleCloseExecution() {
+    closeExecution();
+    clearTaskDeepLinkParams("taskId", "continueDraft");
+    handledTaskIdRef.current = null;
+    continuedDraftRef.current = null;
+  }
+
+  function handleCloseDetail() {
+    closeDetail();
+    clearTaskDeepLinkParams("taskId");
+    handledTaskIdRef.current = null;
+  }
+
   useEffect(() => {
     const taskId = searchParams.get("taskId");
-    if (!taskId || tasks.length === 0) return;
+
+    if (!taskId) {
+      handledTaskIdRef.current = null;
+      return;
+    }
+
+    if (tasks.length === 0) return;
+    if (handledTaskIdRef.current === taskId) return;
 
     const matchedTask = tasks.find((task) => task.id === taskId);
     if (!matchedTask) return;
 
+    handledTaskIdRef.current = taskId;
     setHighlightedTaskId(taskId);
 
-    window.setTimeout(() => {
+    const openTimer = window.setTimeout(() => {
       if (isOutletRole) {
         openExecution(matchedTask);
       } else {
@@ -633,20 +677,29 @@ export function TasksWorkspace() {
       }
     }, 300);
 
-    window.setTimeout(() => {
+    const highlightTimer = window.setTimeout(() => {
       setHighlightedTaskId(null);
     }, 3500);
+
+    return () => {
+      window.clearTimeout(openTimer);
+      window.clearTimeout(highlightTimer);
+    };
   }, [isOutletRole, openExecution, openTaskDetail, searchParams, tasks]);
 
   const outletScopedTasks = useMemo(() => {
     if (!isOutletWorkspace) return tasks;
-    if (isBackendConnected || !isOnline) return tasks;
 
-    return tasks.filter((task) => task.outlet === (workspace.outletName ?? ""));
-  }, [isBackendConnected, isOnline, isOutletWorkspace, tasks, workspace.outletName]);
+    return filterTasksForWorkspace(tasks, workspace);
+  }, [isOutletWorkspace, tasks, workspace]);
+
+  const openTasks = useMemo(
+    () => outletScopedTasks.filter(isOpenTaskInInbox),
+    [outletScopedTasks]
+  );
 
   const visibleTasks = useMemo(() => {
-    return [...outletScopedTasks].sort((left, right) => {
+    return [...openTasks].sort((left, right) => {
       const leftDraftWeight = left.executionDraft ? 1 : 0;
       const rightDraftWeight = right.executionDraft ? 1 : 0;
 
@@ -656,25 +709,48 @@ export function TasksWorkspace() {
 
       return left.title.localeCompare(right.title);
     });
-  }, [outletScopedTasks]);
+  }, [openTasks]);
+
+  const taskCountByDate = useMemo(() => {
+    const counts = new Map<string, number>();
+    visibleTasks.forEach((task) => {
+      const dueDate = parseTaskDueDate(task);
+      if (!dueDate) return;
+      const key = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return counts;
+  }, [visibleTasks]);
+
+  const calendarFilteredTasks = useMemo(() => {
+    if (!calendarView) return visibleTasks;
+    const key = `${selectedCalendarDate.getFullYear()}-${String(selectedCalendarDate.getMonth() + 1).padStart(2, "0")}-${String(selectedCalendarDate.getDate()).padStart(2, "0")}`;
+    return visibleTasks.filter((task) => {
+      const dueDate = parseTaskDueDate(task);
+      if (!dueDate) return false;
+      const taskKey = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`;
+      return taskKey === key;
+    });
+  }, [calendarView, selectedCalendarDate, visibleTasks]);
 
   const filteredMobileTasks = useMemo(() => {
     const query = mobileSearch.trim().toLowerCase();
+    const baseTasks = calendarView ? calendarFilteredTasks : visibleTasks;
 
-    if (!query) return visibleTasks;
+    if (!query) return baseTasks;
 
-    return visibleTasks.filter((task) => {
+    return baseTasks.filter((task) => {
       const haystack = [task.title, task.outlet, task.formTemplateId ?? "", task.status]
         .join(" ")
         .toLowerCase();
 
       return haystack.includes(query);
     });
-  }, [mobileSearch, visibleTasks]);
+  }, [mobileSearch, visibleTasks, calendarView, calendarFilteredTasks]);
 
   const mobileSections = useMemo(
-    () => getMobileSections(filteredMobileTasks, mobileIncompleteOnly, formTemplates),
-    [filteredMobileTasks, mobileIncompleteOnly, formTemplates]
+    () => getMobileSections(filteredMobileTasks),
+    [filteredMobileTasks]
   );
 
   const filteredAdminTasks = useMemo(() => {
@@ -759,7 +835,7 @@ export function TasksWorkspace() {
   }
 
   return (
-    <main className="space-y-5 px-4 py-4 sm:space-y-6 sm:p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("tasks.eyebrow")}</p>
@@ -779,28 +855,36 @@ export function TasksWorkspace() {
                 : t("tasks.subtitleAdmin")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+              <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-400 sm:inline">
                 {t("tasks.realtime")}
               </span>
               <RealtimeClock />
             </div>
+            {isOutletWorkspace ? <OfflineSyncBadge /> : null}
+            {isOutletWorkspace && workpackStats?.taskCount ? (
+              <span className="inline-flex items-center rounded-2xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
+                {t("operator.cachedTasksChip", { count: workpackStats.taskCount })}
+              </span>
+            ) : null}
             <span
-              className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
+              className={`inline-flex items-center rounded-2xl px-3 py-2 text-xs font-bold sm:px-4 ${
                 isOnline ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
               }`}
             >
               {isOnline ? t("tasks.online") : t("tasks.offline")}
             </span>
-            <span
-              className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
-                isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-              }`}
-            >
-              {isBackendConnected ? t("tasks.backendSynced") : t("tasks.backendUnavailable")}
-            </span>
+            {!isOutletWorkspace ? (
+              <span
+                className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
+                  isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {isBackendConnected ? t("tasks.backendSynced") : t("tasks.backendUnavailable")}
+              </span>
+            ) : null}
             {pendingLocalSyncCount > 0 ? (
-              <span className="inline-flex items-center rounded-2xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700">
+              <span className="inline-flex items-center rounded-2xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 sm:px-4">
                 {t("tasks.pendingSync").replace("{count}", String(pendingLocalSyncCount))}
               </span>
             ) : null}
@@ -822,11 +906,28 @@ export function TasksWorkspace() {
         ) : null}
       </div>
 
-      {isOutletWorkspace ? (
-        <>
-          <PwaInstallPrompt />
-          <PushNotificationPrompt />
-        </>
+      {isOutletWorkspace ? <PushNotificationPrompt /> : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setCalendarView((current) => !current)}
+          className={`rounded-2xl px-4 py-2 text-xs font-bold ${
+            calendarView
+              ? "bg-emerald-700 text-white"
+              : "border border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          {calendarView ? t("tasks.listView") : t("tasks.weekView")}
+        </button>
+      </div>
+
+      {calendarView ? (
+        <TaskWeekCalendarStrip
+          selectedDate={selectedCalendarDate}
+          onSelectDate={setSelectedCalendarDate}
+          taskCountByDate={taskCountByDate}
+        />
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
@@ -874,27 +975,13 @@ export function TasksWorkspace() {
               placeholder="Cari task, outlet, atau status"
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
-            {isOutletRole ? (
-              <button
-                type="button"
-                onClick={() => setMobileIncompleteOnly((current) => !current)}
-                className={`rounded-lg p-1.5 transition ${
-                  mobileIncompleteOnly ? "bg-sky-50 text-sky-600" : "text-slate-400"
-                }`}
-                title={mobileIncompleteOnly ? t("tasks.incompleteOnly") : t("tasks.allTasks")}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </button>
-            ) : null}
           </div>
         </div>
 
         <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
           {isOutletRole
-            ? mobileIncompleteOnly
-              ? `Task belum selesai — ${workspace.outletName ?? "Outlet"}`
-              : `Semua task — ${workspace.outletName ?? "Outlet"}`
-            : `${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task`}
+            ? `Task belum selesai — ${workspace.outletName ?? "Outlet"} · selesai ada di Reports`
+            : `${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}
         </div>
 
         <div className="bg-[#F7FAF8] p-3 sm:p-4">
@@ -907,8 +994,9 @@ export function TasksWorkspace() {
             onToggleGroup={toggleTaskGroup}
             onExpandAll={expandAllTaskGroups}
             onCollapseAll={collapseAllTaskGroups}
-            emptyMessage="Tidak ada task yang cocok dengan filter ini."
+            emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
             pendingTaskIds={pendingTaskIds}
+            isOutletRole={isOutletRole}
           />
         </div>
       </section>
@@ -927,7 +1015,7 @@ export function TasksWorkspace() {
       {!isOutletRole ? (
         <TaskDetailDrawer
           task={selectedTask}
-          onClose={closeDetail}
+          onClose={handleCloseDetail}
           onEdit={isOwnerAdminWorkspace ? openEditTask : undefined}
           onDelete={
             isOwnerAdminWorkspace
@@ -944,9 +1032,9 @@ export function TasksWorkspace() {
           open={isExecutionOpen}
           task={selectedTask}
           form={executionForm}
-          onClose={closeExecution}
+          onClose={handleCloseExecution}
           onChange={setExecutionForm}
-          onCancel={cancelExecutionChanges}
+          onCancel={handleCloseExecution}
           onSaveDraft={() => {
             if (selectedTask) {
               updateOutletTaskStoreItem(selectedTask.id, {
@@ -969,6 +1057,8 @@ export function TasksWorkspace() {
         taskTitle={submitResult?.taskTitle ?? ""}
         checklist={submitResult?.checklist ?? null}
         pendingSync={submitResult?.pendingSync}
+        correctiveActionId={submitResult?.correctiveActionId}
+        capaEnabled={capaEnabled}
         onClose={closeSubmitResult}
       />
     </main>

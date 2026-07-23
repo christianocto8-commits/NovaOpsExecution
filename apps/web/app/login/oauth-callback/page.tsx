@@ -13,7 +13,11 @@ function storeOutletContext(outletAccess: Awaited<ReturnType<typeof getMe>>["out
   localStorage.removeItem("outlet_id");
 
   const preferredOutletId =
-    outletAccess.scope === "single" ? (outletAccess.outlet_id ?? outletAccess.outlet_ids[0]) : null;
+    outletAccess.scope === "single"
+      ? outletAccess.legacy_outlet_id != null
+        ? String(outletAccess.legacy_outlet_id)
+        : (outletAccess.outlet_id ?? outletAccess.outlet_ids[0])
+      : null;
 
   if (preferredOutletId) {
     localStorage.setItem("novaops_outlet_id", preferredOutletId);
@@ -29,6 +33,7 @@ function getWorkspaceOutletContext(
     outletId: outletAccess.outlet_id ?? outletAccess.outlet_ids?.[0] ?? preferredOutlet?.id,
     outletName: outletAccess.outlet_name ?? preferredOutlet?.name,
     outletCode: outletAccess.outlet_code ?? preferredOutlet?.code,
+    legacyOutletId: outletAccess.legacy_outlet_id ?? undefined,
   };
 }
 

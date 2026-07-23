@@ -1,7 +1,7 @@
 import { api } from "@/services/api";
 import { cacheTasks, getCachedTasks } from "@/lib/offline/store";
 import { taskScheduleService } from "@/services/task-schedule.service";
-import type { Task, TaskFormState, TaskPriority, TaskShift, TaskStatus } from "@/features/tasks/types";
+import type { Task, TaskFormState, TaskPriority, TaskReviewStatus, TaskShift, TaskStatus } from "@/features/tasks/types";
 
 export type OutletMember = {
   id: number;
@@ -24,6 +24,9 @@ export type BackendTask = {
   source_type: string | null;
   source_id: number | null;
   form_template_id?: number | null;
+  form_template_name?: string | null;
+  checklist_field_count?: number;
+  checklist_preview?: string[];
   priority: BackendTaskPriority;
   status: BackendTaskStatus;
   due_date: string | null;
@@ -52,10 +55,33 @@ type BackendTaskCreate = {
 };
 
 type BackendTaskUpdate = Partial<
-  Pick<BackendTaskCreate, "title" | "description" | "assigned_to" | "priority" | "due_date">
+  Pick<
+    BackendTaskCreate,
+    "title" | "description" | "assigned_to" | "priority" | "due_date" | "source_type" | "source_id"
+  >
 >;
 
 const LOCAL_FORM_TEMPLATE_PREFIX = "local_form_template:";
+
+export function isLocalFormTemplateSource(sourceType?: string | null) {
+  return Boolean(sourceType?.startsWith(LOCAL_FORM_TEMPLATE_PREFIX));
+}
+
+function isValidBackendFormTemplateId(value: unknown): value is number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(numeric) && numeric > 0;
+}
+
+export function hasResolvableBackendFormTemplate(task: {
+  formTemplateId?: string;
+  sourceType?: string;
+}) {
+  if (isLocalFormTemplateSource(task.sourceType)) {
+    return false;
+  }
+
+  return isValidBackendFormTemplateId(task.formTemplateId);
+}
 
 function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
   if (status === "completed") return "Completed";
@@ -83,16 +109,16 @@ function formatDueDate(value: string | null) {
 }
 
 function parseSourceFormTemplateId(task: BackendTask) {
-  if (task.form_template_id) {
+  if (isValidBackendFormTemplateId(task.form_template_id)) {
     return String(task.form_template_id);
   }
 
-  if (task.source_type?.startsWith(LOCAL_FORM_TEMPLATE_PREFIX)) {
-    return task.source_type.slice(LOCAL_FORM_TEMPLATE_PREFIX.length);
+  if (task.source_type === "form_template" && isValidBackendFormTemplateId(task.source_id)) {
+    return String(task.source_id);
   }
 
-  if (task.source_type === "form_template" && task.source_id) {
-    return String(task.source_id);
+  if (isLocalFormTemplateSource(task.source_type)) {
+    return task.source_type!.slice(LOCAL_FORM_TEMPLATE_PREFIX.length);
   }
 
   return "";
@@ -106,6 +132,12 @@ function resolveTaskOutletHeader(form: TaskFormState) {
   return form.targetOutletIds?.[0] ?? form.outletId ?? undefined;
 }
 
+function deriveReviewStatus(task: BackendTask): TaskReviewStatus | undefined {
+  if (task.approved_at) return "approved";
+  if (task.status === "completed") return "pending_review";
+  return undefined;
+}
+
 export function mapBackendTask(task: BackendTask): Task {
   const outletName = task.outlet_name ?? `Outlet ${task.outlet_id}`;
   const recurrence = task.recurrence ?? "once";
@@ -115,6 +147,7 @@ export function mapBackendTask(task: BackendTask): Task {
       : task.shift
         ? [task.shift as TaskShift]
         : ["morning"];
+  const reviewStatus = deriveReviewStatus(task);
 
   return {
     id: String(task.id),
@@ -128,13 +161,30 @@ export function mapBackendTask(task: BackendTask): Task {
     due: formatDueDate(task.due_date),
     description: task.description ?? "",
     formTemplateId: parseSourceFormTemplateId(task),
+    formTemplateName: task.form_template_name ?? undefined,
+    checklistFieldCount: task.checklist_field_count ?? 0,
+    checklistPreview: task.checklist_preview ?? [],
     sourceType: task.source_type ?? undefined,
     sourceId: task.source_id != null ? String(task.source_id) : undefined,
     backendStatus: task.status,
     verifiedAt: task.verified_at ?? undefined,
+    approvedAt: task.approved_at ?? undefined,
+    execution: reviewStatus
+      ? {
+          operatorName: "",
+          operatorPosition: "Crew",
+          note: "",
+          evidence: [],
+          formResponses: {},
+          completedAt: task.completed_at ?? task.updated_at,
+          reviewStatus,
+          reviewedAt: task.approved_at ?? undefined,
+        }
+      : undefined,
     recurrence,
     shifts,
     targetOutlets: [outletName],
+    targetOutletIds: [String(task.outlet_id)],
     autoPublish: task.auto_publish ?? false,
     dueTime: task.due_time ?? (formatDueDate(task.due_date).slice(11, 16) || "09:00"),
     weeklyPublishDay: (task.weekly_publish_day as Task["weeklyPublishDay"]) ?? "sunday",
@@ -154,20 +204,50 @@ export function mapBackendTask(task: BackendTask): Task {
 }
 
 function toBackendPayload(form: TaskFormState): BackendTaskCreate {
-  const numericTemplateId = Number(form.formTemplateId);
-  const isBackendTemplate = Number.isFinite(numericTemplateId);
+  const resolvedForm = resolveTaskFormTemplate(form);
+  const numericTemplateId = Number(resolvedForm.formTemplateId);
+  const isBackendTemplate = isValidBackendFormTemplateId(numericTemplateId);
+  const trimmedTemplateId = resolvedForm.formTemplateId.trim();
 
   return {
-    title: form.title.trim(),
-    description: form.description.trim() || null,
-    assigned_to: form.assignedToId ?? null,
-    priority: toBackendPriority(form.priority),
-    due_date: form.recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
+    title: resolvedForm.title.trim(),
+    description: resolvedForm.description.trim() || null,
+    assigned_to: resolvedForm.assignedToId ?? null,
+    priority: toBackendPriority(resolvedForm.priority),
+    due_date:
+      resolvedForm.recurrence === "once" && resolvedForm.due
+        ? new Date(resolvedForm.due).toISOString()
+        : null,
     source_type: isBackendTemplate
       ? "form_template"
-      : `${LOCAL_FORM_TEMPLATE_PREFIX}${form.formTemplateId}`,
+      : trimmedTemplateId
+        ? `${LOCAL_FORM_TEMPLATE_PREFIX}${trimmedTemplateId}`
+        : null,
     source_id: isBackendTemplate ? numericTemplateId : null,
   };
+}
+
+export function resolveTaskFormTemplate(
+  form: TaskFormState,
+  activeTemplateIds: string[] = []
+): TaskFormState {
+  if (isValidBackendFormTemplateId(Number(form.formTemplateId))) {
+    return form;
+  }
+
+  const fallbackId = activeTemplateIds.find((id) => isValidBackendFormTemplateId(Number(id)));
+  if (!fallbackId) {
+    return form;
+  }
+
+  return {
+    ...form,
+    formTemplateId: fallbackId,
+  };
+}
+
+export function hasValidTaskFormTemplate(formTemplateId?: string) {
+  return isValidBackendFormTemplateId(Number(formTemplateId));
 }
 
 export const taskService = {
@@ -246,7 +326,15 @@ export const taskService = {
     const payload: BackendTaskUpdate = toBackendPayload(form);
     const task = await api<BackendTask>(`/api/v1/tasks/${taskId}`, {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        title: payload.title,
+        description: payload.description,
+        assigned_to: payload.assigned_to,
+        priority: payload.priority,
+        due_date: payload.due_date,
+        source_type: payload.source_type,
+        source_id: payload.source_id,
+      }),
     });
     return mapBackendTask(task);
   },
@@ -280,6 +368,13 @@ export const taskService = {
     return mapBackendTask(task);
   },
 
+  async verify(taskId: string) {
+    const task = await api<BackendTask>(`/api/v1/tasks/${taskId}/verify`, {
+      method: "POST",
+    });
+    return mapBackendTask(task);
+  },
+
   async submitExecution(
     taskId: string,
     payload: {
@@ -293,6 +388,7 @@ export const taskService = {
     const response = await api<{
       task: BackendTask;
       checklist: Record<string, unknown> | null;
+      corrective_task: BackendTask | null;
     }>(`/api/v1/tasks/${taskId}/submit-execution`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -300,6 +396,9 @@ export const taskService = {
     return {
       task: mapBackendTask(response.task),
       checklist: response.checklist,
+      correctiveTask: response.corrective_task
+        ? mapBackendTask(response.corrective_task)
+        : null,
     };
   },
 };

@@ -34,6 +34,7 @@ from app.modules.tasks.identity_bridge import (
 )
 from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
 from app.modules.tasks.overdue_alerts import process_overdue_task_alerts
+from app.modules.tasks.serializers import build_task_detail_response, build_task_response
 from app.modules.tasks.service import TaskService
 from app.repositories.outlet_repository import OutletRepository
 
@@ -149,12 +150,13 @@ def list_tasks(
         db, current_user, x_outlet_id
     )
     service = TaskService(db)
-    return service.list_tasks(
+    tasks = service.list_tasks(
         outlet_id=x_outlet_id,
         outlet_ids=None if x_outlet_id else outlet_ids,
         all_outlets=full_access and x_outlet_id is None,
         source_type=source_type,
     )
+    return [build_task_response(db, task) for task in tasks]
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -175,7 +177,8 @@ def create_task(
             )
         x_outlet_id = outlet_ids[0]
     service = TaskService(db)
-    return service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=actor_id)
+    task = service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=actor_id)
+    return build_task_response(db, task)
 
 
 @router.post("/process-overdue-alerts")
@@ -247,7 +250,8 @@ def get_task(
         db, current_user, x_outlet_id, task_id=task_id
     )
     service = TaskService(db)
-    return service.get_task(task_id=task_id, outlet_id=x_outlet_id)
+    task = service.get_task(task_id=task_id, outlet_id=x_outlet_id)
+    return build_task_detail_response(db, task)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -262,12 +266,13 @@ def update_task(
         db, current_user, x_outlet_id, task_id=task_id
     )
     service = TaskService(db)
-    return service.update_task(
+    task = service.update_task(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
     )
+    return build_task_response(db, task)
 
 
 @router.patch("/{task_id}/status", response_model=TaskResponse)
@@ -283,13 +288,14 @@ def update_task_status(
     )
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
-    return service.update_status(
+    task = service.update_status(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
         actor_identity_id=identity_user.id if identity_user else None,
     )
+    return build_task_response(db, task)
 
 
 @router.post("/{task_id}/submit-execution", response_model=TaskExecutionSubmitResponse)
@@ -305,14 +311,18 @@ def submit_task_execution(
     )
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
-    task, checklist_result = service.submit_execution(
+    task, checklist_result, corrective_task = service.submit_execution(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
         actor_identity_id=identity_user.id if identity_user else None,
     )
-    return TaskExecutionSubmitResponse(task=task, checklist=checklist_result)
+    return TaskExecutionSubmitResponse(
+        task=build_task_response(db, task),
+        checklist=checklist_result,
+        corrective_task=build_task_response(db, corrective_task) if corrective_task else None,
+    )
 
 
 @router.patch("/{task_id}/review", response_model=TaskResponse)
@@ -327,12 +337,32 @@ def review_task(
         db, current_user, x_outlet_id, task_id=task_id
     )
     service = TaskService(db)
-    return service.review_task(
+    task = service.review_task(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
         payload=payload,
     )
+    return build_task_response(db, task)
+
+
+@router.post("/{task_id}/verify", response_model=TaskResponse)
+def verify_task(
+    task_id: int,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
+    service = TaskService(db)
+    task = service.verify_task(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=actor_id,
+    )
+    return build_task_response(db, task)
 
 
 @router.post("/{task_id}/comments", response_model=TaskCommentResponse, status_code=status.HTTP_201_CREATED)

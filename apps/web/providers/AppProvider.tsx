@@ -8,15 +8,22 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { PopupProvider } from "@/shared/popup/popup-provider";
+import { CommandCenterProvider } from "@/shared/command-center/providers/command-provider";
+import { CommandCenter } from "@/shared/command-center/components/command-center";
 
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <AuthProvider>
         <OfflineSyncProvider>
-          <ServiceWorkerBootstrap />
-          <NativePushBootstrap />
-          <PopupProvider>{children}</PopupProvider>
+          <CommandCenterProvider>
+            <ServiceWorkerBootstrap />
+            <NativePushBootstrap />
+            <PopupProvider>
+              {children}
+              <CommandCenter />
+            </PopupProvider>
+          </CommandCenterProvider>
         </OfflineSyncProvider>
       </AuthProvider>
     </QueryProvider>

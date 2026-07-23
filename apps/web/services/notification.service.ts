@@ -81,6 +81,19 @@ export const notificationService = {
     return api<NotificationDelivery[]>("/api/v1/notifications/me");
   },
 
+  getUnreadCount() {
+    return api<{ unread_count: number }>("/api/v1/notifications/me/unread-count");
+  },
+
+  markRead(deliveryIds?: string[]) {
+    return api<{ message: string }>("/api/v1/notifications/me/mark-read", {
+      method: "POST",
+      body: JSON.stringify(
+        deliveryIds && deliveryIds.length > 0 ? { delivery_ids: deliveryIds } : {},
+      ),
+    });
+  },
+
   processPending() {
     return api<Record<string, unknown>>("/api/v1/notifications/process", {
       method: "POST",

@@ -5,6 +5,7 @@ import { Megaphone, Plus, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { queryKeys } from "@/lib/query/keys";
+import { getIdentityOutlets } from "@/services/identity.service";
 import {
   announcementService,
   type Announcement,
@@ -41,6 +42,12 @@ export function AnnouncementsPanel() {
   const listQuery = useQuery({
     queryKey: queryKeys.announcements.all(),
     queryFn: announcementService.listAll,
+  });
+
+  const outletsQuery = useQuery({
+    queryKey: queryKeys.identity.outlets,
+    queryFn: getIdentityOutlets,
+    retry: false,
   });
 
   const createMutation = useMutation({
@@ -124,14 +131,15 @@ export function AnnouncementsPanel() {
                 setForm((prev) => ({
                   ...prev,
                   target_scope: event.target.value as AnnouncementTargetScope,
+                  target_ids: [],
                 }))
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             >
               <option value="all">Semua outlet</option>
+              <option value="outlet">Outlet terpilih</option>
               <option value="region">Per region</option>
               <option value="district">Per district</option>
-              <option value="outlet">Per outlet</option>
             </select>
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
               <input
@@ -144,7 +152,26 @@ export function AnnouncementsPanel() {
               Wajib konfirmasi
             </label>
           </div>
-          {form.target_scope !== "all" ? (
+          {form.target_scope === "outlet" ? (
+            <select
+              value={form.target_ids?.[0] ?? ""}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  target_ids: event.target.value ? [event.target.value] : [],
+                }))
+              }
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              <option value="">Pilih outlet...</option>
+              {(outletsQuery.data ?? []).map((outlet) => (
+                <option key={outlet.id} value={outlet.id}>
+                  {outlet.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {form.target_scope !== "all" && form.target_scope !== "outlet" ? (
             <input
               value={(form.target_ids ?? []).join(", ")}
               onChange={(event) =>

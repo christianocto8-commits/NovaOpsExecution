@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 import type { ChecklistScore } from "@/features/tasks/types";
@@ -10,10 +11,12 @@ type ChecklistSubmitResultModalProps = {
   taskTitle: string;
   checklist: ChecklistScore | null;
   pendingSync?: boolean;
+  correctiveActionId?: string;
+  capaEnabled?: boolean;
   onClose: () => void;
 };
 
-function getStatusMeta(status: ChecklistScore["status"]) {
+function getStatusMeta(status: ChecklistScore["status"], capaEnabled: boolean) {
   if (status === "pass") {
     return {
       title: "Checklist Lulus",
@@ -36,7 +39,9 @@ function getStatusMeta(status: ChecklistScore["status"]) {
 
   return {
     title: "Checklist Gagal",
-    description: "Beberapa item gagal. Corrective action mungkin dibuat otomatis.",
+    description: capaEnabled
+      ? "Beberapa item gagal. Corrective action mungkin dibuat otomatis."
+      : "Beberapa item gagal. Perbaikan perlu ditindaklanjuti manual.",
     icon: XCircle,
     iconClass: "text-red-600",
     badgeClass: "bg-red-50 text-red-700 border-red-100",
@@ -48,11 +53,13 @@ export function ChecklistSubmitResultModal({
   taskTitle,
   checklist,
   pendingSync = false,
+  correctiveActionId,
+  capaEnabled = true,
   onClose,
 }: ChecklistSubmitResultModalProps) {
   if (!checklist) return null;
 
-  const meta = getStatusMeta(checklist.status);
+  const meta = getStatusMeta(checklist.status, capaEnabled);
   const StatusIcon = meta.icon;
   const criticalFailures =
     checklist.critical_failures && checklist.critical_failures.length > 0
@@ -80,6 +87,21 @@ export function ChecklistSubmitResultModal({
         {pendingSync ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
             Tersimpan offline — menunggu sinkron. Skor di bawah bersifat perkiraan.
+          </div>
+        ) : null}
+
+        {capaEnabled && correctiveActionId && !pendingSync ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-sm font-semibold text-emerald-900">Corrective action (CAPA) dibuat</p>
+            <p className="mt-1 text-sm text-emerald-800">
+              Tindak lanjut otomatis telah dibuat dari item checklist yang gagal.
+            </p>
+            <Link
+              href="/dashboard/corrective-actions"
+              className="mt-3 inline-flex rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+            >
+              Lihat corrective actions
+            </Link>
           </div>
         ) : null}
 

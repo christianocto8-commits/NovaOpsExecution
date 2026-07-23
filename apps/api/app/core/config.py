@@ -112,6 +112,7 @@ class Settings(BaseSettings):
 
     firebase_credentials_path: str | None = None
     firebase_credentials_json: str | None = None
+    iot_ingest_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

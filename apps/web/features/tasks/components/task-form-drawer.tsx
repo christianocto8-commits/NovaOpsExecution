@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
@@ -83,6 +83,20 @@ export function TaskFormDrawer({
   const selectedTemplate = availableTemplates.find(
     (template) => template.id === safeFormTemplateId
   );
+
+  useEffect(() => {
+    if (!open || isEditMode || form.formTemplateId || availableTemplates.length === 0) {
+      return;
+    }
+
+    const defaultTemplate = availableTemplates[0];
+    onChange({
+      ...form,
+      formTemplateId: defaultTemplate.id,
+      title: form.title || defaultTemplate.name,
+      description: form.description || defaultTemplate.description || "",
+    });
+  }, [open, isEditMode, form, onChange, availableTemplates]);
   const outletOptions = useMemo(() => {
     const identityOutlets = identityOutletsQuery.data ?? [];
 

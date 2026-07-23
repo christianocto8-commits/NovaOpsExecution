@@ -23,8 +23,9 @@ function getStatusTone(status?: string) {
       return "bg-amber-50 text-amber-700";
     case "cancelled":
       return "bg-slate-100 text-slate-500";
-    case "open":
+    case "pending_approval":
     case "submitted":
+    case "open":
     case "in_review":
       return "bg-blue-50 text-blue-700";
     default:
@@ -64,13 +65,20 @@ export function WorkflowInstanceTable({
       key: "status",
       header: "Status",
       render: (instance) => (
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(
-            instance.status,
-          )}`}
-        >
-          {instance.status}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(
+              instance.status,
+            )}`}
+          >
+            {instance.status}
+          </span>
+          {instance.has_escalation ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+              Escalated
+            </span>
+          ) : null}
+        </div>
       ),
     },
     {

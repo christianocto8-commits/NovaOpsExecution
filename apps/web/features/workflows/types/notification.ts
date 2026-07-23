@@ -109,6 +109,8 @@ export interface NotificationDelivery {
   last_error?: string | null;
   scheduled_at?: string | null;
   sent_at?: string | null;
+  read_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  action_url?: string | null;
 }

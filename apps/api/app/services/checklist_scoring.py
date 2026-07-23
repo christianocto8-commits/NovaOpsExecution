@@ -145,7 +145,7 @@ def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]
     if field_type == "yes_no":
         return _score_yes_no(value, allow_na=allow_na)
 
-    if field_type == "number":
+    if field_type in {"number", "money_amount", "money_denomination"}:
         return _score_number(value, field.validation_json, field.options_json)
 
     if field_type == "rating":

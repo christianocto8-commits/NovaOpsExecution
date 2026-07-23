@@ -9,3 +9,4 @@ export * from "./notification-templates-panel";
 export * from "./workflow-instance-table";
 export * from "./workflow-instance-drawer";
 export * from "./workflow-execution-dialog";
+export * from "./approval-inbox-panel";

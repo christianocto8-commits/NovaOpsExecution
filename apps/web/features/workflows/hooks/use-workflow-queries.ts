@@ -45,6 +45,13 @@ export function useWorkflowInstances() {
   });
 }
 
+export function usePendingWorkflowInstances() {
+  return useQuery({
+    queryKey: [...queryKeys.workflow.instances(), "pending-for-me"],
+    queryFn: workflowService.listPendingForMe,
+  });
+}
+
 export function useWorkflowInstance(instanceId?: UUID) {
   return useQuery({
     queryKey: instanceId

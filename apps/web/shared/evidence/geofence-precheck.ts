@@ -19,6 +19,25 @@ function haversineDistanceMeters(
   return radius * c;
 }
 
+export function getDistanceToOutletMeters(args: {
+  submitter: GeolocationResult | null;
+  outletLat: number | null | undefined;
+  outletLon: number | null | undefined;
+}): number | null {
+  const { submitter, outletLat, outletLon } = args;
+
+  if (outletLat == null || outletLon == null || !submitter) {
+    return null;
+  }
+
+  return haversineDistanceMeters(
+    submitter.latitude,
+    submitter.longitude,
+    outletLat,
+    outletLon
+  );
+}
+
 export function checkGeofencePrecheck(args: {
   submitter: GeolocationResult | null;
   outletLat: number | null | undefined;

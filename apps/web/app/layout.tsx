@@ -11,6 +11,14 @@ export const metadata: Metadata = {
   title: "NovaOPS",
   description: "NovaOPS Enterprise Operations Platform",
   applicationName: "NovaOps",
+  icons: {
+    icon: [
+      { url: "/novaops-icon.svg", type: "image/svg+xml" },
+      { url: "/novaops-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/novaops-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/novaops-icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     title: "NovaOps",
@@ -27,6 +35,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

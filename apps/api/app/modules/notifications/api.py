@@ -24,10 +24,26 @@ from app.modules.notifications.schemas import (
     PushTestResponse,
     DevicePushTokenRegister,
     DevicePushTokenRead,
+    HistoryNotesRead,
+    HistoryNotesUpdate,
+    NotificationPreferencesRead,
+    NotificationPreferencesUpdate,
+    UnreadCountResponse,
+    MarkNotificationsRead,
 )
 from app.modules.notifications.service import NotificationService, NotificationTemplateService
+from app.services.user_settings_store import get_user_settings, save_user_settings
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+NOTIFICATION_PREFS_NAMESPACE = "notification_prefs"
+HISTORY_NOTES_NAMESPACE = "history_notes"
+DEFAULT_NOTIFICATION_PREFS = {
+    "email_enabled": True,
+    "push_enabled": True,
+    "digest_enabled": False,
+    "sms_enabled": False,
+}
 
 
 @router.get(
@@ -99,7 +115,84 @@ def list_my_notifications(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return NotificationService(db).list_user_deliveries(user.id)
+    return NotificationService(db).list_user_delivery_reads(user.id)
+
+
+@router.get("/me/unread-count", response_model=UnreadCountResponse)
+def get_my_unread_notification_count(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    count = NotificationService(db).get_unread_count(user.id)
+    return UnreadCountResponse(unread_count=count)
+
+
+@router.post("/me/mark-read", response_model=MessageResponse)
+def mark_my_notifications_read(
+    payload: MarkNotificationsRead = MarkNotificationsRead(),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    delivery_ids = payload.delivery_ids or None
+    marked = NotificationService(db).mark_all_read(user.id, delivery_ids)
+    return {"message": f"Marked {marked} notification(s) as read"}
+
+
+@router.get("/preferences", response_model=NotificationPreferencesRead)
+def get_notification_preferences(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    stored = get_user_settings(db, user.id, NOTIFICATION_PREFS_NAMESPACE, DEFAULT_NOTIFICATION_PREFS)
+    return NotificationPreferencesRead(
+        email_enabled=bool(stored.get("email_enabled", True)),
+        push_enabled=bool(stored.get("push_enabled", True)),
+        digest_enabled=bool(stored.get("digest_enabled", False)),
+    )
+
+
+@router.put("/preferences", response_model=NotificationPreferencesRead)
+def update_notification_preferences(
+    payload: NotificationPreferencesUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    current = get_user_settings(db, user.id, NOTIFICATION_PREFS_NAMESPACE, DEFAULT_NOTIFICATION_PREFS)
+    update_data = payload.model_dump(exclude_unset=True)
+    next_prefs = {**current, **update_data}
+    saved = save_user_settings(db, user.id, NOTIFICATION_PREFS_NAMESPACE, next_prefs)
+
+    return NotificationPreferencesRead(
+        email_enabled=bool(saved.get("email_enabled", True)),
+        push_enabled=bool(saved.get("push_enabled", True)),
+        digest_enabled=bool(saved.get("digest_enabled", False)),
+    )
+
+
+@router.get("/history-notes", response_model=HistoryNotesRead)
+def get_history_notes(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    stored = get_user_settings(db, user.id, HISTORY_NOTES_NAMESPACE, {"notes": {}})
+    notes = stored.get("notes") if isinstance(stored.get("notes"), dict) else {}
+    return HistoryNotesRead(notes={str(key): str(value) for key, value in notes.items()})
+
+
+@router.put("/history-notes", response_model=HistoryNotesRead)
+def update_history_notes(
+    payload: HistoryNotesUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    saved = save_user_settings(
+        db,
+        user.id,
+        HISTORY_NOTES_NAMESPACE,
+        {"notes": payload.notes},
+    )
+    notes = saved.get("notes") if isinstance(saved.get("notes"), dict) else {}
+    return HistoryNotesRead(notes={str(key): str(value) for key, value in notes.items()})
 
 
 @router.post(

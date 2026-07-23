@@ -1,14 +1,19 @@
-const SHELL_CACHE = "novaops-shell-v1";
-const STATIC_CACHE = "novaops-static-v1";
+const SHELL_CACHE = "novaops-shell-v2";
+const STATIC_CACHE = "novaops-static-v2";
 
 const SHELL_ROUTES = [
   "/",
   "/login",
+  "/offline.html",
   "/dashboard/operator",
   "/dashboard/tasks",
   "/dashboard/forms",
+  "/dashboard/corrective-actions",
+  "/dashboard/evidence",
   "/manifest.json",
-  "/window.svg",
+  "/novaops-icon-192.png",
+  "/novaops-icon-512.png",
+  "/novaops-icon.svg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -62,11 +67,14 @@ self.addEventListener("fetch", (event) => {
           const cached = await caches.match(request);
           if (cached) return cached;
 
-          const fallbacks = ["/dashboard/operator", "/login", "/"];
+          const fallbacks = ["/dashboard/operator", "/offline.html", "/login", "/"];
           for (const route of fallbacks) {
             const match = await caches.match(route);
             if (match) return match;
           }
+
+          const offlinePage = await caches.match("/offline.html");
+          if (offlinePage) return offlinePage;
 
           return Response.error();
         })
@@ -114,8 +122,8 @@ self.addEventListener("push", (event) => {
 
   const notificationOptions = {
     body: payload.body,
-    icon: "/window.svg",
-    badge: "/window.svg",
+    icon: "/novaops-icon-192.png",
+    badge: "/novaops-icon-192.png",
     tag: payload.data?.event_type ?? "novaops-task",
     data: {
       url: payload.url ?? "/dashboard/tasks",

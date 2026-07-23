@@ -60,6 +60,10 @@ export type SettingsResponse = {
   password_rotation_days: number;
   brand_logo_url: string;
   brand_primary_color: string;
+  iot_temp_min_c: number;
+  iot_temp_max_c: number;
+  iot_auto_fail_enabled: boolean;
+  lms_training_gate_enabled: boolean;
 };
 
 export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
@@ -122,6 +126,10 @@ export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
   password_rotation_days: 90,
   brand_logo_url: "",
   brand_primary_color: "#047857",
+  iot_temp_min_c: 2,
+  iot_temp_max_c: 8,
+  iot_auto_fail_enabled: true,
+  lms_training_gate_enabled: true,
 };
 
 export type SettingsPayload = Partial<SettingsResponse>;

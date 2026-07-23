@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/shared/i18n";
 import { getNavigationForPermissions, type NavigationItem } from "@/shared/navigation";
@@ -47,8 +49,13 @@ function SidebarNavigation({
 }) {
   const pathname = usePathname();
   const { can } = useAuth();
+  const { settings } = useSettings();
   const { t } = useLanguage();
-  const groupedItems = groupNavigation(getNavigationForPermissions(can, workspace));
+  const groupedItems = groupNavigation(
+    getNavigationForPermissions(can, workspace, {
+      capaEnabled: isCapaEnabled(settings),
+    })
+  );
 
   return (
     <>

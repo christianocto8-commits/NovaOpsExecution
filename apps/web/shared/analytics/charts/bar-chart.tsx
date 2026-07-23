@@ -22,9 +22,13 @@ export function BarChartCard({ title, description, data, xKey, series }: BarChar
           <CartesianGrid stroke={chartTheme.grid} strokeDasharray="4 4" />
           <XAxis
             dataKey={xKey}
-            tick={{ fill: chartTheme.text, fontSize: 12 }}
+            tick={{ fill: chartTheme.text, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={56}
           />
           <YAxis tick={{ fill: chartTheme.text, fontSize: 12 }} axisLine={false} tickLine={false} />
           <Tooltip />

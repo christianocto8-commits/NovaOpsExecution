@@ -8,7 +8,6 @@ import type {
   FormFieldValidation,
   FormTemplate,
 } from "@/features/forms/types";
-import { DEFAULT_IDR_DENOMINATIONS } from "@/features/forms/utils/money";
 import {
   ensureResponsiblePersonField,
 } from "@/features/forms/utils/system-fields";
@@ -167,6 +166,14 @@ function parseFieldValidation(validationJson: unknown): FormFieldValidation | un
   };
 }
 
+function normalizeZenputFieldType(type: string): FormField["type"] {
+  if (type === "money_denomination" || type === "money_amount") {
+    return "number";
+  }
+
+  return type as FormField["type"];
+}
+
 function mapBackendField(field: BackendFormField): FormField {
   const options = parseFieldOptions(field.options_json);
   const validation = parseFieldValidation(field.validation_json);
@@ -174,7 +181,7 @@ function mapBackendField(field: BackendFormField): FormField {
   return {
     id: String(field.id),
     label: field.label,
-    type: field.field_type as FormField["type"],
+    type: normalizeZenputFieldType(field.field_type),
     required: field.is_required,
     section: field.help_text ?? undefined,
     options,

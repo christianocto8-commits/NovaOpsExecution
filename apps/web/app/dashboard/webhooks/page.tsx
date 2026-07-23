@@ -11,6 +11,7 @@ import {
   listWebhooks,
   type WebhookEventType,
   type WebhookSubscription,
+  testWebhook,
   updateWebhook,
 } from "@/services/webhook.service";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput } from "@/shared/form";
@@ -84,6 +85,24 @@ export default function WebhooksPage() {
       updateWebhook(id, { active }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
+    },
+  });
+
+  const testMutation = useMutation({
+    mutationFn: testWebhook,
+    onSuccess: async (result) => {
+      setNotice(
+        result.delivered
+          ? `Test delivery succeeded${result.http_status ? ` (HTTP ${result.http_status})` : ""}.`
+          : `Test delivery failed${result.error_message ? `: ${result.error_message}` : "."}`
+      );
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: ["webhook-deliveries"] });
+    },
+    onError: (mutationError) => {
+      setError(
+        mutationError instanceof Error ? mutationError.message : "Unable to send test webhook."
+      );
     },
   });
 
@@ -252,13 +271,23 @@ export default function WebhooksPage() {
                   {webhook.description ? (
                     <p className="mt-2 text-sm text-slate-500">{webhook.description}</p>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => deleteMutation.mutate(webhook.id)}
-                    className="mt-3 text-sm font-semibold text-red-700"
-                  >
-                    Delete
-                  </button>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => testMutation.mutate(webhook.id)}
+                      disabled={testMutation.isPending}
+                      className="text-sm font-semibold text-emerald-700 disabled:opacity-60"
+                    >
+                      {testMutation.isPending ? "Sending test..." : "Send test"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteMutation.mutate(webhook.id)}
+                      className="text-sm font-semibold text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (

@@ -61,6 +61,10 @@ class SettingsResponse(BaseModel):
     password_rotation_days: int = 90
     brand_logo_url: str = ""
     brand_primary_color: str = "#047857"
+    iot_temp_min_c: float = 2.0
+    iot_temp_max_c: float = 8.0
+    iot_auto_fail_enabled: bool = True
+    lms_training_gate_enabled: bool = True
 
 
 class WorkspaceResetRequest(BaseModel):
@@ -133,6 +137,10 @@ class SettingsUpdate(BaseModel):
     password_rotation_days: int | None = None
     brand_logo_url: str | None = None
     brand_primary_color: str | None = None
+    iot_temp_min_c: float | None = None
+    iot_temp_max_c: float | None = None
+    iot_auto_fail_enabled: bool | None = None
+    lms_training_gate_enabled: bool | None = None
 
 
 class WorkspaceResetRequest(BaseModel):

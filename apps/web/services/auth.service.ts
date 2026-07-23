@@ -21,6 +21,8 @@ export type AuthUser = {
     outlet_ids: string[];
     outlet_name?: string | null;
     outlet_code?: string | null;
+    legacy_outlet_id?: number | null;
+    legacy_outlet_ids?: number[];
     outlets?: Array<{
       id: string;
       code: string;

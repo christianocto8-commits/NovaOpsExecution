@@ -4,10 +4,14 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.modules.notifications.models import NotificationChannel
+from app.modules.identity.models import User as IdentityUser
+from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
 
-from app.modules.workflows.models import WorkflowActionType, WorkflowApprovalHistory, WorkflowApprovalMatrix, WorkflowDefinition, WorkflowEscalationRule, WorkflowInstance, WorkflowInstanceStatus, WorkflowInstanceStep, WorkflowInstanceStepStatus, WorkflowStep
+from app.modules.workflows.models import WorkflowActionType, WorkflowApprovalHistory, WorkflowApprovalMatrix, WorkflowApproverType, WorkflowDefinition, WorkflowEscalationRule, WorkflowInstance, WorkflowInstanceStatus, WorkflowInstanceStep, WorkflowInstanceStepStatus, WorkflowStep
 from app.modules.workflows.repository import WorkflowApprovalHistoryRepository, WorkflowApprovalMatrixRepository, WorkflowDefinitionRepository, WorkflowEscalationRuleRepository, WorkflowInstanceRepository, WorkflowInstanceStepRepository
+from app.modules.notifications.models import NotificationChannel
+from app.services.sms_service import send_sms
+from app.services.workspace_settings import get_workspace_settings
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.modules.workflows.schemas import WorkflowActionRequest, WorkflowApprovalMatrixCreate, WorkflowApprovalMatrixUpdate, WorkflowDefinitionCreate, WorkflowDefinitionUpdate, WorkflowEscalationRuleCreate, WorkflowEscalationRuleUpdate, WorkflowInstanceCreate
@@ -158,10 +162,28 @@ class WorkflowInstanceService:
         self.workflow_repository = WorkflowDefinitionRepository(db)
         self.repository = WorkflowInstanceRepository(db)
         self.step_repository = WorkflowInstanceStepRepository(db)
+        self.matrix_repository = WorkflowApprovalMatrixRepository(db)
+        self.history_repository = WorkflowApprovalHistoryRepository(db)
         self.notification_service = NotificationService(db)
 
     def list_instances(self) -> list[WorkflowInstance]:
         return self.repository.list()
+
+    def list_pending_for_me(self, current_user: IdentityUser) -> list[WorkflowInstance]:
+        outlet_ids = {outlet.id for outlet in current_user.assigned_outlets}
+        if current_user.outlet_id:
+            outlet_ids.add(current_user.outlet_id)
+
+        return self.repository.list_pending_for_user(
+            user_id=current_user.id,
+            role_id=current_user.role_id,
+            outlet_ids=outlet_ids,
+            role_slug=current_user.role.slug if current_user.role else "",
+        )
+
+    def instance_has_escalation(self, instance_id: UUID) -> bool:
+        history = self.history_repository.list_by_instance(instance_id)
+        return any(entry.action_type == WorkflowActionType.escalated for entry in history)
 
     def get_instance(self, instance_id: UUID) -> WorkflowInstance:
         instance = self.repository.find_by_id(instance_id)
@@ -233,10 +255,115 @@ class WorkflowInstanceService:
             )
             self.db.add(instance_step)
 
+        self.db.flush()
+
+        active_instance_step = next(
+            (
+                step
+                for step in self.step_repository.list_by_instance(instance.id)
+                if step.status == WorkflowInstanceStepStatus.active
+            ),
+            None,
+        )
+
+        if active_instance_step:
+            self._assign_approvers_from_matrix(
+                workflow_id=workflow.id,
+                step_id=first_step.id,
+                instance_step=active_instance_step,
+                context_json=payload.context_json,
+            )
+
+        submitted_history = WorkflowApprovalHistory(
+            instance_id=instance.id,
+            instance_step_id=active_instance_step.id if active_instance_step else None,
+            action_type=WorkflowActionType.submitted,
+            actor_user_id=submitted_by_id,
+            comment="Workflow instance submitted",
+            payload_json={"source": "create_instance"},
+        )
+        self.db.add(submitted_history)
+
+        if instance.status == WorkflowInstanceStatus.pending_approval:
+            self._notify_pending_approval(instance, active_instance_step)
+
         self.db.commit()
         self.db.refresh(instance)
 
         return instance
+
+    def _assign_approvers_from_matrix(
+        self,
+        *,
+        workflow_id: UUID,
+        step_id: UUID,
+        instance_step: WorkflowInstanceStep,
+        context_json: dict | None,
+    ) -> None:
+        matrix_entries = self.matrix_repository.list_by_workflow(workflow_id)
+        matching = [entry for entry in matrix_entries if entry.step_id == step_id]
+
+        if not matching:
+            return
+
+        entry = sorted(matching, key=lambda item: item.sequence)[0]
+
+        if entry.approver_type == WorkflowApproverType.user:
+            instance_step.assigned_to_user_id = entry.approver_user_id
+        elif entry.approver_type == WorkflowApproverType.role:
+            instance_step.assigned_role_id = entry.approver_role_id
+        elif entry.approver_type == WorkflowApproverType.outlet:
+            instance_step.assigned_role_id = entry.approver_role_id
+        elif entry.approver_type == WorkflowApproverType.area_manager:
+            instance_step.assigned_role_id = entry.approver_role_id
+
+        if context_json and context_json.get("outlet_id") and entry.approver_type == WorkflowApproverType.outlet:
+            instance_step.result_json = {"outlet_id": context_json.get("outlet_id")}
+
+    def _notify_pending_approval(
+        self,
+        instance: WorkflowInstance,
+        active_step: WorkflowInstanceStep | None,
+    ) -> None:
+        if not active_step:
+            return
+
+        workflow = self.workflow_repository.find_by_id(instance.workflow_id)
+        workflow_name = workflow.name if workflow else instance.module
+
+        recipient_user_id = active_step.assigned_to_user_id
+        recipient_role_id = active_step.assigned_role_id
+
+        if recipient_user_id is None and recipient_role_id is None:
+            return
+
+        subject = "Workflow pending your approval"
+        body = f"{workflow_name} · {instance.entity_id} is awaiting approval."
+
+        self.notification_service.create_event(
+            NotificationEventCreate(
+                event_type="workflow_pending_approval",
+                source_module="workflows",
+                source_entity_type="workflow_instance",
+                source_entity_id=str(instance.id),
+                recipient_user_id=recipient_user_id,
+                recipient_role_id=recipient_role_id,
+                channel=NotificationChannel.in_app,
+                subject=subject,
+                body=body,
+                payload_json={
+                    "workflow_id": str(instance.workflow_id),
+                    "instance_id": str(instance.id),
+                    "entity_id": instance.entity_id,
+                },
+            )
+        )
+
+        settings = get_workspace_settings(self.db)
+        if settings.sms_notifications and recipient_user_id:
+            identity_user = self.db.get(IdentityUser, recipient_user_id)
+            if identity_user and identity_user.phone_number:
+                send_sms(to_number=identity_user.phone_number, body=body)
 
 
 class WorkflowActionService:

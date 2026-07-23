@@ -160,6 +160,10 @@ def test_task_with_form_template_remains_linked(client: TestClient, auth_headers
     matched = next((item for item in tasks if item["id"] == task.id), None)
     assert matched is not None
     assert matched.get("source_type") == "form_template"
+    assert matched.get("form_template_id") == template.id
+    assert matched.get("form_template_name") == template.title
+    assert matched.get("checklist_field_count", 0) >= 1
+    assert isinstance(matched.get("checklist_preview"), list)
 
     db.delete(task)
     db.commit()

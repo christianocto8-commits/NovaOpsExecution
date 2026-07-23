@@ -1,15 +1,27 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 import { SectionedFormRenderer } from "@/features/forms/renderer";
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import type { ExecutionSessionResponse } from "@/services/execution-session.service";
+import { getExecutionSessions } from "@/services/execution-session.service";
 import type { FormSubmissionResponse } from "@/services/form-submission.service";
 import { formTemplateService } from "@/services/form-template.service";
-import { EvidenceGallery, type EvidenceItem } from "@/shared/evidence";
+import {
+  fetchHistoryNotes,
+  saveHistoryNotes,
+} from "@/services/notification-preferences.service";
+import { EvidenceGallery } from "@/shared/evidence";
+import {
+  collectSubmissionEvidenceItems,
+  hiddenMediaFieldIds,
+} from "@/shared/evidence/submission-evidence";
+import { TaskPdfExportButton } from "@/features/reports/components/task-pdf-export-button";
+import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
 
 export type HistoryDetailSelection =
   | { kind: "task"; task: Task }
@@ -19,7 +31,26 @@ export type HistoryDetailSelection =
 type HistoryDetailDrawerProps = {
   selection: HistoryDetailSelection | null;
   onClose: () => void;
+  enrichedTasks?: Task[];
 };
+
+const NOTES_STORAGE_KEY = "novaops_history_notes";
+
+function getNoteKey(selection: HistoryDetailSelection) {
+  if (selection.kind === "task") return `task:${selection.task.id}`;
+  if (selection.kind === "session") return `session:${selection.session.id}`;
+  return `form:${selection.submission.id}`;
+}
+
+function readStoredNotes(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
 
 function parseResponses(answersJson: Record<string, unknown>) {
   const responses = answersJson.responses;
@@ -31,22 +62,6 @@ function parseResponses(answersJson: Record<string, unknown>) {
       value == null ? "" : String(value),
     ])
   );
-}
-
-function parseEvidenceItems(value: unknown): EvidenceItem[] {
-  if (typeof value !== "string" || !value.trim()) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter(
-      (item): item is EvidenceItem =>
-        Boolean(item) && typeof item.id === "string" && typeof item.url === "string"
-    );
-  } catch {
-    return [];
-  }
 }
 
 function parseChecklist(answersJson: Record<string, unknown>) {
@@ -65,14 +80,106 @@ function parseChecklist(answersJson: Record<string, unknown>) {
   };
 }
 
-export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerProps) {
+export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: HistoryDetailDrawerProps) {
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [draftNote, setDraftNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const notesQuery = useQuery({
+    queryKey: ["history-notes"],
+    queryFn: fetchHistoryNotes,
+    retry: false,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: saveHistoryNotes,
+    onSuccess: (nextNotes) => {
+      setNotes(nextNotes);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  useEffect(() => {
+    if (notesQuery.data) {
+      setNotes(notesQuery.data);
+      return;
+    }
+
+    setNotes(readStoredNotes());
+  }, [notesQuery.data]);
+
+  useEffect(() => {
+    if (!selection) {
+      setDraftNote("");
+      return;
+    }
+    const key = getNoteKey(selection);
+    setDraftNote(notes[key] ?? "");
+  }, [selection, notes]);
+
+  function saveNote() {
+    if (!selection) return;
+    const key = getNoteKey(selection);
+    const next = { ...notes, [key]: draftNote.trim() };
+    setNotes(next);
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(next));
+    saveMutation.mutate(next);
+  }
+
+  const fallbackTaskId =
+    selection?.kind === "task" ? Number(selection.task.id) : undefined;
+  const shouldLoadFallbackSession =
+    selection?.kind === "task" &&
+    !Object.values(selection.task.execution?.formResponses ?? {}).some((value) =>
+      String(value ?? "").trim()
+    );
+
+  const fallbackSessionQuery = useQuery({
+    queryKey: [...queryKeys.history.executionSessions(), "task", fallbackTaskId ?? "none"],
+    queryFn: () =>
+      getExecutionSessions({
+        taskId: fallbackTaskId!,
+        status: "completed",
+      }),
+    enabled:
+      shouldLoadFallbackSession &&
+      fallbackTaskId != null &&
+      !Number.isNaN(fallbackTaskId),
+    retry: false,
+  });
+
+  const resolvedSelection = useMemo((): HistoryDetailSelection | null => {
+    if (!selection) return null;
+
+    if (selection.kind !== "task") return selection;
+
+    const hasResponses = Object.values(selection.task.execution?.formResponses ?? {}).some(
+      (value) => String(value ?? "").trim()
+    );
+
+    if (hasResponses) return selection;
+
+    const fallbackSession = (fallbackSessionQuery.data ?? []).sort(
+      (first, second) => second.id - first.id
+    )[0];
+
+    if (!fallbackSession) return selection;
+
+    return {
+      kind: "session",
+      session: fallbackSession,
+      taskTitle: selection.task.title,
+    };
+  }, [selection, fallbackSessionQuery.data]);
+
   const templateId =
-    selection?.kind === "session"
-      ? selection.session.form_template_id
-      : selection?.kind === "form"
-        ? selection.submission.form_template_id
-        : selection?.kind === "task" && selection.task.formTemplateId
-          ? selection.task.formTemplateId
+    resolvedSelection?.kind === "session"
+      ? resolvedSelection.session.form_template_id
+      : resolvedSelection?.kind === "form"
+        ? resolvedSelection.submission.form_template_id
+        : resolvedSelection?.kind === "task" && resolvedSelection.task.formTemplateId
+          ? resolvedSelection.task.formTemplateId
           : null;
 
   const templateQuery = useQuery({
@@ -81,20 +188,45 @@ export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerP
     enabled: Boolean(templateId),
   });
 
-  if (!selection) return null;
+  const templatesQuery = useQuery({
+    queryKey: queryKeys.sop.formTemplates(),
+    queryFn: () => formTemplateService.list(),
+    retry: false,
+  });
+
+  const exportTask = useMemo(() => {
+    if (!resolvedSelection) return null;
+
+    if (resolvedSelection.kind === "task") {
+      const enriched =
+        enrichedTasks.find((task) => task.id === resolvedSelection.task.id) ??
+        resolvedSelection.task;
+      return isTaskWorkedOn(enriched) ? enriched : null;
+    }
+
+    if (resolvedSelection.kind === "session") {
+      const taskId = String(resolvedSelection.session.task_id);
+      const enriched = enrichedTasks.find((task) => task.id === taskId);
+      return enriched && isTaskWorkedOn(enriched) ? enriched : null;
+    }
+
+    return null;
+  }, [resolvedSelection, enrichedTasks]);
+
+  if (!resolvedSelection) return null;
 
   const template = templateQuery.data ?? null;
   const answersJson: Record<string, unknown> =
-    selection.kind === "session"
-      ? selection.session.answers_json
-      : selection.kind === "task" && selection.task.execution
-        ? { responses: selection.task.execution.formResponses }
+    resolvedSelection.kind === "session"
+      ? resolvedSelection.session.answers_json
+      : resolvedSelection.kind === "task" && resolvedSelection.task.execution
+        ? { responses: resolvedSelection.task.execution.formResponses }
         : {};
 
   const responses =
-    selection.kind === "form"
+    resolvedSelection.kind === "form"
       ? Object.fromEntries(
-          selection.submission.answers.map((answer) => [
+          resolvedSelection.submission.answers.map((answer) => [
             String(answer.form_field_id),
             answer.answer_text ??
               (answer.answer_number != null ? String(answer.answer_number) : "") ??
@@ -104,31 +236,27 @@ export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerP
       : parseResponses(answersJson as Record<string, unknown>);
 
   const checklist =
-    selection.kind === "session"
-      ? parseChecklist(selection.session.answers_json)
-      : selection.kind === "task"
-        ? (selection.task.execution?.checklist ?? null)
+    resolvedSelection.kind === "session"
+      ? parseChecklist(resolvedSelection.session.answers_json)
+      : resolvedSelection.kind === "task"
+        ? (resolvedSelection.task.execution?.checklist ?? null)
         : null;
 
-  const evidenceItems: EvidenceItem[] =
-    selection.kind === "task" && selection.task.execution
-      ? selection.task.execution.evidence
-          .filter((item) => item.type === "photo" && item.value.trim())
-          .map((item) => ({
-            id: item.id,
-            url: item.value,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            accuracy_m: item.accuracy_m,
-          }))
-      : parseEvidenceItems((answersJson as Record<string, unknown>).evidence);
+  const evidenceItems = collectSubmissionEvidenceItems({
+    evidencePayload: (answersJson as Record<string, unknown>).evidence,
+    formResponses: responses,
+    taskEvidence:
+      resolvedSelection.kind === "task" ? resolvedSelection.task.execution?.evidence : undefined,
+  });
+
+  const suppressedMediaFieldIds = hiddenMediaFieldIds(responses, evidenceItems);
 
   const title =
-    selection.kind === "task"
-      ? selection.task.title
-      : selection.kind === "session"
-        ? selection.taskTitle
-        : selection.templateName;
+    resolvedSelection.kind === "task"
+      ? resolvedSelection.task.title
+      : resolvedSelection.kind === "session"
+        ? resolvedSelection.taskTitle
+        : resolvedSelection.templateName;
 
   return (
     <div className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40">
@@ -141,13 +269,22 @@ export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerP
             </p>
             <h2 className="mt-1 text-lg font-bold text-slate-950">{title}</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-          >
-            <X className="size-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {exportTask ? (
+              <TaskPdfExportButton
+                task={exportTask}
+                templates={templatesQuery.data ?? []}
+                label="PDF"
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
@@ -167,6 +304,7 @@ export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerP
               responses={responses}
               onChange={() => undefined}
               readOnly
+              hiddenFieldIds={suppressedMediaFieldIds}
             />
           ) : templateQuery.isLoading ? (
             <p className="text-sm text-slate-500">Loading form fields…</p>
@@ -178,6 +316,25 @@ export function HistoryDetailDrawer({ selection, onClose }: HistoryDetailDrawerP
               <EvidenceGallery value={evidenceItems} onChange={() => undefined} readOnly />
             </section>
           ) : null}
+
+          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Note</p>
+            <textarea
+              value={draftNote}
+              onChange={(event) => setDraftNote(event.target.value)}
+              rows={3}
+              placeholder="Add a review note (synced to your account)..."
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600"
+            />
+            <button
+              type="button"
+              onClick={saveNote}
+              disabled={saveMutation.isPending}
+              className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
+            >
+              {saveMutation.isPending ? "Saving..." : saved ? "Saved" : "Save note"}
+            </button>
+          </section>
         </div>
       </aside>
     </div>

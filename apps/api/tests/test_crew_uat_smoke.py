@@ -68,7 +68,11 @@ def _create_template_and_task(db: Session, *, outlet_id: int = 1) -> tuple[int, 
 def _enable_geofence(db: Session, *, radius_meters: int = 200) -> None:
     update_workspace_settings(
         db,
-        SettingsUpdate(geofence_enabled=True, geofence_radius_meters=radius_meters),
+        SettingsUpdate(
+            geofence_enabled=True,
+            geofence_radius_meters=radius_meters,
+            lms_training_gate_enabled=False,
+        ),
     )
 
 
@@ -145,7 +149,10 @@ def test_crew_optional_execution_note_when_template_opted_out(
     auth_headers: dict[str, str],
     db: Session,
 ):
-    update_workspace_settings(db, SettingsUpdate(geofence_enabled=False))
+    update_workspace_settings(
+        db,
+        SettingsUpdate(geofence_enabled=False, lms_training_gate_enabled=False),
+    )
 
     template_id, field_id, task = _create_template_and_task(db)
     db.add(

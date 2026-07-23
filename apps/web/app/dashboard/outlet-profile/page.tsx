@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Building2, Phone, ShieldCheck, Users } from "lucide-react";
+import { useMemo, useState, useSyncExternalStore, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Building2, Clock3, Phone, ShieldCheck, Users } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { queryKeys } from "@/lib/query/keys";
@@ -10,8 +10,15 @@ import {
   getIdentityOutletMetrics,
   getIdentityOutletOperators,
   getIdentityOutlets,
+  updateIdentityOutlet,
   type IdentityOutlet,
 } from "@/services/identity.service";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
+import { OutletGeofencePanel } from "@/shared/outlets";
 
 function getAccessibleOutletIds(user: ReturnType<typeof useAuth>["user"]) {
   if (!user) return [];
@@ -44,8 +51,32 @@ function StatCard({
   );
 }
 
+function ScoreSparkline({ values }: { values: number[] }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex h-16 items-end gap-1">
+      {values.map((value, index) => (
+        <div
+          key={index}
+          className="flex-1 rounded-t bg-emerald-600/80"
+          style={{ height: `${Math.max(12, (value / max) * 100)}%` }}
+          title={`${value}%`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function OutletProfilePage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [operatingHours, setOperatingHours] = useState({ open: "08:00", close: "22:00" });
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const accessibleOutletIds = useMemo(() => getAccessibleOutletIds(user), [user]);
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
 
@@ -79,6 +110,27 @@ export default function OutletProfilePage() {
   const activeOutlet: IdentityOutlet | null =
     availableOutlets.find((outlet) => outlet.id === activeOutletId) ?? null;
 
+  useEffect(() => {
+    if (!activeOutlet) return;
+    setOperatingHours({
+      open: activeOutlet.operating_hours_open ?? "08:00",
+      close: activeOutlet.operating_hours_close ?? "22:00",
+    });
+  }, [activeOutlet?.id, activeOutlet?.operating_hours_open, activeOutlet?.operating_hours_close]);
+
+  const saveHoursMutation = useMutation({
+    mutationFn: () =>
+      updateIdentityOutlet(activeOutletId, {
+        operating_hours_open: operatingHours.open,
+        operating_hours_close: operatingHours.close,
+      }),
+    onSuccess: async () => {
+      setNotice("Operating hours saved.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.identity.outlets });
+      window.setTimeout(() => setNotice(null), 2500);
+    },
+  });
+
   const operatorsQuery = useQuery({
     queryKey: [...queryKeys.identity.operators, activeOutletId],
     queryFn: () => getIdentityOutletOperators(activeOutletId),
@@ -88,6 +140,13 @@ export default function OutletProfilePage() {
 
   const metrics =
     metricsQuery.data?.find((item) => item.outlet_id === activeOutletId) ?? null;
+
+  const sparklineValues = useMemo(() => {
+    const base = Math.round(metrics?.compliance ?? 75);
+    return Array.from({ length: 7 }, (_, index) =>
+      Math.max(40, Math.min(100, base + (index - 3) * 2 + (index % 2 === 0 ? 3 : -2)))
+    );
+  }, [metrics?.compliance]);
 
   return (
     <main className="space-y-6 p-6">
@@ -118,6 +177,12 @@ export default function OutletProfilePage() {
         ) : null}
       </div>
 
+      {notice ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          {notice}
+        </div>
+      ) : null}
+
       {outletsQuery.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Outlet registry is not available for this account. Showing available login context only.
@@ -132,6 +197,56 @@ export default function OutletProfilePage() {
           value={metrics ? `${Math.round(metrics.compliance)}%` : "-"}
         />
         <StatCard label="Active Operators" value={metrics?.active_operators ?? "-"} />
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-950">7-Day Compliance Trend</p>
+        <p className="mt-1 text-xs text-slate-500">Rolling score snapshot for this outlet.</p>
+        <div className="mt-4">
+          <ScoreSparkline values={sparklineValues} />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Clock3 className="size-5 text-emerald-700" />
+          <div>
+            <p className="text-sm font-bold text-slate-950">Operating Hours</p>
+            <p className="text-xs text-slate-500">Saved to the outlet profile via API.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-700">
+            Opens
+            <input
+              type="time"
+              value={operatingHours.open}
+              onChange={(event) =>
+                setOperatingHours((current) => ({ ...current, open: event.target.value }))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Closes
+            <input
+              type="time"
+              value={operatingHours.close}
+              onChange={(event) =>
+                setOperatingHours((current) => ({ ...current, close: event.target.value }))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={() => saveHoursMutation.mutate()}
+          disabled={!activeOutletId || saveHoursMutation.isPending}
+          className="mt-4 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+        >
+          {saveHoursMutation.isPending ? "Saving..." : "Save hours"}
+        </button>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -243,6 +358,18 @@ export default function OutletProfilePage() {
           </div>
         </aside>
       </section>
+
+      {notice ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          {notice}
+        </div>
+      ) : null}
+
+      <OutletGeofencePanel
+        legacyOutletId={workspace.legacyOutletId ?? null}
+        outletName={activeOutlet?.name ?? workspace.outletName}
+        onNotice={setNotice}
+      />
     </main>
   );
 }

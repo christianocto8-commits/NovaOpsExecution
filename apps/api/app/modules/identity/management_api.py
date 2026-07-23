@@ -179,6 +179,12 @@ def update_outlet(
     if "status" in update_data and update_data["status"]:
         outlet.status = str(update_data["status"]).strip().lower()
 
+    if "operating_hours_open" in update_data:
+        outlet.operating_hours_open = update_data["operating_hours_open"]
+
+    if "operating_hours_close" in update_data:
+        outlet.operating_hours_close = update_data["operating_hours_close"]
+
     updated = outlets.update(outlet)
     db.commit()
     return updated
@@ -249,6 +255,7 @@ def create_user(
         username=username,
         full_name=payload.full_name.strip(),
         password_hash=hash_password(payload.password),
+        phone_number=payload.phone_number.strip() if payload.phone_number else None,
         role_id=payload.role_id,
         outlet_id=resolved_outlet_id,
         is_active=payload.is_active,
@@ -297,6 +304,10 @@ def update_user(
 
     if "full_name" in update_data:
         user.full_name = str(update_data["full_name"]).strip()
+
+    if "phone_number" in update_data:
+        raw_phone = update_data["phone_number"]
+        user.phone_number = str(raw_phone).strip() if raw_phone else None
 
     if "password" in update_data:
         user.password_hash = hash_password(str(update_data["password"]))

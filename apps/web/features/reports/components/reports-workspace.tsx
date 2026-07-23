@@ -19,15 +19,26 @@ import {
   PieChartCard,
 } from "@/shared/analytics/charts";
 import { queryKeys } from "@/lib/query/keys";
+import { getExecutionSessions } from "@/services/execution-session.service";
 import { formTemplateService } from "@/services/form-template.service";
 import { taskService } from "@/services/task.service";
+import {
+  enrichTasksWithCompletedSessions,
+  resolveTaskSubmissionSelection,
+} from "@/features/history/utils/execution-session-history";
 import type { Task } from "@/features/tasks/types";
+import { isTaskCompleted } from "@/features/tasks/utils/task-inbox";
 import {
   countWorkedTasksForOutlet,
   exportOutletWorkReportPdf,
   filterWorkedTasksForOutlet,
   isTaskWorkedOn,
 } from "@/features/reports/utils/task-work-report-pdf";
+import { getReportSummary, getReportTrends } from "@/features/reports/reports-api";
+import {
+  HistoryDetailDrawer,
+  type HistoryDetailSelection,
+} from "@/features/history/components/history-detail-drawer";
 import { RealtimeClock } from "@/shared/realtime";
 import { useToast } from "@/shared/toast";
 import {
@@ -35,6 +46,8 @@ import {
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
+import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 type ReportStatus = "completed" | "in_progress" | "pending" | "overdue";
 
@@ -111,13 +124,13 @@ function isOverdue(task: Task) {
 }
 
 function getTaskProgress(task: Task) {
-  if (task.status === "Completed") return 100;
+  if (isTaskCompleted(task) || task.execution?.completedAt) return 100;
   if (task.status === "In Progress") return 50;
   return 0;
 }
 
 function getReportStatus(task: Task): ReportStatus {
-  if (task.status === "Completed") return "completed";
+  if (isTaskCompleted(task) || task.execution?.completedAt) return "completed";
   if (isOverdue(task)) return "overdue";
   if (task.status === "In Progress") return "in_progress";
   return "pending";
@@ -154,8 +167,7 @@ function toReportRow(task: Task): ReportRow {
     score: progress,
     operator: task.execution?.operatorName ?? task.assignee ?? "Outlet Team",
     due: getDateLabel(task.due),
-    submittedAt:
-      task.status === "Completed"
+    submittedAt: isTaskWorkedOn(task)
         ? getDateLabel(task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due)
         : "-",
   };
@@ -242,7 +254,7 @@ function getDueDate(task: Task) {
 }
 
 function getTrackingStatus(task: Task): TrackingStatus {
-  if (task.status === "Completed" || task.execution) return "done";
+  if (isTaskWorkedOn(task)) return "done";
   if (isOverdue(task)) return "overdue";
   return "open";
 }
@@ -409,27 +421,96 @@ export function ReportsWorkspace() {
     queryFn: taskService.listAll,
     retry: false,
   });
+  const reportSummaryQuery = useQuery({
+    queryKey: ["reports", "summary", workspace.outletId ?? workspace.mode],
+    queryFn: getReportSummary,
+    retry: false,
+  });
+  const reportTrendsQuery = useQuery({
+    queryKey: ["reports", "trends", workspace.outletId ?? workspace.mode],
+    queryFn: getReportTrends,
+    retry: false,
+  });
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
     queryFn: formTemplateService.list,
   });
+  const executionSessionsQuery = useQuery({
+    queryKey: queryKeys.history.executionSessions(),
+    queryFn: () => getExecutionSessions({ status: "completed" }),
+    retry: false,
+  });
 
   const tasks = tasksQuery.data ?? [];
   const formTemplates = formTemplatesQuery.data ?? [];
+  const executionSessions = executionSessionsQuery.data ?? [];
+  const [periodDays, setPeriodDays] = useState<7 | 30>(7);
 
-  const reportRows = useMemo(() => tasks.map(toReportRow), [tasks]);
-  const summary = useMemo(() => getSummary(reportRows), [reportRows]);
-  const outletNames = useMemo(
-    () => Array.from(new Set(tasks.map((task) => task.outlet).filter(Boolean))).sort(),
-    [tasks]
+  const scopedTasks = useMemo(
+    () => filterTasksForWorkspace(tasks, workspace),
+    [tasks, workspace]
   );
-  const completionTrend = useMemo(() => getCompletionTrend(reportRows), [reportRows]);
+
+  const enrichedScopedTasks = useMemo(
+    () => enrichTasksWithCompletedSessions(scopedTasks, executionSessions),
+    [scopedTasks, executionSessions]
+  );
+
+  const periodFilteredTasks = useMemo(() => {
+    const cutoff = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+    return enrichedScopedTasks
+      .filter(isTaskWorkedOn)
+      .filter((task) => {
+        const due = task.due ? new Date(task.due).getTime() : null;
+        const completed = task.execution?.completedAt
+          ? new Date(task.execution.completedAt).getTime()
+          : null;
+        const anchor = completed ?? due;
+        if (anchor == null) return true;
+        return anchor >= cutoff;
+      });
+  }, [enrichedScopedTasks, periodDays]);
+
+  const reportRows = useMemo(() => periodFilteredTasks.map(toReportRow), [periodFilteredTasks]);
+  const clientSummary = useMemo(() => getSummary(reportRows), [reportRows]);
+  const backendSummary = reportSummaryQuery.data;
+  const complianceKpiValue =
+    backendSummary?.compliance_rate ?? backendSummary?.audit_score ?? null;
+  const complianceKpiLabel =
+    backendSummary?.compliance_rate != null ? "Compliance Rate" : "Audit Score";
+  const summary = {
+    total: clientSummary.total,
+    completed: clientSummary.completed,
+    inProgress: backendSummary?.open_tasks ?? clientSummary.inProgress,
+    overdue: backendSummary?.overdue_tasks ?? clientSummary.overdue,
+    averageProgress: backendSummary?.completion_rate ?? clientSummary.averageProgress,
+    averageScore: backendSummary?.audit_score ?? clientSummary.averageScore,
+  };
+  const hasBackendSummary = reportSummaryQuery.isSuccess && Boolean(backendSummary);
+  const outletNames = useMemo(
+    () => Array.from(new Set(scopedTasks.map((task) => task.outlet).filter(Boolean))).sort(),
+    [scopedTasks]
+  );
+  const completionTrend = useMemo(() => {
+    const backendTrend = reportTrendsQuery.data;
+
+    if (backendTrend && backendTrend.length > 0) {
+      return backendTrend.map((point) => ({
+        day: point.date,
+        completion: point.compliance,
+        submitted: point.completed,
+      }));
+    }
+
+    return getCompletionTrend(reportRows);
+  }, [reportRows, reportTrendsQuery.data]);
   const statusDistribution = useMemo(() => getStatusDistribution(reportRows), [reportRows]);
   const outletPerformance = useMemo(() => getOutletPerformance(reportRows), [reportRows]);
   const formBreakdown = useMemo(() => getFormBreakdown(reportRows), [reportRows]);
-  const trackingEntries = useMemo(() => buildTrackingEntries(tasks), [tasks]);
+  const trackingEntries = useMemo(() => buildTrackingEntries(periodFilteredTasks), [periodFilteredTasks]);
   const availableMonths = useMemo(() => getAvailableMonths(trackingEntries), [trackingEntries]);
   const [selectedMonthKey, setSelectedMonthKey] = useState(() => formatMonthKey(new Date()));
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const dailySummaries = useMemo(() => buildDailySummaries(trackingEntries), [trackingEntries]);
   const visibleMonthKey = availableMonths.includes(selectedMonthKey)
     ? selectedMonthKey
@@ -440,6 +521,27 @@ export function ReportsWorkspace() {
   );
   const [selectedDateKey, setSelectedDateKey] = useState("");
   const [collapsedOutletGroups, setCollapsedOutletGroups] = useState<Record<string, boolean>>({});
+  const [historySelection, setHistorySelection] = useState<HistoryDetailSelection | null>(null);
+  const taskById = useMemo(
+    () => new Map(periodFilteredTasks.map((task) => [task.id, task])),
+    [periodFilteredTasks]
+  );
+  const completedSessionsByTaskId = useMemo(() => {
+    const map = new Map<string, (typeof executionSessions)[number]>();
+
+    executionSessions.forEach((session) => {
+      if (session.status !== "completed" || session.task_id == null) return;
+
+      const taskId = String(session.task_id);
+      const current = map.get(taskId);
+
+      if (!current || session.id > current.id) {
+        map.set(taskId, session);
+      }
+    });
+
+    return map;
+  }, [executionSessions]);
   const effectiveSelectedDateKey =
     monthSummaries.find((summaryItem) => summaryItem.dateKey === selectedDateKey)?.dateKey ??
     monthSummaries[0]?.dateKey ??
@@ -468,13 +570,21 @@ export function ReportsWorkspace() {
     return collapsedOutletGroups[groupKey] ?? false;
   }
 
-  function handleOutletWorkExport(outlet: string, dateKey?: string, dateLabel?: string) {
+  function openTrackingDetail(entryId: string) {
+    const task = taskById.get(entryId);
+    if (!task || !isTaskWorkedOn(task)) return;
+
+    setHistorySelection(resolveTaskSubmissionSelection(task, completedSessionsByTaskId));
+  }
+
+  async function handleOutletWorkExport(outlet: string, dateKey?: string, dateLabel?: string) {
     const scopedTasks = dateKey
-      ? filterTasksForOutletAndDate(tasks, outlet, dateKey).filter(isTaskWorkedOn)
-      : filterWorkedTasksForOutlet(tasks, outlet);
+      ? filterTasksForOutletAndDate(enrichedScopedTasks, outlet, dateKey).filter(isTaskWorkedOn)
+      : filterWorkedTasksForOutlet(enrichedScopedTasks, outlet);
 
     try {
-      exportOutletWorkReportPdf({
+      setIsExportingPdf(true);
+      await exportOutletWorkReportPdf({
         outlet,
         tasks: scopedTasks,
         templates: formTemplates,
@@ -487,25 +597,47 @@ export function ReportsWorkspace() {
       const message =
         error instanceof Error ? error.message : "Gagal membuat laporan PDF.";
       toast.error(message);
+    } finally {
+      setIsExportingPdf(false);
     }
   }
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Reports</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Outlet Task Reports</h1>
+          <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Outlet Task Reports</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             {isAreaWorkspace
-              ? "Pantau performa task outlet harian dan export laporan per outlet bila diperlukan."
+              ? "Lihat task yang sudah dikerjakan per outlet dan export laporan PDF beserta foto bukti."
               : isManagerWorkspace
-                ? "Ringkasan performa outlet dan export laporan task per outlet."
-                : "Pantau task harian outlet Anda."}
+                ? "Riwayat task selesai per outlet dan export laporan hasil pekerjaan."
+                : "Task yang sudah Anda selesaikan dan laporan hasil pekerjaan."}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setPeriodDays(7)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                periodDays === 7 ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Last 7 days
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodDays(30)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                periodDays === 30 ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Last 30 days
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => void tasksQuery.refetch()}
@@ -521,26 +653,49 @@ export function ReportsWorkspace() {
         </div>
       </div>
 
-      {tasksQuery.isError ? (
+      {(tasksQuery.isError || reportSummaryQuery.isError) ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {tasksQuery.error instanceof Error ? tasksQuery.error.message : "Unable to load reports."}
+          {tasksQuery.error instanceof Error
+            ? tasksQuery.error.message
+            : reportSummaryQuery.error instanceof Error
+              ? reportSummaryQuery.error.message
+              : "Unable to load reports."}
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ringkasan KPI</p>
+        {hasBackendSummary ? (
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+            Live
+          </span>
+        ) : null}
+      </div>
+
+      <div
+        className={`grid grid-cols-2 gap-3 md:gap-4 ${
+          complianceKpiValue != null ? "md:grid-cols-3 xl:grid-cols-5" : "md:grid-cols-4"
+        }`}
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
           <p className="text-sm text-slate-500">Completion Rate</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{summary.averageProgress}%</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        {complianceKpiValue != null ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
+            <p className="text-sm text-emerald-700">{complianceKpiLabel}</p>
+            <p className="mt-2 text-2xl font-semibold text-emerald-800">{complianceKpiValue}%</p>
+          </div>
+        ) : null}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
           <p className="text-sm text-slate-500">Completed Tasks</p>
           <p className="mt-2 text-2xl font-semibold text-emerald-700">{summary.completed}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">In Progress</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <p className="text-sm text-slate-500">Open Tasks</p>
           <p className="mt-2 text-2xl font-semibold text-blue-700">{summary.inProgress}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
           <p className="text-sm text-slate-500">Overdue</p>
           <p className="mt-2 text-2xl font-semibold text-red-700">{summary.overdue}</p>
         </div>
@@ -568,7 +723,7 @@ export function ReportsWorkspace() {
               </div>
             ) : (
               outletNames.map((outlet) => {
-                const workedCount = countWorkedTasksForOutlet(tasks, outlet);
+                const workedCount = countWorkedTasksForOutlet(enrichedScopedTasks, outlet);
 
                 return (
                   <div
@@ -583,12 +738,12 @@ export function ReportsWorkspace() {
                     </div>
                     <button
                       type="button"
-                      disabled={workedCount === 0}
-                      onClick={() => handleOutletWorkExport(outlet)}
+                      disabled={workedCount === 0 || isExportingPdf}
+                      onClick={() => void handleOutletWorkExport(outlet)}
                       className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       <Download className="h-4 w-4" />
-                      Export PDF
+                      {isExportingPdf ? "Menyiapkan..." : "Export PDF"}
                     </button>
                   </div>
                 );
@@ -610,7 +765,7 @@ export function ReportsWorkspace() {
             </p>
           </div>
 
-          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <label className="flex w-full flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
             <span className="font-semibold text-slate-700">Month</span>
             <select
               value={visibleMonthKey}
@@ -618,7 +773,7 @@ export function ReportsWorkspace() {
                 setSelectedMonthKey(event.target.value);
                 setSelectedDateKey("");
               }}
-              className="bg-transparent font-semibold text-slate-900 outline-none"
+              className="w-full bg-transparent font-semibold text-slate-900 outline-none sm:w-auto"
             >
               {availableMonths.map((monthKey) => (
                 <option key={monthKey} value={monthKey}>
@@ -629,7 +784,7 @@ export function ReportsWorkspace() {
           </label>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Month Days</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{monthSummaries.length}</p>
@@ -747,7 +902,7 @@ export function ReportsWorkspace() {
         </div>
 
         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-          <section className="rounded-2xl border border-slate-200 bg-[#F7FAF8] p-3 sm:p-4">
+          <section className="min-w-0 rounded-2xl border border-slate-200 bg-[#F7FAF8] p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-950">
@@ -770,10 +925,28 @@ export function ReportsWorkspace() {
                   No scheduled tasks for this date yet.
                 </div>
               ) : isOutletWorkspace ? (
-                selectedDateEntries.map((entry) => (
+                selectedDateEntries.map((entry) => {
+                  const isClickable = entry.status === "done";
+
+                  return (
                   <article
                     key={`${entry.id}-${entry.dateKey}`}
-                    className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4"
+                    role={isClickable ? "button" : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    onClick={isClickable ? () => openTrackingDetail(entry.id) : undefined}
+                    onKeyDown={
+                      isClickable
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openTrackingDetail(entry.id);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4 ${
+                      isClickable ? "cursor-pointer transition hover:border-emerald-300 hover:shadow-md" : ""
+                    }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-start gap-3">
@@ -785,9 +958,11 @@ export function ReportsWorkspace() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             {getTrackingStatusIcon(entry.status)}
-                            <p className="font-semibold text-slate-900">{entry.task}</p>
+                          <p className="font-semibold text-slate-900 break-words">{entry.task}</p>
                           </div>
-                          <p className="mt-1 text-sm text-slate-500">{entry.outlet}</p>
+                          {!isOutletWorkspace ? (
+                            <p className="mt-1 text-sm text-slate-500">{entry.outlet}</p>
+                          ) : null}
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                             <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
                               {entry.assignee}
@@ -815,7 +990,8 @@ export function ReportsWorkspace() {
                       </p>
                     </div>
                   </article>
-                ))
+                  );
+                })
               ) : (
                 outletTrackingGroups.map((group) => {
                   const isCollapsed = isOutletGroupCollapsed(group.outlet);
@@ -863,14 +1039,15 @@ export function ReportsWorkspace() {
                         <button
                           type="button"
                           disabled={
+                            isExportingPdf ||
                             filterTasksForOutletAndDate(
-                              tasks,
+                              enrichedScopedTasks,
                               group.outlet,
                               effectiveSelectedDateKey
                             ).filter(isTaskWorkedOn).length === 0
                           }
                           onClick={() =>
-                            handleOutletWorkExport(
+                            void handleOutletWorkExport(
                               group.outlet,
                               effectiveSelectedDateKey,
                               selectedDateSummary?.dateLabel
@@ -880,17 +1057,39 @@ export function ReportsWorkspace() {
                           title={`Export laporan pekerjaan — ${group.outlet}`}
                         >
                           <Download className="h-4 w-4" />
-                          <span className="hidden sm:inline">Export PDF</span>
+                          <span className="hidden sm:inline">
+                            {isExportingPdf ? "Menyiapkan..." : "Export PDF"}
+                          </span>
                         </button>
                       </div>
 
                       {!isCollapsed ? (
                         <div className="border-t border-slate-100 bg-[#F7FAF8] p-3 sm:p-4">
                           <div className="space-y-3">
-                            {group.entries.map((entry) => (
+                            {group.entries.map((entry) => {
+                              const isClickable = entry.status === "done";
+
+                              return (
                               <article
                                 key={`${entry.id}-${entry.dateKey}`}
-                                className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4"
+                                role={isClickable ? "button" : undefined}
+                                tabIndex={isClickable ? 0 : undefined}
+                                onClick={isClickable ? () => openTrackingDetail(entry.id) : undefined}
+                                onKeyDown={
+                                  isClickable
+                                    ? (event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault();
+                                          openTrackingDetail(entry.id);
+                                        }
+                                      }
+                                    : undefined
+                                }
+                                className={`rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-4 ${
+                                  isClickable
+                                    ? "cursor-pointer transition hover:border-emerald-300 hover:shadow-md"
+                                    : ""
+                                }`}
                               >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                   <div className="flex items-start gap-3">
@@ -932,7 +1131,8 @@ export function ReportsWorkspace() {
                                   </p>
                                 </div>
                               </article>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       ) : null}
@@ -943,7 +1143,7 @@ export function ReportsWorkspace() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="hidden min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:block">
             <p className="text-sm font-semibold text-slate-950">Monthly Register</p>
             <p className="mt-1 text-xs text-slate-500">
               Daily summary of done vs overdue vs open tasks for {formatMonthLabel(visibleMonthKey)}.
@@ -1008,7 +1208,7 @@ export function ReportsWorkspace() {
             </div>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <LineChartCard
               title="Task Completion Trend"
               description="Completion percentage and completed task count by due date."
@@ -1026,23 +1226,32 @@ export function ReportsWorkspace() {
               valueKey="value"
               nameKey="name"
             />
-            <BarChartCard
-              title="Outlet Progress"
-              description="Rata-rata progress task per outlet."
-              data={outletPerformance}
-              xKey="outlet"
-              series={[{ dataKey: "progress", name: "Progress %" }]}
-            />
-            <PieChartCard
-              title="Form Template Breakdown"
-              description="Distribusi task berdasarkan form template."
-              data={formBreakdown}
-              valueKey="value"
-              nameKey="name"
-            />
+            <div className="hidden md:block">
+              <BarChartCard
+                title="Outlet Progress"
+                description="Rata-rata progress task per outlet."
+                data={outletPerformance}
+                xKey="outlet"
+                series={[{ dataKey: "progress", name: "Progress %" }]}
+              />
+            </div>
+            <div className="hidden md:block">
+              <PieChartCard
+                title="Form Template Breakdown"
+                description="Distribusi task berdasarkan form template."
+                data={formBreakdown}
+                valueKey="value"
+                nameKey="name"
+              />
+            </div>
           </div>
         </>
       ) : null}
+
+      <HistoryDetailDrawer
+        selection={historySelection}
+        onClose={() => setHistorySelection(null)}
+      />
     </main>
   );
 }

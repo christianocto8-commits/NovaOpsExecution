@@ -20,12 +20,14 @@ import {
 import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
 import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
 import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
+import { NotificationPreferencesPanel } from "@/features/settings/components/notification-preferences-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { clearOfflineClientData } from "@/lib/offline/store";
 import { useConfirmation } from "@/shared/confirmation";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
@@ -51,6 +53,7 @@ type OwnerAdminState = {
   default_task_due_time: string;
   daily_reminder_window: string;
   pass_threshold: number;
+  auto_corrective_action: boolean;
   corrective_action_sla_hours: number;
   photo_required_by_default: boolean;
   max_upload_mb: number;
@@ -70,6 +73,10 @@ type OwnerAdminState = {
   task_completed_workflow_code: string;
   brand_logo_url: string;
   brand_primary_color: string;
+  iot_auto_fail_enabled: boolean;
+  lms_training_gate_enabled: boolean;
+  iot_temp_min_c: number;
+  iot_temp_max_c: number;
 };
 
 const defaults: OwnerAdminState = {
@@ -89,6 +96,7 @@ const defaults: OwnerAdminState = {
   default_task_due_time: WORKSPACE_SETTINGS_DEFAULTS.default_task_due_time,
   daily_reminder_window: WORKSPACE_SETTINGS_DEFAULTS.daily_reminder_window,
   pass_threshold: WORKSPACE_SETTINGS_DEFAULTS.pass_threshold,
+  auto_corrective_action: WORKSPACE_SETTINGS_DEFAULTS.auto_corrective_action,
   corrective_action_sla_hours: WORKSPACE_SETTINGS_DEFAULTS.corrective_action_sla_hours,
   photo_required_by_default: WORKSPACE_SETTINGS_DEFAULTS.photo_required_by_default,
   max_upload_mb: WORKSPACE_SETTINGS_DEFAULTS.max_upload_mb,
@@ -108,6 +116,10 @@ const defaults: OwnerAdminState = {
   task_completed_workflow_code: WORKSPACE_SETTINGS_DEFAULTS.task_completed_workflow_code,
   brand_logo_url: WORKSPACE_SETTINGS_DEFAULTS.brand_logo_url,
   brand_primary_color: WORKSPACE_SETTINGS_DEFAULTS.brand_primary_color,
+  iot_auto_fail_enabled: WORKSPACE_SETTINGS_DEFAULTS.iot_auto_fail_enabled,
+  lms_training_gate_enabled: WORKSPACE_SETTINGS_DEFAULTS.lms_training_gate_enabled,
+  iot_temp_min_c: WORKSPACE_SETTINGS_DEFAULTS.iot_temp_min_c,
+  iot_temp_max_c: WORKSPACE_SETTINGS_DEFAULTS.iot_temp_max_c,
 };
 
 function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): OwnerAdminState {
@@ -128,6 +140,9 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     default_task_due_time: settings?.default_task_due_time ?? defaults.default_task_due_time,
     daily_reminder_window: settings?.daily_reminder_window ?? defaults.daily_reminder_window,
     pass_threshold: Number(settings?.pass_threshold ?? defaults.pass_threshold),
+    auto_corrective_action: Boolean(
+      settings?.auto_corrective_action ?? defaults.auto_corrective_action
+    ),
     corrective_action_sla_hours: Number(settings?.corrective_action_sla_hours ?? defaults.corrective_action_sla_hours),
     photo_required_by_default: Boolean(
       settings?.photo_required_by_default ?? defaults.photo_required_by_default
@@ -157,6 +172,14 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
       settings?.task_completed_workflow_code ?? defaults.task_completed_workflow_code,
     brand_logo_url: settings?.brand_logo_url ?? defaults.brand_logo_url,
     brand_primary_color: settings?.brand_primary_color ?? defaults.brand_primary_color,
+    iot_auto_fail_enabled: Boolean(
+      settings?.iot_auto_fail_enabled ?? defaults.iot_auto_fail_enabled
+    ),
+    lms_training_gate_enabled: Boolean(
+      settings?.lms_training_gate_enabled ?? defaults.lms_training_gate_enabled
+    ),
+    iot_temp_min_c: Number(settings?.iot_temp_min_c ?? defaults.iot_temp_min_c),
+    iot_temp_max_c: Number(settings?.iot_temp_max_c ?? defaults.iot_temp_max_c),
   };
 }
 
@@ -561,10 +584,10 @@ function OutletSettingsWorkspace({
   t: (key: string) => string;
 }) {
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">{t("settings.outletWorkspaceEyebrow")}</p>
-        <h1 className="text-2xl font-semibold text-slate-950">{t("settings.outletWorkspaceTitle")}</h1>
+        <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">{t("settings.outletWorkspaceTitle")}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {t("settings.outletWorkspaceDescription").replace(
             "{outlet}",
@@ -573,7 +596,7 @@ function OutletSettingsWorkspace({
         </p>
       </div>
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <MetricCard label="Role" value="Outlet" />
         <MetricCard label="Submit" value="Auto complete" />
         <MetricCard label="Evidence" value={settings?.evidence_required ? "Required" : "Optional"} />
@@ -678,6 +701,7 @@ export function SettingsWorkspace() {
   const { settings, isLoading, error, reload, saveSettings, saveError, isSaving } = useSettings();
   const [state, setState] = useState<OwnerAdminState>(defaults);
   const [notice, setNotice] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<"org" | "operations" | "integrations">("org");
 
   useEffect(() => {
     setState(buildOwnerAdminState(settings));
@@ -687,6 +711,7 @@ export function SettingsWorkspace() {
     () => [
       { label: "Timezone", value: state.timezone },
       { label: "Pass score", value: `${state.pass_threshold}%` },
+      { label: "CAPA", value: state.auto_corrective_action ? "Aktif" : "Mati" },
       { label: "Photo evidence", value: state.photo_required_by_default ? "Wajib" : "Opsional" },
       { label: "Evidence", value: state.evidence_required ? "Required" : "Optional" },
       { label: "Security", value: state.enforce_role_permissions ? "Guarded" : "Basic" },
@@ -772,6 +797,30 @@ export function SettingsWorkspace() {
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1">
+        {(
+          [
+            ["org", t("settings.organization")],
+            ["operations", t("settings.operations")],
+            ["integrations", t("settings.integrationsTab")],
+          ] as const
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setSettingsTab(tab)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              settingsTab === tab
+                ? "bg-emerald-700 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {settingsTab === "org" ? (
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="General Workspace">
           <div className="grid gap-5 md:grid-cols-2">
@@ -892,6 +941,16 @@ export function SettingsWorkspace() {
                 }
               />
             </EnterpriseField>
+            <ActionCard
+              title="Auto corrective action (CAPA)"
+              description="ON: task perbaikan otomatis saat checklist gagal. OFF: menu CAPA disembunyikan dan tidak ada CAPA baru."
+              action={
+                <EnterpriseCheckbox
+                  checked={state.auto_corrective_action}
+                  onChange={(event) => update("auto_corrective_action", event.target.checked)}
+                />
+              }
+            />
             <EnterpriseField label="Max upload (MB)">
               <EnterpriseInput
                 type="number"
@@ -902,7 +961,10 @@ export function SettingsWorkspace() {
           </div>
         </SectionCard>
       </div>
+      ) : null}
 
+      {settingsTab === "operations" ? (
+      <>
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Execution Controls">
           <div className="space-y-4">
@@ -911,6 +973,24 @@ export function SettingsWorkspace() {
             <ActionCard title="Timestamp watermark" description="Tambahkan cap waktu pada foto evidence sebelum upload." action={<EnterpriseCheckbox checked={state.timestamp_watermark} onChange={(event) => update("timestamp_watermark", event.target.checked)} />} />
             <ActionCard title="GPS on evidence" description="Simpan koordinat GPS pada metadata evidence (permission browser diperlukan)." action={<EnterpriseCheckbox checked={state.gps_watermark} onChange={(event) => update("gps_watermark", event.target.checked)} />} />
             <ActionCard title="Geofence enforcement" description="Wajibkan crew berada di radius outlet saat submit checklist." action={<EnterpriseCheckbox checked={state.geofence_enabled} onChange={(event) => update("geofence_enabled", event.target.checked)} />} />
+            <ActionCard title="IoT auto-fail checklist" description="Gagalkan checklist jika probe suhu terakhir di luar ambang cold chain." action={<EnterpriseCheckbox checked={state.iot_auto_fail_enabled} onChange={(event) => update("iot_auto_fail_enabled", event.target.checked)} />} />
+            <EnterpriseField label="IoT temp min (°C)">
+              <EnterpriseInput
+                type="number"
+                value={state.iot_temp_min_c}
+                onChange={(event) => update("iot_temp_min_c", Number(event.target.value || 0))}
+                disabled={!state.iot_auto_fail_enabled}
+              />
+            </EnterpriseField>
+            <EnterpriseField label="IoT temp max (°C)">
+              <EnterpriseInput
+                type="number"
+                value={state.iot_temp_max_c}
+                onChange={(event) => update("iot_temp_max_c", Number(event.target.value || 0))}
+                disabled={!state.iot_auto_fail_enabled}
+              />
+            </EnterpriseField>
+            <ActionCard title="LMS training gate" description="Blokir submit task sampai modul pelatihan wajib selesai." action={<EnterpriseCheckbox checked={state.lms_training_gate_enabled} onChange={(event) => update("lms_training_gate_enabled", event.target.checked)} />} />
             <EnterpriseField label="Geofence radius (meters)">
               <EnterpriseInput
                 type="number"
@@ -939,6 +1019,12 @@ export function SettingsWorkspace() {
         </SectionCard>
       </div>
 
+      <NotificationPreferencesPanel />
+      </>
+      ) : null}
+
+      {settingsTab === "integrations" ? (
+      <>
       <IntegrationsStatusPanel />
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -1058,6 +1144,8 @@ export function SettingsWorkspace() {
           onNotice={(message) => setNotice(message)}
         />
       </div>
+      </>
+      ) : null}
     </main>
   );
 }

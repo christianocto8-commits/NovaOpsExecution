@@ -8,6 +8,7 @@ API_KEY_SCOPES = [
     "read:health",
     "read:form-templates",
     "read:reports",
+    "iot:ingest",
 ]
 
 
