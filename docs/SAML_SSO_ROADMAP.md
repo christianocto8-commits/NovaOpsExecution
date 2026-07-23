@@ -1,6 +1,6 @@
 # SAML Enterprise SSO — Implementation Status
 
-**Status:** SP metadata + login/ACS scaffold implemented (Jul 2026). Full IdP certificate validation requires `python3-saml` + xmlsec on the server.
+**Status:** SP metadata + login/ACS scaffold + IdP metadata certificate import + role mapping implemented (Jul 2026). Full ACS validation requires `python3-saml` + xmlsec on the server.
 
 ## Endpoints
 
@@ -20,6 +20,9 @@ SAML_SP_ACS_URL=http://localhost:8000/api/v1/auth/saml/acs
 SAML_IDP_ENTITY_ID=https://idp.example.com
 SAML_IDP_SSO_URL=https://idp.example.com/sso
 SAML_FRONTEND_SUCCESS_URL=http://localhost:3000/login/oauth-callback
+SAML_ROLE_ATTRIBUTE=role
+SAML_ROLE_MAPPING_JSON={"Owner Admin":"owner","Area Manager":"area_manager","Outlet Crew":"outlet"}
+SAML_SYNC_ROLE_ON_LOGIN=false
 ```
 
 **Web** (`apps/web/.env.local`):
@@ -30,10 +33,9 @@ NEXT_PUBLIC_SAML_SSO_ENABLED=true
 
 ## Remaining work
 
-1. IdP metadata import for certificate rotation
-2. Signed AuthnRequest support
-3. Single Logout (SLO)
-4. Role mapping from SAML attributes
+1. Signed AuthnRequest support
+2. Single Logout (SLO)
+3. IdP-specific UAT with Azure AD / Okta
 
 ## Alternative
 

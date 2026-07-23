@@ -57,3 +57,13 @@ def test_resolve_idp_cert_from_env(monkeypatch):
     assert cert is not None
     assert "BEGIN CERTIFICATE" in cert
     get_settings.cache_clear()
+
+
+def test_iot_ingest_key_loaded_from_env(monkeypatch):
+    monkeypatch.setenv("IOT_INGEST_API_KEY", "iot-secret")
+
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    assert get_settings().iot_ingest_api_key == "iot-secret"
+    get_settings.cache_clear()

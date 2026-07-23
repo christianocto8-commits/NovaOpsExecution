@@ -2,6 +2,7 @@
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.modules.identity.dependencies import get_current_active_user
 from app.modules.identity.google_oauth import (
@@ -234,6 +235,8 @@ async def saml_acs(
     token_response = AuthService(db).login_or_create_google_user(
         email=profile["email"],
         full_name=profile["full_name"],
+        role_slug=profile.get("role_slug") or None,
+        sync_role_on_login=get_settings().saml_sync_role_on_login,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )

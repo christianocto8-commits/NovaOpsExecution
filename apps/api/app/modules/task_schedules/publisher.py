@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
+from app.modules.notifications.task_notifications import (
+    notify_task_incoming_recipients,
+    resolve_identity_user_id,
+)
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.modules.tasks.identity_bridge import resolve_legacy_outlet_id
 
@@ -246,6 +250,16 @@ class TaskSchedulePublisher:
                 event_type="created",
                 new_value=schedule.recurrence,
             )
+        )
+
+        assigned_identity_user_id = resolve_identity_user_id(self.db, schedule.assigned_to)
+        notify_task_incoming_recipients(
+            self.db,
+            task=task,
+            event_type="task_scheduled_incoming",
+            excluded_identity_user_ids=(
+                {assigned_identity_user_id} if assigned_identity_user_id else None
+            ),
         )
         return True
 

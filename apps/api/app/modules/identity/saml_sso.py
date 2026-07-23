@@ -15,6 +15,21 @@ from app.core.config import get_settings
 from app.modules.identity.security import create_access_token, decode_access_token
 
 SAML_NS = {"md": "urn:oasis:names:tc:SAML:2.0:metadata", "ds": "http://www.w3.org/2000/09/xmldsig#"}
+SAML_ROLE_ALIASES = {
+    "admin": "admin",
+    "administrator": "admin",
+    "owner": "owner",
+    "owner_admin": "owner",
+    "area": "area_manager",
+    "area_manager": "area_manager",
+    "area manager": "area_manager",
+    "manager": "area_manager",
+    "crew": "outlet",
+    "operator": "outlet",
+    "outlet": "outlet",
+    "outlet_user": "outlet",
+    "store": "outlet",
+}
 
 
 def is_saml_configured() -> bool:
@@ -126,6 +141,54 @@ def verify_saml_state(state: str) -> bool:
         return False
 
     return payload.get("purpose") == "saml_sso"
+
+
+def _normalize_role_value(value: str) -> str:
+    return value.strip().lower().replace("-", "_")
+
+
+def _load_saml_role_mapping() -> dict[str, str]:
+    settings = get_settings()
+    mapping = dict(SAML_ROLE_ALIASES)
+
+    if not settings.saml_role_mapping_json:
+        return mapping
+
+    try:
+        custom_mapping = json.loads(settings.saml_role_mapping_json)
+    except json.JSONDecodeError:
+        return mapping
+
+    if not isinstance(custom_mapping, dict):
+        return mapping
+
+    for source, target in custom_mapping.items():
+        if not isinstance(source, str) or not isinstance(target, str):
+            continue
+        mapping[_normalize_role_value(source)] = _normalize_role_value(target)
+
+    return mapping
+
+
+def resolve_saml_role_slug(attributes: dict[str, list[str]]) -> str | None:
+    settings = get_settings()
+    role_attribute = settings.saml_role_attribute or "role"
+    candidate_values = list(attributes.get(role_attribute) or [])
+
+    for fallback_attribute in ("role", "roles", "groups", "memberOf"):
+        if fallback_attribute != role_attribute:
+            candidate_values.extend(attributes.get(fallback_attribute) or [])
+
+    if not candidate_values:
+        return None
+
+    mapping = _load_saml_role_mapping()
+    for value in candidate_values:
+        normalized = _normalize_role_value(str(value))
+        if normalized in mapping:
+            return mapping[normalized]
+
+    return None
 
 
 def build_sp_metadata_xml() -> str:
@@ -275,7 +338,9 @@ def process_saml_acs(*, http_host: str, script_name: str, post_data: dict) -> di
         or email.split("@", 1)[0]
     ).strip()
 
-    return {"email": email, "full_name": full_name}
+    role_slug = resolve_saml_role_slug(attributes)
+
+    return {"email": email, "full_name": full_name, "role_slug": role_slug or ""}
 
 
 def get_saml_setup_steps() -> list[str]:
@@ -300,4 +365,5 @@ __all__ = [
     "is_saml_configured",
     "is_saml_live_ready",
     "resolve_idp_x509_cert",
+    "resolve_saml_role_slug",
 ]

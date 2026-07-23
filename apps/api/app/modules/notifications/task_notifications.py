@@ -10,7 +10,7 @@ from app.models.task import Task
 from app.models.user import User
 from app.modules.identity.models import Outlet as IdentityOutlet
 from app.modules.identity.models import Role, User as IdentityUser
-from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNER_ROLE
+from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OUTLET_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import NotificationEventCreate
@@ -125,6 +125,126 @@ def notify_task_recipient(
         identity_user_id=identity_user_id,
         body=f"{subject}. {body}",
     )
+
+
+def _send_task_notification(
+    db: Session,
+    *,
+    task: Task,
+    identity_user_id: UUID,
+    event_type: str,
+    subject: str,
+    body: str,
+) -> None:
+    payload = {
+        "task_id": task.id,
+        "task_title": task.title,
+        "outlet_id": task.outlet_id,
+        "event_type": event_type,
+    }
+
+    NotificationService(db).create_event(
+        NotificationEventCreate(
+            event_type=event_type,
+            source_module="tasks",
+            source_entity_type="task",
+            source_entity_id=str(task.id),
+            recipient_user_id=identity_user_id,
+            channel=NotificationChannel.in_app,
+            subject=subject,
+            body=body,
+            payload_json=payload,
+        )
+    )
+
+    PushNotificationService(db).send_to_user(
+        identity_user_id,
+        title=subject,
+        body=body,
+        url=f"/dashboard/tasks?taskId={task.id}",
+        data=payload,
+    )
+
+
+def _task_incoming_recipients(
+    db: Session,
+    *,
+    task: Task,
+    excluded_user_ids: set[UUID] | None = None,
+) -> list[IdentityUser]:
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    if not identity_outlet:
+        return []
+
+    roles = db.scalars(
+        select(Role).where(Role.slug.in_([OUTLET_ROLE, AREA_MANAGER_ROLE]))
+    ).all()
+    role_ids_by_slug = {role.slug: role.id for role in roles}
+    if not role_ids_by_slug:
+        return []
+
+    recipients: list[IdentityUser] = []
+    seen_user_ids = set(excluded_user_ids or set())
+
+    outlet_role_id = role_ids_by_slug.get(OUTLET_ROLE)
+    if outlet_role_id:
+        outlet_users = db.scalars(
+            select(IdentityUser).where(
+                IdentityUser.is_active.is_(True),
+                IdentityUser.role_id == outlet_role_id,
+                IdentityUser.outlet_id == identity_outlet.id,
+            )
+        ).all()
+        for user in outlet_users:
+            if user.id in seen_user_ids:
+                continue
+            recipients.append(user)
+            seen_user_ids.add(user.id)
+
+    area_role_id = role_ids_by_slug.get(AREA_MANAGER_ROLE)
+    if area_role_id:
+        area_managers = db.scalars(
+            select(IdentityUser).where(
+                IdentityUser.is_active.is_(True),
+                IdentityUser.role_id == area_role_id,
+            )
+        ).all()
+        for user in area_managers:
+            if user.id in seen_user_ids:
+                continue
+            if not _area_manager_has_outlet_access(user, identity_outlet):
+                continue
+            recipients.append(user)
+            seen_user_ids.add(user.id)
+
+    return recipients
+
+
+def notify_task_incoming_recipients(
+    db: Session,
+    *,
+    task: Task,
+    event_type: str = "task_incoming",
+    excluded_identity_user_ids: set[UUID] | None = None,
+) -> None:
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    outlet_label = identity_outlet.name if identity_outlet else f"Outlet {task.outlet_id}"
+    subject = f"Task baru masuk: {task.title}"
+    body = f'Task "{task.title}" baru dibuat untuk {outlet_label}.'
+
+    for recipient in _task_incoming_recipients(
+        db,
+        task=task,
+        excluded_user_ids=excluded_identity_user_ids,
+    ):
+        _send_task_notification(
+            db,
+            task=task,
+            identity_user_id=recipient.id,
+            event_type=event_type,
+            subject=subject,
+            body=body,
+        )
 
 
 def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:

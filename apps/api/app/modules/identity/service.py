@@ -134,20 +134,23 @@ class AuthService:
         *,
         email: str,
         full_name: str,
+        role_slug: str | None = None,
+        sync_role_on_login: bool = False,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> TokenResponse:
         user = self.users.find_by_email(email)
 
         if not user:
-            outlet_role = self.roles.find_by_slug("outlet")
-            if not outlet_role:
+            selected_role = self.roles.find_by_slug(role_slug or "outlet")
+            if not selected_role:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Default outlet role is not configured",
+                    detail=f"Default SSO role '{role_slug or 'outlet'}' is not configured",
                 )
 
             default_outlet = self.outlets.list()[0] if self.outlets.list() else None
+            should_assign_default_outlet = selected_role.slug == "outlet"
             username = self._build_unique_username(email=email, full_name=full_name)
 
             user = User(
@@ -155,13 +158,13 @@ class AuthService:
                 username=username,
                 full_name=full_name or username,
                 password_hash=hash_password(secrets.token_urlsafe(32)),
-                role_id=outlet_role.id,
-                outlet_id=default_outlet.id if default_outlet else None,
+                role_id=selected_role.id,
+                outlet_id=default_outlet.id if should_assign_default_outlet and default_outlet else None,
                 is_active=True,
             )
             user = self.users.create(user)
 
-            if default_outlet:
+            if should_assign_default_outlet and default_outlet:
                 from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet
 
                 get_or_create_legacy_outlet(self.db, default_outlet)
@@ -173,6 +176,17 @@ class AuthService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to create Google user",
                 )
+
+        elif role_slug and sync_role_on_login:
+            next_role = self.roles.find_by_slug(role_slug)
+            if next_role and next_role.id != user.role_id:
+                user.role_id = next_role.id
+                if next_role.slug != "outlet":
+                    user.outlet_id = None
+                    user.assigned_outlets.clear()
+                self.db.add(user)
+                self.db.commit()
+                user = self.users.find_by_email(email) or user
 
         return self.issue_tokens_for_user(
             user,

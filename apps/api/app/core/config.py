@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     saml_idp_metadata_url: str | None = None
     saml_idp_x509_cert: str | None = None
     saml_frontend_success_url: str | None = None
+    saml_role_attribute: str = "role"
+    saml_role_mapping_json: str | None = None
+    saml_sync_role_on_login: bool = False
 
     firebase_credentials_path: str | None = None
     firebase_credentials_json: str | None = None
@@ -204,11 +207,21 @@ def get_settings() -> Settings:
             os.environ.get("SAML_FRONTEND_SUCCESS_URL", "") or ""
         )
         or None,
+        saml_role_attribute=_sanitize_env_value(
+            os.environ.get("SAML_ROLE_ATTRIBUTE", "role") or "role"
+        ),
+        saml_role_mapping_json=os.environ.get("SAML_ROLE_MAPPING_JSON") or None,
+        saml_sync_role_on_login=os.environ.get(
+            "SAML_SYNC_ROLE_ON_LOGIN",
+            "false",
+        ).lower()
+        in {"1", "true", "yes", "on"},
         firebase_credentials_path=_sanitize_env_value(
             os.environ.get("FIREBASE_CREDENTIALS_PATH", "") or ""
         )
         or None,
         firebase_credentials_json=os.environ.get("FIREBASE_CREDENTIALS_JSON") or None,
+        iot_ingest_api_key=os.environ.get("IOT_INGEST_API_KEY") or None,
     )
 
 

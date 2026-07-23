@@ -13,8 +13,10 @@ from app.modules.identity.models import User as IdentityUser
 from app.modules.lms.service import LmsService
 from app.modules.notifications.task_notifications import (
     notify_checklist_failure_supervisors,
+    notify_task_incoming_recipients,
     notify_task_completed_supervisors,
     notify_task_recipient,
+    resolve_identity_user_id,
 )
 from app.services.activity_events import record_activity_event
 from app.modules.tasks.repository import TaskRepository
@@ -166,6 +168,7 @@ class TaskService:
             pass
 
         if payload.assigned_to:
+            assigned_identity_user_id = resolve_identity_user_id(self.db, payload.assigned_to)
             try:
                 dispatch_webhook_event(
                     self.db,
@@ -191,6 +194,16 @@ class TaskService:
                 body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
                 recipient_legacy_user_id=payload.assigned_to,
             )
+        else:
+            assigned_identity_user_id = None
+
+        notify_task_incoming_recipients(
+            self.db,
+            task=task,
+            excluded_identity_user_ids=(
+                {assigned_identity_user_id} if assigned_identity_user_id else None
+            ),
+        )
 
         return task
 
@@ -254,6 +267,7 @@ class TaskService:
         self.db.refresh(task)
 
         if "assigned_to" in update_data and previous_assignee != task.assigned_to and task.assigned_to:
+            assigned_identity_user_id = resolve_identity_user_id(self.db, task.assigned_to)
             try:
                 dispatch_webhook_event(
                     self.db,
@@ -279,6 +293,15 @@ class TaskService:
                 subject=f"Task ditugaskan: {task.title}",
                 body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
                 recipient_legacy_user_id=task.assigned_to,
+            )
+
+            notify_task_incoming_recipients(
+                self.db,
+                task=task,
+                event_type="task_assignment_updated",
+                excluded_identity_user_ids=(
+                    {assigned_identity_user_id} if assigned_identity_user_id else None
+                ),
             )
 
         return task
@@ -835,6 +858,16 @@ class TaskService:
             subject=f"Task ditugaskan: {task.title}",
             body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
             recipient_legacy_user_id=payload.user_id,
+        )
+
+        assigned_identity_user_id = resolve_identity_user_id(self.db, payload.user_id)
+        notify_task_incoming_recipients(
+            self.db,
+            task=task,
+            event_type="task_assignment_updated",
+            excluded_identity_user_ids=(
+                {assigned_identity_user_id} if assigned_identity_user_id else None
+            ),
         )
 
         return assignment
