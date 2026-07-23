@@ -1057,6 +1057,7 @@ export function TasksWorkspace() {
         taskTitle={submitResult?.taskTitle ?? ""}
         checklist={submitResult?.checklist ?? null}
         pendingSync={submitResult?.pendingSync}
+        isSyncing={submitResult?.isSyncing}
         correctiveActionId={submitResult?.correctiveActionId}
         capaEnabled={capaEnabled}
         onClose={closeSubmitResult}

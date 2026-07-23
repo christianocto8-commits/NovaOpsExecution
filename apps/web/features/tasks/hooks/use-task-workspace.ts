@@ -14,8 +14,9 @@ import {
   TaskFormState,
   ChecklistScore,
 } from "@/features/tasks/types";
+import type { FormField } from "@/features/forms/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
-import { EvidenceItem, getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
+import { EvidenceItem, getCurrentPosition } from "@/shared/evidence";
 import { parsePhotoFieldValue } from "@/shared/evidence/photo-value";
 import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
@@ -24,7 +25,6 @@ import { resolveAssigneeSelection } from "@/features/tasks/utils/assignee-option
 import { taskService, hasValidTaskFormTemplate, resolveTaskFormTemplate } from "@/services/task.service";
 import { formTemplateService } from "@/services/form-template.service";
 import { scoreChecklistClientSide } from "@/shared/checklist/checklist-scoring";
-import { outletService } from "@/services/outlet.service";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
   createExecutionSession,
@@ -536,6 +536,7 @@ export function useTaskWorkspace() {
     taskTitle: string;
     checklist: ChecklistScore;
     pendingSync?: boolean;
+    isSyncing?: boolean;
     correctiveActionId?: string;
   } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -781,7 +782,7 @@ export function useTaskWorkspace() {
 
         closeExecution();
         toast.success("Draft eksekusi tersimpan.");
-        refreshExecutionQueries();
+        void queryClient.invalidateQueries({ queryKey: EXECUTION_DRAFT_QUERY_KEY });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Gagal menyimpan draft.";
         toast.error(message);
@@ -859,8 +860,41 @@ export function useTaskWorkspace() {
     setSubmitResult(null);
   }
 
-  async function submitTaskExecution(
+  function markTaskCompletedInCache(taskId: string) {
+    queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
+      (currentTasks ?? []).map((task) =>
+        task.id === taskId
+          ? normalizeTask({
+              ...task,
+              status: "Completed",
+              executionDraft: undefined,
+            })
+          : task
+      )
+    );
+  }
+
+  function scoreExecutionPreview(fields: FormField[], form: TaskExecutionForm) {
+    return scoreChecklistClientSide({
+      fields,
+      responses: form.formResponses,
+      passThreshold: settings?.pass_threshold,
+    });
+  }
+
+  async function resolveSubmitLocation(
     knownLocation?: { latitude: number; longitude: number; accuracy_m?: number } | null
+  ) {
+    if (!settings?.geofence_enabled) return null;
+
+    if (knownLocation) return knownLocation;
+
+    return getCurrentPosition(800, { highAccuracy: false });
+  }
+
+  async function submitTaskExecution(
+    knownLocation?: { latitude: number; longitude: number; accuracy_m?: number } | null,
+    templateFields?: FormField[]
   ) {
     if (!selectedTask) return;
 
@@ -878,78 +912,68 @@ export function useTaskWorkspace() {
     let submitLocation: { latitude: number; longitude: number; accuracy_m?: number } | null = null;
 
     if (settings?.geofence_enabled) {
-      submitLocation =
-        knownLocation ??
-        (await getCurrentPosition(1500, { highAccuracy: false }));
+      submitLocation = await resolveSubmitLocation(knownLocation);
 
-      const cachedOutlet = queryClient.getQueryData<Awaited<ReturnType<typeof outletService.getCurrent>>>([
-        "outlet",
-        "current",
-      ]);
-
-      try {
-        const currentOutlet = cachedOutlet ?? (await outletService.getCurrent());
-        const geofenceError = checkGeofencePrecheck({
-          submitter: submitLocation,
-          outletLat: currentOutlet.outlet.latitude,
-          outletLon: currentOutlet.outlet.longitude,
-          radiusMeters: settings.geofence_radius_meters ?? 200,
-        });
-
-        if (geofenceError) {
-          toast.error(geofenceError);
-          return;
-        }
-      } catch {
-        // Backend will enforce geofence if outlet context is unavailable client-side.
+      if (!submitLocation) {
+        toast.error("GPS belum tersedia. Izinkan lokasi lalu coba lagi.");
+        return;
       }
     }
 
     if (isOnline && backendConnected) {
-      try {
-        const existingDraftSession = latestDraftSessionMap.get(selectedTask.id);
+      const taskSnapshot = selectedTask;
+      const formSnapshot = executionForm;
+      const previewChecklist = templateFields?.length
+        ? scoreExecutionPreview(templateFields, formSnapshot)
+        : null;
 
-        if (existingDraftSession) {
-          void deleteExecutionSession(existingDraftSession.id);
-        }
+      markTaskCompletedInCache(taskSnapshot.id);
+      closeExecution();
 
-        const result = await completeTaskMutation.mutateAsync({
-          task: selectedTask,
-          form: executionForm,
-          location: submitLocation,
+      if (previewChecklist) {
+        setSubmitResult({
+          taskTitle: taskSnapshot.title,
+          checklist: previewChecklist,
+          isSyncing: true,
         });
-
-        const checklist = parseSubmitChecklist(result.checklist);
-
-        queryClient.setQueryData<Task[]>(queryKeys.sop.tasks(), (currentTasks) =>
-          (currentTasks ?? []).map((task) =>
-            task.id === selectedTask.id
-              ? normalizeTask({
-                  ...task,
-                  status: "Completed",
-                  executionDraft: undefined,
-                })
-              : task
-          )
-        );
-
-        closeExecution();
-
-        if (checklist) {
-          setSubmitResult({
-            taskTitle: selectedTask.title,
-            checklist,
-            correctiveActionId: result.correctiveTask?.id,
-          });
-        } else {
-          toast.success("Task selesai.");
-        }
-
-        refreshExecutionQueries();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
-        toast.error(message);
       }
+
+      void (async () => {
+        try {
+          const existingDraftSession = latestDraftSessionMap.get(taskSnapshot.id);
+
+          if (existingDraftSession) {
+            void deleteExecutionSession(existingDraftSession.id);
+          }
+
+          const result = await completeTaskMutation.mutateAsync({
+            task: taskSnapshot,
+            form: formSnapshot,
+            location: submitLocation,
+          });
+
+          const checklist = parseSubmitChecklist(result.checklist) ?? previewChecklist;
+
+          if (checklist) {
+            setSubmitResult({
+              taskTitle: taskSnapshot.title,
+              checklist,
+              correctiveActionId: result.correctiveTask?.id,
+              isSyncing: false,
+            });
+          } else {
+            setSubmitResult(null);
+            toast.success("Task selesai.");
+          }
+
+          refreshExecutionQueries();
+        } catch (error) {
+          setSubmitResult(null);
+          queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+          const message = error instanceof Error ? error.message : "Gagal menyelesaikan task.";
+          toast.error(message);
+        }
+      })();
 
       return;
     }

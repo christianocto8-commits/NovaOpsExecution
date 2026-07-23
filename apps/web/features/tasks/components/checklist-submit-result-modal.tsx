@@ -11,6 +11,7 @@ type ChecklistSubmitResultModalProps = {
   taskTitle: string;
   checklist: ChecklistScore | null;
   pendingSync?: boolean;
+  isSyncing?: boolean;
   correctiveActionId?: string;
   capaEnabled?: boolean;
   onClose: () => void;
@@ -53,6 +54,7 @@ export function ChecklistSubmitResultModal({
   taskTitle,
   checklist,
   pendingSync = false,
+  isSyncing = false,
   correctiveActionId,
   capaEnabled = true,
   onClose,
@@ -84,13 +86,19 @@ export function ChecklistSubmitResultModal({
       }
     >
       <div className="space-y-5">
+        {isSyncing ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            Menyimpan ke server… Skor ditampilkan langsung; CAPA muncul setelah sync selesai.
+          </div>
+        ) : null}
+
         {pendingSync ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
             Tersimpan offline — menunggu sinkron. Skor di bawah bersifat perkiraan.
           </div>
         ) : null}
 
-        {capaEnabled && correctiveActionId && !pendingSync ? (
+        {capaEnabled && correctiveActionId && !pendingSync && !isSyncing ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <p className="text-sm font-semibold text-emerald-900">Corrective action (CAPA) dibuat</p>
             <p className="mt-1 text-sm text-emerald-800">

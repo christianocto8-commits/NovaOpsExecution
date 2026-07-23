@@ -37,7 +37,8 @@ type OutletTaskExecutionDrawerProps = {
   onCancel: () => void;
   onSaveDraft: () => Promise<void> | void;
   onSubmit: (
-    knownLocation?: { latitude: number; longitude: number; accuracy_m?: number } | null
+    knownLocation?: { latitude: number; longitude: number; accuracy_m?: number } | null,
+    templateFields?: import("@/features/forms/types").FormField[]
   ) => Promise<void> | void;
 };
 
@@ -119,7 +120,7 @@ export function OutletTaskExecutionDrawer({
     async function refreshLocation() {
       setIsLoadingLocation(true);
       try {
-        const position = await getCurrentPosition(4000, { highAccuracy: true });
+        const position = await getCurrentPosition(2000, { highAccuracy: false });
         if (!cancelled) {
           setCurrentPosition(position);
           setLocationError(null);
@@ -312,7 +313,10 @@ export function OutletTaskExecutionDrawer({
 
     try {
       setSaveState("saving");
-      await onSubmit(geofenceEnabled ? currentPosition : undefined);
+      await onSubmit(
+        geofenceEnabled ? currentPosition : undefined,
+        template?.fields
+      );
       setLastSavedAt(new Date());
       setSaveState("saved");
     } catch {
