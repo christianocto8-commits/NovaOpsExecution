@@ -23,6 +23,7 @@ export type BackendTask = {
   created_by: number;
   source_type: string | null;
   source_id: number | null;
+  form_template_id?: number | null;
   priority: BackendTaskPriority;
   status: BackendTaskStatus;
   due_date: string | null;
@@ -82,6 +83,10 @@ function formatDueDate(value: string | null) {
 }
 
 function parseSourceFormTemplateId(task: BackendTask) {
+  if (task.form_template_id) {
+    return String(task.form_template_id);
+  }
+
   if (task.source_type?.startsWith(LOCAL_FORM_TEMPLATE_PREFIX)) {
     return task.source_type.slice(LOCAL_FORM_TEMPLATE_PREFIX.length);
   }

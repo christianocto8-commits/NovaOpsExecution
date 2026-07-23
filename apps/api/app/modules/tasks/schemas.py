@@ -129,6 +129,7 @@ class TaskResponse(BaseModel):
 
     source_type: str | None
     source_id: int | None
+    form_template_id: int | None = None
 
     priority: str
     status: str

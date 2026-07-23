@@ -250,7 +250,15 @@ export function OutletTaskExecutionDrawer({
                 <p className="mt-1 text-sm leading-6 text-emerald-800">{t("execution.guideBody")}</p>
               </section>
 
-              {template ? (
+              {templateQuery.isLoading ? (
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+                  {t("execution.loadingTemplate")}
+                </section>
+              ) : templateQuery.isError ? (
+                <section className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
+                  {t("execution.templateLoadFailed")}
+                </section>
+              ) : template ? (
                 <section>
                   <div className="mb-3 px-1">
                     <p className="text-base font-bold text-slate-950">{template.name}</p>
@@ -274,7 +282,15 @@ export function OutletTaskExecutionDrawer({
                     highlightedFieldIds={highlightedFieldIds}
                   />
                 </section>
-              ) : null}
+              ) : task.formTemplateId ? (
+                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                  {t("execution.noTemplate")}
+                </section>
+              ) : (
+                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                  {t("execution.noTemplateAssigned")}
+                </section>
+              )}
             </div>
 
             <div className="space-y-4 lg:sticky lg:top-28 lg:self-start">

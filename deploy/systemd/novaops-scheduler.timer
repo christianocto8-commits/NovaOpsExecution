@@ -1,6 +1,8 @@
 [Unit]
 Description=Run NovaOps scheduler every 15 minutes
 
+Unit=novaops-scheduler.service
+
 [Timer]
 OnBootSec=5min
 OnUnitActiveSec=15min

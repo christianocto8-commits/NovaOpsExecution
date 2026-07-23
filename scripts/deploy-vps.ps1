@@ -3,6 +3,7 @@
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $WebDir = Join-Path $Root "apps\web"
 $ApiDir = Join-Path $Root "apps\api"
+. (Join-Path $PSScriptRoot "Deploy-VpsFrontendArchive.ps1")
 $VpsHost = if ($env:NOVAOPS_VPS_HOST) { $env:NOVAOPS_VPS_HOST } else { "root@103.247.10.145" }
 $RemoteRoot = "/opt/NovaOpsExecution"
 
@@ -69,12 +70,11 @@ systemctl restart novaops-api
 "@
 }
 
-Write-Host "[3/4] Upload frontend standalone..." -ForegroundColor Cyan
-ssh $VpsHost "mkdir -p ${RemoteRoot}/apps/web/.next"
-scp -r "$WebDir\.next\standalone" "${VpsHost}:${RemoteRoot}/apps/web/.next/"
+Write-Host "[3/4] Upload frontend standalone (tar.gz)..." -ForegroundColor Cyan
+Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot
 
-Write-Host "[4/4] Restart services..." -ForegroundColor Cyan
-ssh $VpsHost "systemctl restart novaops-web nginx || systemctl restart novaops-web; curl -sf http://127.0.0.1/api/v1/health"
+Write-Host "[4/4] Health check..." -ForegroundColor Cyan
+ssh $VpsHost "systemctl restart nginx 2>/dev/null || true; curl -sf http://127.0.0.1/api/v1/health"
 
 Write-Host ""
 Write-Host "[DONE] Deploy selesai -> http://103.247.10.145" -ForegroundColor Green

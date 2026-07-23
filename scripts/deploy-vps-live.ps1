@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $WebDir = Join-Path $Root "apps\web"
 $ApiDir = Join-Path $Root "apps\api"
+. (Join-Path $PSScriptRoot "Deploy-VpsFrontendArchive.ps1")
 $VpsHost = if ($env:NOVAOPS_VPS_HOST) { $env:NOVAOPS_VPS_HOST } else { "root@103.247.10.145" }
 $RemoteRoot = "/opt/NovaOpsExecution"
 
@@ -32,7 +33,7 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
-Write-Host "[1/5] Build frontend (relative API + VAPID)..." -ForegroundColor Cyan
+Write-Host "[1/6] Build frontend (relative API + VAPID)..." -ForegroundColor Cyan
 Push-Location $WebDir
 $env:NEXT_PUBLIC_USE_RELATIVE_API = "true"
 if ($vapidPublic) { $env:NEXT_PUBLIC_VAPID_PUBLIC_KEY = $vapidPublic }
@@ -42,15 +43,15 @@ Copy-Item -Recurse -Force public .next\standalone\public
 Copy-Item -Recurse -Force .next\static .next\standalone\.next\static
 Pop-Location
 
-Write-Host "[2/5] Upload API..." -ForegroundColor Cyan
+Write-Host "[2/6] Upload API + infra scripts..." -ForegroundColor Cyan
 scp -r "$ApiDir\app" "$ApiDir\alembic" "$ApiDir\requirements.txt" "$ApiDir\alembic.ini" "${VpsHost}:${RemoteRoot}/apps/api/"
-scp "$Root\scripts\vps-activate-live.sh" "${VpsHost}:${RemoteRoot}/scripts/vps-activate-live.sh"
+scp "$Root\scripts\vps-activate-live.sh" "$Root\scripts\vps-sync-production.sh" "$Root\scripts\vps-harden-production.sh" "$Root\scripts\backup-novaops-vps.sh" "${VpsHost}:${RemoteRoot}/scripts/"
+scp -r "$Root\deploy\systemd" "$Root\deploy\nginx" "$Root\deploy\scripts" "${VpsHost}:${RemoteRoot}/deploy/"
 
-Write-Host "[3/5] Upload frontend standalone..." -ForegroundColor Cyan
-ssh $VpsHost "mkdir -p ${RemoteRoot}/apps/web/.next"
-scp -r "$WebDir\.next\standalone" "${VpsHost}:${RemoteRoot}/apps/web/.next/"
+Write-Host "[3/6] Upload frontend standalone (tar.gz)..." -ForegroundColor Cyan
+Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot
 
-Write-Host "[4/5] Activate live integrations on VPS..." -ForegroundColor Cyan
+Write-Host "[4/6] Activate live integrations on VPS..." -ForegroundColor Cyan
 $remoteEnv = ""
 if ($vapidPublic) {
   $remoteEnv += "VAPID_PUBLIC_KEY='$vapidPublic' "
@@ -59,7 +60,16 @@ if ($vapidPublic) {
 }
 ssh $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-activate-live.sh; $remoteEnv bash ${RemoteRoot}/scripts/vps-activate-live.sh"
 
-Write-Host "[5/5] Public health check..." -ForegroundColor Cyan
-ssh $VpsHost "curl -sf https://nova-ops.cloud/api/v1/health || curl -sf http://127.0.0.1/api/v1/health"
+Write-Host "[5/6] Production sync (nginx, scheduler, backup, hardening)..." -ForegroundColor Cyan
+ssh $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${RemoteRoot}/scripts/vps-harden-production.sh ${RemoteRoot}/scripts/backup-novaops-vps.sh ${RemoteRoot}/deploy/scripts/novaops-scheduler-run.sh; bash ${RemoteRoot}/scripts/vps-sync-production.sh"
+
+Write-Host "[6/6] Public health check..." -ForegroundColor Cyan
+Start-Sleep -Seconds 3
+$health = ssh $VpsHost "curl -sS -m 20 http://127.0.0.1/api/v1/health 2>/dev/null || curl -sS -m 20 https://nova-ops.cloud/api/v1/health"
+if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ok"')) {
+  Write-Host "[WARN] Health check belum OK (deploy frontend/API mungkin tetap sukses). Response: $health" -ForegroundColor Yellow
+} else {
+  Write-Host "  $health" -ForegroundColor Gray
+}
 Write-Host ""
 Write-Host "[DONE] https://nova-ops.cloud" -ForegroundColor Green

@@ -404,7 +404,7 @@ class TaskService:
                     detail=message or "Outside outlet geofence.",
                 )
 
-        form_template_id = payload.form_template_id
+        form_template_id = payload.form_template_id or task.form_template_id
         if form_template_id is None and task.source_type == "form_template":
             form_template_id = task.source_id
 

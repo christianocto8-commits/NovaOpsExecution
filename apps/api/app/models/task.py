@@ -72,5 +72,13 @@ class Task(Base):
         return self.schedule.auto_publish if self.schedule else None
 
     @property
+    def form_template_id(self):
+        if self.source_type == "form_template" and self.source_id:
+            return self.source_id
+        if self.schedule and self.schedule.form_template_id:
+            return self.schedule.form_template_id
+        return None
+
+    @property
     def outlet_name(self):
         return self.outlet.name if self.outlet else None

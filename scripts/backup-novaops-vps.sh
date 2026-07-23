@@ -8,7 +8,7 @@ TIMESTAMP="$(date -u +"%Y%m%d-%H%M%S")"
 BACKUP_ROOT="${NOVAOPS_BACKUP_ROOT:-/var/backups/novaops}/vps-$TIMESTAMP"
 DB_DIR="$BACKUP_ROOT/db"
 EVIDENCE_DIR="$BACKUP_ROOT/evidence"
-ENV_FILE="${NOVAOPS_ENV_FILE:-/etc/novaops/novaops-api.env}"
+ENV_FILE="${NOVAOPS_ENV_FILE:-/opt/NovaOpsExecution/apps/api/.env}"
 RETENTION_COUNT="${NOVAOPS_BACKUP_RETENTION:-14}"
 
 mkdir -p "$DB_DIR" "$EVIDENCE_DIR"
@@ -41,7 +41,7 @@ fi
 DUMP_FILE="$DB_DIR/novaops-$TIMESTAMP.sql"
 PGPASSWORD="$PG_PASS" pg_dump -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -F p -f "$DUMP_FILE"
 
-EVIDENCE_SOURCE="${NOVAOPS_EVIDENCE_DIR:-/opt/novaops/apps/api/uploads/evidence}"
+EVIDENCE_SOURCE="${NOVAOPS_EVIDENCE_DIR:-/opt/NovaOpsExecution/apps/api/uploads/evidence}"
 if [[ -d "$EVIDENCE_SOURCE" ]]; then
   cp -a "$EVIDENCE_SOURCE/." "$EVIDENCE_DIR/"
 fi

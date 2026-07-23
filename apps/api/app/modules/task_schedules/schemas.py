@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 TaskScheduleRecurrence = Literal["daily", "weekly", "monthly"]
@@ -37,6 +37,12 @@ class TaskScheduleCreate(BaseModel):
         if value in (None, "", 0):
             return None
         return value  # type: ignore[return-value]
+
+    @model_validator(mode="after")
+    def require_form_template(self) -> "TaskScheduleCreate":
+        if self.form_template_id is None:
+            raise ValueError("form_template_id is required for recurring task schedules")
+        return self
 
 
 class TaskScheduleUpdate(BaseModel):

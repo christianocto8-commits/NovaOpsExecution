@@ -40,13 +40,7 @@ def _completion_rate(completed: int, total: int) -> int:
     return round((completed / total) * 100)
 
 
-@router.get("/summary", response_model=ReportSummary)
-def get_report_summary(
-    db: Session = Depends(get_db),
-    _auth=Depends(require_jwt_or_api_key("read:reports")),
-):
-    del _auth
-
+def _build_report_summary(db: Session) -> ReportSummary:
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
@@ -82,6 +76,16 @@ def get_report_summary(
         compliance_rate=compliance_rate,
         audit_score=compliance_rate,
     )
+
+
+@router.get("/summary", response_model=ReportSummary)
+def get_report_summary(
+    db: Session = Depends(get_db),
+    _auth=Depends(require_jwt_or_api_key("read:reports")),
+):
+    del _auth
+
+    return _build_report_summary(db)
 
 
 @router.get("/trends", response_model=list[ReportTrendPoint])
@@ -204,9 +208,8 @@ def get_compliance_reports(
 ):
     del current_user
 
-    workspace_settings = get_workspace_settings(db)
-    pass_threshold = workspace_settings.pass_threshold
-    summary = get_report_summary(db=db, current_user=current_user)
+    pass_threshold = get_workspace_settings(db).pass_threshold
+    summary = _build_report_summary(db)
 
     return [
         ComplianceReport(

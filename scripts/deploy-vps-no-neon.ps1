@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $WebDir = Join-Path $Root "apps\web"
 $ApiDir = Join-Path $Root "apps\api"
+. (Join-Path $PSScriptRoot "Deploy-VpsFrontendArchive.ps1")
 $VpsHost = if ($env:NOVAOPS_VPS_HOST) { $env:NOVAOPS_VPS_HOST } else { "root@103.247.10.145" }
 $RemoteRoot = "/opt/NovaOpsExecution"
 $DbPass = if ($env:NOVAOPS_DB_PASSWORD) { $env:NOVAOPS_DB_PASSWORD } else { "novaops_vps_db_2026" }
@@ -42,7 +43,8 @@ scp -r "$ApiDir\app" "$ApiDir\alembic" "$ApiDir\requirements.txt" "$ApiDir\alemb
 scp "$Root\deploy\systemd\novaops-api.service" "$Root\deploy\systemd\novaops-web.service" "${VpsHost}:${RemoteRoot}/deploy/systemd/"
 scp "$Root\deploy\nginx\novaops-vps.conf" "${VpsHost}:${RemoteRoot}/deploy/nginx/"
 scp "$Root\scripts\vps-all-in-one-no-neon.sh" "${VpsHost}:${RemoteRoot}/scripts/"
-scp -r "$WebDir\.next\standalone" "${VpsHost}:${RemoteRoot}/apps/web/.next/"
+Write-Host "  Upload frontend standalone (tar.gz)..." -ForegroundColor Gray
+Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot
 
 Write-Host "[3/5] Write API .env (local Postgres)..." -ForegroundColor Cyan
 $jwt = "hTGbOkiLQY4ld6Vd/qroW38iseC2gzLPs/lIfd0PdrwnkYcCm2GM3YzTMJZLUolu"
