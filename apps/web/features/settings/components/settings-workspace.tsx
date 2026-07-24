@@ -1,13 +1,15 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   Bell,
   Building2,
   CheckSquare,
   FileText,
   Shield,
+  Smartphone,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -29,6 +31,11 @@ import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
+import {
+  getLoginDevices,
+  revokeLoginDevice,
+  type LoginDeviceSession,
+} from "@/services/auth.service";
 import { ActionCard } from "@/shared/ui/cards/action-card";
 import { MetricCard } from "@/shared/ui/cards/metric-card";
 import { SectionCard } from "@/shared/ui/cards/section-card";
@@ -400,6 +407,107 @@ function OutletLocationPanel({
       >
         {isSaving ? "Menyimpan..." : "Simpan outlet"}
       </button>
+    </SectionCard>
+  );
+}
+
+function formatSessionDate(value: string | null) {
+  if (!value) return "Belum ada aktivitas";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function LoginDevicesPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const [devices, setDevices] = useState<LoginDeviceSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  const loadDevices = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setDevices(await getLoginDevices());
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal memuat perangkat login.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onNotice]);
+
+  useEffect(() => {
+    void loadDevices();
+  }, [loadDevices]);
+
+  async function handleRevoke(device: LoginDeviceSession) {
+    if (device.is_current) {
+      onNotice("Perangkat yang sedang dipakai tidak bisa dicabut dari tombol ini.");
+      return;
+    }
+
+    try {
+      setRevokingId(device.id);
+      await revokeLoginDevice(device.id);
+      setDevices((current) => current.filter((item) => item.id !== device.id));
+      onNotice(`${device.device_label} berhasil dieliminasi.`);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal mengeliminasi perangkat.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <SectionCard title="Login Devices">
+      <div className="mb-4 flex items-start gap-3 text-sm text-slate-500">
+        <Smartphone className="mt-0.5 h-4 w-4 text-emerald-700" />
+        <p>
+          Lihat perangkat yang masih punya sesi login aktif untuk akun ini. Cabut perangkat yang
+          tidak dikenal agar tokennya tidak bisa dipakai lagi.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Memuat perangkat login...</p>
+      ) : devices.length === 0 ? (
+        <p className="text-sm text-slate-500">Belum ada perangkat login aktif.</p>
+      ) : (
+        <div className="space-y-3">
+          {devices.map((device) => (
+            <div
+              key={device.id}
+              className="flex flex-col gap-3 rounded-xl border border-slate-200 px-4 py-3 md:flex-row md:items-center md:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-900">{device.device_label}</p>
+                  {device.is_current ? (
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                      Perangkat ini
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  IP {device.ip_address ?? "-"} • Terakhir aktif {formatSessionDate(device.last_seen_at)}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-400">{device.user_agent ?? "Unknown user agent"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleRevoke(device)}
+                disabled={device.is_current || revokingId === device.id}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                <Trash2 className="h-4 w-4" />
+                {revokingId === device.id ? "Mengeliminasi..." : "Eliminasi"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -1004,6 +1112,8 @@ export function SettingsWorkspace() {
             <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
           </div>
         </SectionCard>
+
+        <LoginDevicesPanel onNotice={(message) => setNotice(message)} />
 
         <SectionCard title="Notifications">
           <div className="space-y-4">

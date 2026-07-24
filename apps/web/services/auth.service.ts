@@ -48,6 +48,17 @@ export type LoginResponse = {
   expires_in_minutes: number;
 };
 
+export type LoginDeviceSession = {
+  id: string;
+  device_label: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+  expires_at: string;
+  is_current: boolean;
+};
+
 export async function login(payload: LoginPayload) {
   return api<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
@@ -58,6 +69,18 @@ export async function login(payload: LoginPayload) {
 export async function getMe() {
   return api<AuthUser>("/api/v1/authorization/context", {
     method: "GET",
+  });
+}
+
+export async function getLoginDevices() {
+  return api<LoginDeviceSession[]>("/api/v1/auth/devices", {
+    method: "GET",
+  });
+}
+
+export async function revokeLoginDevice(sessionId: string) {
+  return api<void>(`/api/v1/auth/devices/${sessionId}`, {
+    method: "DELETE",
   });
 }
 

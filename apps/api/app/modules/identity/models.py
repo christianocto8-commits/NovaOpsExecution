@@ -141,6 +141,8 @@ class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(80), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    device_label: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     user: Mapped[User] = relationship()
 
@@ -171,5 +173,4 @@ class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resource_type: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-
 

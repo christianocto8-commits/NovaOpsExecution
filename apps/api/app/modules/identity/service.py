@@ -23,6 +23,38 @@ from app.modules.identity.security import (
 )
 
 
+def build_device_label(user_agent: str | None) -> str:
+    if not user_agent:
+        return "Unknown device"
+
+    ua = user_agent.lower()
+    if "edg/" in ua:
+        browser = "Edge"
+    elif "chrome/" in ua or "crios/" in ua:
+        browser = "Chrome"
+    elif "firefox/" in ua or "fxios/" in ua:
+        browser = "Firefox"
+    elif "safari/" in ua:
+        browser = "Safari"
+    else:
+        browser = "Browser"
+
+    if "android" in ua:
+        platform = "Android"
+    elif "iphone" in ua or "ipad" in ua:
+        platform = "iOS"
+    elif "windows" in ua:
+        platform = "Windows"
+    elif "mac os" in ua or "macintosh" in ua:
+        platform = "macOS"
+    elif "linux" in ua:
+        platform = "Linux"
+    else:
+        platform = "Device"
+
+    return f"{browser} on {platform}"
+
+
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
@@ -72,20 +104,24 @@ class AuthService:
                 detail="User account is inactive",
             )
 
-        access_token = create_access_token(
-            subject=user.id,
-            extra_claims=self.build_access_claims(user),
-        )
-
         raw_refresh_token = create_raw_refresh_token()
         refresh_expires_at = datetime.now(UTC) + timedelta(days=30)
 
-        self.refresh_tokens.create(
+        refresh_token = self.refresh_tokens.create(
             user_id=user.id,
             token_hash=hash_token(raw_refresh_token),
             expires_at=refresh_expires_at,
             ip_address=ip_address,
             user_agent=user_agent,
+            device_label=build_device_label(user_agent),
+        )
+
+        access_token = create_access_token(
+            subject=user.id,
+            extra_claims={
+                **self.build_access_claims(user),
+                "sid": str(refresh_token.id),
+            },
         )
 
         self.users.update_last_login(user)

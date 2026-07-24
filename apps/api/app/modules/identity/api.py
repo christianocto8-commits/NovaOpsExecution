@@ -1,10 +1,13 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.modules.identity.dependencies import get_current_active_user
+from app.modules.identity.dependencies import bearer_scheme, get_current_active_user
 from app.modules.identity.google_oauth import (
     build_frontend_success_redirect,
     build_google_authorize_url,
@@ -31,10 +34,26 @@ from app.modules.identity.saml_sso import (
     verify_saml_state,
 )
 from app.modules.identity.models import User
-from app.modules.identity.schemas import LoginRequest, TokenResponse
+from app.modules.identity.repository import RefreshTokenRepository
+from app.modules.identity.schemas import LoginDeviceSessionResponse, LoginRequest, TokenResponse
+from app.modules.identity.security import decode_access_token
 from app.modules.identity.service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def get_current_session_id(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> UUID | None:
+    if credentials is None:
+        return None
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+        session_id = payload.get("sid")
+        return UUID(str(session_id)) if session_id else None
+    except Exception:
+        return None
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -248,6 +267,54 @@ async def saml_acs(
     )
 
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/devices", response_model=list[LoginDeviceSessionResponse])
+def list_login_devices(
+    current_user: User = Depends(get_current_active_user),
+    current_session_id: UUID | None = Depends(get_current_session_id),
+    db: Session = Depends(get_db),
+) -> list[LoginDeviceSessionResponse]:
+    sessions = RefreshTokenRepository(db).list_active_for_user(current_user.id)
+
+    return [
+        LoginDeviceSessionResponse(
+            id=session.id,
+            device_label=session.device_label or "Unknown device",
+            ip_address=session.ip_address,
+            user_agent=session.user_agent,
+            created_at=session.created_at,
+            last_seen_at=session.last_seen_at,
+            expires_at=session.expires_at,
+            is_current=current_session_id == session.id,
+        )
+        for session in sessions
+    ]
+
+
+@router.delete("/devices/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_login_device(
+    session_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    current_session_id: UUID | None = Depends(get_current_session_id),
+    db: Session = Depends(get_db),
+) -> Response:
+    if current_session_id == session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current device cannot be revoked from this action",
+        )
+
+    refresh_token = RefreshTokenRepository(db).find_active_by_id_for_user(
+        session_id=session_id,
+        user_id=current_user.id,
+    )
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login device not found")
+
+    RefreshTokenRepository(db).revoke(refresh_token)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me")

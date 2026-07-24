@@ -16,6 +16,17 @@ class TokenResponse(BaseModel):
     expires_in_minutes: int
 
 
+class LoginDeviceSessionResponse(BaseModel):
+    id: UUID
+    device_label: str
+    ip_address: str | None = None
+    user_agent: str | None = None
+    created_at: datetime
+    last_seen_at: datetime | None = None
+    expires_at: datetime
+    is_current: bool = False
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
 
@@ -214,5 +225,4 @@ class BulkImportResponse(BaseModel):
     users_created: int = 0
     users_skipped: int = 0
     rows: list[BulkImportRowResult] = []
-
 

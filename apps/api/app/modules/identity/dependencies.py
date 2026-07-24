@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.identity.models import User
-from app.modules.identity.repository import UserRepository
+from app.modules.identity.repository import RefreshTokenRepository, UserRepository
 from app.modules.identity.security import decode_access_token
 
 bearer_scheme = HTTPBearer(
@@ -52,6 +52,28 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+
+    session_id = payload.get("sid")
+    if session_id:
+        try:
+            refresh_token = RefreshTokenRepository(db).find_active_by_id_for_user(
+                session_id=UUID(str(session_id)),
+                user_id=user.id,
+            )
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication session",
+            ) from exc
+
+        if not refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication session has been revoked",
+            )
+
+        RefreshTokenRepository(db).touch(refresh_token)
+        db.commit()
 
     return user
 

@@ -122,6 +122,7 @@ class RefreshTokenRepository:
         expires_at: datetime,
         ip_address: str | None = None,
         user_agent: str | None = None,
+        device_label: str | None = None,
     ) -> RefreshToken:
         refresh_token = RefreshToken(
             user_id=user_id,
@@ -129,6 +130,8 @@ class RefreshTokenRepository:
             expires_at=expires_at,
             ip_address=ip_address,
             user_agent=user_agent,
+            last_seen_at=datetime.now(UTC),
+            device_label=device_label,
         )
         self.db.add(refresh_token)
         self.db.flush()
@@ -142,6 +145,32 @@ class RefreshTokenRepository:
             RefreshToken.expires_at > datetime.now(UTC),
         )
         return self.db.scalar(statement)
+
+    def find_active_by_id_for_user(self, *, session_id: UUID, user_id: UUID) -> RefreshToken | None:
+        statement = select(RefreshToken).where(
+            RefreshToken.id == session_id,
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > datetime.now(UTC),
+        )
+        return self.db.scalar(statement)
+
+    def list_active_for_user(self, user_id: UUID) -> list[RefreshToken]:
+        statement = (
+            select(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+            .order_by(RefreshToken.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def touch(self, refresh_token: RefreshToken) -> None:
+        refresh_token.last_seen_at = datetime.now(UTC)
+        self.db.add(refresh_token)
+        self.db.flush()
 
     def revoke(self, refresh_token: RefreshToken) -> None:
         refresh_token.revoked_at = datetime.now(UTC)
@@ -250,4 +279,3 @@ class OutletOperatorRepository:
         self.db.flush()
         self.db.refresh(operator)
         return operator
-
