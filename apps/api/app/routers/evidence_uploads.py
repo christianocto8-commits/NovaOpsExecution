@@ -103,7 +103,7 @@ async def upload_evidence(
     }
 
 
-def _serve_evidence_file(stored_name: str) -> FileResponse | Response:
+def _serve_evidence_file(stored_name: str):
     if not SAFE_STORED_NAME.fullmatch(stored_name):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found")
 
@@ -124,19 +124,19 @@ def _serve_evidence_file(stored_name: str) -> FileResponse | Response:
     return FileResponse(path, media_type=content_type)
 
 
-@router.get("/{stored_name}")
+@router.get("/{stored_name}", response_model=None)
 def get_evidence_file(
     stored_name: str,
     current_user: User = Depends(get_current_user),
-) -> FileResponse | Response:
+):
     del current_user
     return _serve_evidence_file(stored_name)
 
 
-@legacy_router.get("/{stored_name}")
+@legacy_router.get("/{stored_name}", response_model=None)
 def get_legacy_evidence_file(
     stored_name: str,
     current_user: User = Depends(get_current_user),
-) -> FileResponse | Response:
+):
     del current_user
     return _serve_evidence_file(stored_name)
