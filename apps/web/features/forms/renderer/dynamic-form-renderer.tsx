@@ -38,6 +38,38 @@ const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
   responsible_person: "Nama pelaksana",
 };
 
+type YesNoOption = "Yes" | "No" | "N/A";
+
+function isYesNoOptionSelected(value: string, option: YesNoOption) {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (option === "Yes") {
+    return ["yes", "ya", "true", "1"].includes(normalizedValue);
+  }
+
+  if (option === "No") {
+    return ["no", "tidak", "false", "0"].includes(normalizedValue);
+  }
+
+  return ["n/a", "na", "tidak berlaku"].includes(normalizedValue);
+}
+
+function getYesNoOptionClass(option: YesNoOption, selected: boolean) {
+  if (!selected) {
+    return "border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
+  }
+
+  if (option === "Yes") {
+    return "border-emerald-600 bg-emerald-600 text-white shadow-sm";
+  }
+
+  if (option === "No") {
+    return "border-red-600 bg-red-600 text-white shadow-sm";
+  }
+
+  return "border-slate-400 bg-slate-200 text-slate-800 shadow-sm";
+}
+
 export function DynamicFormRenderer({
   fields,
   responses,
@@ -88,23 +120,26 @@ export function DynamicFormRenderer({
                   className={`grid gap-2 ${field.options?.allow_na ? "grid-cols-3" : "grid-cols-2"}`}
                 >
                   {(["Yes", "No", ...(field.options?.allow_na ? (["N/A"] as const) : [])] as const).map(
-                    (option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      disabled={readOnly}
-                      onClick={() => updateResponse(field.id, option)}
-                      className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
-                        value === option
-                          ? option === "N/A"
-                            ? "border-slate-300 bg-slate-100 text-slate-700"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      } disabled:cursor-not-allowed`}
-                    >
-                      {option === "Yes" ? "Ya" : option === "No" ? "Tidak" : "Tidak Berlaku"}
-                    </button>
-                  ))}
+                    (option) => {
+                      const selected = isYesNoOptionSelected(value, option);
+
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          disabled={readOnly}
+                          aria-pressed={selected}
+                          onClick={() => updateResponse(field.id, option)}
+                          className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${getYesNoOptionClass(
+                            option,
+                            selected
+                          )} disabled:cursor-default`}
+                        >
+                          {option === "Yes" ? "Ya" : option === "No" ? "Tidak" : "Tidak Berlaku"}
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
               ) : field.type === "textarea" ? (
                 <textarea
