@@ -9,7 +9,7 @@ import {
   isOfflineEvidenceUrl,
 } from "@/lib/offline/offline-evidence";
 import { getPhotoDisplayUrl, parsePhotoFieldValue, serializePhotoFieldValue } from "@/shared/evidence/photo-value";
-import { resolveEvidenceDisplayUrl } from "@/shared/evidence/submission-evidence";
+import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 
@@ -72,11 +72,13 @@ export function PhotoFieldInput({
     };
   }, [displayUrlValue]);
 
-  const displayUrl = useMemo(() => {
+  const resolvedDisplayUrl = useMemo(() => {
     if (!displayUrlValue) return "";
     if (isOfflineEvidenceUrl(displayUrlValue)) return offlineBlobUrl ?? "";
-    return resolveEvidenceDisplayUrl(displayUrlValue);
+    return displayUrlValue;
   }, [displayUrlValue, offlineBlobUrl]);
+  const authenticatedDisplayUrl = useEvidenceDisplayUrl(resolvedDisplayUrl);
+  const displayUrl = authenticatedDisplayUrl || resolvedDisplayUrl;
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

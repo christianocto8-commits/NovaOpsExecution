@@ -185,7 +185,6 @@ async function processFormSubmit(mutation: QueuedMutation) {
   await formSubmissionService.create({
     form_template_id: Number(payload.form_template_id),
     outlet_id: Number(payload.outlet_id),
-    submitted_by: Number(payload.submitted_by),
     status: "submitted",
     responsible_person_name:
       typeof payload.responsible_person_name === "string"

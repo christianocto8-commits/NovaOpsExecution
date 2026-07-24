@@ -33,7 +33,7 @@ class FormAnswerResponse(BaseModel):
 class FormSubmissionCreate(BaseModel):
     form_template_id: int
     outlet_id: int
-    submitted_by: int
+    submitted_by: Optional[int] = None
     status: str = "submitted"
     score: Optional[float] = None
     responsible_person_name: Optional[str] = None

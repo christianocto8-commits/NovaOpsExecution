@@ -22,7 +22,7 @@ export type FormSubmissionAnswerPayload = {
 export type FormSubmissionCreatePayload = {
   form_template_id: number;
   outlet_id: number;
-  submitted_by: number;
+  submitted_by?: number | null;
   status?: string;
   score?: number | null;
   responsible_person_name?: string | null;
@@ -109,7 +109,6 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
 export function buildFormSubmissionCreatePayload(args: {
   templateId: string;
   outletId: number;
-  submittedBy: number;
   fields: FormField[];
   responses: TaskFormResponses;
 }): FormSubmissionCreatePayload {
@@ -118,7 +117,6 @@ export function buildFormSubmissionCreatePayload(args: {
   return {
     form_template_id: Number(args.templateId),
     outlet_id: args.outletId,
-    submitted_by: args.submittedBy,
     status: "submitted",
     responsible_person_name: getResponsiblePersonValue(args.fields, args.responses) || null,
     answers: buildAnswers(visibleFields, args.responses),
@@ -158,7 +156,6 @@ export const formSubmissionService = {
   submitManualForm(args: {
     templateId: string;
     outletId: number;
-    submittedBy: number;
     fields: FormField[];
     responses: TaskFormResponses;
   }) {

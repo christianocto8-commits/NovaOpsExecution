@@ -180,8 +180,6 @@ function OutletManualFormsWorkspace() {
 
     const outletId =
       workspace.legacyOutletId ?? user.outlet_access.legacy_outlet_id ?? null;
-    const submittedBy = Number(user.user.id);
-
     if (outletId == null || !Number.isFinite(outletId)) {
       setNotice("Outlet context belum tersedia. Login ulang sebagai operator outlet.");
       return;
@@ -221,7 +219,6 @@ function OutletManualFormsWorkspace() {
     const payload = buildFormSubmissionCreatePayload({
       templateId: selectedTemplate.id,
       outletId,
-      submittedBy,
       fields: selectedTemplate.fields,
       responses,
     });
@@ -233,7 +230,6 @@ function OutletManualFormsWorkspace() {
         await submitMutation.mutateAsync({
           templateId: selectedTemplate.id,
           outletId,
-          submittedBy,
           fields: selectedTemplate.fields,
           responses,
         });
