@@ -9,32 +9,66 @@ import {
 
 import { resolveEvidenceDisplayUrl } from "../submission-evidence";
 
+function getAuthHeaders(): HeadersInit | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  const token = localStorage.getItem("novaops_token");
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
+function needsAuthenticatedFetch(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return (
+      parsed.pathname.startsWith("/api/v1/evidence-uploads/") ||
+      parsed.pathname.startsWith("/uploads/evidence/")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function useEvidenceDisplayUrl(url: string) {
   const resolvedUrl = useMemo(() => resolveEvidenceDisplayUrl(url), [url]);
-  const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!resolvedUrl || !isOfflineEvidenceUrl(resolvedUrl)) {
-      setOfflineBlobUrl(null);
+    if (!resolvedUrl || (!isOfflineEvidenceUrl(resolvedUrl) && !needsAuthenticatedFetch(resolvedUrl))) {
+      setBlobUrl(null);
       return;
     }
 
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    void getOfflineEvidenceBlobUrl(resolvedUrl).then((blobUrl) => {
+    async function resolveBlobUrl() {
+      if (isOfflineEvidenceUrl(resolvedUrl)) {
+        return getOfflineEvidenceBlobUrl(resolvedUrl);
+      }
+
+      const response = await fetch(resolvedUrl, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+
+      if (!response.ok) return null;
+
+      return URL.createObjectURL(await response.blob());
+    }
+
+    void resolveBlobUrl().then((nextBlobUrl) => {
       if (cancelled) {
-        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        if (nextBlobUrl) URL.revokeObjectURL(nextBlobUrl);
         return;
       }
 
-      objectUrl = blobUrl;
-      setOfflineBlobUrl(blobUrl);
+      objectUrl = nextBlobUrl;
+      setBlobUrl(nextBlobUrl);
     });
 
     return () => {
       cancelled = true;
-      setOfflineBlobUrl(null);
+      setBlobUrl(null);
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
@@ -43,7 +77,7 @@ export function useEvidenceDisplayUrl(url: string) {
 
   return useMemo(() => {
     if (!resolvedUrl) return "";
-    if (!isOfflineEvidenceUrl(resolvedUrl)) return resolvedUrl;
-    return offlineBlobUrl ?? "";
-  }, [resolvedUrl, offlineBlobUrl]);
+    if (isOfflineEvidenceUrl(resolvedUrl) || needsAuthenticatedFetch(resolvedUrl)) return blobUrl ?? "";
+    return resolvedUrl;
+  }, [resolvedUrl, blobUrl]);
 }

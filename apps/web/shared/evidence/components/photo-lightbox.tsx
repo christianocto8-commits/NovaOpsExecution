@@ -1,9 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
-
 "use client";
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect } from "react";
+import { useEvidenceDisplayUrl } from "../hooks/use-evidence-display-url";
 
 type PhotoLightboxProps = {
   open: boolean;
@@ -21,6 +20,7 @@ export function PhotoLightbox({
   onNavigate,
 }: PhotoLightboxProps) {
   const current = images[activeIndex];
+  const displayUrl = useEvidenceDisplayUrl(current?.url ?? "");
   const hasPrevious = activeIndex > 0;
   const hasNext = activeIndex < images.length - 1;
 
@@ -95,11 +95,18 @@ export function PhotoLightbox({
             </button>
           ) : null}
 
-          <img
-            src={current.url}
-            alt={current.caption ?? "Evidence photo"}
-            className="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
-          />
+          {displayUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={displayUrl}
+              alt={current.caption ?? "Evidence photo"}
+              className="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+          ) : (
+            <div className="flex h-64 w-full max-w-lg items-center justify-center rounded-2xl bg-white/10 text-sm font-semibold text-white/70">
+              Loading evidence...
+            </div>
+          )}
 
           {hasNext ? (
             <button

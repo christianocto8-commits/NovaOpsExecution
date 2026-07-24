@@ -191,7 +191,7 @@ function parseEvidenceGallery(value: string): EvidenceItem[] {
 }
 
 function isPhotoUrl(url: string) {
-  return /uploads\/evidence|\.(jpg|jpeg|png|webp|heic)/i.test(url);
+  return /uploads\/evidence|evidence-uploads|\.(jpg|jpeg|png|webp|heic)/i.test(url);
 }
 
 function hasPhotoInFormResponses(formResponses: TaskExecutionForm["formResponses"]) {

@@ -2,12 +2,12 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.bootstrap.ensure_online_admin import ensure_online_admin
 from app.bootstrap.ensure_operational_templates import ensure_operational_templates
 from app.core.config import get_settings
+from app.routers.evidence_uploads import legacy_router as legacy_evidence_router
 
 settings = get_settings()
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
@@ -65,13 +65,12 @@ dynamic forms, workflow approvals, reports, notifications, RBAC, and audit logs.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+app.include_router(legacy_evidence_router)
 app.include_router(api_router)
 
 

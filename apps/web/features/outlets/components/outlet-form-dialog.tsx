@@ -1,4 +1,9 @@
-﻿import { OutletFormState, OutletStatus, OutletTier } from "../types";
+"use client";
+
+import { ChevronLeft } from "lucide-react";
+import { useEffect, useRef } from "react";
+
+import { OutletFormState, OutletStatus, OutletTier } from "../types";
 
 type OutletFormDialogProps = {
   open: boolean;
@@ -29,29 +34,71 @@ export function OutletFormDialog({
   onFormChange,
   onSave,
 }: OutletFormDialogProps) {
+  const pushedHistoryRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+
+    pushedHistoryRef.current = true;
+    window.history.pushState({ novaopsForm: "outlet" }, "", window.location.href);
+
+    function handlePopState() {
+      pushedHistoryRef.current = false;
+      onClose();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
 
+  function handleClose() {
+    if (pushedHistoryRef.current && typeof window !== "undefined") {
+      pushedHistoryRef.current = false;
+      window.history.back();
+      return;
+    }
+
+    onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-white sm:items-center sm:bg-slate-950/40 sm:p-4">
       <button
         type="button"
         aria-label="Close dialog overlay"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
+        className="absolute inset-0 hidden cursor-default sm:block"
+        onClick={handleClose}
       />
 
-      <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
-        <div className="border-b border-slate-200 p-6">
-          <p className="text-sm font-medium text-emerald-700">Outlet Management</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-950">
-            {editingOutletId ? "Edit Outlet" : "Create Outlet"}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage real outlet identity saved to the backend.
-          </p>
+      <div className="relative z-10 flex h-dvh w-full flex-col bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white p-4 sm:static sm:p-6">
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 active:bg-slate-100 sm:hidden"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-emerald-700">Outlet Management</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">
+                {editingOutletId ? "Edit Outlet" : "Create Outlet"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Manage real outlet identity saved to the backend.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-4 p-6">
+        <div className="grid flex-1 gap-4 overflow-y-auto p-4 pb-28 sm:p-6 sm:pb-6">
           <Field label="Outlet Code">
             <input
               value={form.code}
@@ -132,11 +179,11 @@ export function OutletFormDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-200 p-6">
+        <div className="sticky bottom-0 flex gap-2 border-t border-slate-200 bg-white p-4 sm:static sm:justify-end sm:p-6">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            onClick={handleClose}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:flex-none sm:py-2"
           >
             Cancel
           </button>
@@ -144,7 +191,7 @@ export function OutletFormDialog({
           <button
             type="button"
             onClick={onSave}
-            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            className="flex-1 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 sm:flex-none sm:py-2"
           >
             {editingOutletId ? "Save Changes" : "Create Outlet"}
           </button>

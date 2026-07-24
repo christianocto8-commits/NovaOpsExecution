@@ -1,6 +1,6 @@
 # NovaOps — Deploy All-in-One di VPS (Frontend + Backend)
 
-Satu server, satu IP, tanpa Vercel, tanpa mixed content.
+Satu server, satu IP, tanpa platform frontend eksternal, tanpa mixed content.
 
 ```
 Browser → http://103.247.10.145/
@@ -118,7 +118,7 @@ systemctl restart novaops-web
 
 ---
 
-## Vercel
+## Frontend
 
 Tidak dipakai lagi untuk trial ini. Akses app lewat **http://103.247.10.145** saja.
 

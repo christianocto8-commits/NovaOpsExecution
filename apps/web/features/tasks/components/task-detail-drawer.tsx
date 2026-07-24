@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { Task, TaskActivityType, TaskEvidenceType } from "../types";
 import { formatTaskSchedule } from "../utils";
 import { PhotoLightbox } from "@/shared/evidence/components/photo-lightbox";
+import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
@@ -72,6 +73,23 @@ function getActivityStyle(type: TaskActivityType) {
   if (type === "evidence_submitted" || type === "draft_saved")
     return { icon: FileText, className: "border-violet-100 bg-violet-50 text-violet-700" };
   return { icon: ClipboardList, className: "border-slate-200 bg-white text-slate-600" };
+}
+
+function EvidencePhotoPreview({ src, alt }: { src: string; alt: string }) {
+  const displayUrl = useEvidenceDisplayUrl(src);
+
+  if (!displayUrl) {
+    return (
+      <div className="flex h-32 w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
+        Loading evidence...
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={displayUrl} alt={alt} className="max-h-48 w-full object-cover" />
+  );
 }
 
 export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetailDrawerProps) {
@@ -220,11 +238,9 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                                 }}
                                 className="mt-2 block overflow-hidden rounded-xl border border-slate-200"
                               >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <EvidencePhotoPreview
                                   src={evidence.value}
                                   alt={evidence.label ?? "Evidence photo"}
-                                  className="max-h-48 w-full object-cover"
                                 />
                               </button>
                             ) : isUrl ? (

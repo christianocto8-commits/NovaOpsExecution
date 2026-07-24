@@ -13,7 +13,7 @@
 
 ## Database migration
 
-Run on Render (or locally):
+Run on the VPS scheduler (or locally):
 
 ```bash
 cd apps/api
@@ -22,9 +22,9 @@ alembic upgrade head
 
 Revision: `20260717_0001`
 
-## Render Cron Job
+## VPS Cron Job
 
-Create a **Cron Job** service on Render:
+Create a scheduled job on the VPS:
 
 - **Schedule:** `*/15 * * * *` (every 15 minutes)
 - **Command:**

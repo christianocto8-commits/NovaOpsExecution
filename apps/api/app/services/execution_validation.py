@@ -70,7 +70,7 @@ def extract_evidence_urls(answers_json: dict[str, Any]) -> list[str]:
 
 def is_photo_evidence_url(url: str) -> bool:
     normalized = url.lower().split("?", 1)[0]
-    if "/uploads/evidence/" in normalized:
+    if "/uploads/evidence/" in normalized or "/evidence-uploads/" in normalized:
         return True
     return normalized.endswith(IMAGE_EXTENSIONS)
 

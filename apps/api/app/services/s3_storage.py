@@ -67,4 +67,27 @@ def upload_bytes(*, key: str, content: bytes, content_type: str) -> str:
         ContentType=content_type,
     )
 
-    return build_object_url(key)
+    return key
+
+
+def download_bytes(key: str) -> bytes:
+    import boto3
+    from botocore.client import Config
+
+    s3 = get_s3_settings()
+    if not s3:
+        raise RuntimeError("S3 is not configured")
+
+    client_kwargs: dict = {
+        "endpoint_url": s3.endpoint,
+        "aws_access_key_id": s3.access_key,
+        "aws_secret_access_key": s3.secret_key,
+        "config": Config(signature_version="s3v4"),
+    }
+
+    if s3.region:
+        client_kwargs["region_name"] = s3.region
+
+    client = boto3.client("s3", **client_kwargs)
+    response = client.get_object(Bucket=s3.bucket, Key=key)
+    return response["Body"].read()

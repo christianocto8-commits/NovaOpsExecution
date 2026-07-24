@@ -26,7 +26,7 @@ def _normalize_database_url(value: str) -> str:
     cleaned = _sanitize_env_value(value)
 
     if not cleaned:
-        raise ValueError("DATABASE_URL is empty. Set a valid Neon connection string in Render.")
+        raise ValueError("DATABASE_URL is empty. Set a valid PostgreSQL connection string.")
 
     parsed = urlparse(cleaned)
     scheme = parsed.scheme.lower()
@@ -132,15 +132,25 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     database_url = _normalize_database_url(os.environ["DATABASE_URL"])
+    environment = _sanitize_env_value(os.environ.get("ENVIRONMENT", "local") or "local").lower()
+    jwt_secret_key = _sanitize_env_value(
+        os.environ.get(
+            "JWT_SECRET_KEY",
+            os.environ.get("SECRET_KEY", "novaops-development-secret-key"),
+        )
+    )
+
+    if environment == "production" and (
+        not jwt_secret_key
+        or jwt_secret_key == "novaops-development-secret-key"
+        or len(jwt_secret_key) < 32
+    ):
+        raise ValueError("JWT_SECRET_KEY must be set to a strong value in production.")
 
     return Settings(
+        environment=environment,
         database_url=database_url,
-        jwt_secret_key=_sanitize_env_value(
-            os.environ.get(
-                "JWT_SECRET_KEY",
-                os.environ.get("SECRET_KEY", "novaops-development-secret-key"),
-            )
-        ),
+        jwt_secret_key=jwt_secret_key,
         jwt_algorithm=os.environ.get(
             "JWT_ALGORITHM",
             os.environ.get("ALGORITHM", "HS256"),
