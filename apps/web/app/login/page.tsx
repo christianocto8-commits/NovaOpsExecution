@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { buildApiUrl } from "@/lib/api-url";
-import { getMe, login } from "@/services/auth.service";
+import { getMe, login, verifyOtp, type LoginResponse } from "@/services/auth.service";
 import { useLanguage } from "@/shared/i18n";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
@@ -104,6 +104,8 @@ function LoginPageContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [otpChallengeId, setOtpChallengeId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -129,6 +131,54 @@ function LoginPageContent() {
     }
   }, [rememberOutlet]);
 
+  async function completeLogin(data: LoginResponse) {
+    if (!data.access_token || !data.refresh_token) {
+      throw new Error("Login token tidak tersedia.");
+    }
+
+    localStorage.setItem("novaops_token", data.access_token);
+    localStorage.setItem("novaops_refresh_token", data.refresh_token);
+
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, identifier.trim());
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
+
+    const currentUser = await getMe();
+    storeOutletContext(currentUser.outlet_access);
+
+    let outletContext = getWorkspaceOutletContext(currentUser.outlet_access);
+
+    if (rememberOutlet) {
+      try {
+        const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
+        if (savedContext) {
+          const parsed = JSON.parse(savedContext) as {
+            outletName?: string;
+            outletCode?: string;
+          };
+
+          outletContext = {
+            ...outletContext,
+            outletName: parsed.outletName ?? outletContext.outletName,
+            outletCode: parsed.outletCode ?? outletContext.outletCode,
+          };
+        }
+      } catch {
+        // Fall back to user outlet context.
+      }
+    }
+
+    setStoredWorkspaceRole(
+      getWorkspaceRoleFromSlug(currentUser.role.slug),
+      outletContext
+    );
+
+    setMessage(t("login.success"));
+    window.location.assign(returnUrl);
+  }
+
   async function handleLogin() {
     if (loading) return;
 
@@ -141,50 +191,36 @@ function LoginPageContent() {
         password,
       });
 
-      localStorage.setItem("novaops_token", data.access_token);
-      localStorage.setItem("novaops_refresh_token", data.refresh_token);
-
-      if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, identifier.trim());
-      } else {
-        localStorage.removeItem(REMEMBER_KEY);
+      if (data.requires_otp && data.otp_challenge_id) {
+        setOtpChallengeId(data.otp_challenge_id);
+        setMessage(data.message ?? "Kode OTP dikirim ke email terdaftar.");
+        setLoading(false);
+        return;
       }
 
-      const currentUser = await getMe();
-      storeOutletContext(currentUser.outlet_access);
-
-      let outletContext = getWorkspaceOutletContext(currentUser.outlet_access);
-
-      if (rememberOutlet) {
-        try {
-          const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
-          if (savedContext) {
-            const parsed = JSON.parse(savedContext) as {
-              outletName?: string;
-              outletCode?: string;
-            };
-
-            outletContext = {
-              ...outletContext,
-              outletName: parsed.outletName ?? outletContext.outletName,
-              outletCode: parsed.outletCode ?? outletContext.outletCode,
-            };
-          }
-        } catch {
-          // Fall back to user outlet context.
-        }
-      }
-
-      setStoredWorkspaceRole(
-        getWorkspaceRoleFromSlug(currentUser.role.slug),
-        outletContext
-      );
-
-      setMessage(t("login.success"));
-      window.location.assign(returnUrl);
+      await completeLogin(data);
     } catch (error) {
       console.error(error);
       setMessage(error instanceof Error ? error.message : t("login.error"));
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (loading || !otpChallengeId) return;
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const data = await verifyOtp({
+        challengeId: otpChallengeId,
+        code: otpCode.trim(),
+      });
+      await completeLogin(data);
+    } catch (error) {
+      console.error(error);
+      setMessage(error instanceof Error ? error.message : "Kode OTP tidak valid.");
       setLoading(false);
     }
   }
@@ -234,6 +270,7 @@ function LoginPageContent() {
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder={t("login.identifierPlaceholder")}
             autoComplete="username"
+            disabled={Boolean(otpChallengeId)}
           />
 
           <div className="relative">
@@ -244,6 +281,7 @@ function LoginPageContent() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("login.passwordPlaceholder")}
               autoComplete="current-password"
+              disabled={Boolean(otpChallengeId)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void handleLogin();
               }}
@@ -257,6 +295,20 @@ function LoginPageContent() {
               {showPassword ? t("login.hidePassword") : t("login.showPassword")}
             </button>
           </div>
+
+          {otpChallengeId ? (
+            <input
+              className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-center text-lg font-bold tracking-[0.35em] text-emerald-900 outline-none focus:border-[#3D6B49]"
+              value={otpCode}
+              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void handleVerifyOtp();
+              }}
+            />
+          ) : null}
 
           <label className="flex items-center gap-3 text-sm text-slate-600">
             <input
@@ -277,11 +329,15 @@ function LoginPageContent() {
 
           <button
             type="button"
-            disabled={loading || !identifier.trim() || !password.trim()}
-            onClick={() => void handleLogin()}
+            disabled={
+              loading ||
+              (!otpChallengeId && (!identifier.trim() || !password.trim())) ||
+              (Boolean(otpChallengeId) && otpCode.trim().length !== 6)
+            }
+            onClick={() => void (otpChallengeId ? handleVerifyOtp() : handleLogin())}
             className="w-full rounded-2xl bg-[#274733] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#1F3A2A] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? t("login.signingIn") : t("login.submit")}
+            {loading ? t("login.signingIn") : otpChallengeId ? "Verify OTP" : t("login.submit")}
           </button>
 
           {GOOGLE_OAUTH_ENABLED && (

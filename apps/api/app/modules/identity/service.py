@@ -1,12 +1,14 @@
-﻿import re
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.modules.identity.models import User
+from app.modules.identity.audit import record_identity_audit_event
+from app.modules.identity.models import LoginOtpChallenge, User
 from app.modules.identity.repository import (
     OutletRepository,
     RefreshTokenRepository,
@@ -21,6 +23,9 @@ from app.modules.identity.security import (
     hash_token,
     verify_password,
 )
+from app.services.email_service import EmailService
+from app.services.webhook_dispatcher import dispatch_webhook_event
+from app.services.workspace_settings import get_workspace_settings
 
 
 def build_device_label(user_agent: str | None) -> str:
@@ -55,6 +60,21 @@ def build_device_label(user_agent: str | None) -> str:
     return f"{browser} on {platform}"
 
 
+def is_owner_admin_user(user: User) -> bool:
+    return bool(user.role and user.role.slug in {"owner", "admin"})
+
+
+def validate_password_policy(password: str) -> None:
+    if len(password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password minimal 8 karakter")
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password wajib punya huruf besar")
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password wajib punya huruf kecil")
+    if not re.search(r"\d", password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password wajib punya angka")
+
+
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
@@ -67,18 +87,78 @@ class AuthService:
     def authenticate(self, *, identifier: str, password: str) -> User:
         user = self.users.find_by_identifier(identifier)
 
+        if user and user.locked_until and user.locked_until > datetime.now(UTC):
+            record_identity_audit_event(
+                self.db,
+                action="login_blocked_account_locked",
+                resource_type="auth_session",
+                actor_user_id=user.id,
+                resource_id=str(user.id),
+                metadata={"identifier": identifier.strip().lower()},
+            )
+            self.db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Account temporarily locked due to failed login attempts",
+            )
+
         if not user or not verify_password(password, user.password_hash):
+            if user:
+                user.failed_login_count = int(user.failed_login_count or 0) + 1
+                if user.failed_login_count >= 5:
+                    user.locked_until = datetime.now(UTC) + timedelta(minutes=15)
+                self.db.add(user)
+            record_identity_audit_event(
+                self.db,
+                action="login_failed",
+                resource_type="auth_session",
+                actor_user_id=user.id if user else None,
+                resource_id=str(user.id) if user else None,
+                metadata={
+                    "identifier": identifier.strip().lower(),
+                    "reason": "invalid_credentials",
+                },
+            )
+            try:
+                dispatch_webhook_event(
+                    self.db,
+                    event_type="security.login_failed",
+                    payload={
+                        "identifier": identifier.strip().lower(),
+                        "reason": "invalid_credentials",
+                        "user_id": str(user.id) if user else None,
+                    },
+                )
+            except Exception:
+                pass
+            self.db.commit()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username/email or password",
             )
 
         if not user.is_active:
+            record_identity_audit_event(
+                self.db,
+                action="login_failed",
+                resource_type="auth_session",
+                actor_user_id=user.id,
+                resource_id=str(user.id),
+                metadata={
+                    "identifier": identifier.strip().lower(),
+                    "reason": "inactive_account",
+                },
+            )
+            self.db.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User account is inactive",
             )
 
+        user.failed_login_count = 0
+        user.locked_until = None
+        self.db.add(user)
+        self.db.flush()
         return user
 
     def build_access_claims(self, user: User) -> dict:
@@ -125,6 +205,20 @@ class AuthService:
         )
 
         self.users.update_last_login(user)
+        record_identity_audit_event(
+            self.db,
+            action="login_success",
+            resource_type="auth_session",
+            actor_user_id=user.id,
+            organization_id=user.outlet.organization_id if user.outlet else None,
+            outlet_id=user.outlet_id,
+            resource_id=str(refresh_token.id),
+            metadata={
+                "device_label": refresh_token.device_label,
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+            },
+        )
         self.db.commit()
 
         return TokenResponse(
@@ -132,6 +226,105 @@ class AuthService:
             refresh_token=raw_refresh_token,
             expires_in_minutes=self.settings.access_token_expire_minutes,
         )
+
+    def create_otp_challenge(
+        self,
+        user: User,
+        *,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> TokenResponse:
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        challenge = LoginOtpChallenge(
+            user_id=user.id,
+            code_hash=hash_token(code),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        self.db.add(challenge)
+        self.db.flush()
+
+        sent = EmailService().send(
+            user.email,
+            "NovaOps login verification code",
+            (
+                "Kode verifikasi login NovaOps Anda:\n\n"
+                f"{code}\n\n"
+                "Kode berlaku 10 menit. Abaikan email ini jika Anda tidak mencoba login."
+            ),
+        )
+        if not sent:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="OTP email is required but SMTP is not configured or failed to send",
+            )
+
+        record_identity_audit_event(
+            self.db,
+            action="otp_challenge_created",
+            resource_type="auth_session",
+            actor_user_id=user.id,
+            resource_id=str(challenge.id),
+            metadata={"ip_address": ip_address, "user_agent": user_agent},
+        )
+        self.db.commit()
+
+        return TokenResponse(
+            requires_otp=True,
+            otp_challenge_id=challenge.id,
+            message="OTP sent to registered email",
+        )
+
+    def verify_otp_challenge(
+        self,
+        *,
+        challenge_id: UUID,
+        code: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> TokenResponse:
+        challenge = (
+            self.db.query(LoginOtpChallenge)
+            .filter(LoginOtpChallenge.id == challenge_id)
+            .first()
+        )
+        now = datetime.now(UTC)
+        if (
+            not challenge
+            or challenge.consumed_at is not None
+            or challenge.expires_at <= now
+            or challenge.code_hash != hash_token(code)
+        ):
+            record_identity_audit_event(
+                self.db,
+                action="otp_failed",
+                resource_type="auth_session",
+                resource_id=str(challenge_id),
+                metadata={"ip_address": ip_address, "user_agent": user_agent},
+            )
+            self.db.commit()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP code")
+
+        challenge.consumed_at = now
+        self.db.add(challenge)
+        self.db.flush()
+
+        record_identity_audit_event(
+            self.db,
+            action="otp_verified",
+            resource_type="auth_session",
+            actor_user_id=challenge.user_id,
+            resource_id=str(challenge.id),
+            metadata={"ip_address": ip_address, "user_agent": user_agent},
+        )
+
+        user = self.users.find_by_id(challenge.user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+        return self.issue_tokens_for_user(user, ip_address=ip_address, user_agent=user_agent)
 
     def login(
         self,
@@ -142,6 +335,14 @@ class AuthService:
         user_agent: str | None = None,
     ) -> TokenResponse:
         user = self.authenticate(identifier=identifier, password=password)
+        workspace_settings = get_workspace_settings(self.db)
+        if workspace_settings.two_factor_required and is_owner_admin_user(user):
+            return self.create_otp_challenge(
+                user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+
         return self.issue_tokens_for_user(
             user,
             ip_address=ip_address,

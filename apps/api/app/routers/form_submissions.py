@@ -11,13 +11,14 @@ from app.models.form_submission import FormSubmission
 from app.models.form_template import FormTemplate
 from app.models.outlet import Outlet
 from app.models.user import User
+from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.modules.tasks.identity_bridge import get_identity_user_by_email, sync_identity_access
-from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse
+from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse, FormSubmissionReviewUpdate
 from app.services.checklist_scoring import score_checklist
 from app.services.field_visibility import validate_conditional_required_fields
 from app.services.webhook_dispatcher import dispatch_webhook_event
@@ -47,7 +48,7 @@ def ensure_form_submission_outlet_access(
     current_user: User,
     outlet_id: int,
 ) -> None:
-    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
+    _outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
 
     if full_access:
         return
@@ -265,4 +266,76 @@ def get_form_submission(
 
     ensure_form_submission_outlet_access(db, current_user, submission.outlet_id)
 
+    return submission
+
+
+@router.patch("/{submission_id}/review", response_model=FormSubmissionResponse)
+def review_form_submission(
+    submission_id: int,
+    payload: FormSubmissionReviewUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = (
+        db.query(FormSubmission)
+        .options(joinedload(FormSubmission.answers))
+        .filter(FormSubmission.id == submission_id)
+        .first()
+    )
+
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Form submission not found")
+
+    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
+    if not full_access:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owner/admin can review form submissions",
+        )
+
+    submission.status = payload.review
+    submission.reviewed_by = current_user.id
+    submission.reviewed_at = datetime.now(timezone.utc)
+    db.add(submission)
+    db.flush()
+
+    try:
+        record_identity_audit_event(
+            db,
+            action=f"form_submission_{payload.review}",
+            resource_type="form_submission",
+            actor_user_id=None,
+            resource_id=str(submission.id),
+            metadata={
+                "submission_id": submission.id,
+                "outlet_id": submission.outlet_id,
+                "form_template_id": submission.form_template_id,
+                "review": payload.review,
+                "note": payload.note,
+                "reviewed_by_legacy_user_id": current_user.id,
+            },
+        )
+    except Exception:
+        pass
+
+    try:
+        dispatch_webhook_event(
+            db,
+            event_type=f"form.{payload.review}",
+            outlet_id=submission.outlet_id,
+            payload={
+                "submission_id": submission.id,
+                "form_template_id": submission.form_template_id,
+                "outlet_id": submission.outlet_id,
+                "score": submission.score,
+                "status": submission.status,
+                "review_note": payload.note,
+                "reviewed_by": current_user.id,
+            },
+        )
+    except Exception:
+        pass
+
+    db.commit()
+    db.refresh(submission)
     return submission

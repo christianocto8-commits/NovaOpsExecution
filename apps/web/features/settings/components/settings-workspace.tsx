@@ -31,8 +31,11 @@ import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
+import { getIdentityRoles, type IdentityRole } from "@/services/identity.service";
 import {
+  getAllLoginDevices,
   getLoginDevices,
+  revokeAnyLoginDevice,
   revokeLoginDevice,
   type LoginDeviceSession,
 } from "@/services/auth.service";
@@ -71,6 +74,7 @@ type OwnerAdminState = {
   outlet_grouping: string;
   default_user_role: string;
   digest_frequency: string;
+  scheduled_report_audience: string;
   two_factor_required: boolean;
   password_rotation_days: number;
   webhook_enabled: boolean;
@@ -114,6 +118,7 @@ const defaults: OwnerAdminState = {
   outlet_grouping: WORKSPACE_SETTINGS_DEFAULTS.outlet_grouping,
   default_user_role: WORKSPACE_SETTINGS_DEFAULTS.default_user_role,
   digest_frequency: WORKSPACE_SETTINGS_DEFAULTS.digest_frequency,
+  scheduled_report_audience: WORKSPACE_SETTINGS_DEFAULTS.scheduled_report_audience,
   two_factor_required: WORKSPACE_SETTINGS_DEFAULTS.two_factor_required,
   password_rotation_days: WORKSPACE_SETTINGS_DEFAULTS.password_rotation_days,
   webhook_enabled: WORKSPACE_SETTINGS_DEFAULTS.webhook_enabled,
@@ -164,6 +169,8 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     outlet_grouping: settings?.outlet_grouping ?? defaults.outlet_grouping,
     default_user_role: settings?.default_user_role ?? defaults.default_user_role,
     digest_frequency: settings?.digest_frequency ?? defaults.digest_frequency,
+    scheduled_report_audience:
+      settings?.scheduled_report_audience ?? defaults.scheduled_report_audience,
     two_factor_required: Boolean(settings?.two_factor_required ?? defaults.two_factor_required),
     password_rotation_days: Number(settings?.password_rotation_days ?? defaults.password_rotation_days),
     webhook_enabled: Boolean(settings?.webhook_enabled ?? defaults.webhook_enabled),
@@ -506,6 +513,207 @@ function LoginDevicesPanel({ onNotice }: { onNotice: (message: string) => void }
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function AdminLoginDevicesPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const [devices, setDevices] = useState<LoginDeviceSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const loadDevices = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setDevices(await getAllLoginDevices());
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal memuat semua perangkat user.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onNotice]);
+
+  useEffect(() => {
+    void loadDevices();
+  }, [loadDevices]);
+
+  const filteredDevices = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return devices;
+
+    return devices.filter((device) =>
+      [
+        device.user_full_name,
+        device.user_email,
+        device.user_role,
+        device.device_label,
+        device.ip_address,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    );
+  }, [devices, search]);
+
+  async function handleRevoke(device: LoginDeviceSession) {
+    if (device.is_current) {
+      onNotice("Perangkat admin yang sedang dipakai tidak bisa dieliminasi dari tombol ini.");
+      return;
+    }
+
+    try {
+      setRevokingId(device.id);
+      await revokeAnyLoginDevice(device.id);
+      setDevices((current) => current.filter((item) => item.id !== device.id));
+      onNotice(
+        `${device.device_label} milik ${device.user_email ?? "user"} berhasil dieliminasi.`
+      );
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal mengeliminasi perangkat user.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <SectionCard title="All User Login Devices">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3 text-sm text-slate-500">
+          <Shield className="mt-0.5 h-4 w-4 text-emerald-700" />
+          <p>
+            Monitor semua sesi login aktif milik user. Gunakan eliminasi untuk memutus perangkat
+            yang mencurigakan atau sudah tidak dipakai.
+          </p>
+        </div>
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Cari user, role, device, IP..."
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 lg:max-w-xs"
+        />
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Memuat semua perangkat login...</p>
+      ) : filteredDevices.length === 0 ? (
+        <p className="text-sm text-slate-500">Tidak ada perangkat yang cocok.</p>
+      ) : (
+        <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+          {filteredDevices.map((device) => (
+            <div
+              key={device.id}
+              className="flex flex-col gap-3 rounded-xl border border-slate-200 px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-900">
+                    {device.user_full_name ?? device.user_email ?? "Unknown user"}
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                    {device.user_role ?? "role"}
+                  </span>
+                  {device.is_current ? (
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                      Perangkat ini
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {device.device_label} • {device.user_email ?? "-"}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  IP {device.ip_address ?? "-"} • Terakhir aktif {formatSessionDate(device.last_seen_at)}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-400">{device.user_agent ?? "Unknown user agent"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleRevoke(device)}
+                disabled={device.is_current || revokingId === device.id}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                <Trash2 className="h-4 w-4" />
+                {revokingId === device.id ? "Mengeliminasi..." : "Eliminasi"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const [roles, setRoles] = useState<IdentityRole[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    void getIdentityRoles()
+      .then(setRoles)
+      .catch((error) => {
+        onNotice(error instanceof Error ? error.message : "Gagal memuat permission matrix.");
+      })
+      .finally(() => setIsLoading(false));
+  }, [onNotice]);
+
+  const permissions = useMemo(() => {
+    const map = new Map<string, string>();
+    roles.forEach((role) => {
+      role.permissions.forEach((permission) => {
+        map.set(permission.code, permission.name);
+      });
+    });
+    return Array.from(map.entries()).sort(([first], [second]) => first.localeCompare(second));
+  }, [roles]);
+
+  return (
+    <SectionCard title="Permission Matrix">
+      <p className="mb-4 text-sm text-slate-500">
+        Audit cepat hak akses per role. Matrix ini read-only agar perubahan permission tidak
+        dilakukan tanpa endpoint governance khusus.
+      </p>
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Memuat permission matrix...</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="sticky left-0 bg-slate-50 px-4 py-3">Permission</th>
+                {roles.map((role) => (
+                  <th key={role.id} className="px-4 py-3">{role.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {permissions.map(([code, name]) => (
+                <tr key={code} className="border-t border-slate-100">
+                  <td className="sticky left-0 bg-white px-4 py-3">
+                    <p className="font-semibold text-slate-900">{code}</p>
+                    <p className="text-xs text-slate-500">{name}</p>
+                  </td>
+                  {roles.map((role) => {
+                    const allowed = role.permissions.some((permission) => permission.code === code);
+                    return (
+                      <td key={`${role.id}-${code}`} className="px-4 py-3">
+                        <span
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                            allowed
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-slate-100 text-slate-300"
+                          }`}
+                        >
+                          {allowed ? "Y" : "-"}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </SectionCard>
@@ -1115,12 +1323,35 @@ export function SettingsWorkspace() {
 
         <LoginDevicesPanel onNotice={(message) => setNotice(message)} />
 
+        <AdminLoginDevicesPanel onNotice={(message) => setNotice(message)} />
+
+        <PermissionMatrixPanel onNotice={(message) => setNotice(message)} />
+
         <SectionCard title="Notifications">
           <div className="space-y-4">
             <ActionCard title="Dashboard alerts" description="Tampilkan alert operasional di dashboard." action={<EnterpriseCheckbox checked={state.dashboard_alerts} onChange={(event) => update("dashboard_alerts", event.target.checked)} />} />
             <ActionCard title="Overdue alerts" description="Peringatan untuk task yang melewati due time." action={<EnterpriseCheckbox checked={state.overdue_alerts} onChange={(event) => update("overdue_alerts", event.target.checked)} />} />
             <ActionCard title="Email notifications" description="Kirim email operasional untuk checklist gagal, overdue, dan due soon." action={<EnterpriseCheckbox checked={state.email_notifications} onChange={(event) => update("email_notifications", event.target.checked)} />} />
             <ActionCard title="SMS notifications" description="Kirim SMS ke nomor telepon user (Twilio) untuk alert task overdue dan assign." action={<EnterpriseCheckbox checked={state.sms_notifications} onChange={(event) => update("sms_notifications", event.target.checked)} />} />
+            <EnterpriseField label="Scheduled report frequency">
+              <EnterpriseSelect
+                value={state.digest_frequency}
+                onChange={(event) => update("digest_frequency", event.target.value)}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </EnterpriseSelect>
+            </EnterpriseField>
+            <EnterpriseField label="Scheduled report audience">
+              <EnterpriseSelect
+                value={state.scheduled_report_audience}
+                onChange={(event) => update("scheduled_report_audience", event.target.value)}
+              >
+                <option value="owner-and-admin">Owner & Admin</option>
+                <option value="owner-only">Owner only</option>
+                <option value="admin-only">Admin only</option>
+              </EnterpriseSelect>
+            </EnterpriseField>
           </div>
           <p className="mt-4 text-sm text-slate-500">
             Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).

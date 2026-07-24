@@ -1,0 +1,366 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  CameraOff,
+  CheckCircle2,
+  ClipboardList,
+  Search,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react";
+
+import type { Task } from "@/features/tasks/types";
+import { queryKeys } from "@/lib/query/keys";
+import { taskService } from "@/services/task.service";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
+import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+
+type ExceptionType =
+  | "overdue"
+  | "checklist_failed"
+  | "missing_evidence"
+  | "rejected"
+  | "low_compliance";
+
+type ExceptionItem = {
+  id: string;
+  type: ExceptionType;
+  title: string;
+  outlet: string;
+  severity: "critical" | "high" | "medium";
+  summary: string;
+  due?: string;
+  taskId?: string;
+  score?: number;
+};
+
+const typeLabels: Record<ExceptionType, string> = {
+  overdue: "Overdue",
+  checklist_failed: "Checklist Gagal",
+  missing_evidence: "Missing Evidence",
+  rejected: "Rejected",
+  low_compliance: "Low Compliance",
+};
+
+const severityClass = {
+  critical: "border-red-200 bg-red-50 text-red-700",
+  high: "border-amber-200 bg-amber-50 text-amber-700",
+  medium: "border-slate-200 bg-slate-50 text-slate-700",
+};
+
+function isOverdue(task: Task) {
+  if (!task.due || task.backendStatus === "completed" || task.status === "Completed") return false;
+  const due = new Date(task.due);
+  return Number.isFinite(due.getTime()) && due.getTime() < Date.now();
+}
+
+function hasEvidence(task: Task) {
+  return Boolean(task.execution?.evidence?.length || task.execution?.note?.trim());
+}
+
+function getChecklistFailedCount(task: Task) {
+  return task.execution?.checklist?.failed_count ?? 0;
+}
+
+function getTaskScore(task: Task) {
+  return task.execution?.checklist?.score;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
+  const items: ExceptionItem[] = [];
+  const outletStats = new Map<string, { outlet: string; total: number; completed: number; failed: number }>();
+
+  tasks.forEach((task) => {
+    const outletKey = task.outletId ?? task.outlet;
+    const current = outletStats.get(outletKey) ?? {
+      outlet: task.outlet,
+      total: 0,
+      completed: 0,
+      failed: 0,
+    };
+
+    current.total += 1;
+    if (task.backendStatus === "completed" || task.status === "Completed") current.completed += 1;
+    if (getChecklistFailedCount(task) > 0) current.failed += 1;
+    outletStats.set(outletKey, current);
+
+    if (isOverdue(task)) {
+      items.push({
+        id: `overdue-${task.id}`,
+        type: "overdue",
+        title: task.title,
+        outlet: task.outlet,
+        severity: "critical",
+        summary: "Task melewati due time dan belum selesai.",
+        due: task.due,
+        taskId: task.id,
+      });
+    }
+
+    const failedCount = getChecklistFailedCount(task);
+    if (failedCount > 0) {
+      items.push({
+        id: `failed-${task.id}`,
+        type: "checklist_failed",
+        title: task.title,
+        outlet: task.outlet,
+        severity: failedCount >= 3 ? "critical" : "high",
+        summary: `${failedCount} item checklist gagal.`,
+        due: task.due,
+        taskId: task.id,
+        score: getTaskScore(task),
+      });
+    }
+
+    if (task.backendStatus === "completed" && !hasEvidence(task)) {
+      items.push({
+        id: `missing-evidence-${task.id}`,
+        type: "missing_evidence",
+        title: task.title,
+        outlet: task.outlet,
+        severity: "high",
+        summary: "Task selesai tanpa evidence atau catatan eksekusi.",
+        due: task.due,
+        taskId: task.id,
+      });
+    }
+
+    if (task.execution?.reviewStatus === "rejected") {
+      items.push({
+        id: `rejected-${task.id}`,
+        type: "rejected",
+        title: task.title,
+        outlet: task.outlet,
+        severity: "high",
+        summary: task.execution.reviewNote || "Evidence/report ditolak dan perlu tindak lanjut.",
+        due: task.due,
+        taskId: task.id,
+      });
+    }
+  });
+
+  outletStats.forEach((stats, outletKey) => {
+    if (stats.total < 3) return;
+    const compliance = Math.round(((stats.completed - stats.failed) / stats.total) * 100);
+    if (compliance >= 70) return;
+
+    items.push({
+      id: `low-compliance-${outletKey}`,
+      type: "low_compliance",
+      title: stats.outlet,
+      outlet: stats.outlet,
+      severity: compliance < 50 ? "critical" : "medium",
+      summary: `Compliance outlet ${Math.max(0, compliance)}% dari ${stats.total} task.`,
+      score: Math.max(0, compliance),
+    });
+  });
+
+  return items.sort((a, b) => {
+    const severityOrder = { critical: 0, high: 1, medium: 2 };
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  });
+}
+
+export default function ExceptionDashboardPage() {
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const [typeFilter, setTypeFilter] = useState<ExceptionType | "all">("all");
+  const [search, setSearch] = useState("");
+
+  const tasksQuery = useQuery({
+    queryKey: [...queryKeys.sop.tasks(), "exceptions"],
+    queryFn: () => taskService.listAll(),
+  });
+
+  const scopedTasks = useMemo(
+    () => filterTasksForWorkspace(tasksQuery.data ?? [], workspace),
+    [tasksQuery.data, workspace]
+  );
+  const allItems = useMemo(() => buildExceptionItems(scopedTasks), [scopedTasks]);
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return allItems.filter((item) => {
+      if (typeFilter !== "all" && item.type !== typeFilter) return false;
+      if (!query) return true;
+      return [item.title, item.outlet, item.summary, typeLabels[item.type]]
+        .some((value) => value.toLowerCase().includes(query));
+    });
+  }, [allItems, search, typeFilter]);
+
+  const counts = useMemo(() => {
+    return allItems.reduce<Record<ExceptionType, number>>(
+      (current, item) => ({
+        ...current,
+        [item.type]: current[item.type] + 1,
+      }),
+      {
+        overdue: 0,
+        checklist_failed: 0,
+        missing_evidence: 0,
+        rejected: 0,
+        low_compliance: 0,
+      }
+    );
+  }, [allItems]);
+
+  return (
+    <main className={`${mobileDashboardMainClass} space-y-6`}>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Exception Dashboard</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Review by Exception</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Fokus pada masalah operasional yang perlu tindakan, tanpa mewajibkan review manual untuk semua report.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/reports"
+          className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
+        >
+          Buka Reports
+        </Link>
+      </div>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {([
+          ["overdue", AlertTriangle],
+          ["checklist_failed", XCircle],
+          ["missing_evidence", CameraOff],
+          ["rejected", ShieldAlert],
+          ["low_compliance", ClipboardList],
+        ] as const).map(([type, Icon]) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setTypeFilter(typeFilter === type ? "all" : type)}
+            className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition ${
+              typeFilter === type ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <Icon className="h-5 w-5 text-emerald-700" />
+              <span className="text-2xl font-bold text-slate-950">{counts[type]}</span>
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-900">{typeLabels[type]}</p>
+          </button>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cari task, outlet, atau alasan exception..."
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-emerald-600"
+            />
+          </div>
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value as ExceptionType | "all")}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+          >
+            <option value="all">Semua exception</option>
+            {Object.entries(typeLabels).map(([type, label]) => (
+              <option key={type} value={type}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      {tasksQuery.isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {tasksQuery.error instanceof Error ? tasksQuery.error.message : "Gagal memuat exception dashboard."}
+        </div>
+      ) : null}
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 p-5">
+          <p className="text-sm font-bold text-slate-950">Exception Queue</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Urutan berdasarkan severity agar masalah paling kritis muncul paling atas.
+          </p>
+        </div>
+
+        {tasksQuery.isLoading ? (
+          <div className="p-8 text-sm text-slate-500">Memuat exception...</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-10 text-center">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+            <p className="mt-3 font-semibold text-slate-900">Tidak ada exception untuk filter ini.</p>
+            <p className="mt-1 text-sm text-slate-500">Operasional terlihat bersih dari sinyal masalah utama.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filteredItems.map((item) => (
+              <div key={item.id} className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full border px-2 py-1 text-xs font-bold ${severityClass[item.severity]}`}>
+                      {item.severity}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                      {typeLabels[item.type]}
+                    </span>
+                    {item.score != null ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                        Score {item.score}%
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 font-semibold text-slate-950">{item.title}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {item.outlet} • Due {formatDate(item.due)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">{item.summary}</p>
+                </div>
+                {item.taskId ? (
+                  <Link
+                    href="/dashboard/tasks"
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Buka Task
+                  </Link>
+                ) : (
+                  <Link
+                    href="/dashboard/compliance"
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Buka Compliance
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}

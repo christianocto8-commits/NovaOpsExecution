@@ -10,14 +10,26 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
+    access_token: str | None = None
+    refresh_token: str | None = None
     token_type: str = "bearer"
-    expires_in_minutes: int
+    expires_in_minutes: int = 0
+    requires_otp: bool = False
+    otp_challenge_id: UUID | None = None
+    message: str | None = None
+
+
+class OtpVerifyRequest(BaseModel):
+    challenge_id: UUID
+    code: str = Field(min_length=6, max_length=6)
 
 
 class LoginDeviceSessionResponse(BaseModel):
     id: UUID
+    user_id: UUID | None = None
+    user_email: str | None = None
+    user_full_name: str | None = None
+    user_role: str | None = None
     device_label: str
     ip_address: str | None = None
     user_agent: str | None = None
@@ -225,4 +237,3 @@ class BulkImportResponse(BaseModel):
     users_created: int = 0
     users_skipped: int = 0
     rows: list[BulkImportRowResult] = []
-

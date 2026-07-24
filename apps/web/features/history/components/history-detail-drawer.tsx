@@ -9,7 +9,7 @@ import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import type { ExecutionSessionResponse } from "@/services/execution-session.service";
 import { getExecutionSessions } from "@/services/execution-session.service";
-import type { FormSubmissionResponse } from "@/services/form-submission.service";
+import { formSubmissionService, type FormSubmissionResponse } from "@/services/form-submission.service";
 import { formTemplateService } from "@/services/form-template.service";
 import {
   fetchHistoryNotes,
@@ -95,6 +95,22 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
     mutationFn: saveHistoryNotes,
     onSuccess: (nextNotes) => {
       setNotes(nextNotes);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({
+      submissionId,
+      review,
+      note,
+    }: {
+      submissionId: number;
+      review: "approved" | "rejected";
+      note?: string;
+    }) => formSubmissionService.review(submissionId, review, note),
+    onSuccess: () => {
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2000);
     },
@@ -258,6 +274,9 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
         ? resolvedSelection.taskTitle
         : resolvedSelection.templateName;
 
+  const formReviewStatus =
+    resolvedSelection.kind === "form" ? resolvedSelection.submission.status : null;
+
   return (
     <div className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40">
       <button type="button" className="flex-1" aria-label="Close detail" onClick={onClose} />
@@ -295,6 +314,70 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
               </p>
               <p className="mt-2 text-2xl font-bold text-slate-950">{checklist.score}%</p>
               <p className="mt-1 text-sm capitalize text-slate-600">Status: {checklist.status}</p>
+            </section>
+          ) : null}
+
+          {resolvedSelection.kind === "form" ? (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Optional Review
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Status report:{" "}
+                    <span className="font-bold capitalize text-slate-900">
+                      {formReviewStatus}
+                    </span>
+                  </p>
+                  {resolvedSelection.submission.reviewed_at ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Reviewed at {new Date(resolvedSelection.submission.reviewed_at).toLocaleString("id-ID")}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      reviewMutation.mutate({
+                        submissionId: resolvedSelection.submission.id,
+                        review: "approved",
+                        note: draftNote.trim() || undefined,
+                      })
+                    }
+                    disabled={reviewMutation.isPending}
+                    className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      reviewMutation.mutate({
+                        submissionId: resolvedSelection.submission.id,
+                        review: "rejected",
+                        note: draftNote.trim() || undefined,
+                      })
+                    }
+                    disabled={reviewMutation.isPending}
+                    className="rounded-xl bg-red-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+              {reviewMutation.isError ? (
+                <p className="mt-3 text-xs font-semibold text-red-700">
+                  {reviewMutation.error instanceof Error
+                    ? reviewMutation.error.message
+                    : "Review failed."}
+                </p>
+              ) : reviewMutation.isSuccess ? (
+                <p className="mt-3 text-xs font-semibold text-emerald-700">
+                  Review tersimpan.
+                </p>
+              ) : null}
             </section>
           ) : null}
 

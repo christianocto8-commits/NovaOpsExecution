@@ -1,4 +1,5 @@
-﻿from uuid import UUID
+from datetime import UTC, datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete as sa_delete, update as sa_update
@@ -32,6 +33,7 @@ from app.modules.identity.schemas import (
     UserUpdate,
 )
 from app.modules.identity.security import hash_password, verify_password
+from app.modules.identity.service import validate_password_policy
 
 router = APIRouter(prefix="/identity", tags=["Identity"])
 
@@ -229,6 +231,7 @@ def create_user(
     users = UserRepository(db)
     roles = RoleRepository(db)
     outlets = OutletRepository(db)
+    validate_password_policy(payload.password)
 
     email = payload.email.strip().lower()
     username = payload.username.strip().lower()
@@ -310,7 +313,9 @@ def update_user(
         user.phone_number = str(raw_phone).strip() if raw_phone else None
 
     if "password" in update_data:
+        validate_password_policy(str(update_data["password"]))
         user.password_hash = hash_password(str(update_data["password"]))
+        user.password_changed_at = datetime.now(UTC)
 
     next_role_id = update_data.get("role_id", user.role_id)
     next_role = roles.find_by_id(next_role_id)
@@ -390,7 +395,9 @@ def change_own_password(
             detail="Current password is incorrect",
         )
 
+    validate_password_policy(payload.new_password)
     current_user.password_hash = hash_password(payload.new_password)
+    current_user.password_changed_at = datetime.now(UTC)
     db.add(current_user)
     db.commit()
 

@@ -167,6 +167,30 @@ class RefreshTokenRepository:
         )
         return list(self.db.scalars(statement).all())
 
+    def list_all_active(self) -> list[RefreshToken]:
+        statement = (
+            select(RefreshToken)
+            .options(selectinload(RefreshToken.user).selectinload(User.role))
+            .where(
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+            .order_by(RefreshToken.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def find_active_by_id(self, session_id: UUID) -> RefreshToken | None:
+        statement = (
+            select(RefreshToken)
+            .options(selectinload(RefreshToken.user).selectinload(User.role))
+            .where(
+                RefreshToken.id == session_id,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+        )
+        return self.db.scalar(statement)
+
     def touch(self, refresh_token: RefreshToken) -> None:
         refresh_token.last_seen_at = datetime.now(UTC)
         self.db.add(refresh_token)

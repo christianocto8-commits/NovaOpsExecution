@@ -8,6 +8,7 @@ AuditEventCategory = Literal[
     "task_comment",
     "form_submission",
     "execution_session",
+    "security",
 ]
 
 
@@ -17,8 +18,8 @@ class AuditEventResponse(BaseModel):
     action: str
     summary: str
     actor_name: str
-    actor_id: int | None = None
-    outlet_id: int | None = None
+    actor_id: int | str | None = None
+    outlet_id: int | str | None = None
     outlet_name: str | None = None
     resource_type: str
     resource_id: str

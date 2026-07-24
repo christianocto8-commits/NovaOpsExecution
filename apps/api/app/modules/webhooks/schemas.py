@@ -13,6 +13,11 @@ WEBHOOK_EVENT_TYPES = (
     "checklist.failed",
     "task.overdue",
     "form.submitted",
+    "form.approved",
+    "form.rejected",
+    "security.login_failed",
+    "security.device_revoked",
+    "security.admin_device_revoked",
     "schedule.published",
 )
 

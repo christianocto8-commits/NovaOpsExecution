@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session, joinedload
@@ -11,6 +12,8 @@ from app.models.outlet import Outlet
 from app.models.task import Task
 from app.models.task_comment import TaskComment
 from app.models.user import User
+from app.modules.identity.models import AuditLog as IdentityAuditLog
+from app.modules.identity.models import User as IdentityUser
 
 
 def _ensure_utc(value: datetime | None) -> datetime | None:
@@ -41,6 +44,44 @@ def _matches_outlet(outlet_query: str | None, outlet_name: str | None) -> bool:
     if not outlet_name:
         return False
     return outlet_query.strip().lower() in outlet_name.lower()
+
+
+def _identity_actor_label(user: IdentityUser | None, fallback_id: object | None = None) -> str:
+    if user and user.full_name:
+        return user.full_name
+    if user and user.email:
+        return user.email
+    if fallback_id is not None:
+        return f"User {fallback_id}"
+    return "System"
+
+
+def _parse_identity_metadata(value: str | None) -> dict:
+    if not value:
+        return {}
+
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {"raw": value}
+
+    return parsed if isinstance(parsed, dict) else {"value": parsed}
+
+
+def _security_summary(action: str, metadata: dict) -> str:
+    device = metadata.get("device_label")
+    identifier = metadata.get("identifier")
+
+    if action == "login_success":
+        return f"Login berhasil{f' dari {device}' if device else ''}"
+    if action == "login_failed":
+        return f"Login gagal{f' untuk {identifier}' if identifier else ''}"
+    if action == "device_revoked":
+        return f"Perangkat dieliminasi{f': {device}' if device else ''}"
+    if action == "admin_device_revoked":
+        return f"Admin eliminasi perangkat{f': {device}' if device else ''}"
+
+    return action.replace("_", " ").title()
 
 
 def list_audit_events(
@@ -289,6 +330,46 @@ def list_audit_events(
                         "checklist_status": checklist_status,
                         "score": score,
                     },
+                }
+            )
+
+    if normalized_category in {None, "security"}:
+        identity_query = (
+            db.query(IdentityAuditLog)
+            .filter(IdentityAuditLog.created_at >= since)
+            .order_by(IdentityAuditLog.created_at.desc())
+        )
+
+        identity_rows = identity_query.all()
+        actor_ids = {row.actor_user_id for row in identity_rows if row.actor_user_id}
+        identity_users = {
+            user.id: user
+            for user in db.query(IdentityUser).filter(IdentityUser.id.in_(actor_ids)).all()
+        } if actor_ids else {}
+
+        for row in identity_rows:
+            metadata = _parse_identity_metadata(row.metadata_json)
+            actor_name = _identity_actor_label(
+                identity_users.get(row.actor_user_id),
+                row.actor_user_id,
+            )
+            if not _matches_actor(actor, actor_name):
+                continue
+
+            events.append(
+                {
+                    "id": f"security-{row.id}",
+                    "category": "security",
+                    "action": row.action,
+                    "summary": _security_summary(row.action, metadata),
+                    "actor_name": actor_name,
+                    "actor_id": str(row.actor_user_id) if row.actor_user_id else None,
+                    "outlet_id": str(row.outlet_id) if row.outlet_id else None,
+                    "outlet_name": None,
+                    "resource_type": row.resource_type,
+                    "resource_id": row.resource_id or str(row.id),
+                    "occurred_at": _ensure_utc(row.created_at),
+                    "metadata": metadata,
                 }
             )
 

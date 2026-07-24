@@ -19,6 +19,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "header.outletWorkspace": "Outlet Workspace",
     "navigation.dashboard": "Dashboard",
     "navigation.compliance": "Compliance Center",
+    "navigation.exceptions": "Exceptions",
     "navigation.tasks": "Task",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
@@ -557,6 +558,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "header.outletWorkspace": "Workspace Outlet",
     "navigation.dashboard": "Dashboard",
     "navigation.compliance": "Pusat Compliance",
+    "navigation.exceptions": "Exception Dashboard",
     "navigation.tasks": "Task",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",
@@ -1078,6 +1080,5 @@ export const translations: Record<Language, Record<string, string>> = {
       "Area manager dapat memantau outlet, task, draft, dan laporan area tanpa masuk ke pengaturan inti organisasi.",
   },
 };
-
 
 

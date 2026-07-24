@@ -7,6 +7,11 @@ export type WebhookEventType =
   | "checklist.failed"
   | "task.overdue"
   | "form.submitted"
+  | "form.approved"
+  | "form.rejected"
+  | "security.login_failed"
+  | "security.device_revoked"
+  | "security.admin_device_revoked"
   | "schedule.published";
 
 export type WebhookSubscription = {
@@ -39,6 +44,11 @@ export const WEBHOOK_EVENT_OPTIONS: { value: WebhookEventType; label: string }[]
   { value: "checklist.failed", label: "Checklist failed" },
   { value: "task.overdue", label: "Task overdue" },
   { value: "form.submitted", label: "Form submitted" },
+  { value: "form.approved", label: "Form approved" },
+  { value: "form.rejected", label: "Form rejected" },
+  { value: "security.login_failed", label: "Security login failed" },
+  { value: "security.device_revoked", label: "Security device revoked" },
+  { value: "security.admin_device_revoked", label: "Admin device revoked" },
   { value: "schedule.published", label: "Schedule published" },
 ];
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, FileText, MessageSquare, RefreshCw } from "lucide-react";
+import { ClipboardList, FileText, MessageSquare, RefreshCw, ShieldCheck } from "lucide-react";
 
 import { useOutletsWorkspace } from "@/features/outlets/hooks/use-outlets-workspace";
 import { queryKeys } from "@/lib/query/keys";
@@ -13,12 +13,14 @@ const categoryLabels: Record<AuditEventCategory, string> = {
   task_comment: "Komentar Task",
   form_submission: "Submit Form",
   execution_session: "Checklist",
+  security: "Security",
 };
 
 const categoryIcons: Record<AuditEventCategory, typeof MessageSquare> = {
   task_comment: MessageSquare,
   form_submission: FileText,
   execution_session: ClipboardList,
+  security: ShieldCheck,
 };
 
 function formatTimestamp(value: string) {
@@ -106,8 +108,8 @@ export default function AuditCenterPage() {
           <p className="text-sm font-medium text-emerald-700">Audit Trail</p>
           <h1 className="text-2xl font-semibold text-slate-950">Pusat Audit Operasional</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Riwayat read-only dari komentar task, submit form manual, dan checklist execution
-            session.
+            Riwayat read-only dari komentar task, submit form manual, checklist execution session,
+            dan event keamanan.
           </p>
         </div>
 
@@ -121,7 +123,7 @@ export default function AuditCenterPage() {
         </button>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Event</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">{query.data?.total ?? 0}</p>
@@ -142,6 +144,12 @@ export default function AuditCenterPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Checklist</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {categoryCounts.execution_session ?? 0}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Security</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">
+            {categoryCounts.security ?? 0}
           </p>
         </div>
       </section>
@@ -180,6 +188,7 @@ export default function AuditCenterPage() {
             <option value="task_comment">Komentar Task</option>
             <option value="form_submission">Submit Form</option>
             <option value="execution_session">Checklist</option>
+            <option value="security">Security</option>
           </select>
 
           <select

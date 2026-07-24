@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.modules.identity.dependencies import bearer_scheme, get_current_active_user
+from app.modules.identity.audit import record_identity_audit_event
+from app.modules.identity.dependencies import bearer_scheme, get_current_active_user, require_permission
 from app.modules.identity.google_oauth import (
     build_frontend_success_redirect,
     build_google_authorize_url,
@@ -35,9 +36,10 @@ from app.modules.identity.saml_sso import (
 )
 from app.modules.identity.models import User
 from app.modules.identity.repository import RefreshTokenRepository
-from app.modules.identity.schemas import LoginDeviceSessionResponse, LoginRequest, TokenResponse
+from app.modules.identity.schemas import LoginDeviceSessionResponse, LoginRequest, OtpVerifyRequest, TokenResponse
 from app.modules.identity.security import decode_access_token
 from app.modules.identity.service import AuthService
+from app.services.webhook_dispatcher import dispatch_webhook_event
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -65,6 +67,20 @@ def login(
     return AuthService(db).login(
         identifier=payload.identifier,
         password=payload.password,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(
+    payload: OtpVerifyRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    return AuthService(db).verify_otp_challenge(
+        challenge_id=payload.challenge_id,
+        code=payload.code,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
@@ -280,6 +296,10 @@ def list_login_devices(
     return [
         LoginDeviceSessionResponse(
             id=session.id,
+            user_id=session.user_id,
+            user_email=current_user.email,
+            user_full_name=current_user.full_name,
+            user_role=current_user.role.slug if current_user.role else None,
             device_label=session.device_label or "Unknown device",
             ip_address=session.ip_address,
             user_agent=session.user_agent,
@@ -290,6 +310,84 @@ def list_login_devices(
         )
         for session in sessions
     ]
+
+
+@router.get("/devices/all", response_model=list[LoginDeviceSessionResponse])
+def list_all_login_devices(
+    current_user: User = Depends(require_permission("user.read")),
+    current_session_id: UUID | None = Depends(get_current_session_id),
+    db: Session = Depends(get_db),
+) -> list[LoginDeviceSessionResponse]:
+    sessions = RefreshTokenRepository(db).list_all_active()
+
+    return [
+        LoginDeviceSessionResponse(
+            id=session.id,
+            user_id=session.user_id,
+            user_email=session.user.email if session.user else None,
+            user_full_name=session.user.full_name if session.user else None,
+            user_role=session.user.role.slug if session.user and session.user.role else None,
+            device_label=session.device_label or "Unknown device",
+            ip_address=session.ip_address,
+            user_agent=session.user_agent,
+            created_at=session.created_at,
+            last_seen_at=session.last_seen_at,
+            expires_at=session.expires_at,
+            is_current=current_session_id == session.id,
+        )
+        for session in sessions
+    ]
+
+
+@router.delete("/devices/all/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_any_login_device(
+    session_id: UUID,
+    current_user: User = Depends(require_permission("user.edit")),
+    current_session_id: UUID | None = Depends(get_current_session_id),
+    db: Session = Depends(get_db),
+) -> Response:
+    if current_session_id == session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current device cannot be revoked from this action",
+        )
+
+    refresh_token = RefreshTokenRepository(db).find_active_by_id(session_id)
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login device not found")
+
+    RefreshTokenRepository(db).revoke(refresh_token)
+    record_identity_audit_event(
+        db,
+        action="admin_device_revoked",
+        resource_type="auth_session",
+        actor_user_id=current_user.id,
+        organization_id=current_user.outlet.organization_id if current_user.outlet else None,
+        outlet_id=current_user.outlet_id,
+        resource_id=str(refresh_token.id),
+        metadata={
+            "device_label": refresh_token.device_label,
+            "ip_address": refresh_token.ip_address,
+            "revoked_user_id": str(refresh_token.user_id),
+            "revoked_user_email": refresh_token.user.email if refresh_token.user else None,
+        },
+    )
+    try:
+        dispatch_webhook_event(
+            db,
+            event_type="security.admin_device_revoked",
+            payload={
+                "session_id": str(refresh_token.id),
+                "revoked_user_id": str(refresh_token.user_id),
+                "revoked_user_email": refresh_token.user.email if refresh_token.user else None,
+                "device_label": refresh_token.device_label,
+                "ip_address": refresh_token.ip_address,
+            },
+        )
+    except Exception:
+        pass
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/devices/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -313,6 +411,33 @@ def revoke_login_device(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login device not found")
 
     RefreshTokenRepository(db).revoke(refresh_token)
+    record_identity_audit_event(
+        db,
+        action="device_revoked",
+        resource_type="auth_session",
+        actor_user_id=current_user.id,
+        organization_id=current_user.outlet.organization_id if current_user.outlet else None,
+        outlet_id=current_user.outlet_id,
+        resource_id=str(refresh_token.id),
+        metadata={
+            "device_label": refresh_token.device_label,
+            "ip_address": refresh_token.ip_address,
+            "revoked_user_id": str(refresh_token.user_id),
+        },
+    )
+    try:
+        dispatch_webhook_event(
+            db,
+            event_type="security.device_revoked",
+            payload={
+                "session_id": str(refresh_token.id),
+                "revoked_user_id": str(refresh_token.user_id),
+                "device_label": refresh_token.device_label,
+                "ip_address": refresh_token.ip_address,
+            },
+        )
+    except Exception:
+        pass
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

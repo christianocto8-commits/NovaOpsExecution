@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -55,3 +56,8 @@ class FormSubmissionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FormSubmissionReviewUpdate(BaseModel):
+    review: Literal["approved", "rejected"]
+    note: Optional[str] = None

@@ -42,14 +42,21 @@ export type LoginPayload = {
 };
 
 export type LoginResponse = {
-  access_token: string;
-  refresh_token: string;
+  access_token: string | null;
+  refresh_token: string | null;
   token_type: string;
   expires_in_minutes: number;
+  requires_otp?: boolean;
+  otp_challenge_id?: string | null;
+  message?: string | null;
 };
 
 export type LoginDeviceSession = {
   id: string;
+  user_id: string | null;
+  user_email: string | null;
+  user_full_name: string | null;
+  user_role: string | null;
   device_label: string;
   ip_address: string | null;
   user_agent: string | null;
@@ -63,6 +70,16 @@ export async function login(payload: LoginPayload) {
   return api<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyOtp(payload: { challengeId: string; code: string }) {
+  return api<LoginResponse>("/api/v1/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({
+      challenge_id: payload.challengeId,
+      code: payload.code,
+    }),
   });
 }
 
@@ -80,6 +97,18 @@ export async function getLoginDevices() {
 
 export async function revokeLoginDevice(sessionId: string) {
   return api<void>(`/api/v1/auth/devices/${sessionId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getAllLoginDevices() {
+  return api<LoginDeviceSession[]>("/api/v1/auth/devices/all", {
+    method: "GET",
+  });
+}
+
+export async function revokeAnyLoginDevice(sessionId: string) {
+  return api<void>(`/api/v1/auth/devices/all/${sessionId}`, {
     method: "DELETE",
   });
 }
