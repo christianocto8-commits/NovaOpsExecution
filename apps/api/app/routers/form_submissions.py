@@ -1,13 +1,22 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.form_answer import FormAnswer
 from app.models.form_submission import FormSubmission
+from app.models.form_template import FormTemplate
+from app.models.outlet import Outlet
 from app.models.user import User
+from app.modules.identity.models import Role, User as IdentityUser
+from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
+from app.modules.notifications.models import NotificationChannel
+from app.modules.notifications.schemas import NotificationEventCreate
+from app.modules.notifications.service import NotificationService
+from app.modules.tasks.identity_bridge import get_identity_user_by_email, sync_identity_access
 from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse
 from app.services.checklist_scoring import score_checklist
 from app.services.field_visibility import validate_conditional_required_fields
@@ -16,12 +25,109 @@ from app.services.webhook_dispatcher import dispatch_webhook_event
 router = APIRouter(prefix="/form-submissions", tags=["Form Submissions"])
 
 
+def resolve_form_submission_scope(
+    db: Session,
+    current_user: User,
+) -> tuple[list[int] | None, bool]:
+    identity_user = get_identity_user_by_email(db, current_user.email)
+
+    if identity_user:
+        _legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        db.commit()
+        return outlet_ids, full_access
+
+    if current_user.outlet_id is not None:
+        return [current_user.outlet_id], False
+
+    return [], False
+
+
+def ensure_form_submission_outlet_access(
+    db: Session,
+    current_user: User,
+    outlet_id: int,
+) -> None:
+    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
+
+    if full_access:
+        return
+
+    if outlet_id not in (outlet_ids or []):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no access to this outlet submission",
+        )
+
+
+def notify_owner_admin_form_submitted(
+    db: Session,
+    *,
+    submission: FormSubmission,
+    template: FormTemplate | None,
+    outlet: Outlet | None,
+    submitted_by: User,
+) -> None:
+    roles = db.scalars(select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE]))).all()
+    role_ids = [role.id for role in roles]
+
+    if not role_ids:
+        return
+
+    recipients = db.scalars(
+        select(IdentityUser).where(
+            IdentityUser.role_id.in_(role_ids),
+            IdentityUser.is_active.is_(True),
+        )
+    ).all()
+
+    if not recipients:
+        return
+
+    template_name = template.title if template else f"Form #{submission.form_template_id}"
+    outlet_name = outlet.name if outlet else f"Outlet #{submission.outlet_id}"
+    score = round(float(submission.score or 0))
+    subject = f"MyForm submitted: {template_name}"
+    body = (
+        f"{submitted_by.name or submitted_by.email} submitted {template_name} "
+        f"from {outlet_name}. Score: {score}%."
+    )
+    payload = {
+        "event_type": "form_submitted",
+        "submission_id": submission.id,
+        "form_template_id": submission.form_template_id,
+        "template_name": template_name,
+        "outlet_id": submission.outlet_id,
+        "outlet_name": outlet_name,
+        "score": submission.score,
+        "status": submission.status,
+        "submitted_by": submitted_by.id,
+    }
+    notification_service = NotificationService(db)
+
+    for recipient in recipients:
+        notification_service.create_event(
+            NotificationEventCreate(
+                event_type="form_submitted",
+                source_module="forms",
+                source_entity_type="form_submission",
+                source_entity_id=str(submission.id),
+                recipient_user_id=recipient.id,
+                channel=NotificationChannel.in_app,
+                subject=subject,
+                body=body,
+                payload_json=payload,
+            )
+        )
+
+
 @router.post("", response_model=FormSubmissionResponse, status_code=status.HTTP_201_CREATED)
 def create_form_submission(
     payload: FormSubmissionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_form_submission_outlet_access(db, current_user, payload.outlet_id)
+
     responses = {
         str(answer.form_field_id): (
             answer.answer_text
@@ -75,6 +181,20 @@ def create_form_submission(
     if stored_submission is None:
         raise HTTPException(status_code=500, detail="Failed to persist form submission")
 
+    template = db.get(FormTemplate, stored_submission.form_template_id)
+    outlet = db.get(Outlet, stored_submission.outlet_id)
+
+    try:
+        notify_owner_admin_form_submitted(
+            db,
+            submission=stored_submission,
+            template=template,
+            outlet=outlet,
+            submitted_by=current_user,
+        )
+    except Exception:
+        db.rollback()
+
     try:
         dispatch_webhook_event(
             db,
@@ -104,9 +224,19 @@ def list_form_submissions(
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(FormSubmission).options(joinedload(FormSubmission.answers))
+    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
 
     if outlet_id is not None:
+        if not full_access and outlet_id not in (outlet_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no access to this outlet submission",
+            )
         query = query.filter(FormSubmission.outlet_id == outlet_id)
+    elif not full_access:
+        if not outlet_ids:
+            return []
+        query = query.filter(FormSubmission.outlet_id.in_(outlet_ids))
 
     if form_template_id is not None:
         query = query.filter(FormSubmission.form_template_id == form_template_id)
@@ -132,5 +262,7 @@ def get_form_submission(
 
     if submission is None:
         raise HTTPException(status_code=404, detail="Form submission not found")
+
+    ensure_form_submission_outlet_access(db, current_user, submission.outlet_id)
 
     return submission

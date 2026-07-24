@@ -265,6 +265,9 @@ class NotificationService:
             if event_type == "task_schedule_upcoming":
                 return "/dashboard/tasks"
 
+            if event_type == "form_submitted":
+                return "/dashboard/history"
+
             if task_id is not None:
                 return f"/dashboard/tasks?taskId={task_id}"
 
