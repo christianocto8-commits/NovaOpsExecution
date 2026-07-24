@@ -81,7 +81,7 @@ Expected:
 The cron job calls:
 
 ```text
-POST https://novaops-api.onrender.com/api/v1/task-schedules/process
+POST https://novaops-api.onrender.com/api/v1/jobs/process
 Header: X-Scheduler-Secret: <same as API>
 ```
 
@@ -101,11 +101,11 @@ Important:
 ### Manual test (replace secret)
 
 ```bash
-curl -fsS -X POST "https://novaops-api.onrender.com/api/v1/task-schedules/process" \
+curl -fsS -X POST "https://novaops-api.onrender.com/api/v1/jobs/process" \
   -H "X-Scheduler-Secret: YOUR_SECRET"
 ```
 
-Expected: JSON with processed schedule counts, HTTP 200.
+Expected: JSON with processed job counts, HTTP 200.
 
 HTTP 401 `Invalid scheduler secret` = secret mismatch.
 

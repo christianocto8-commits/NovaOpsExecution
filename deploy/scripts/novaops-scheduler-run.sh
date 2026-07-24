@@ -19,14 +19,5 @@ fi
 
 AUTH_HEADER=(-H "X-Scheduler-Secret: ${TASK_SCHEDULER_SECRET}")
 
-curl -fsS -X POST "${API_BASE}/task-schedules/process" "${AUTH_HEADER[@]}"
-echo
-
-curl -fsS -X POST "${API_BASE}/tasks/process-overdue-alerts" "${AUTH_HEADER[@]}"
-echo
-
-curl -fsS -X POST "${API_BASE}/tasks/process-due-soon-alerts" "${AUTH_HEADER[@]}"
-echo
-
-curl -fsS -X POST "${API_BASE}/reports/compliance/send-digest" "${AUTH_HEADER[@]}"
+curl -fsS -X POST "${API_BASE}/jobs/process" "${AUTH_HEADER[@]}"
 echo

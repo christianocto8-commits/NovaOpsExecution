@@ -6,7 +6,8 @@
 - Auto-publish engine that creates outlet tasks from schedules
 - API:
   - `GET/POST/PATCH/DELETE /api/v1/task-schedules`
-  - `POST /api/v1/task-schedules/process` for cron/manual runs
+  - `POST /api/v1/jobs/process` for production scheduler runs
+  - `POST /api/v1/task-schedules/process` for manual schedule diagnostics
 - Frontend task form now saves **Daily/Weekly** schedules to backend
 - Auto-publish on create when `autoPublish=true`
 
@@ -29,7 +30,7 @@ Create a **Cron Job** service on Render:
 - **Command:**
 
 ```bash
-curl -X POST "$RENDER_API_URL/api/v1/task-schedules/process" \
+curl -X POST "$RENDER_API_URL/api/v1/jobs/process" \
   -H "X-Scheduler-Secret: $TASK_SCHEDULER_SECRET"
 ```
 
@@ -56,6 +57,6 @@ Duplicate protection:
 ## Manual test
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/task-schedules/process \
+curl -X POST http://localhost:8000/api/v1/jobs/process \
   -H "X-Scheduler-Secret: change-this-scheduler-secret"
 ```

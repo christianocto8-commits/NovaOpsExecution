@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
@@ -9,6 +8,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.scheduler import verify_scheduler_secret
 from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.tasks.router import resolve_task_outlet_access
@@ -329,19 +329,13 @@ def get_template_compliance_trends_report(
     )
 
 
-def _verify_scheduler_secret(x_scheduler_secret: str | None) -> None:
-    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
-    if configured_secret and x_scheduler_secret != configured_secret:
-        raise HTTPException(status_code=401, detail="Invalid scheduler secret")
-
-
 @router.post("/compliance/send-digest", response_model=DigestSendResult)
 def send_compliance_digest_report(
     force: bool = Query(default=False),
     x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
     db: Session = Depends(get_db),
 ):
-    _verify_scheduler_secret(x_scheduler_secret)
+    verify_scheduler_secret(x_scheduler_secret)
 
     result = send_compliance_digest(db, force=force)
     return DigestSendResult(**result)

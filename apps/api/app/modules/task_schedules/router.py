@@ -1,10 +1,9 @@
-import os
-
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.scheduler import verify_scheduler_secret
 from app.modules.task_schedules.schemas import (
     TaskScheduleCreate,
     TaskScheduleProcessResult,
@@ -96,13 +95,7 @@ def process_task_schedules(
     db: Session = Depends(get_db),
     x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
 ):
-    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
-    if configured_secret and x_scheduler_secret != configured_secret:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid scheduler secret",
-        )
-
+    verify_scheduler_secret(x_scheduler_secret)
     service = TaskScheduleService(db)
     result = service.process_due_schedules(force=force)
     return TaskScheduleProcessResult(**result)

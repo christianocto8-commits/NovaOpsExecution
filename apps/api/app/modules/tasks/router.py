@@ -1,12 +1,11 @@
 from uuid import UUID
 
-import os
-
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.scheduler import verify_scheduler_secret
 from app.models.task import Task
 from app.modules.identity.models import User as IdentityUser
 from app.modules.tasks.schemas import (
@@ -186,13 +185,7 @@ def process_overdue_alerts(
     db: Session = Depends(get_db),
     x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
 ):
-    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
-    if configured_secret and x_scheduler_secret != configured_secret:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid scheduler secret",
-        )
-
+    verify_scheduler_secret(x_scheduler_secret)
     return process_overdue_task_alerts(db)
 
 
@@ -201,13 +194,7 @@ def process_due_soon_alerts(
     db: Session = Depends(get_db),
     x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
 ):
-    configured_secret = os.environ.get("TASK_SCHEDULER_SECRET")
-    if configured_secret and x_scheduler_secret != configured_secret:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid scheduler secret",
-        )
-
+    verify_scheduler_secret(x_scheduler_secret)
     return process_due_soon_task_alerts(db)
 
 
