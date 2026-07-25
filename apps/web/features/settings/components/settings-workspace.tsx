@@ -1075,7 +1075,7 @@ function AreaManagerSettingsWorkspace({
   t: (key: string) => string;
 }) {
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">{t("settings.areaEyebrow")}</p>
         <h1 className="text-2xl font-semibold text-slate-950">{t("settings.areaTitle")}</h1>
@@ -1183,7 +1183,7 @@ export function SettingsWorkspace() {
 
   if (isLoading) {
     return (
-      <main className="p-6">
+      <main className={mobileDashboardMainClass}>
         <p className="text-sm text-emerald-700">Memuat settings...</p>
       </main>
     );
@@ -1213,7 +1213,7 @@ export function SettingsWorkspace() {
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("settings.ownerEyebrow")}</p>
@@ -1253,7 +1253,7 @@ export function SettingsWorkspace() {
             key={tab}
             type="button"
             onClick={() => setSettingsTab(tab)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition sm:px-4 ${
               settingsTab === tab
                 ? "bg-emerald-700 text-white"
                 : "text-slate-600 hover:bg-slate-100"
@@ -1411,7 +1411,7 @@ export function SettingsWorkspace() {
       <>
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Execution Controls">
-          <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             <ActionCard title="Evidence required" description="Task wajib membawa evidence." action={<EnterpriseCheckbox checked={state.evidence_required} onChange={(event) => update("evidence_required", event.target.checked)} />} />
             <ActionCard title="Photo required by default" description="Submit task outlet wajib sertakan bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
             <ActionCard title="Timestamp watermark" description="Tambahkan cap waktu pada foto evidence sebelum upload." action={<EnterpriseCheckbox checked={state.timestamp_watermark} onChange={(event) => update("timestamp_watermark", event.target.checked)} />} />
@@ -1445,7 +1445,7 @@ export function SettingsWorkspace() {
                 disabled={!state.geofence_enabled}
               />
             </EnterpriseField>
-            <EnterpriseField label="Session timeout (minutes)">
+            <EnterpriseField label="Session timeout">
               <EnterpriseSelect
                 value={String(state.session_timeout_minutes)}
                 onChange={(event) => update("session_timeout_minutes", Number(event.target.value))}
@@ -1493,7 +1493,7 @@ export function SettingsWorkspace() {
               type="button"
               onClick={() => void handleSendDigestNow()}
               disabled={isSendingDigest || !state.email_notifications}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
             >
               {isSendingDigest ? "Sending digest..." : "Send compliance digest now"}
             </button>

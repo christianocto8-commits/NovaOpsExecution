@@ -29,3 +29,29 @@ body {
   color: #1e1e1e;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  main.p-6,
+  main[class~="p-6"] {
+    padding: 1rem;
+  }
+
+  main.space-y-6,
+  main[class~="space-y-6"] {
+    row-gap: 1.25rem;
+  }
+}
