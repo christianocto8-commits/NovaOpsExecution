@@ -10,7 +10,13 @@ from app.core.database import get_db
 from app.modules.api_keys.service import ApiKeyService
 from app.modules.identity.dependencies import require_permission, require_role
 from app.modules.identity.models import User as IdentityUser
-from app.modules.iot.schemas import IotEvaluateRequest, IotEvaluateResult, IotReadingIngest, IotReadingRead
+from app.modules.iot.schemas import (
+    IotEvaluateRequest,
+    IotEvaluateResult,
+    IotReadingIngest,
+    IotReadingRead,
+    IotSensorHealthRead,
+)
 from app.modules.iot.service import IotService
 
 router = APIRouter(prefix="/iot", tags=["IoT"])
@@ -57,6 +63,15 @@ def list_iot_readings(
         sensor_type=sensor_type,
         limit=limit,
     )
+
+
+@router.get("/health", response_model=list[IotSensorHealthRead])
+def list_iot_sensor_health(
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("report.read")),
+):
+    del current_user
+    return IotService(db).list_sensor_health()
 
 
 @router.post("/evaluate", response_model=IotEvaluateResult)

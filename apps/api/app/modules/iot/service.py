@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.iot.models import IotSensorReading
-from app.modules.iot.schemas import IotEvaluateRequest, IotEvaluateResult, IotReadingIngest
+from app.modules.iot.schemas import IotEvaluateRequest, IotEvaluateResult, IotReadingIngest, IotSensorHealthRead
 from app.services.workspace_settings import get_workspace_settings
 
 
@@ -85,3 +85,69 @@ class IotService:
                 else f"Reading {latest.value}{latest.unit or ''} outside {threshold_min}-{threshold_max}"
             ),
         )
+
+    def list_sensor_health(self) -> list[IotSensorHealthRead]:
+        settings = get_workspace_settings(self.db)
+        threshold_min = float(getattr(settings, "iot_temp_min_c", 2))
+        threshold_max = float(getattr(settings, "iot_temp_max_c", 8))
+        readings = self.list_readings(limit=500)
+        latest_by_sensor: dict[tuple[UUID, str], IotSensorReading] = {}
+
+        for reading in readings:
+            key = (reading.outlet_id, reading.sensor_type)
+            current = latest_by_sensor.get(key)
+            if current is None or reading.recorded_at > current.recorded_at:
+                latest_by_sensor[key] = reading
+
+        now = datetime.now(UTC)
+        health_rows: list[IotSensorHealthRead] = []
+        for (outlet_id, sensor_type), reading in latest_by_sensor.items():
+            recorded_at = reading.recorded_at
+            if recorded_at.tzinfo is None:
+                recorded_at = recorded_at.replace(tzinfo=UTC)
+            minutes_since_seen = max(0, round((now - recorded_at).total_seconds() / 60))
+            status = "online"
+            if minutes_since_seen > 180:
+                status = "offline"
+            elif minutes_since_seen > 60:
+                status = "stale"
+
+            within_threshold: bool | None = None
+            row_threshold_min: float | None = None
+            row_threshold_max: float | None = None
+            if sensor_type == "temperature":
+                within_threshold = threshold_min <= reading.value <= threshold_max
+                row_threshold_min = threshold_min
+                row_threshold_max = threshold_max
+                if not within_threshold:
+                    status = "alert"
+
+            metadata = reading.metadata_json or {}
+            calibration_due = None
+            raw_calibration_due = metadata.get("calibration_due_at") if isinstance(metadata, dict) else None
+            if isinstance(raw_calibration_due, str):
+                try:
+                    calibration_due = datetime.fromisoformat(raw_calibration_due.replace("Z", "+00:00"))
+                except ValueError:
+                    calibration_due = None
+            gateway_id = metadata.get("gateway_id") if isinstance(metadata, dict) else None
+
+            health_rows.append(
+                IotSensorHealthRead(
+                    outlet_id=outlet_id,
+                    sensor_type=sensor_type,
+                    latest_value=reading.value,
+                    unit=reading.unit,
+                    last_seen_at=recorded_at,
+                    minutes_since_seen=minutes_since_seen,
+                    status=status,
+                    within_threshold=within_threshold,
+                    threshold_min=row_threshold_min,
+                    threshold_max=row_threshold_max,
+                    calibration_due_at=calibration_due,
+                    gateway_id=str(gateway_id) if gateway_id else None,
+                    message=f"Last seen {minutes_since_seen} minutes ago",
+                )
+            )
+
+        return sorted(health_rows, key=lambda row: (row.status != "alert", row.status, row.sensor_type))

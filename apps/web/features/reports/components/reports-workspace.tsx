@@ -41,6 +41,7 @@ import {
   type HistoryDetailSelection,
 } from "@/features/history/components/history-detail-drawer";
 import { RealtimeClock } from "@/shared/realtime";
+import { downloadAuditBundle } from "@/services/reports.service";
 import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
@@ -513,6 +514,7 @@ export function ReportsWorkspace() {
   const availableMonths = useMemo(() => getAvailableMonths(trackingEntries), [trackingEntries]);
   const [selectedMonthKey, setSelectedMonthKey] = useState(() => formatMonthKey(new Date()));
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingBundle, setIsExportingBundle] = useState(false);
   const dailySummaries = useMemo(() => buildDailySummaries(trackingEntries), [trackingEntries]);
   const visibleMonthKey = availableMonths.includes(selectedMonthKey)
     ? selectedMonthKey
@@ -619,6 +621,18 @@ export function ReportsWorkspace() {
     toast.success("Compliance packet PDF berhasil diunduh.");
   }
 
+  async function handleAuditBundleExport() {
+    try {
+      setIsExportingBundle(true);
+      await downloadAuditBundle(periodDays);
+      toast.success("Audit bundle ZIP berhasil diunduh.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat audit bundle.");
+    } finally {
+      setIsExportingBundle(false);
+    }
+  }
+
   return (
     <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -670,6 +684,15 @@ export function ReportsWorkspace() {
           >
             <Download className="size-4" />
             Compliance Packet
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleAuditBundleExport()}
+            disabled={isExportingBundle}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <Download className="size-4" />
+            {isExportingBundle ? "Bundling..." : "Audit Bundle"}
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">

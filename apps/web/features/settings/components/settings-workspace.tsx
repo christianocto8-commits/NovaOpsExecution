@@ -33,6 +33,7 @@ import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
+import { sendComplianceDigestNow } from "@/services/reports.service";
 import {
   getIdentityRoles,
   updateIdentityRolePermissions,
@@ -1127,6 +1128,7 @@ export function SettingsWorkspace() {
   const { settings, isLoading, error, reload, saveSettings, saveError, isSaving } = useSettings();
   const [state, setState] = useState<OwnerAdminState>(defaults);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSendingDigest, setIsSendingDigest] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"org" | "operations" | "integrations">("org");
 
   useEffect(() => {
@@ -1160,6 +1162,22 @@ export function SettingsWorkspace() {
       setNotice(
         saveFailure instanceof Error ? saveFailure.message : "Gagal menyimpan pengaturan."
       );
+    }
+  }
+
+  async function handleSendDigestNow() {
+    try {
+      setIsSendingDigest(true);
+      const result = await sendComplianceDigestNow();
+      setNotice(
+        result.sent
+          ? `Compliance digest terkirim ke ${result.delivered}/${result.recipients} recipient.`
+          : `Compliance digest tidak terkirim: ${result.reason}.`
+      );
+    } catch (sendFailure) {
+      setNotice(sendFailure instanceof Error ? sendFailure.message : "Gagal mengirim compliance digest.");
+    } finally {
+      setIsSendingDigest(false);
     }
   }
 
@@ -1471,6 +1489,14 @@ export function SettingsWorkspace() {
                 <option value="admin-only">Admin only</option>
               </EnterpriseSelect>
             </EnterpriseField>
+            <button
+              type="button"
+              onClick={() => void handleSendDigestNow()}
+              disabled={isSendingDigest || !state.email_notifications}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {isSendingDigest ? "Sending digest..." : "Send compliance digest now"}
+            </button>
           </div>
           <p className="mt-4 text-sm text-slate-500">
             Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).

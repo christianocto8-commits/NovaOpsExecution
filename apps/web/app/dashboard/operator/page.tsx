@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, ClipboardCheck, Clock3, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardCheck, Clock3, PlayCircle, RefreshCw } from "lucide-react";
 
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { AnnouncementBanner } from "@/features/announcements/components/announcement-banner";
@@ -96,9 +96,19 @@ export default function OperatorHomePage() {
   const todayTasks = openTasks.filter(isDueToday);
   const overdueTasks = openTasks.filter(isOverdue);
   const dueSoonTasks = openTasks.filter(isDueSoon);
+  const draftTasks = openTasks.filter((task) => task.executionDraft);
   const completedToday = tasks.filter(
     (task) => isTaskCompleted(task) && isDueToday(task)
   ).length;
+  const nextTask = [...todayTasks, ...dueSoonTasks, ...openTasks]
+    .filter((task) => !isOverdue(task))
+    .sort((first, second) => {
+      const firstDue = first.due ? new Date(first.due).getTime() : Number.MAX_SAFE_INTEGER;
+      const secondDue = second.due ? new Date(second.due).getTime() : Number.MAX_SAFE_INTEGER;
+      return firstDue - secondDue;
+    })[0];
+  const todayTotal = todayTasks.length + completedToday;
+  const todayCompletionRate = todayTotal > 0 ? Math.round((completedToday / todayTotal) * 100) : 0;
   const openCorrectiveActions = (correctiveActionsQuery.data ?? []).filter(
     (task) => (task.backendStatus ?? "open") !== "completed"
   );
@@ -169,6 +179,64 @@ export default function OperatorHomePage() {
           <span className="text-xs font-bold uppercase tracking-wide text-amber-700">CAPA →</span>
         </Link>
       ) : null}
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+              Today summary
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-slate-950">
+              {todayCompletionRate}% completed
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {completedToday}/{todayTotal || 0} task hari ini selesai, {openTasks.length} masih open.
+            </p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+            overdueTasks.length > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+          }`}>
+            {overdueTasks.length > 0 ? `${overdueTasks.length} overdue` : "On track"}
+          </span>
+        </div>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-emerald-600 transition-all"
+            style={{ width: `${todayCompletionRate}%` }}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {nextTask ? (
+            <Link
+              href={`/dashboard/tasks?taskId=${nextTask.id}`}
+              className="flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 active:bg-emerald-100"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Next task</p>
+                <p className="mt-1 truncate text-sm font-bold text-slate-950">{nextTask.title}</p>
+              </div>
+              <PlayCircle className="size-6 shrink-0 text-emerald-700" />
+            </Link>
+          ) : (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Next task</p>
+              <p className="mt-1 text-sm font-bold text-slate-700">Tidak ada task berikutnya.</p>
+            </div>
+          )}
+          <Link
+            href="/dashboard/drafts"
+            className="flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 active:bg-blue-100"
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Draft resume</p>
+              <p className="mt-1 text-sm font-bold text-slate-950">{draftTasks.length} draft tersimpan</p>
+            </div>
+            <ClipboardCheck className="size-6 shrink-0 text-blue-700" />
+          </Link>
+        </div>
+      </section>
 
       <OfflineReadyCard
         stats={workpackStats}

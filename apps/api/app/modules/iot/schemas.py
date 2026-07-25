@@ -44,3 +44,19 @@ class IotEvaluateResult(BaseModel):
     threshold_max: float
     flagged: bool
     message: str
+
+
+class IotSensorHealthRead(BaseModel):
+    outlet_id: UUID
+    sensor_type: str
+    latest_value: float | None = None
+    unit: str | None = None
+    last_seen_at: datetime | None = None
+    minutes_since_seen: int | None = None
+    status: str
+    within_threshold: bool | None = None
+    threshold_min: float | None = None
+    threshold_max: float | None = None
+    calibration_due_at: datetime | None = None
+    gateway_id: str | None = None
+    message: str

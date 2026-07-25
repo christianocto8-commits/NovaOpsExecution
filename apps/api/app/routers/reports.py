@@ -11,6 +11,7 @@ from app.core.deps import get_current_user
 from app.core.scheduler import verify_scheduler_secret
 from app.models.outlet import Outlet
 from app.models.task import Task
+from app.modules.identity.dependencies import require_permission
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
@@ -27,6 +28,7 @@ from app.services.compliance_analytics import (
     get_template_compliance_trends,
     get_top_failed_checklist_items,
 )
+from app.services.audit_bundle_export import build_audit_bundle_zip
 from app.services.compliance_export import build_compliance_export_pdf, build_compliance_export_xlsx
 from app.services.digest_email import send_compliance_digest
 from app.services.execution_validation import compliance_score
@@ -341,6 +343,17 @@ def send_compliance_digest_report(
     return DigestSendResult(**result)
 
 
+@router.post("/compliance/send-digest-now", response_model=DigestSendResult)
+def send_compliance_digest_now(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("report.export")),
+):
+    del current_user
+
+    result = send_compliance_digest(db, force=True)
+    return DigestSendResult(**result)
+
+
 @router.get("/compliance/export")
 def export_compliance_report(
     format: str = Query(default="xlsx", alias="format"),
@@ -383,3 +396,33 @@ def export_compliance_report(
         )
 
     raise HTTPException(status_code=400, detail="Supported export formats: xlsx, pdf")
+
+
+@router.get("/compliance/audit-bundle")
+def export_compliance_audit_bundle(
+    days: int = Query(default=30, ge=1, le=365),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+    _permission=Depends(require_permission("report.export")),
+):
+    del _permission
+
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db,
+        current_user,
+        x_outlet_id,
+    )
+    content = build_audit_bundle_zip(
+        db,
+        days=days,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        all_outlets=full_access and outlet_id is None,
+    )
+    filename = f"novaops-audit-bundle-{datetime.now(timezone.utc).strftime('%Y%m%d')}.zip"
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

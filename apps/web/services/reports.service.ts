@@ -27,6 +27,13 @@ export type TemplateTrendsReport = {
   points: TemplateTrendPoint[];
 };
 
+export type DigestSendResult = {
+  sent: boolean;
+  reason: string;
+  recipients: number;
+  delivered: number;
+};
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -84,6 +91,79 @@ export async function downloadComplianceExport(format = "xlsx"): Promise<void> {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export async function downloadAuditBundle(days = 30): Promise<void> {
+  const token = getToken();
+  const outletId = getOutletId();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (outletId) {
+    headers.set("X-Outlet-Id", outletId);
+  }
+
+  const response = await fetch(
+    buildApiUrl(`/api/v1/reports/compliance/audit-bundle?days=${encodeURIComponent(days)}`),
+    { headers }
+  );
+
+  if (!response.ok) {
+    let message = "Audit bundle export failed";
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      message = await response.text();
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition");
+  const filenameMatch = disposition?.match(/filename="([^"]+)"/);
+  const filename = filenameMatch?.[1] ?? "novaops-audit-bundle.zip";
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function sendComplianceDigestNow() {
+  const token = getToken();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(buildApiUrl("/api/v1/reports/compliance/send-digest-now"), {
+    method: "POST",
+    headers,
+  });
+
+  if (!response.ok) {
+    let message = "Gagal mengirim compliance digest.";
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      message = await response.text();
+    }
+    throw new Error(message);
+  }
+
+  return (await response.json()) as DigestSendResult;
 }
 
 export async function getFailedChecklistItems(

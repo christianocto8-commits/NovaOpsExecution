@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, Radio, Thermometer } from "lucide-react";
+import { AlertTriangle, ArrowRight, Radio, Thermometer, WifiOff } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { listIotReadings } from "@/services/iot.service";
+import { listIotReadings, listIotSensorHealth } from "@/services/iot.service";
 import { buildApiUrl } from "@/lib/api-url";
 import { useLanguage } from "@/shared/i18n";
 
@@ -42,8 +42,16 @@ export default function IotDashboardPage() {
     queryFn: () => listIotReadings({ limit: 200 }),
     retry: false,
   });
+  const healthQuery = useQuery({
+    queryKey: ["iot-sensor-health"],
+    queryFn: listIotSensorHealth,
+    retry: false,
+  });
 
   const readings = readingsQuery.data ?? [];
+  const healthRows = healthQuery.data ?? [];
+  const alertSensors = healthRows.filter((row) => row.status === "alert").length;
+  const offlineSensors = healthRows.filter((row) => row.status === "offline").length;
   const chartData = buildLast24hChart(readings);
   const ingestUrl = buildApiUrl("/api/v1/iot/ingest");
 
@@ -63,6 +71,76 @@ export default function IotDashboardPage() {
           </div>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{readings.length}</p>
         </div>
+        <div className={`rounded-2xl border p-5 shadow-sm ${
+          alertSensors > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"
+        }`}>
+          <div className="flex items-center gap-2 text-slate-600">
+            <AlertTriangle className="size-4" />
+            <p className="text-sm">Sensor alerts</p>
+          </div>
+          <p className={`mt-2 text-3xl font-semibold ${alertSensors > 0 ? "text-red-700" : "text-emerald-700"}`}>
+            {alertSensors}
+          </p>
+        </div>
+        <div className={`rounded-2xl border p-5 shadow-sm ${
+          offlineSensors > 0 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"
+        }`}>
+          <div className="flex items-center gap-2 text-slate-600">
+            <WifiOff className="size-4" />
+            <p className="text-sm">Offline sensors</p>
+          </div>
+          <p className={`mt-2 text-3xl font-semibold ${offlineSensors > 0 ? "text-amber-700" : "text-slate-950"}`}>
+            {offlineSensors}
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Sensor health</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {healthQuery.isLoading ? (
+            <p className="text-sm text-slate-500">Loading sensor health...</p>
+          ) : healthRows.length ? (
+            healthRows.slice(0, 9).map((sensor) => (
+              <div key={`${sensor.outlet_id}-${sensor.sensor_type}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">{sensor.sensor_type}</p>
+                    <p className="mt-1 text-xs text-slate-500">Outlet {sensor.outlet_id.slice(0, 8)}...</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+                    sensor.status === "alert"
+                      ? "bg-red-100 text-red-700"
+                      : sensor.status === "offline"
+                        ? "bg-amber-100 text-amber-700"
+                        : sensor.status === "stale"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-emerald-100 text-emerald-700"
+                  }`}>
+                    {sensor.status}
+                  </span>
+                </div>
+                <p className="mt-3 text-2xl font-bold text-slate-950">
+                  {sensor.latest_value ?? "-"}{sensor.unit ?? ""}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">{sensor.message}</p>
+                {sensor.gateway_id ? (
+                  <p className="mt-1 text-xs text-slate-500">Gateway: {sensor.gateway_id}</p>
+                ) : null}
+                {sensor.calibration_due_at ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Calibration due: {new Date(sensor.calibration_due_at).toLocaleDateString()}
+                  </p>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">Belum ada sensor health.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-2">
           <p className="text-sm font-semibold text-slate-800">{t("iot.ingestUrl")}</p>
           <code className="mt-2 block overflow-x-auto rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700">
