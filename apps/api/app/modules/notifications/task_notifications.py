@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, time, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,7 +20,34 @@ from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.services.email_service import EmailService
 from app.services.sms_service import send_sms
+from app.services.user_settings_store import get_user_settings
 from app.services.workspace_settings import get_workspace_settings
+
+
+NOTIFICATION_PREFS_NAMESPACE = "notification_prefs"
+DEFAULT_NOTIFICATION_PREFS = {
+    "email_enabled": True,
+    "push_enabled": True,
+    "digest_enabled": False,
+    "sms_enabled": False,
+    "task_incoming_enabled": True,
+    "task_upcoming_enabled": True,
+    "task_overdue_enabled": True,
+    "task_completed_enabled": True,
+    "checklist_failed_enabled": True,
+    "quiet_hours_enabled": False,
+    "quiet_hours_start": "22:00",
+    "quiet_hours_end": "07:00",
+}
+EVENT_PREF_KEYS = {
+    "task_incoming": "task_incoming_enabled",
+    "task_scheduled_incoming": "task_incoming_enabled",
+    "task_schedule_upcoming": "task_upcoming_enabled",
+    "task_overdue": "task_overdue_enabled",
+    "task_due_soon": "task_upcoming_enabled",
+    "task_completed": "task_completed_enabled",
+    "checklist_failed": "checklist_failed_enabled",
+}
 
 
 def resolve_identity_user_id(db: Session, legacy_user_id: int | None) -> UUID | None:
@@ -36,6 +64,66 @@ def resolve_identity_user_id(db: Session, legacy_user_id: int | None) -> UUID | 
     return identity_user.id if identity_user else None
 
 
+def _notification_preferences(db: Session, identity_user_id: UUID) -> dict:
+    return get_user_settings(
+        db,
+        identity_user_id,
+        NOTIFICATION_PREFS_NAMESPACE,
+        DEFAULT_NOTIFICATION_PREFS,
+    )
+
+
+def _event_allowed(db: Session, identity_user_id: UUID, event_type: str) -> bool:
+    pref_key = EVENT_PREF_KEYS.get(event_type)
+    if not pref_key:
+        return True
+
+    return bool(_notification_preferences(db, identity_user_id).get(pref_key, True))
+
+
+def _parse_quiet_time(value: object, fallback: str) -> time:
+    try:
+        hour, minute = [int(part) for part in str(value or fallback).split(":")[:2]]
+        return time(hour=hour, minute=minute)
+    except (TypeError, ValueError):
+        fallback_hour, fallback_minute = [int(part) for part in fallback.split(":")]
+        return time(hour=fallback_hour, minute=fallback_minute)
+
+
+def _is_quiet_hours(db: Session, identity_user_id: UUID) -> bool:
+    prefs = _notification_preferences(db, identity_user_id)
+    if not prefs.get("quiet_hours_enabled", False):
+        return False
+
+    current = datetime.now(timezone.utc).time()
+    start = _parse_quiet_time(prefs.get("quiet_hours_start"), "22:00")
+    end = _parse_quiet_time(prefs.get("quiet_hours_end"), "07:00")
+
+    if start <= end:
+        return start <= current < end
+
+    return current >= start or current < end
+
+
+def _channel_allowed(
+    db: Session,
+    identity_user_id: UUID,
+    channel: str,
+    *,
+    honor_quiet_hours: bool = True,
+) -> bool:
+    prefs = _notification_preferences(db, identity_user_id)
+    if channel == "push" and not prefs.get("push_enabled", True):
+        return False
+    if channel == "email" and not prefs.get("email_enabled", True):
+        return False
+    if channel == "sms" and not prefs.get("sms_enabled", False):
+        return False
+    if honor_quiet_hours and channel in {"push", "email", "sms"}:
+        return not _is_quiet_hours(db, identity_user_id)
+    return True
+
+
 def _send_email_if_enabled(
     db: Session,
     *,
@@ -45,6 +133,8 @@ def _send_email_if_enabled(
 ) -> None:
     settings = get_workspace_settings(db)
     if not settings.email_notifications:
+        return
+    if not _channel_allowed(db, identity_user_id, "email"):
         return
 
     identity_user = db.get(IdentityUser, identity_user_id)
@@ -62,6 +152,8 @@ def _send_sms_if_enabled(
 ) -> None:
     settings = get_workspace_settings(db)
     if not settings.sms_notifications:
+        return
+    if not _channel_allowed(db, identity_user_id, "sms"):
         return
 
     identity_user = db.get(IdentityUser, identity_user_id)
@@ -85,6 +177,8 @@ def notify_task_recipient(
 
     if not identity_user_id:
         return
+    if not _event_allowed(db, identity_user_id, event_type):
+        return
 
     payload = {
         "task_id": task.id,
@@ -107,13 +201,14 @@ def notify_task_recipient(
         )
     )
 
-    PushNotificationService(db).send_to_user(
-        identity_user_id,
-        title=subject,
-        body=body,
-        url=f"/dashboard/tasks?taskId={task.id}",
-        data=payload,
-    )
+    if _channel_allowed(db, identity_user_id, "push"):
+        PushNotificationService(db).send_to_user(
+            identity_user_id,
+            title=subject,
+            body=body,
+            url=f"/dashboard/tasks?taskId={task.id}",
+            data=payload,
+        )
 
     _send_email_if_enabled(
         db,
@@ -138,6 +233,9 @@ def _send_task_notification(
     subject: str,
     body: str,
 ) -> None:
+    if not _event_allowed(db, identity_user_id, event_type):
+        return
+
     payload = {
         "task_id": task.id,
         "task_title": task.title,
@@ -159,13 +257,14 @@ def _send_task_notification(
         )
     )
 
-    PushNotificationService(db).send_to_user(
-        identity_user_id,
-        title=subject,
-        body=body,
-        url=f"/dashboard/tasks?taskId={task.id}",
-        data=payload,
-    )
+    if _channel_allowed(db, identity_user_id, "push"):
+        PushNotificationService(db).send_to_user(
+            identity_user_id,
+            title=subject,
+            body=body,
+            url=f"/dashboard/tasks?taskId={task.id}",
+            data=payload,
+        )
 
 
 def _task_incoming_recipients(
@@ -307,6 +406,9 @@ def notify_task_schedule_upcoming_recipients(
     sent = 0
 
     for recipient in _recipients_for_legacy_outlet(db, legacy_outlet_id=outlet_id):
+        if not _event_allowed(db, recipient.id, "task_schedule_upcoming"):
+            continue
+
         if _schedule_upcoming_already_sent(
             db,
             source_entity_id=source_entity_id,
@@ -338,13 +440,14 @@ def notify_task_schedule_upcoming_recipients(
             )
         )
 
-        PushNotificationService(db).send_to_user(
-            recipient.id,
-            title=subject,
-            body=body,
-            url="/dashboard/tasks",
-            data=payload,
-        )
+        if _channel_allowed(db, recipient.id, "push"):
+            PushNotificationService(db).send_to_user(
+                recipient.id,
+                title=subject,
+                body=body,
+                url="/dashboard/tasks",
+                data=payload,
+            )
         sent += 1
 
     return sent
@@ -405,6 +508,8 @@ def notify_task_completed_supervisors(
     for supervisor in supervisors:
         if completed_by_identity_id and supervisor.id == completed_by_identity_id:
             continue
+        if not _event_allowed(db, supervisor.id, "task_completed"):
+            continue
 
         role_slug = supervisor.role.slug if supervisor.role else ""
         if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(
@@ -433,13 +538,14 @@ def notify_task_completed_supervisors(
             )
         )
 
-        PushNotificationService(db).send_to_user(
-            supervisor.id,
-            title=subject,
-            body=body,
-            url=f"/dashboard/tasks?taskId={task.id}",
-            data=payload,
-        )
+        if _channel_allowed(db, supervisor.id, "push"):
+            PushNotificationService(db).send_to_user(
+                supervisor.id,
+                title=subject,
+                body=body,
+                url=f"/dashboard/tasks?taskId={task.id}",
+                data=payload,
+            )
 
         _send_email_if_enabled(
             db,
@@ -487,6 +593,8 @@ def notify_checklist_failure_supervisors(
     for supervisor in supervisors:
         if submitted_by_identity_id and supervisor.id == submitted_by_identity_id:
             continue
+        if not _event_allowed(db, supervisor.id, "checklist_failed"):
+            continue
 
         role_slug = supervisor.role.slug if supervisor.role else ""
         if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(
@@ -517,13 +625,14 @@ def notify_checklist_failure_supervisors(
             )
         )
 
-        PushNotificationService(db).send_to_user(
-            supervisor.id,
-            title=subject,
-            body=body,
-            url=f"/dashboard/tasks?taskId={task.id}",
-            data=payload,
-        )
+        if _channel_allowed(db, supervisor.id, "push"):
+            PushNotificationService(db).send_to_user(
+                supervisor.id,
+                title=subject,
+                body=body,
+                url=f"/dashboard/tasks?taskId={task.id}",
+                data=payload,
+            )
 
         _send_email_if_enabled(
             db,

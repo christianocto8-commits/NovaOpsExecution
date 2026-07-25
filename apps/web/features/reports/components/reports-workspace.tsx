@@ -34,6 +34,7 @@ import {
   filterWorkedTasksForOutlet,
   isTaskWorkedOn,
 } from "@/features/reports/utils/task-work-report-pdf";
+import { exportRegulatorReportPacketPdf } from "@/features/reports/utils/regulator-report-packet";
 import { getReportSummary, getReportTrends } from "@/features/reports/reports-api";
 import {
   HistoryDetailDrawer,
@@ -603,6 +604,21 @@ export function ReportsWorkspace() {
     }
   }
 
+  function handleRegulatorPacketExport() {
+    if (reportRows.length === 0) {
+      toast.error("Belum ada data report untuk dibuat paket compliance.");
+      return;
+    }
+
+    exportRegulatorReportPacketPdf({
+      rows: reportRows,
+      summary,
+      periodLabel: `Last ${periodDays} days`,
+      outletLabel: isOutletWorkspace ? workspace.outletName || "Current outlet" : "All scoped outlets",
+    });
+    toast.success("Compliance packet PDF berhasil diunduh.");
+  }
+
   return (
     <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -645,6 +661,15 @@ export function ReportsWorkspace() {
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
           >
             Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleRegulatorPacketExport}
+            disabled={reportRows.length === 0}
+            className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            <Download className="size-4" />
+            Compliance Packet
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">

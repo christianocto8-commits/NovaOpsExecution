@@ -43,7 +43,32 @@ DEFAULT_NOTIFICATION_PREFS = {
     "push_enabled": True,
     "digest_enabled": False,
     "sms_enabled": False,
+    "task_incoming_enabled": True,
+    "task_upcoming_enabled": True,
+    "task_overdue_enabled": True,
+    "task_completed_enabled": True,
+    "checklist_failed_enabled": True,
+    "quiet_hours_enabled": False,
+    "quiet_hours_start": "22:00",
+    "quiet_hours_end": "07:00",
 }
+
+
+def _read_notification_preferences_payload(stored: dict) -> NotificationPreferencesRead:
+    return NotificationPreferencesRead(
+        email_enabled=bool(stored.get("email_enabled", True)),
+        push_enabled=bool(stored.get("push_enabled", True)),
+        digest_enabled=bool(stored.get("digest_enabled", False)),
+        sms_enabled=bool(stored.get("sms_enabled", False)),
+        task_incoming_enabled=bool(stored.get("task_incoming_enabled", True)),
+        task_upcoming_enabled=bool(stored.get("task_upcoming_enabled", True)),
+        task_overdue_enabled=bool(stored.get("task_overdue_enabled", True)),
+        task_completed_enabled=bool(stored.get("task_completed_enabled", True)),
+        checklist_failed_enabled=bool(stored.get("checklist_failed_enabled", True)),
+        quiet_hours_enabled=bool(stored.get("quiet_hours_enabled", False)),
+        quiet_hours_start=str(stored.get("quiet_hours_start") or "22:00"),
+        quiet_hours_end=str(stored.get("quiet_hours_end") or "07:00"),
+    )
 
 
 @router.get(
@@ -144,11 +169,7 @@ def get_notification_preferences(
     user: User = Depends(get_current_user),
 ):
     stored = get_user_settings(db, user.id, NOTIFICATION_PREFS_NAMESPACE, DEFAULT_NOTIFICATION_PREFS)
-    return NotificationPreferencesRead(
-        email_enabled=bool(stored.get("email_enabled", True)),
-        push_enabled=bool(stored.get("push_enabled", True)),
-        digest_enabled=bool(stored.get("digest_enabled", False)),
-    )
+    return _read_notification_preferences_payload(stored)
 
 
 @router.put("/preferences", response_model=NotificationPreferencesRead)
@@ -161,12 +182,7 @@ def update_notification_preferences(
     update_data = payload.model_dump(exclude_unset=True)
     next_prefs = {**current, **update_data}
     saved = save_user_settings(db, user.id, NOTIFICATION_PREFS_NAMESPACE, next_prefs)
-
-    return NotificationPreferencesRead(
-        email_enabled=bool(saved.get("email_enabled", True)),
-        push_enabled=bool(saved.get("push_enabled", True)),
-        digest_enabled=bool(saved.get("digest_enabled", False)),
-    )
+    return _read_notification_preferences_payload(saved)
 
 
 @router.get("/history-notes", response_model=HistoryNotesRead)

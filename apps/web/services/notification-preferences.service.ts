@@ -5,6 +5,14 @@ export type NotificationPreferences = {
   push_enabled: boolean;
   digest_enabled: boolean;
   sms_enabled: boolean;
+  task_incoming_enabled: boolean;
+  task_upcoming_enabled: boolean;
+  task_overdue_enabled: boolean;
+  task_completed_enabled: boolean;
+  checklist_failed_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
 };
 
 export type HistoryNotes = Record<string, string>;

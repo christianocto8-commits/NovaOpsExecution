@@ -157,6 +157,14 @@ class NotificationPreferencesRead(BaseModel):
     push_enabled: bool = True
     digest_enabled: bool = False
     sms_enabled: bool = False
+    task_incoming_enabled: bool = True
+    task_upcoming_enabled: bool = True
+    task_overdue_enabled: bool = True
+    task_completed_enabled: bool = True
+    checklist_failed_enabled: bool = True
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "07:00"
 
 
 class NotificationPreferencesUpdate(BaseModel):
@@ -164,6 +172,14 @@ class NotificationPreferencesUpdate(BaseModel):
     push_enabled: bool | None = None
     digest_enabled: bool | None = None
     sms_enabled: bool | None = None
+    task_incoming_enabled: bool | None = None
+    task_upcoming_enabled: bool | None = None
+    task_overdue_enabled: bool | None = None
+    task_completed_enabled: bool | None = None
+    checklist_failed_enabled: bool | None = None
+    quiet_hours_enabled: bool | None = None
+    quiet_hours_start: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    quiet_hours_end: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
 
 
 class HistoryNotesRead(BaseModel):
