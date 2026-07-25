@@ -69,6 +69,6 @@ export type FormTemplate = {
   category: string;
   urgency?: "Low" | "Medium" | "High" | "Critical";
   description: string;
-  status: "Active" | "Draft" | "Archived";
+  status: "Active" | "Draft" | "Pending Review" | "Archived";
   fields: FormField[];
 };

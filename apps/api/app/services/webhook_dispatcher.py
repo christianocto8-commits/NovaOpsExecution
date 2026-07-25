@@ -171,6 +171,36 @@ def list_recent_deliveries(
     return repository.list_recent_deliveries(limit=limit, subscription_id=subscription_id)
 
 
+def retry_webhook_delivery(
+    db: Session,
+    *,
+    delivery_id: UUID,
+) -> tuple[bool, int | None, str | None]:
+    repository = WebhookRepository(db)
+    delivery = repository.find_delivery_by_id(delivery_id)
+
+    if not delivery:
+        raise ValueError("Webhook delivery not found")
+
+    subscription = repository.find_by_id(delivery.subscription_id)
+    if not subscription:
+        raise ValueError("Webhook subscription not found")
+
+    delivered = _deliver_with_retry(
+        db,
+        subscription=subscription,
+        event_type=delivery.event_type,
+        envelope=delivery.payload,
+    )
+
+    latest = list_recent_deliveries(db, limit=1, subscription_id=subscription.id)
+    if latest:
+        record = latest[0]
+        return delivered, record.http_status, record.error_message
+
+    return delivered, None, None
+
+
 def send_test_webhook(
     db: Session,
     *,

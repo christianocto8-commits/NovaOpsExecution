@@ -47,6 +47,17 @@ class TaskReviewUpdate(BaseModel):
     note: str | None = None
 
 
+class CorrectiveActionEvidenceUpdate(BaseModel):
+    root_cause: str | None = Field(default=None, max_length=120)
+    before_evidence_url: str | None = None
+    after_evidence_url: str | None = None
+    note: str | None = None
+
+
+class CorrectiveActionReject(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
 class TaskExecutionSubmit(BaseModel):
     form_template_id: int | None = None
     answers_json: dict[str, Any]

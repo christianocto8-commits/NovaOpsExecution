@@ -72,6 +72,13 @@ export async function getIdentityRoles() {
   return api<IdentityRole[]>("/api/v1/identity/roles");
 }
 
+export async function updateIdentityRolePermissions(roleId: string, permissionCodes: string[]) {
+  return api<IdentityRole>(`/api/v1/identity/roles/${roleId}/permissions`, {
+    method: "PATCH",
+    body: JSON.stringify({ permission_codes: permissionCodes }),
+  });
+}
+
 export async function getIdentityOutlets() {
   return api<IdentityOutlet[]>("/api/v1/identity/outlets");
 }
@@ -93,6 +100,12 @@ export async function updateIdentityUser(userId: string, payload: UpdateIdentity
 export async function deleteIdentityUser(userId: string) {
   return api<{ message: string }>(`/api/v1/identity/users/${userId}`, {
     method: "DELETE",
+  });
+}
+
+export async function resetIdentityUserSecurity(userId: string) {
+  return api<{ message: string }>(`/api/v1/identity/users/${userId}/security-reset`, {
+    method: "POST",
   });
 }
 

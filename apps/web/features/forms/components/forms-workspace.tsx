@@ -1562,6 +1562,25 @@ export function FormsWorkspace() {
           </div>
 
           <div className="mt-5 space-y-3">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                Governance lifecycle
+              </p>
+              <p className="mt-1 text-sm font-semibold text-emerald-950">
+                {selectedTemplate.status === "Draft"
+                  ? "Draft - belum tersedia untuk outlet"
+                  : selectedTemplate.status === "Pending Review"
+                    ? "Pending review - menunggu approval owner/admin"
+                  : selectedTemplate.status === "Active"
+                    ? "Published - tersedia untuk execution"
+                    : "Archived - disimpan untuk history"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-emerald-800">
+                Simpan perubahan besar sebagai draft/copy dulu, lalu aktifkan setelah review.
+                Version history menyimpan snapshot sebelum perubahan penting.
+              </p>
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-slate-700">Category</label>
               <select
@@ -1598,6 +1617,7 @@ export function FormsWorkspace() {
                 className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
                 <option value="Draft">Draft</option>
+                <option value="Pending Review">Pending Review</option>
                 <option value="Active">Active</option>
                 <option value="Archived">Archived</option>
               </select>

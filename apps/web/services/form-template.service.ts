@@ -193,15 +193,17 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
   const status: FormTemplate["status"] =
     template.form_type === "draft"
       ? "Draft"
-      : template.is_active
-        ? "Active"
-        : "Archived";
+      : template.form_type === "pending_review"
+        ? "Pending Review"
+        : template.is_active
+          ? "Active"
+          : "Archived";
 
   return {
     id: String(template.id),
     name: template.title,
     category: normalizeFormCategoryId(
-      template.form_type === "draft" ? "uncategorized" : template.form_type
+      template.form_type === "draft" || template.form_type === "pending_review" ? "uncategorized" : template.form_type
     ),
     description: template.description ?? "",
     status,
@@ -230,12 +232,13 @@ function toBackendFields(fields: FormField[]) {
 
 function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
   const isDraft = template.status === "Draft";
+  const isPendingReview = template.status === "Pending Review";
   const title = template.name.trim() || "Untitled Form";
 
   return {
     title,
     description: template.description?.trim() || null,
-    form_type: isDraft ? "draft" : normalizeFormCategoryId(template.category),
+    form_type: isDraft ? "draft" : isPendingReview ? "pending_review" : normalizeFormCategoryId(template.category),
     outlet_id: null,
     is_active: template.status === "Active",
     fields: toBackendFields(ensureResponsiblePersonField(template.fields)),

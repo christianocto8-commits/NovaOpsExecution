@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, ClipboardCheck, Clock3 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardCheck, Clock3, RefreshCw } from "lucide-react";
 
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { AnnouncementBanner } from "@/features/announcements/components/announcement-banner";
@@ -72,7 +72,7 @@ export default function OperatorHomePage() {
     getServerWorkspaceSnapshot
   );
   const { isOnline } = useOnlineStatus();
-  const { pendingSyncCount, workpackStats, isPrefetching, refreshWorkpack } = useOfflineSync();
+  const { pendingSyncCount, pendingTaskIds, workpackStats, isPrefetching, refreshWorkpack } = useOfflineSync();
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
@@ -122,6 +122,18 @@ export default function OperatorHomePage() {
           <OfflineSyncBadge />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              void tasksQuery.refetch();
+              void correctiveActionsQuery.refetch();
+            }}
+            disabled={tasksQuery.isFetching || correctiveActionsQuery.isFetching}
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 disabled:opacity-60"
+          >
+            <RefreshCw className={`size-3.5 ${tasksQuery.isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
           <PwaInstallPrompt compact />
           <span
             className={`inline-flex min-h-[36px] items-center rounded-full px-3 py-1.5 text-xs font-bold ${
@@ -227,6 +239,11 @@ export default function OperatorHomePage() {
                       {getTaskProgressLabel(task)}
                     </span>
                   ) : null}
+                  {pendingTaskIds.has(task.id) ? (
+                    <span className="ml-2 shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      Sync
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             ))}
@@ -248,6 +265,11 @@ export default function OperatorHomePage() {
                   {getTaskProgressLabel(task) ? (
                     <span className="ml-2 shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-red-600">
                       {getTaskProgressLabel(task)}
+                    </span>
+                  ) : null}
+                  {pendingTaskIds.has(task.id) ? (
+                    <span className="ml-2 shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      Sync
                     </span>
                   ) : null}
                 </Link>

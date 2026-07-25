@@ -14,6 +14,7 @@ import {
   getIdentityUsers,
   IdentityRole,
   IdentityUser,
+  resetIdentityUserSecurity,
   updateIdentityUser,
 } from "@/services/identity.service";
 
@@ -136,13 +137,19 @@ export function useUsersWorkspace() {
     onSuccess: invalidateIdentityUsers,
   });
 
+  const securityResetMutation = useMutation({
+    mutationFn: resetIdentityUserSecurity,
+    onSuccess: invalidateIdentityUsers,
+  });
+
   const loading =
     usersQuery.isLoading ||
     rolesQuery.isLoading ||
     outletsQuery.isLoading ||
     createMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending;
+    deleteMutation.isPending ||
+    securityResetMutation.isPending;
 
   const queryError =
     usersQuery.error instanceof Error
@@ -330,6 +337,23 @@ export function useUsersWorkspace() {
 
   const updateStatus = statusAction.updateStatus;
 
+  const resetSecurity = useDeleteAction<string>({
+    entityName: "Account security",
+    actionName: "Reset",
+    getEntityLabel: (id) => users.find((item) => item.id === id)?.name,
+    confirmationDescription: (label) =>
+      `Reset security for ${label}?\n\nAll active login devices will be eliminated and active OTP login challenges will be cancelled.`,
+    confirmText: "Reset security",
+    loadingText: "Resetting...",
+    successMessage: "Security reset completed.",
+    errorMessage: "Failed to reset account security",
+    onDelete: async (id) => {
+      setError("");
+      const result = await securityResetMutation.mutateAsync(id);
+      toast.success(result.message);
+    },
+  }).deleteItem;
+
   return {
     users,
     roles,
@@ -350,5 +374,6 @@ export function useUsersWorkspace() {
     saveUser,
     deleteUser,
     updateStatus,
+    resetSecurity,
   };
 }

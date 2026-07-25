@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarDays, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { TaskFormDrawer } from "@/features/tasks/components/task-form-drawer";
@@ -46,18 +46,37 @@ function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<st
   };
 }
 
+function getPreviewDateLabel(value: string | null) {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleDateString("id-ID", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
 export function SchedulesWorkspace() {
   const toast = useToast();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
+  const [closedDate, setClosedDate] = useState("");
+  const [closedReason, setClosedReason] = useState("");
+  const [scheduleExceptions, setScheduleExceptions] = useState<Array<{ date: string; reason: string }>>([]);
   const [scheduleForm, setScheduleForm] = useState<TaskFormState>({
     ...emptyTaskForm,
     recurrence: "daily",
     autoPublish: true,
     assignee: "Outlet Team",
   });
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
 
   const schedulesQuery = useQuery({
     queryKey: ["task-schedules"],
@@ -112,6 +131,59 @@ export function SchedulesWorkspace() {
   const rows = useMemo(
     () => (schedulesQuery.data ?? []).map((schedule) => toScheduleTask(schedule, outletNameById)),
     [outletNameById, schedulesQuery.data]
+  );
+  const upcomingPreview = useMemo(() => {
+    if (nowMs == null) return [];
+
+    const sevenDays = nowMs + 7 * 24 * 60 * 60 * 1000;
+
+    return (schedulesQuery.data ?? [])
+      .filter((schedule) => schedule.is_active && schedule.next_publish_at)
+      .map((schedule) => ({
+        schedule,
+        publishAt: new Date(schedule.next_publish_at as string),
+        outletCount: schedule.outlet_ids_json.length,
+      }))
+      .filter(({ publishAt }) => {
+        const time = publishAt.getTime();
+        return !Number.isNaN(time) && time >= nowMs && time <= sevenDays;
+      })
+      .sort((first, second) => first.publishAt.getTime() - second.publishAt.getTime())
+      .slice(0, 6);
+  }, [nowMs, schedulesQuery.data]);
+  const previewTaskCount = upcomingPreview.reduce(
+    (sum, item) => sum + Math.max(1, item.outletCount),
+    0
+  );
+  const scheduleConflicts = useMemo(() => {
+    const buckets = new Map<string, { label: string; schedules: string[] }>();
+
+    (schedulesQuery.data ?? []).forEach((schedule) => {
+      if (!schedule.is_active || !schedule.next_publish_at) return;
+      const publishAt = new Date(schedule.next_publish_at);
+      if (Number.isNaN(publishAt.getTime())) return;
+      const hourKey = publishAt.toISOString().slice(0, 13);
+
+      schedule.outlet_ids_json.forEach((outletId) => {
+        const key = `${outletId}:${hourKey}`;
+        const label = `${outletNameById[String(outletId)] ?? `Outlet ${outletId}`} - ${publishAt.toLocaleString("id-ID")}`;
+        const current = buckets.get(key) ?? { label, schedules: [] };
+        current.schedules.push(schedule.title);
+        buckets.set(key, current);
+      });
+    });
+
+    return Array.from(buckets.values()).filter((bucket) => bucket.schedules.length > 1);
+  }, [outletNameById, schedulesQuery.data]);
+  const blockedPreviewCount = useMemo(
+    () =>
+      upcomingPreview.filter(({ schedule }) =>
+        scheduleExceptions.some((exception) => {
+          if (!schedule.next_publish_at) return false;
+          return schedule.next_publish_at.slice(0, 10) === exception.date;
+        })
+      ).length,
+    [scheduleExceptions, upcomingPreview]
   );
 
   const columns: EnterpriseColumn<(typeof rows)[number]>[] = [
@@ -297,6 +369,121 @@ export function SchedulesWorkspace() {
             <Plus className="size-4" />
             {t("schedules.new")}
           </button>
+        </div>
+      </section>
+
+      {scheduleConflicts.length > 0 ? (
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+          <p className="text-sm font-bold text-amber-950">Schedule conflict warning</p>
+          <p className="mt-1 text-sm text-amber-800">
+            Ada outlet yang menerima beberapa task pada jam publish yang sama. Pertimbangkan reschedule agar beban outlet tidak menumpuk.
+          </p>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {scheduleConflicts.slice(0, 4).map((conflict) => (
+              <div key={conflict.label} className="rounded-2xl border border-amber-200 bg-white p-4">
+                <p className="text-sm font-bold text-amber-950">{conflict.label}</p>
+                <p className="mt-1 text-xs text-amber-800">{conflict.schedules.join(", ")}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <p className="text-sm font-bold text-slate-950">Holiday / store closed exceptions</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Catat tanggal tutup untuk planning schedule. Preview publish pada tanggal ini akan diberi warning.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]">
+          <input
+            type="date"
+            value={closedDate}
+            onChange={(event) => setClosedDate(event.target.value)}
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+          />
+          <input
+            value={closedReason}
+            onChange={(event) => setClosedReason(event.target.value)}
+            placeholder="Reason, e.g. public holiday / store maintenance"
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!closedDate) return;
+              setScheduleExceptions((current) => [
+                { date: closedDate, reason: closedReason.trim() || "Store closed" },
+                ...current.filter((item) => item.date !== closedDate),
+              ]);
+              setClosedDate("");
+              setClosedReason("");
+            }}
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+          >
+            Add exception
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {scheduleExceptions.length ? (
+            scheduleExceptions.map((exception) => (
+              <div key={exception.date} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-950">
+                  {exception.date} - {exception.reason}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setScheduleExceptions((current) => current.filter((item) => item.date !== exception.date))}
+                  className="text-xs font-bold text-amber-800"
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">Belum ada exception.</p>
+          )}
+        </div>
+        {blockedPreviewCount > 0 ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            {blockedPreviewCount} upcoming schedule jatuh pada tanggal exception.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-5 text-emerald-700" />
+            <div>
+              <p className="text-sm font-bold text-slate-950">7-day publish preview</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {previewTaskCount} task akan dibuat dari schedule aktif yang sudah punya next publish.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+            {upcomingPreview.length} schedule
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {upcomingPreview.length ? (
+            upcomingPreview.map(({ schedule, outletCount }) => (
+              <div key={schedule.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {getPreviewDateLabel(schedule.next_publish_at)}
+                </p>
+                <p className="mt-1 font-bold text-slate-950">{schedule.title}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {outletCount} outlet - due {schedule.due_time}
+                </p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+              Tidak ada publish schedule aktif dalam 7 hari ke depan.
+            </div>
+          )}
         </div>
       </section>
 

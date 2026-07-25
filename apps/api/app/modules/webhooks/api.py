@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -14,7 +14,7 @@ from app.modules.webhooks.schemas import (
     WebhookTestResponse,
     WebhookUpdate,
 )
-from app.services.webhook_dispatcher import list_recent_deliveries, send_test_webhook
+from app.services.webhook_dispatcher import list_recent_deliveries, retry_webhook_delivery, send_test_webhook
 from app.modules.webhooks.service import WebhookService
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -98,6 +98,27 @@ def test_webhook(
 
     return WebhookTestResponse(
         delivered=delivered,
+        http_status=http_status,
+        error_message=error_message,
+    )
+
+
+@router.post("/deliveries/{delivery_id}/retry", response_model=WebhookTestResponse)
+def retry_delivery(
+    delivery_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    del current_user
+
+    try:
+        delivered, http_status, error_message = retry_webhook_delivery(db, delivery_id=delivery_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return WebhookTestResponse(
+        delivered=delivered,
+        event_type="webhook.retry",
         http_status=http_status,
         error_message=error_message,
     )

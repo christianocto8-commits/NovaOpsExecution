@@ -89,8 +89,20 @@ export type WebhookDelivery = {
   delivered_at: string | null;
 };
 
-export async function listWebhookDeliveries(limit = 25) {
-  return api<WebhookDelivery[]>(`/api/v1/webhooks/deliveries?limit=${limit}`);
+export type WebhookDeliveryFilters = {
+  limit?: number;
+  subscriptionId?: string;
+};
+
+export async function listWebhookDeliveries(filters: WebhookDeliveryFilters = {}) {
+  const params = new URLSearchParams();
+  params.set("limit", String(filters.limit ?? 25));
+
+  if (filters.subscriptionId) {
+    params.set("subscription_id", filters.subscriptionId);
+  }
+
+  return api<WebhookDelivery[]>(`/api/v1/webhooks/deliveries?${params.toString()}`);
 }
 
 export type WebhookTestResult = {
@@ -102,6 +114,12 @@ export type WebhookTestResult = {
 
 export async function testWebhook(id: string) {
   return api<WebhookTestResult>(`/api/v1/webhooks/${id}/test`, {
+    method: "POST",
+  });
+}
+
+export async function retryWebhookDelivery(id: string) {
+  return api<WebhookTestResult>(`/api/v1/webhooks/deliveries/${id}/retry`, {
     method: "POST",
   });
 }

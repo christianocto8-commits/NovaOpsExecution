@@ -20,6 +20,9 @@ class WebhookRepository:
     def find_by_id(self, webhook_id: UUID) -> WebhookSubscription | None:
         return self.db.get(WebhookSubscription, webhook_id)
 
+    def find_delivery_by_id(self, delivery_id: UUID) -> WebhookDelivery | None:
+        return self.db.get(WebhookDelivery, delivery_id)
+
     def create(self, webhook: WebhookSubscription) -> WebhookSubscription:
         self.db.add(webhook)
         self.db.commit()

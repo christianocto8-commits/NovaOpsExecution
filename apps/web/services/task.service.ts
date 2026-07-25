@@ -376,6 +376,30 @@ export const taskService = {
     return mapBackendTask(task);
   },
 
+  async updateCorrectiveActionEvidence(
+    taskId: string,
+    payload: {
+      root_cause?: string | null;
+      before_evidence_url?: string | null;
+      after_evidence_url?: string | null;
+      note?: string | null;
+    }
+  ) {
+    const task = await api<BackendTask>(`/api/v1/tasks/${taskId}/capa`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    return mapBackendTask(task);
+  },
+
+  async rejectCorrectiveAction(taskId: string, reason: string) {
+    const task = await api<BackendTask>(`/api/v1/tasks/${taskId}/reject-capa`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+    return mapBackendTask(task);
+  },
+
   async submitExecution(
     taskId: string,
     payload: {

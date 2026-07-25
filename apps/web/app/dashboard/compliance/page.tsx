@@ -413,6 +413,13 @@ export default function ComplianceCenterPage() {
       })),
     [failedItemsQuery.data]
   );
+  const repeatFailures = useMemo(
+    () =>
+      (failedItemsQuery.data?.items ?? [])
+        .filter((item) => item.failure_count > 1)
+        .slice(0, 4),
+    [failedItemsQuery.data]
+  );
   const templateTrendChartData = useMemo(
     () =>
       (templateTrendQuery.data?.points ?? []).map((point) => ({
@@ -426,6 +433,41 @@ export default function ComplianceCenterPage() {
     .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
     .sort((first, second) => first.completion - second.completion)
     .slice(0, 5);
+  const riskInsights = useMemo(() => {
+    const outletRisk = groupByOutlet(rows)
+      .filter((item) => item.total > 0)
+      .sort((first, second) => first.progress - second.progress)[0];
+    const weakestTemplate = [...rows]
+      .filter((row) => row.completion < passThreshold)
+      .sort((first, second) => first.completion - second.completion)[0];
+    const overdueCount = rows.filter((row) => row.status === "Overdue").length;
+    const criticalCount = rows.filter((row) => row.priority === "Critical").length;
+
+    return [
+      {
+        label: "Highest risk outlet",
+        value: outletRisk ? outletRisk.outlet : "-",
+        detail: outletRisk
+          ? `${outletRisk.progress}% compliance, ${outletRisk.issues} issue`
+          : "No outlet risk detected",
+        tone: outletRisk && outletRisk.progress < passThreshold ? "risk" : "ok",
+      },
+      {
+        label: "Weakest checklist",
+        value: weakestTemplate ? weakestTemplate.task : "-",
+        detail: weakestTemplate
+          ? `${weakestTemplate.outlet}, score ${weakestTemplate.completion}%`
+          : "No checklist below threshold",
+        tone: weakestTemplate ? "risk" : "ok",
+      },
+      {
+        label: "Operational pressure",
+        value: `${overdueCount} overdue`,
+        detail: `${criticalCount} critical priority task${criticalCount === 1 ? "" : "s"}`,
+        tone: overdueCount > 0 || criticalCount > 0 ? "watch" : "ok",
+      },
+    ];
+  }, [passThreshold, rows]);
 
   async function handleExportExcel() {
     setExportError(null);
@@ -598,6 +640,26 @@ export default function ComplianceCenterPage() {
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        {riskInsights.map((insight) => (
+          <div
+            key={insight.label}
+            className={[
+              "rounded-2xl border bg-white p-5 shadow-sm",
+              insight.tone === "risk"
+                ? "border-red-200"
+                : insight.tone === "watch"
+                  ? "border-amber-200"
+                  : "border-emerald-100",
+            ].join(" ")}
+          >
+            <p className="text-sm font-semibold text-slate-500">{insight.label}</p>
+            <p className="mt-2 truncate text-xl font-bold text-slate-950">{insight.value}</p>
+            <p className="mt-1 text-sm text-slate-500">{insight.detail}</p>
+          </div>
+        ))}
+      </section>
+
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
@@ -753,6 +815,34 @@ export default function ComplianceCenterPage() {
           xKey="label"
           series={[{ dataKey: "failures", name: "Failures" }]}
         />
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-950">Repeat Failure Drill-down</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Checklist question yang gagal berulang dan perlu masuk CAPA/root cause review.
+          </p>
+          <div className="mt-4 space-y-3">
+            {repeatFailures.length ? (
+              repeatFailures.map((item) => (
+                <div key={`${item.label}-${item.failure_count}`} className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-bold text-red-950">{item.label}</p>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-red-700">
+                      {item.failure_count}x
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-red-800">
+                    Prioritaskan investigasi outlet/template yang memunculkan item ini berulang.
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                Belum ada failed checklist item yang berulang dalam periode ini.
+              </p>
+            )}
+          </div>
+        </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
           <p className="text-sm font-semibold text-slate-950">Outlet Score Heatmap</p>

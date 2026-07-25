@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSettings } from "@/features/settings/hooks/use-settings";
@@ -117,6 +117,11 @@ export default function CorrectiveActionsPage() {
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
 
   const correctiveActionsQuery = useQuery({
     queryKey: [...queryKeys.sop.tasks(), "corrective-actions"],
@@ -161,6 +166,21 @@ export default function CorrectiveActionsPage() {
   const urgentCount = correctiveActions.filter(
     (task) => task.priority === "Critical" && task.backendStatus !== "completed"
   ).length;
+  const slaBreachedCount = correctiveActions.filter((task) => {
+    if (nowMs == null) return false;
+    if ((task.backendStatus ?? "open") === "completed" || !task.due) return false;
+    const due = new Date(task.due);
+    return !Number.isNaN(due.getTime()) && due.getTime() < nowMs;
+  }).length;
+  const escalationCandidates = correctiveActions.filter((task) => {
+    if (nowMs == null) return false;
+    const status = task.backendStatus ?? "open";
+    if (status === "completed") return false;
+    if (task.priority === "Critical") return true;
+    if (!task.due) return false;
+    const due = new Date(task.due);
+    return !Number.isNaN(due.getTime()) && due.getTime() < nowMs;
+  }).length;
 
   return (
     <main className={mobileDashboardMainClass}>
@@ -213,7 +233,7 @@ export default function CorrectiveActionsPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">{t("capa.open")}</p>
           <p className="mt-2 text-3xl font-bold text-red-700">{openCount}</p>
@@ -229,6 +249,14 @@ export default function CorrectiveActionsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">{t("capa.verified")}</p>
           <p className="mt-2 text-3xl font-bold text-emerald-700">{verifiedCount}</p>
+        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
+          <p className="text-sm text-red-700">SLA breached</p>
+          <p className="mt-2 text-3xl font-bold text-red-800">{slaBreachedCount}</p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <p className="text-sm text-amber-700">Escalation candidates</p>
+          <p className="mt-2 text-3xl font-bold text-amber-800">{escalationCandidates}</p>
         </div>
       </section>
 

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.modules.identity.models import (
     Organization,
+    LoginOtpChallenge,
     Outlet,
     OutletOperator,
     Permission,
@@ -201,6 +202,37 @@ class RefreshTokenRepository:
         self.db.add(refresh_token)
         self.db.flush()
 
+    def revoke_all_for_user(self, user_id: UUID) -> int:
+        sessions = self.list_active_for_user(user_id)
+
+        for session in sessions:
+            session.revoked_at = datetime.now(UTC)
+            self.db.add(session)
+
+        self.db.flush()
+        return len(sessions)
+
+
+class LoginOtpChallengeRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def consume_active_for_user(self, user_id: UUID) -> int:
+        now = datetime.now(UTC)
+        statement = select(LoginOtpChallenge).where(
+            LoginOtpChallenge.user_id == user_id,
+            LoginOtpChallenge.consumed_at.is_(None),
+            LoginOtpChallenge.expires_at > now,
+        )
+        challenges = list(self.db.scalars(statement).all())
+
+        for challenge in challenges:
+            challenge.consumed_at = now
+            self.db.add(challenge)
+
+        self.db.flush()
+        return len(challenges)
+
 
 class RoleRepository:
     def __init__(self, db: Session):
@@ -215,7 +247,11 @@ class RoleRepository:
         return list(self.db.scalars(statement).all())
 
     def find_by_id(self, role_id: UUID) -> Role | None:
-        statement = select(Role).where(Role.id == role_id)
+        statement = (
+            select(Role)
+            .options(selectinload(Role.permissions))
+            .where(Role.id == role_id)
+        )
         return self.db.scalar(statement)
 
     def find_by_slug(self, slug: str) -> Role | None:
@@ -230,6 +266,14 @@ class PermissionRepository:
 
     def list(self) -> list[Permission]:
         statement = select(Permission).order_by(Permission.code.asc())
+        return list(self.db.scalars(statement).all())
+
+    def list_by_codes(self, codes: list[str]) -> list[Permission]:
+        normalized_codes = sorted({code.strip() for code in codes if code.strip()})
+        if not normalized_codes:
+            return []
+
+        statement = select(Permission).where(Permission.code.in_(normalized_codes))
         return list(self.db.scalars(statement).all())
 
 

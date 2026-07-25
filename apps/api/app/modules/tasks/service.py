@@ -23,6 +23,8 @@ from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import (
     TaskAssignmentCreate,
     TaskCommentCreate,
+    CorrectiveActionEvidenceUpdate,
+    CorrectiveActionReject,
     TaskCreate,
     TaskExecutionSubmit,
     TaskReviewUpdate,
@@ -789,6 +791,79 @@ class TaskService:
                 event_type="capa_verified",
                 previous_value=None,
                 new_value=task.verified_at.isoformat(),
+            )
+        )
+
+        self.db.commit()
+        self.db.refresh(task)
+        return task
+
+    def update_corrective_action_evidence(
+        self,
+        task_id: int,
+        outlet_id: int,
+        actor_id: int,
+        payload: CorrectiveActionEvidenceUpdate,
+    ) -> Task:
+        task = self.get_task(task_id, outlet_id)
+
+        if task.source_type != "corrective_action":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only corrective action tasks can store CAPA evidence",
+            )
+
+        evidence_lines = [
+            "[CAPA Evidence]",
+            f"Root cause: {payload.root_cause or '-'}",
+            f"Before evidence: {payload.before_evidence_url or '-'}",
+            f"After evidence: {payload.after_evidence_url or '-'}",
+            f"Note: {payload.note or '-'}",
+        ]
+
+        self.repo.create_comment(
+            TaskComment(
+                task_id=task.id,
+                user_id=actor_id,
+                comment="\n".join(evidence_lines),
+                evidence_url=payload.after_evidence_url or payload.before_evidence_url,
+                event_type="capa_evidence",
+                previous_value=task.status,
+                new_value=task.status,
+            )
+        )
+
+        self.db.commit()
+        self.db.refresh(task)
+        return task
+
+    def reject_corrective_action(
+        self,
+        task_id: int,
+        outlet_id: int,
+        actor_id: int,
+        payload: CorrectiveActionReject,
+    ) -> Task:
+        task = self.get_task(task_id, outlet_id)
+
+        if task.source_type != "corrective_action":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only corrective action tasks can be rejected",
+            )
+
+        previous_status = task.status
+        task.status = "in_progress"
+        task.verified_at = None
+
+        self.repo.create_comment(
+            TaskComment(
+                task_id=task.id,
+                user_id=actor_id,
+                comment=f"CAPA rejected by manager: {payload.reason}",
+                event_type="capa_rejected",
+                previous_value=previous_status,
+                new_value=task.status,
             )
         )
 

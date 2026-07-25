@@ -10,6 +10,8 @@ from app.models.task import Task
 from app.modules.identity.models import User as IdentityUser
 from app.modules.tasks.schemas import (
     OutletMemberResponse,
+    CorrectiveActionEvidenceUpdate,
+    CorrectiveActionReject,
     TaskAssignmentCreate,
     TaskAssignmentResponse,
     TaskCommentCreate,
@@ -348,6 +350,48 @@ def verify_task(
         task_id=task_id,
         outlet_id=x_outlet_id,
         actor_id=actor_id,
+    )
+    return build_task_response(db, task)
+
+
+@router.patch("/{task_id}/capa", response_model=TaskResponse)
+def update_corrective_action_evidence(
+    task_id: int,
+    payload: CorrectiveActionEvidenceUpdate,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
+    service = TaskService(db)
+    task = service.update_corrective_action_evidence(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=actor_id,
+        payload=payload,
+    )
+    return build_task_response(db, task)
+
+
+@router.post("/{task_id}/reject-capa", response_model=TaskResponse)
+def reject_corrective_action(
+    task_id: int,
+    payload: CorrectiveActionReject,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
+    )
+    service = TaskService(db)
+    task = service.reject_corrective_action(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=actor_id,
+        payload=payload,
     )
     return build_task_response(db, task)
 

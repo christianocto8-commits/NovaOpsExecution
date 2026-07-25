@@ -66,6 +66,10 @@ class RoleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RolePermissionsUpdate(BaseModel):
+    permission_codes: list[str] = Field(default_factory=list)
+
+
 class OutletRead(BaseModel):
     id: UUID
     code: str

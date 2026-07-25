@@ -10,6 +10,7 @@ from app.modules.identity.dependencies import get_current_active_user, require_p
 from app.modules.identity.models import AuditLog, Outlet, OutletOperator, RefreshToken, User
 from app.modules.identity.repository import (
     OrganizationRepository,
+    LoginOtpChallengeRepository,
     OutletRepository,
     OutletOperatorRepository,
     PermissionRepository,
@@ -28,6 +29,7 @@ from app.modules.identity.schemas import (
     PasswordChangeRequest,
     PermissionRead,
     RoleRead,
+    RolePermissionsUpdate,
     UserCreate,
     UserRead,
     UserUpdate,
@@ -97,6 +99,43 @@ def list_permissions(
     current_user: User = Depends(require_permission("user.read")),
 ):
     return PermissionRepository(db).list()
+
+
+@router.patch("/roles/{role_id}/permissions", response_model=RoleRead)
+def update_role_permissions(
+    role_id: UUID,
+    payload: RolePermissionsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("user.edit")),
+):
+    role = RoleRepository(db).find_by_id(role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    requested_codes = sorted({code.strip() for code in payload.permission_codes if code.strip()})
+
+    if role.slug in {"owner", "admin"} and "user.edit" not in requested_codes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Owner/admin role must keep user.edit permission",
+        )
+
+    permissions = PermissionRepository(db).list_by_codes(requested_codes)
+    found_codes = {permission.code for permission in permissions}
+    missing_codes = sorted(set(requested_codes) - found_codes)
+
+    if missing_codes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown permission code: {', '.join(missing_codes)}",
+        )
+
+    role.permissions = permissions
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+
+    return role
 
 
 @router.get("/outlets", response_model=list[OutletRead])
@@ -316,6 +355,7 @@ def update_user(
         validate_password_policy(str(update_data["password"]))
         user.password_hash = hash_password(str(update_data["password"]))
         user.password_changed_at = datetime.now(UTC)
+        RefreshTokenRepository(db).revoke_all_for_user(user.id)
 
     next_role_id = update_data.get("role_id", user.role_id)
     next_role = roles.find_by_id(next_role_id)
@@ -343,9 +383,12 @@ def update_user(
         user.role_id = next_role.id
         user.outlet_id = resolved_outlet_id
         user.assigned_outlets = assigned_outlets
+        RefreshTokenRepository(db).revoke_all_for_user(user.id)
 
     if "is_active" in update_data:
         user.is_active = bool(update_data["is_active"])
+        if not user.is_active:
+            RefreshTokenRepository(db).revoke_all_for_user(user.id)
 
     updated = users.update(user)
     db.commit()
@@ -381,6 +424,45 @@ def delete_user(
     db.commit()
 
     return MessageResponse(message="User deleted")
+
+
+@router.post("/users/{user_id}/security-reset", response_model=MessageResponse)
+def reset_user_security(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("user.edit")),
+):
+    users = UserRepository(db)
+    user = users.find_by_id(user_id)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    revoked_sessions = RefreshTokenRepository(db).revoke_all_for_user(user.id)
+    cleared_challenges = LoginOtpChallengeRepository(db).consume_active_for_user(user.id)
+
+    record_identity_audit_event(
+        db,
+        action="user_security_reset",
+        resource_type="identity_user",
+        actor_user_id=current_user.id,
+        organization_id=current_user.outlet.organization_id if current_user.outlet else None,
+        outlet_id=current_user.outlet_id,
+        resource_id=str(user.id),
+        metadata={
+            "user_email": user.email,
+            "revoked_sessions": revoked_sessions,
+            "cleared_otp_challenges": cleared_challenges,
+        },
+    )
+    db.commit()
+
+    return MessageResponse(
+        message=(
+            f"Security reset complete. Revoked {revoked_sessions} device(s) "
+            f"and cleared {cleared_challenges} OTP challenge(s)."
+        )
+    )
 
 
 @router.patch("/me/password", response_model=MessageResponse)

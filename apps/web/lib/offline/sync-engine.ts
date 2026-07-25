@@ -64,9 +64,42 @@ async function resolveOfflineEvidenceUrl(offlineUrl: string): Promise<string> {
   }
 
   const uploaded = await uploadEvidenceBlob(record.blob, record.fileName);
-  await deleteEvidenceBlob(record.id);
 
   return uploaded.url;
+}
+
+function collectOfflineEvidenceIds(value: unknown, ids = new Set<string>()) {
+  if (typeof value === "string") {
+    if (isOfflineEvidenceUrl(value)) {
+      ids.add(getOfflineEvidenceId(value));
+      return ids;
+    }
+
+    try {
+      collectOfflineEvidenceIds(JSON.parse(value), ids);
+    } catch {
+      // Plain text answer, not a serialized evidence value.
+    }
+
+    return ids;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectOfflineEvidenceIds(item, ids));
+    return ids;
+  }
+
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((nestedValue) => collectOfflineEvidenceIds(nestedValue, ids));
+  }
+
+  return ids;
+}
+
+async function deleteResolvedOfflineEvidence(payload: unknown) {
+  const ids = Array.from(collectOfflineEvidenceIds(payload));
+
+  await Promise.all(ids.map((id) => deleteEvidenceBlob(id)));
 }
 
 async function replaceOfflineUrlsInValue(value: unknown): Promise<unknown> {
@@ -125,10 +158,12 @@ async function processExecutionDraft(mutation: QueuedMutation) {
 
   if (existingSessionId) {
     await updateExecutionSession(existingSessionId, sessionPayload);
+    await deleteResolvedOfflineEvidence(payload);
     return;
   }
 
   await createExecutionSession(sessionPayload);
+  await deleteResolvedOfflineEvidence(payload);
 }
 
 async function processExecutionSubmit(mutation: QueuedMutation) {
@@ -153,6 +188,7 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
   });
 
   await deleteLocalDraft(mutation.taskId);
+  await deleteResolvedOfflineEvidence(payload);
 }
 
 async function resolveFormSubmissionAnswers(answers: FormSubmissionCreatePayload["answers"]) {
@@ -192,6 +228,7 @@ async function processFormSubmit(mutation: QueuedMutation) {
         : null,
     answers,
   });
+  await deleteResolvedOfflineEvidence(payload);
 }
 
 async function processMutation(mutation: QueuedMutation) {

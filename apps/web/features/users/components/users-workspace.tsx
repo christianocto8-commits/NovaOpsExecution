@@ -75,6 +75,7 @@ export function UsersWorkspace() {
         onSelectUser={usersWorkspace.setSelectedUser}
         onEditUser={usersWorkspace.openEditDialog}
         onDeleteUser={usersWorkspace.deleteUser}
+        onResetSecurity={usersWorkspace.resetSecurity}
         onStatusChange={usersWorkspace.updateStatus}
         canManage={isOwnerAdminWorkspace}
       />

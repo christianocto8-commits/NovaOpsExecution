@@ -7,6 +7,8 @@ import {
   Building2,
   CheckSquare,
   FileText,
+  RotateCcw,
+  Save,
   Shield,
   Smartphone,
   Trash2,
@@ -31,7 +33,11 @@ import { Language, useLanguage } from "@/shared/i18n";
 import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
-import { getIdentityRoles, type IdentityRole } from "@/services/identity.service";
+import {
+  getIdentityRoles,
+  updateIdentityRolePermissions,
+  type IdentityRole,
+} from "@/services/identity.service";
 import {
   getAllLoginDevices,
   getLoginDevices,
@@ -648,15 +654,31 @@ function AdminLoginDevicesPanel({ onNotice }: { onNotice: (message: string) => v
 function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => void }) {
   const [roles, setRoles] = useState<IdentityRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [draftPermissions, setDraftPermissions] = useState<Record<string, string[]>>({});
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
+
+  const syncDrafts = useCallback((nextRoles: IdentityRole[]) => {
+    setDraftPermissions(
+      Object.fromEntries(
+        nextRoles.map((role) => [
+          role.id,
+          role.permissions.map((permission) => permission.code).sort(),
+        ])
+      )
+    );
+  }, []);
 
   useEffect(() => {
     void getIdentityRoles()
-      .then(setRoles)
+      .then((nextRoles) => {
+        setRoles(nextRoles);
+        syncDrafts(nextRoles);
+      })
       .catch((error) => {
         onNotice(error instanceof Error ? error.message : "Gagal memuat permission matrix.");
       })
       .finally(() => setIsLoading(false));
-  }, [onNotice]);
+  }, [onNotice, syncDrafts]);
 
   const permissions = useMemo(() => {
     const map = new Map<string, string>();
@@ -668,52 +690,140 @@ function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => vo
     return Array.from(map.entries()).sort(([first], [second]) => first.localeCompare(second));
   }, [roles]);
 
+  function togglePermission(roleId: string, code: string) {
+    setDraftPermissions((current) => {
+      const currentCodes = new Set(current[roleId] ?? []);
+
+      if (currentCodes.has(code)) {
+        currentCodes.delete(code);
+      } else {
+        currentCodes.add(code);
+      }
+
+      return {
+        ...current,
+        [roleId]: Array.from(currentCodes).sort(),
+      };
+    });
+  }
+
+  function isRoleDirty(role: IdentityRole) {
+    const original = role.permissions.map((permission) => permission.code).sort().join("|");
+    const draft = (draftPermissions[role.id] ?? []).slice().sort().join("|");
+
+    return original !== draft;
+  }
+
+  async function handleSaveRole(role: IdentityRole) {
+    const permissionCodes = draftPermissions[role.id] ?? [];
+
+    setSavingRoleId(role.id);
+
+    try {
+      const updatedRole = await updateIdentityRolePermissions(role.id, permissionCodes);
+      const nextRoles = roles.map((currentRole) =>
+        currentRole.id === updatedRole.id ? updatedRole : currentRole
+      );
+
+      setRoles(nextRoles);
+      syncDrafts(nextRoles);
+      onNotice(`Permission ${role.name} berhasil diperbarui.`);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal menyimpan permission role.");
+    } finally {
+      setSavingRoleId(null);
+    }
+  }
+
+  function handleResetRole(role: IdentityRole) {
+    setDraftPermissions((current) => ({
+      ...current,
+      [role.id]: role.permissions.map((permission) => permission.code).sort(),
+    }));
+  }
+
   return (
     <SectionCard title="Permission Matrix">
       <p className="mb-4 text-sm text-slate-500">
-        Audit cepat hak akses per role. Matrix ini read-only agar perubahan permission tidak
-        dilakukan tanpa endpoint governance khusus.
+        Audit dan ubah hak akses per role. Simpan perubahan per role agar review akses tetap jelas.
       </p>
       {isLoading ? (
         <p className="text-sm text-slate-500">Memuat permission matrix...</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500">
-              <tr>
-                <th className="sticky left-0 bg-slate-50 px-4 py-3">Permission</th>
-                {roles.map((role) => (
-                  <th key={role.id} className="px-4 py-3">{role.name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {permissions.map(([code, name]) => (
-                <tr key={code} className="border-t border-slate-100">
-                  <td className="sticky left-0 bg-white px-4 py-3">
-                    <p className="font-semibold text-slate-900">{code}</p>
-                    <p className="text-xs text-slate-500">{name}</p>
-                  </td>
-                  {roles.map((role) => {
-                    const allowed = role.permissions.some((permission) => permission.code === code);
-                    return (
-                      <td key={`${role.id}-${code}`} className="px-4 py-3">
-                        <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                            allowed
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-slate-100 text-slate-300"
-                          }`}
-                        >
-                          {allowed ? "Y" : "-"}
-                        </span>
-                      </td>
-                    );
-                  })}
+        <div className="space-y-3">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="sticky left-0 bg-slate-50 px-4 py-3">Permission</th>
+                  {roles.map((role) => (
+                    <th key={role.id} className="px-4 py-3">{role.name}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {permissions.map(([code, name]) => (
+                  <tr key={code} className="border-t border-slate-100">
+                    <td className="sticky left-0 bg-white px-4 py-3">
+                      <p className="font-semibold text-slate-900">{code}</p>
+                      <p className="text-xs text-slate-500">{name}</p>
+                    </td>
+                    {roles.map((role) => {
+                      const checked = draftPermissions[role.id]?.includes(code) ?? false;
+                      const isProtectedAdminPermission =
+                        (role.slug === "owner" || role.slug === "admin") && code === "user.edit";
+
+                      return (
+                        <td key={`${role.id}-${code}`} className="px-4 py-3">
+                          <EnterpriseCheckbox
+                            checked={checked}
+                            disabled={savingRoleId === role.id || isProtectedAdminPermission}
+                            onChange={() => togglePermission(role.id, code)}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {roles.map((role) => {
+              const dirty = isRoleDirty(role);
+
+              return (
+                <div key={role.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-sm font-bold text-slate-950">{role.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {(draftPermissions[role.id] ?? []).length} permission aktif
+                    {dirty ? " - belum disimpan" : ""}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!dirty || savingRoleId === role.id}
+                      onClick={() => void handleSaveRole(role)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {savingRoleId === role.id ? "Menyimpan" : "Simpan"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!dirty || savingRoleId === role.id}
+                      onClick={() => handleResetRole(role)}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                      aria-label={`Reset ${role.name}`}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </SectionCard>

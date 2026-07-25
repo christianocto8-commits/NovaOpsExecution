@@ -9,6 +9,7 @@ import {
   deleteWebhook,
   listWebhookDeliveries,
   listWebhooks,
+  retryWebhookDelivery,
   type WebhookEventType,
   type WebhookSubscription,
   testWebhook,
@@ -34,6 +35,9 @@ export default function WebhooksPage() {
   ]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<"all" | "delivered" | "failed">("all");
+  const [deliveryEvent, setDeliveryEvent] = useState<WebhookEventType | "all">("all");
+  const [deliverySubscriptionId, setDeliverySubscriptionId] = useState("all");
 
   const webhooksQuery = useQuery({
     queryKey: ["webhooks"],
@@ -42,8 +46,12 @@ export default function WebhooksPage() {
   });
 
   const deliveriesQuery = useQuery({
-    queryKey: ["webhook-deliveries"],
-    queryFn: () => listWebhookDeliveries(25),
+    queryKey: ["webhook-deliveries", deliverySubscriptionId],
+    queryFn: () =>
+      listWebhookDeliveries({
+        limit: 100,
+        subscriptionId: deliverySubscriptionId === "all" ? undefined : deliverySubscriptionId,
+      }),
     retry: false,
   });
 
@@ -106,7 +114,34 @@ export default function WebhooksPage() {
     },
   });
 
+  const retryMutation = useMutation({
+    mutationFn: retryWebhookDelivery,
+    onSuccess: async (result) => {
+      setNotice(
+        result.delivered
+          ? `Retry delivery succeeded${result.http_status ? ` (HTTP ${result.http_status})` : ""}.`
+          : `Retry delivery failed${result.error_message ? `: ${result.error_message}` : "."}`
+      );
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: ["webhook-deliveries"] });
+    },
+    onError: (mutationError) => {
+      setError(
+        mutationError instanceof Error ? mutationError.message : "Unable to retry webhook delivery."
+      );
+    },
+  });
+
   const webhooks = webhooksQuery.data ?? [];
+  const deliveries = useMemo(
+    () =>
+      (deliveriesQuery.data ?? []).filter((delivery) => {
+        if (deliveryStatus !== "all" && delivery.status !== deliveryStatus) return false;
+        if (deliveryEvent !== "all" && delivery.event_type !== deliveryEvent) return false;
+        return true;
+      }),
+    [deliveriesQuery.data, deliveryEvent, deliveryStatus]
+  );
 
   const eventSummary = useMemo(
     () =>
@@ -298,15 +333,54 @@ export default function WebhooksPage() {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Recent deliveries</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Log pengiriman webhook dengan status, retry, dan error message.
-        </p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Recent deliveries</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Log pengiriman webhook dengan status, retry, dan error message.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <select
+              value={deliverySubscriptionId}
+              onChange={(event) => setDeliverySubscriptionId(event.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="all">All subscriptions</option>
+              {webhooks.map((webhook) => (
+                <option key={webhook.id} value={webhook.id}>
+                  {webhook.description || webhook.url}
+                </option>
+              ))}
+            </select>
+            <select
+              value={deliveryStatus}
+              onChange={(event) => setDeliveryStatus(event.target.value as typeof deliveryStatus)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="all">All status</option>
+              <option value="delivered">Delivered</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select
+              value={deliveryEvent}
+              onChange={(event) => setDeliveryEvent(event.target.value as WebhookEventType | "all")}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="all">All events</option>
+              {WEBHOOK_EVENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="mt-5 space-y-3">
           {deliveriesQuery.isLoading ? (
             <p className="text-sm text-slate-500">Loading delivery log...</p>
-          ) : (deliveriesQuery.data ?? []).length ? (
-            (deliveriesQuery.data ?? []).map((delivery) => (
+          ) : deliveries.length ? (
+            deliveries.map((delivery) => (
               <div
                 key={delivery.id}
                 className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
@@ -331,6 +405,16 @@ export default function WebhooksPage() {
                 </p>
                 {delivery.error_message ? (
                   <p className="mt-1 text-xs text-red-700">{delivery.error_message}</p>
+                ) : null}
+                {delivery.status === "failed" ? (
+                  <button
+                    type="button"
+                    onClick={() => retryMutation.mutate(delivery.id)}
+                    disabled={retryMutation.isPending}
+                    className="mt-3 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {retryMutation.isPending ? "Retrying..." : "Retry delivery"}
+                  </button>
                 ) : null}
               </div>
             ))

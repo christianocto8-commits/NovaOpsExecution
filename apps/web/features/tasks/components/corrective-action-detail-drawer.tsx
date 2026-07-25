@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, User, X } from "lucide-react";
+import { useState } from "react";
 
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
@@ -27,6 +28,15 @@ function getReason(task: Task) {
   return task.description ?? "";
 }
 
+function inferRootCause(reason: string) {
+  const normalized = reason.toLowerCase();
+  if (/suhu|temperature|cold|freezer|chiller|mesin/.test(normalized)) return "Equipment / cold chain";
+  if (/foto|evidence|bukti|signature|tanda tangan/.test(normalized)) return "Evidence quality";
+  if (/bersih|clean|sanit|hygiene|kotor/.test(normalized)) return "Cleaning / hygiene";
+  if (/stock|stok|inventory|expired|expiry/.test(normalized)) return "Inventory / product";
+  return "Process adherence";
+}
+
 export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveActionDetailDrawerProps) {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
@@ -36,6 +46,11 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
     getServerWorkspaceSnapshot
   );
   const isManager = workspace.mode !== "outlet";
+  const [rootCauseInput, setRootCauseInput] = useState("");
+  const [beforeEvidenceUrl, setBeforeEvidenceUrl] = useState("");
+  const [afterEvidenceUrl, setAfterEvidenceUrl] = useState("");
+  const [capaNote, setCapaNote] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
 
   const verifyMutation = useMutation({
     mutationFn: (taskId: string) => taskService.verify(taskId),
@@ -44,10 +59,33 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
       queryClient.invalidateQueries({ queryKey: [...queryKeys.sop.tasks(), "corrective-actions"] });
     },
   });
+  const evidenceMutation = useMutation({
+    mutationFn: (taskId: string) =>
+      taskService.updateCorrectiveActionEvidence(taskId, {
+        root_cause: rootCauseInput.trim() || null,
+        before_evidence_url: beforeEvidenceUrl.trim() || null,
+        after_evidence_url: afterEvidenceUrl.trim() || null,
+        note: capaNote.trim() || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.sop.tasks(), "corrective-actions"] });
+    },
+  });
+  const rejectMutation = useMutation({
+    mutationFn: (taskId: string) => taskService.rejectCorrectiveAction(taskId, rejectReason.trim()),
+    onSuccess: () => {
+      setRejectReason("");
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.sop.tasks(), "corrective-actions"] });
+    },
+  });
 
   if (!task) return null;
 
   const backendStatus = task.backendStatus ?? "open";
+  const reason = getReason(task);
+  const rootCause = inferRootCause(reason);
   const verificationStatus = task.verifiedAt
     ? "verified"
     : backendStatus === "completed"
@@ -103,6 +141,73 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
             </p>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Root cause category
+              </p>
+              <p className="mt-2 text-sm font-bold text-slate-950">{rootCause}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Kategori otomatis dari failed item. Owner/admin dapat pakai ini untuk repeat issue review.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Evidence expectation
+              </p>
+              <p className="mt-2 text-sm font-bold text-slate-950">Before + after fix</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Lampirkan kondisi masalah dan bukti setelah perbaikan sebelum meminta verifikasi manager.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-sm font-bold text-slate-950">CAPA evidence</p>
+            <div className="mt-3 grid gap-3">
+              <select
+                value={rootCauseInput}
+                onChange={(event) => setRootCauseInput(event.target.value)}
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500"
+              >
+                <option value="">Pilih root cause...</option>
+                <option>Equipment / cold chain</option>
+                <option>Evidence quality</option>
+                <option>Cleaning / hygiene</option>
+                <option>Inventory / product</option>
+                <option>Process adherence</option>
+                <option>Staff training</option>
+              </select>
+              <input
+                value={beforeEvidenceUrl}
+                onChange={(event) => setBeforeEvidenceUrl(event.target.value)}
+                placeholder="Before evidence URL"
+                className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+              />
+              <input
+                value={afterEvidenceUrl}
+                onChange={(event) => setAfterEvidenceUrl(event.target.value)}
+                placeholder="After evidence URL"
+                className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+              />
+              <textarea
+                value={capaNote}
+                onChange={(event) => setCapaNote(event.target.value)}
+                placeholder="Catatan perbaikan"
+                rows={3}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={() => evidenceMutation.mutate(task.id)}
+                disabled={evidenceMutation.isPending}
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+              >
+                {evidenceMutation.isPending ? "Saving..." : "Save CAPA evidence"}
+              </button>
+            </div>
+          </div>
+
           {task.sourceId ? (
             <Link
               href={`/dashboard/tasks?taskId=${task.sourceId}`}
@@ -125,15 +230,34 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
               {t("capa.completeFix")}
             </Link>
           ) : isManager && !task.verifiedAt ? (
-            <button
-              type="button"
-              onClick={() => verifyMutation.mutate(task.id)}
-              disabled={verifyMutation.isPending}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
-            >
-              <CheckCircle2 className="size-4" />
-              {verifyMutation.isPending ? t("capa.verifying") : t("capa.managerVerify")}
-            </button>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => verifyMutation.mutate(task.id)}
+                disabled={verifyMutation.isPending}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
+              >
+                <CheckCircle2 className="size-4" />
+                {verifyMutation.isPending ? t("capa.verifying") : t("capa.managerVerify")}
+              </button>
+              <div className="rounded-2xl border border-red-100 bg-red-50 p-3">
+                <textarea
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  placeholder="Alasan reject/reopen CAPA"
+                  rows={2}
+                  className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm outline-none focus:border-red-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => rejectMutation.mutate(task.id)}
+                  disabled={rejectMutation.isPending || !rejectReason.trim()}
+                  className="mt-2 w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-700 disabled:opacity-60"
+                >
+                  {rejectMutation.isPending ? "Rejecting..." : "Reject & reopen"}
+                </button>
+              </div>
+            </div>
           ) : (
             <p className="flex items-center justify-center gap-2 text-center text-sm font-semibold text-emerald-700">
               <CheckCircle2 className="size-4" />

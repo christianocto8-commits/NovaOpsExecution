@@ -1,4 +1,4 @@
-import { Edit3, Eye, Trash2 } from "lucide-react";
+import { Edit3, Eye, ShieldAlert, Trash2 } from "lucide-react";
 
 import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
@@ -12,6 +12,7 @@ type UserTableProps = {
   onSelectUser: (user: User) => void;
   onEditUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
+  onResetSecurity: (id: string) => void;
   onStatusChange: (id: string, status: UserStatus) => void;
   canManage: boolean;
 };
@@ -81,6 +82,7 @@ export function UserTable({
   onSelectUser,
   onEditUser,
   onDeleteUser,
+  onResetSecurity,
   onStatusChange,
   canManage,
 }: UserTableProps) {
@@ -222,6 +224,14 @@ export function UserTable({
               title="Edit"
             >
               <Edit3 className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => onResetSecurity(user.id)}
+              className="rounded-lg border border-amber-200 p-2 text-amber-600 transition hover:bg-amber-50"
+              title="Reset security"
+            >
+              <ShieldAlert className="h-4 w-4" />
             </button>
 
             <button

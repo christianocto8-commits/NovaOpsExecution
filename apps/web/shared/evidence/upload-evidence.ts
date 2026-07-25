@@ -24,18 +24,29 @@ function isOfflineContext() {
   return typeof navigator !== "undefined" && !navigator.onLine;
 }
 
+function isNetworkFailure(error: unknown) {
+  return (
+    error instanceof TypeError ||
+    (error instanceof DOMException && error.name === "NetworkError")
+  );
+}
+
+async function storeEvidenceForOfflineSync(file: File, options: EvidenceUploadOptions) {
+  const record = await storeOfflineEvidence(file);
+
+  return {
+    url: record.url,
+    file_name: record.fileName,
+    uploaded_at: record.createdAt,
+    latitude: options.geolocation?.latitude ?? null,
+    longitude: options.geolocation?.longitude ?? null,
+    accuracy_m: options.geolocation?.accuracy_m ?? null,
+  };
+}
+
 export async function uploadEvidenceFile(file: File, options: EvidenceUploadOptions = {}) {
   if (isOfflineContext()) {
-    const record = await storeOfflineEvidence(file);
-
-    return {
-      url: record.url,
-      file_name: record.fileName,
-      uploaded_at: record.createdAt,
-      latitude: options.geolocation?.latitude ?? null,
-      longitude: options.geolocation?.longitude ?? null,
-      accuracy_m: options.geolocation?.accuracy_m ?? null,
-    };
+    return storeEvidenceForOfflineSync(file, options);
   }
 
   const formData = new FormData();
@@ -76,17 +87,8 @@ export async function uploadEvidenceFile(file: File, options: EvidenceUploadOpti
 
     return (await response.json()) as EvidenceUploadResponse;
   } catch (error) {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      const record = await storeOfflineEvidence(file);
-
-      return {
-        url: record.url,
-        file_name: record.fileName,
-        uploaded_at: record.createdAt,
-        latitude: options.geolocation?.latitude ?? null,
-        longitude: options.geolocation?.longitude ?? null,
-        accuracy_m: options.geolocation?.accuracy_m ?? null,
-      };
+    if (isOfflineContext() || isNetworkFailure(error)) {
+      return storeEvidenceForOfflineSync(file, options);
     }
 
     throw error;
