@@ -236,6 +236,7 @@ async function processMutation(mutation: QueuedMutation) {
     ...mutation,
     status: "processing",
     error: undefined,
+    lastAttemptAt: new Date().toISOString(),
   };
 
   await updateMutation(processingMutation);
@@ -254,6 +255,8 @@ async function processMutation(mutation: QueuedMutation) {
     const failedMutation: QueuedMutation = {
       ...mutation,
       status: "failed",
+      retryCount: (mutation.retryCount ?? 0) + 1,
+      lastAttemptAt: new Date().toISOString(),
       error: error instanceof Error ? error.message : "Sinkronisasi gagal.",
     };
 

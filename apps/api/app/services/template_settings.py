@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.form_field import FormField
 
 DEFAULT_REQUIRE_EXECUTION_NOTE = True
+DEFAULT_REQUIRES_APPROVAL = False
 
 
 def _is_responsible_person_field(field: FormField) -> bool:
@@ -28,3 +29,22 @@ def template_requires_execution_note(db: Session, form_template_id: int) -> bool
         return DEFAULT_REQUIRE_EXECUTION_NOTE
 
     return bool(require_note)
+
+
+def template_requires_approval(db: Session, form_template_id: int) -> bool:
+    field = (
+        db.query(FormField)
+        .filter(FormField.form_template_id == form_template_id)
+        .filter(FormField.options_json.isnot(None))
+        .order_by(FormField.sort_order.asc())
+        .first()
+    )
+
+    if not field or not isinstance(field.options_json, dict):
+        return DEFAULT_REQUIRES_APPROVAL
+
+    requires_approval = field.options_json.get("requires_approval")
+    if requires_approval is None:
+        return DEFAULT_REQUIRES_APPROVAL
+
+    return bool(requires_approval)

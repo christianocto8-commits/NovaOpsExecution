@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 import { listIotReadings, listIotSensorHealth } from "@/services/iot.service";
+import { listEquipmentHealth } from "@/services/asset.service";
 import { buildApiUrl } from "@/lib/api-url";
 import { useLanguage } from "@/shared/i18n";
 
@@ -47,9 +48,15 @@ export default function IotDashboardPage() {
     queryFn: listIotSensorHealth,
     retry: false,
   });
+  const equipmentQuery = useQuery({
+    queryKey: ["equipment-health"],
+    queryFn: listEquipmentHealth,
+    retry: false,
+  });
 
   const readings = readingsQuery.data ?? [];
   const healthRows = healthQuery.data ?? [];
+  const equipmentRows = equipmentQuery.data ?? [];
   const alertSensors = healthRows.filter((row) => row.status === "alert").length;
   const offlineSensors = healthRows.filter((row) => row.status === "offline").length;
   const chartData = buildLast24hChart(readings);
@@ -137,6 +144,69 @@ export default function IotDashboardPage() {
           ) : (
             <p className="text-sm text-slate-500">Belum ada sensor health.</p>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Equipment health</h2>
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-3 py-2">Equipment</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Latest</th>
+                <th className="px-3 py-2">Calibration</th>
+                <th className="px-3 py-2">Gateway</th>
+              </tr>
+            </thead>
+            <tbody>
+              {equipmentQuery.isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-slate-500">
+                    Loading equipment...
+                  </td>
+                </tr>
+              ) : equipmentRows.length ? (
+                equipmentRows.slice(0, 25).map((equipment) => (
+                  <tr key={equipment.id} className="border-b border-slate-100">
+                    <td className="px-3 py-3">
+                      <p className="font-bold text-slate-950">{equipment.name}</p>
+                      <p className="text-xs text-slate-500">Outlet {equipment.outlet_id.slice(0, 8)}...</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
+                        equipment.status === "alert"
+                          ? "bg-red-100 text-red-700"
+                          : equipment.status === "offline"
+                            ? "bg-amber-100 text-amber-700"
+                            : equipment.status === "stale"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-emerald-100 text-emerald-700"
+                      }`}>
+                        {equipment.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-slate-700">
+                      {equipment.latest_value ?? "-"}{equipment.unit ?? ""}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {equipment.calibration_due_at
+                        ? new Date(equipment.calibration_due_at).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">{equipment.gateway_id ?? "-"}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-slate-500">
+                    Belum ada equipment yang terhubung sensor.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 

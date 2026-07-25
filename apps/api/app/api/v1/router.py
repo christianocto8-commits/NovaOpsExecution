@@ -20,6 +20,7 @@ from app.modules.workflows.instance_api import router as workflow_instance_route
 from app.modules.workflows.workflow_api import router as workflow_router
 from app.modules.api_keys.api import router as api_keys_router
 from app.modules.announcements.api import router as announcement_router
+from app.modules.assets.api import router as assets_router
 from app.modules.webhooks.api import router as webhooks_router
 from app.modules.integrations.api import router as integrations_router
 from app.modules.iot.api import router as iot_router
@@ -58,6 +59,7 @@ api_router.include_router(reports_router)
 api_router.include_router(audit_router)
 api_router.include_router(activity_router)
 api_router.include_router(announcement_router)
+api_router.include_router(assets_router)
 api_router.include_router(api_keys_router)
 api_router.include_router(webhooks_router)
 api_router.include_router(integrations_router)

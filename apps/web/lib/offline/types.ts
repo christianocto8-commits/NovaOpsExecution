@@ -17,6 +17,8 @@ export type QueuedMutation = {
   createdAt: string;
   status: "pending" | "processing" | "failed";
   error?: string;
+  retryCount?: number;
+  lastAttemptAt?: string;
   label?: string;
 };
 

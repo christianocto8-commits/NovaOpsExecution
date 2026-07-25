@@ -7,36 +7,96 @@ from sqlalchemy.orm import Session
 
 from app.models.task import Task
 from app.models.task_comment import TaskComment
+from app.modules.identity.models import Outlet as IdentityOutlet
 from app.modules.identity.models import Role, User as IdentityUser
-from app.modules.notifications.models import NotificationEvent
-from app.modules.notifications.task_notifications import notify_task_recipient
+from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNER_ROLE
+from app.modules.notifications.models import NotificationDelivery, NotificationEvent
+from app.modules.notifications.task_notifications import notify_task_recipient, resolve_identity_user_id
 from app.services.webhook_dispatcher import dispatch_webhook_event
 
 
+def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:
+    from app.models.outlet import Outlet
+
+    legacy_outlet = db.query(Outlet).filter(Outlet.id == legacy_outlet_id).first()
+    if not legacy_outlet:
+        return None
+
+    return db.query(IdentityOutlet).filter(IdentityOutlet.code == legacy_outlet.code.strip().upper()).first()
+
+
+def _area_manager_has_outlet_access(user: IdentityUser, identity_outlet: IdentityOutlet | None) -> bool:
+    if not identity_outlet:
+        return True
+    if user.outlet_id == identity_outlet.id:
+        return True
+    return any(outlet.id == identity_outlet.id for outlet in user.assigned_outlets)
+
+
+def _legacy_id_for_identity_user(db: Session, identity_user: IdentityUser) -> int | None:
+    from app.models.user import User
+
+    legacy = db.query(User).filter(User.email == identity_user.email).first()
+    return legacy.id if legacy else None
+
+
 def _get_task_recipients(db: Session, task: Task) -> list[int]:
+    recipients: list[int] = []
+    seen: set[int] = set()
+
     if task.assigned_to:
-        return [task.assigned_to]
+        recipients.append(task.assigned_to)
+        seen.add(task.assigned_to)
 
-    admin_role = db.scalar(select(Role).where(Role.slug == "owner"))
-    if not admin_role:
-        return []
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    supervisor_roles = db.scalars(
+        select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE, AREA_MANAGER_ROLE]))
+    ).all()
+    if not supervisor_roles:
+        return recipients
 
-    admin_users = db.scalars(
+    supervisors = db.scalars(
         select(IdentityUser).where(
-            IdentityUser.role_id == admin_role.id,
+            IdentityUser.role_id.in_([role.id for role in supervisor_roles]),
             IdentityUser.is_active.is_(True),
         )
     ).all()
 
-    from app.models.user import User
+    for supervisor in supervisors:
+        role_slug = supervisor.role.slug if supervisor.role else ""
+        if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(supervisor, identity_outlet):
+            continue
+        legacy_id = _legacy_id_for_identity_user(db, supervisor)
+        if legacy_id and legacy_id not in seen:
+            recipients.append(legacy_id)
+            seen.add(legacy_id)
 
-    legacy_ids: list[int] = []
-    for admin in admin_users:
-        legacy = db.query(User).filter(User.email == admin.email).first()
-        if legacy:
-            legacy_ids.append(legacy.id)
+    return recipients
 
-    return legacy_ids
+
+def _recipient_already_notified(
+    db: Session,
+    *,
+    task_id: int,
+    event_type: str,
+    recipient_legacy_user_id: int,
+) -> bool:
+    recipient_identity_id = resolve_identity_user_id(db, recipient_legacy_user_id)
+    if not recipient_identity_id:
+        return True
+
+    return (
+        db.query(NotificationDelivery.id)
+        .join(NotificationEvent, NotificationEvent.id == NotificationDelivery.event_id)
+        .filter(
+            NotificationEvent.event_type == event_type,
+            NotificationEvent.source_entity_type == "task",
+            NotificationEvent.source_entity_id == str(task_id),
+            NotificationDelivery.recipient_user_id == recipient_identity_id,
+        )
+        .first()
+        is not None
+    )
 
 
 def process_overdue_task_alerts(db: Session) -> dict[str, int]:
@@ -94,23 +154,21 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
                 pass
             continue
 
-        already_notified = db.scalar(
-            select(NotificationEvent.id).where(
-                NotificationEvent.event_type == "task_overdue",
-                NotificationEvent.source_entity_type == "task",
-                NotificationEvent.source_entity_id == str(task.id),
-            )
-        )
-        if already_notified:
-            skipped += 1
-            continue
-
         recipients = _get_task_recipients(db, task)
         if not recipients:
             skipped += 1
             continue
 
         for recipient_legacy_id in recipients:
+            if _recipient_already_notified(
+                db,
+                task_id=task.id,
+                event_type="task_overdue",
+                recipient_legacy_user_id=recipient_legacy_id,
+            ):
+                skipped += 1
+                continue
+
             notify_task_recipient(
                 db,
                 task=task,

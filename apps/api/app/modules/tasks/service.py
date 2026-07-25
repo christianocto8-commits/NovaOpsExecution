@@ -49,6 +49,7 @@ from app.services.workflow_triggers import (
     maybe_trigger_task_completed_workflow,
 )
 from app.services.workspace_settings import get_workspace_settings
+from app.services.template_settings import template_requires_approval
 
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
@@ -516,7 +517,10 @@ class TaskService:
         )
         self.db.add(execution_session)
         previous_status = task.status
-        completed = not workspace_settings.approval_required
+        requires_approval = workspace_settings.approval_required or (
+            form_template_id is not None and template_requires_approval(self.db, form_template_id)
+        )
+        completed = not requires_approval
 
         if task.status == "open":
             task.status = "in_progress"
