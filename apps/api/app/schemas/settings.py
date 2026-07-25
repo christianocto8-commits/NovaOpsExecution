@@ -13,7 +13,7 @@ class SettingsResponse(BaseModel):
     sms_notifications: bool = False
     dashboard_alerts: bool = True
     overdue_alerts: bool = True
-    session_timeout_minutes: int = 120
+    session_timeout_minutes: int = 30
     enforce_role_permissions: bool = True
     date_format: str = "dd/MM/yyyy"
     currency: str = "IDR"

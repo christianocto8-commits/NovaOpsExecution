@@ -78,7 +78,7 @@ export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
   sms_notifications: false,
   dashboard_alerts: true,
   overdue_alerts: true,
-  session_timeout_minutes: 120,
+  session_timeout_minutes: 30,
   enforce_role_permissions: true,
   date_format: "dd/MM/yyyy",
   currency: "IDR",

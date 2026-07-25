@@ -66,4 +66,3 @@ export async function updateSettings(payload: SettingsPayload) {
     body: JSON.stringify(payload),
   });
 }
-

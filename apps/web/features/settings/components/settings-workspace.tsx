@@ -1427,6 +1427,15 @@ export function SettingsWorkspace() {
                 disabled={!state.geofence_enabled}
               />
             </EnterpriseField>
+            <EnterpriseField label="Session timeout (minutes)">
+              <EnterpriseSelect
+                value={String(state.session_timeout_minutes)}
+                onChange={(event) => update("session_timeout_minutes", Number(event.target.value))}
+              >
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+              </EnterpriseSelect>
+            </EnterpriseField>
             <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
           </div>
         </SectionCard>
