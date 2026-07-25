@@ -65,7 +65,6 @@ export function SchedulesWorkspace() {
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
   const [closedDate, setClosedDate] = useState("");
   const [closedReason, setClosedReason] = useState("");
-  const [scheduleExceptions, setScheduleExceptions] = useState<Array<{ date: string; reason: string }>>([]);
   const [scheduleForm, setScheduleForm] = useState<TaskFormState>({
     ...emptyTaskForm,
     recurrence: "daily",
@@ -81,6 +80,12 @@ export function SchedulesWorkspace() {
   const schedulesQuery = useQuery({
     queryKey: ["task-schedules"],
     queryFn: () => taskScheduleService.list(),
+    retry: false,
+  });
+
+  const scheduleExceptionsQuery = useQuery({
+    queryKey: ["task-schedule-exceptions"],
+    queryFn: () => taskScheduleService.listExceptions(),
     retry: false,
   });
 
@@ -128,6 +133,24 @@ export function SchedulesWorkspace() {
     },
   });
 
+  const createExceptionMutation = useMutation({
+    mutationFn: () =>
+      taskScheduleService.createException({
+        date: closedDate,
+        reason: closedReason.trim() || "Store closed",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-schedule-exceptions"] });
+    },
+  });
+
+  const deleteExceptionMutation = useMutation({
+    mutationFn: (exceptionId: number) => taskScheduleService.deleteException(exceptionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-schedule-exceptions"] });
+    },
+  });
+
   const rows = useMemo(
     () => (schedulesQuery.data ?? []).map((schedule) => toScheduleTask(schedule, outletNameById)),
     [outletNameById, schedulesQuery.data]
@@ -155,6 +178,7 @@ export function SchedulesWorkspace() {
     (sum, item) => sum + Math.max(1, item.outletCount),
     0
   );
+  const scheduleExceptions = scheduleExceptionsQuery.data ?? [];
   const scheduleConflicts = useMemo(() => {
     const buckets = new Map<string, { label: string; schedules: string[] }>();
 
@@ -409,14 +433,16 @@ export function SchedulesWorkspace() {
           />
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (!closedDate) return;
-              setScheduleExceptions((current) => [
-                { date: closedDate, reason: closedReason.trim() || "Store closed" },
-                ...current.filter((item) => item.date !== closedDate),
-              ]);
-              setClosedDate("");
-              setClosedReason("");
+              try {
+                await createExceptionMutation.mutateAsync();
+                setClosedDate("");
+                setClosedReason("");
+                toast.success("Exception schedule disimpan.");
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Gagal menyimpan exception.");
+              }
             }}
             className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
           >
@@ -426,13 +452,20 @@ export function SchedulesWorkspace() {
         <div className="mt-4 space-y-2">
           {scheduleExceptions.length ? (
             scheduleExceptions.map((exception) => (
-              <div key={exception.date} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div key={exception.id} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-semibold text-amber-950">
                   {exception.date} - {exception.reason}
                 </p>
                 <button
                   type="button"
-                  onClick={() => setScheduleExceptions((current) => current.filter((item) => item.date !== exception.date))}
+                  onClick={async () => {
+                    try {
+                      await deleteExceptionMutation.mutateAsync(exception.id);
+                      toast.success("Exception schedule dihapus.");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Gagal menghapus exception.");
+                    }
+                  }}
                   className="text-xs font-bold text-amber-800"
                 >
                   Remove

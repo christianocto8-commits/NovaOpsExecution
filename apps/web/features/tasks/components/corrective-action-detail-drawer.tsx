@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, User, X } from "lucide-react";
-import { useState } from "react";
+import { type ChangeEvent, useState, useSyncExternalStore } from "react";
 
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService } from "@/services/task.service";
+import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 import { useLanguage } from "@/shared/i18n";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { useSyncExternalStore } from "react";
 
 type CorrectiveActionDetailDrawerProps = {
   task: Task | null;
@@ -51,6 +51,7 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
   const [afterEvidenceUrl, setAfterEvidenceUrl] = useState("");
   const [capaNote, setCapaNote] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [uploadingSlot, setUploadingSlot] = useState<"before" | "after" | null>(null);
 
   const verifyMutation = useMutation({
     mutationFn: (taskId: string) => taskService.verify(taskId),
@@ -91,6 +92,27 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
     : backendStatus === "completed"
       ? "awaiting_verification"
       : backendStatus;
+
+  async function uploadCapaEvidence(
+    event: ChangeEvent<HTMLInputElement>,
+    slot: "before" | "after"
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingSlot(slot);
+    try {
+      const uploaded = await uploadEvidenceFile(file);
+      if (slot === "before") {
+        setBeforeEvidenceUrl(uploaded.url);
+      } else {
+        setAfterEvidenceUrl(uploaded.url);
+      }
+    } finally {
+      setUploadingSlot(null);
+      event.target.value = "";
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[70]">
@@ -184,12 +206,32 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
                 placeholder="Before evidence URL"
                 className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
               />
+              <label className="rounded-xl border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
+                {uploadingSlot === "before" ? "Uploading before..." : "Upload before photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(event) => void uploadCapaEvidence(event, "before")}
+                  className="sr-only"
+                />
+              </label>
               <input
                 value={afterEvidenceUrl}
                 onChange={(event) => setAfterEvidenceUrl(event.target.value)}
                 placeholder="After evidence URL"
                 className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
               />
+              <label className="rounded-xl border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
+                {uploadingSlot === "after" ? "Uploading after..." : "Upload after photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(event) => void uploadCapaEvidence(event, "after")}
+                  className="sr-only"
+                />
+              </label>
               <textarea
                 value={capaNote}
                 onChange={(event) => setCapaNote(event.target.value)}

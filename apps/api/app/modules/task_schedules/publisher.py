@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
+from app.models.task_schedule_exception import TaskScheduleException
 from app.modules.notifications.task_notifications import (
     notify_task_incoming_recipients,
     notify_task_schedule_upcoming_recipients,
@@ -49,6 +50,7 @@ class TaskSchedulePublisher:
         schedules_published = 0
         tasks_created = 0
         skipped_duplicates = 0
+        skipped_exceptions = 0
         upcoming_notifications_sent = 0
 
         for schedule in schedules:
@@ -61,7 +63,7 @@ class TaskSchedulePublisher:
             if not force and not self._should_publish(schedule, current):
                 continue
 
-            created, skipped = self._publish_schedule(schedule, current, force=force)
+            created, skipped, skipped_by_exception = self._publish_schedule(schedule, current, force=force)
             if created > 0 or force:
                 schedule.last_published_at = current
                 schedule.next_publish_at = self.compute_next_publish_at(schedule, current)
@@ -88,6 +90,7 @@ class TaskSchedulePublisher:
 
             tasks_created += created
             skipped_duplicates += skipped
+            skipped_exceptions += skipped_by_exception
 
         self.db.commit()
         return {
@@ -95,6 +98,7 @@ class TaskSchedulePublisher:
             "schedules_published": schedules_published,
             "tasks_created": tasks_created,
             "skipped_duplicates": skipped_duplicates,
+            "skipped_exceptions": skipped_exceptions,
             "upcoming_notifications_sent": upcoming_notifications_sent,
         }
 
@@ -139,34 +143,44 @@ class TaskSchedulePublisher:
         current: datetime,
         *,
         force: bool,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         created = 0
         skipped = 0
+        skipped_by_exception = 0
         outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
 
         if schedule.recurrence == "weekly":
             for outlet_ref in outlet_ids:
+                if self._is_exception_day(outlet_ref, current):
+                    skipped_by_exception += 1
+                    continue
                 if self._task_exists(schedule, outlet_ref, None, current, force=force):
                     skipped += 1
                     continue
 
                 if self._create_task(schedule, outlet_ref, None, current):
                     created += 1
-            return created, skipped
+            return created, skipped, skipped_by_exception
 
         if schedule.recurrence == "monthly":
             for outlet_ref in outlet_ids:
+                if self._is_exception_day(outlet_ref, current):
+                    skipped_by_exception += 1
+                    continue
                 if self._task_exists(schedule, outlet_ref, None, current, force=force):
                     skipped += 1
                     continue
 
                 if self._create_task(schedule, outlet_ref, None, current):
                     created += 1
-            return created, skipped
+            return created, skipped, skipped_by_exception
 
         shifts = schedule.shifts_json or ["morning"]
         for outlet_ref in outlet_ids:
             for shift in shifts:
+                if self._is_exception_day(outlet_ref, current):
+                    skipped_by_exception += 1
+                    continue
                 if self._task_exists(schedule, outlet_ref, shift, current, force=force):
                     skipped += 1
                     continue
@@ -174,7 +188,24 @@ class TaskSchedulePublisher:
                 if self._create_task(schedule, outlet_ref, shift, current):
                     created += 1
 
-        return created, skipped
+        return created, skipped, skipped_by_exception
+
+    def _is_exception_day(self, outlet_ref: str, current: datetime) -> bool:
+        try:
+            outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
+        except ValueError:
+            return True
+
+        return (
+            self.db.query(TaskScheduleException.id)
+            .filter(TaskScheduleException.date == current.date())
+            .filter(
+                (TaskScheduleException.outlet_id.is_(None))
+                | (TaskScheduleException.outlet_id == outlet_id)
+            )
+            .first()
+            is not None
+        )
 
     def _task_exists(
         self,

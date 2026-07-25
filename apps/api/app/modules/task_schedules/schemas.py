@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -100,9 +100,27 @@ class TaskScheduleUpcomingResponse(BaseModel):
     locked: bool = True
 
 
+class TaskScheduleExceptionCreate(BaseModel):
+    date: date
+    reason: str = Field(min_length=2, max_length=255)
+    outlet_id: int | None = None
+
+
+class TaskScheduleExceptionResponse(BaseModel):
+    id: int
+    date: date
+    reason: str
+    outlet_id: int | None
+    created_by: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class TaskScheduleProcessResult(BaseModel):
     schedules_checked: int
     schedules_published: int
     tasks_created: int
     skipped_duplicates: int
     upcoming_notifications_sent: int = 0
+    skipped_exceptions: int = 0

@@ -38,6 +38,15 @@ export type BackendUpcomingTaskSchedule = {
   locked: boolean;
 };
 
+export type BackendTaskScheduleException = {
+  id: number;
+  date: string;
+  reason: string;
+  outlet_id: number | null;
+  created_by: number | null;
+  created_at: string;
+};
+
 type CreateTaskSchedulePayload = {
   title: string;
   description: string | null;
@@ -177,6 +186,27 @@ export const taskScheduleService = {
     return api<BackendUpcomingTaskSchedule[]>("/api/v1/task-schedules/upcoming");
   },
 
+  async listExceptions() {
+    return api<BackendTaskScheduleException[]>("/api/v1/task-schedules/exceptions");
+  },
+
+  async createException(payload: { date: string; reason: string; outlet_id?: number | null }) {
+    return api<BackendTaskScheduleException>("/api/v1/task-schedules/exceptions", {
+      method: "POST",
+      body: JSON.stringify({
+        date: payload.date,
+        reason: payload.reason,
+        outlet_id: payload.outlet_id ?? null,
+      }),
+    });
+  },
+
+  async deleteException(exceptionId: number) {
+    return api<void>(`/api/v1/task-schedules/exceptions/${exceptionId}`, {
+      method: "DELETE",
+    });
+  },
+
   async get(scheduleId: number) {
     return api<BackendTaskSchedule>(`/api/v1/task-schedules/${scheduleId}`);
   },
@@ -215,6 +245,7 @@ export const taskScheduleService = {
       schedules_published: number;
       tasks_created: number;
       skipped_duplicates: number;
+      skipped_exceptions: number;
     }>("/api/v1/task-schedules/process", {
       method: "POST",
     });

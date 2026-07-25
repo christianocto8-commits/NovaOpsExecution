@@ -6,6 +6,8 @@ from app.core.deps import get_current_user
 from app.core.scheduler import verify_scheduler_secret
 from app.modules.task_schedules.schemas import (
     TaskScheduleCreate,
+    TaskScheduleExceptionCreate,
+    TaskScheduleExceptionResponse,
     TaskScheduleProcessResult,
     TaskScheduleResponse,
     TaskScheduleUpcomingResponse,
@@ -55,6 +57,38 @@ def list_upcoming_task_schedules(
 
     service = TaskScheduleService(db)
     return service.list_upcoming(outlet_ids=outlet_ids, all_outlets=full_access)
+
+
+@router.get("/exceptions", response_model=list[TaskScheduleExceptionResponse])
+def list_task_schedule_exceptions(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    del current_user
+    service = TaskScheduleService(db)
+    return service.list_exceptions()
+
+
+@router.post("/exceptions", response_model=TaskScheduleExceptionResponse, status_code=status.HTTP_201_CREATED)
+def create_task_schedule_exception(
+    payload: TaskScheduleExceptionCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = TaskScheduleService(db)
+    return service.create_exception(payload, actor_id=_get_actor_id(current_user))
+
+
+@router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task_schedule_exception(
+    exception_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    del current_user
+    service = TaskScheduleService(db)
+    service.delete_exception(exception_id)
+    return None
 
 
 @router.get("/{schedule_id}", response_model=TaskScheduleResponse)

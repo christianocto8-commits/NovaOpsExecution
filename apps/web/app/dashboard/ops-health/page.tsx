@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, CloudOff, RefreshCw, Server } from "lucide-react";
 
 import { getHealthStatus } from "@/services/health.service";
+import { jobsService } from "@/services/jobs.service";
 import { listWebhookDeliveries } from "@/services/webhook.service";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 
@@ -24,6 +25,11 @@ export default function OpsHealthPage() {
   const deliveriesQuery = useQuery({
     queryKey: ["ops-health", "webhook-deliveries"],
     queryFn: () => listWebhookDeliveries({ limit: 50 }),
+    retry: false,
+  });
+  const jobRunsQuery = useQuery({
+    queryKey: ["ops-health", "scheduler-job-runs"],
+    queryFn: () => jobsService.listRuns(20),
     retry: false,
   });
 
@@ -89,6 +95,45 @@ export default function OpsHealthPage() {
               <p className="mt-1 text-xs text-slate-500">Included in scheduler process pipeline.</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-slate-950">Scheduler job history</p>
+            <p className="mt-1 text-sm text-slate-500">Riwayat persisten dari pipeline scheduler production.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => jobRunsQuery.refetch()}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {(jobRunsQuery.data ?? []).length ? (
+            (jobRunsQuery.data ?? []).slice(0, 8).map((run) => (
+              <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <div>
+                  <p className="font-semibold text-slate-950">{run.job_name}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(run.started_at).toLocaleString("id-ID")} - {run.duration_ms}ms
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  run.status === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                }`}>
+                  {run.status}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Belum ada riwayat scheduler job dari server.
+            </p>
+          )}
         </div>
       </section>
 

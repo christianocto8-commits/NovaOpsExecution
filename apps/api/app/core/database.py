@@ -54,5 +54,6 @@ from app.models.task import Task  # noqa: E402,F401
 from app.models.task_comment import TaskComment  # noqa: E402,F401
 from app.models.task_assignment import TaskAssignment  # noqa: E402,F401
 from app.models.task_draft import TaskDraft  # noqa: E402,F401
+from app.models.task_schedule_exception import TaskScheduleException  # noqa: E402,F401
+from app.models.scheduler_job_run import SchedulerJobRun  # noqa: E402,F401
 from app.models.app_settings import AppSettings  # noqa: E402,F401
-

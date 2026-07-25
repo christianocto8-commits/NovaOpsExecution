@@ -312,6 +312,48 @@ def restore_form_template_version_endpoint(
     return _get_template_or_404(db, form_template_id)
 
 
+@router.post("/{form_template_id}/submit-review", response_model=FormTemplateResponse)
+def submit_form_template_review(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    form_template = _get_template_or_404(db, form_template_id)
+    snapshot_form_template(db, form_template, created_by=current_user.id)
+    form_template.form_type = "pending_review"
+    form_template.is_active = False
+    db.commit()
+    return _get_template_or_404(db, form_template_id)
+
+
+@router.post("/{form_template_id}/approve", response_model=FormTemplateResponse)
+def approve_form_template(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    form_template = _get_template_or_404(db, form_template_id)
+    snapshot_form_template(db, form_template, created_by=current_user.id)
+    if form_template.form_type in {"draft", "pending_review"}:
+        form_template.form_type = "uncategorized"
+    form_template.is_active = True
+    db.commit()
+    return _get_template_or_404(db, form_template_id)
+
+
+@router.post("/{form_template_id}/archive", response_model=FormTemplateResponse)
+def archive_form_template(
+    form_template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_resolve_form_actor),
+):
+    form_template = _get_template_or_404(db, form_template_id)
+    snapshot_form_template(db, form_template, created_by=current_user.id)
+    form_template.is_active = False
+    db.commit()
+    return _get_template_or_404(db, form_template_id)
+
+
 @router.post("/{form_template_id}/duplicate", response_model=FormTemplateResponse, status_code=status.HTTP_201_CREATED)
 def duplicate_form_template(
     form_template_id: int,

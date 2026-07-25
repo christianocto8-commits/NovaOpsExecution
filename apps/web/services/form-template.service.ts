@@ -336,6 +336,33 @@ export const formTemplateService = {
     return mapBackendFormTemplate(duplicated);
   },
 
+  async submitReview(templateId: string) {
+    const template = await api<BackendFormTemplate>(
+      `/api/v1/form-templates/${templateId}/submit-review`,
+      { method: "POST" }
+    );
+
+    return mapBackendFormTemplate(template);
+  },
+
+  async approve(templateId: string) {
+    const template = await api<BackendFormTemplate>(
+      `/api/v1/form-templates/${templateId}/approve`,
+      { method: "POST" }
+    );
+
+    return mapBackendFormTemplate(template);
+  },
+
+  async archive(templateId: string) {
+    const template = await api<BackendFormTemplate>(
+      `/api/v1/form-templates/${templateId}/archive`,
+      { method: "POST" }
+    );
+
+    return mapBackendFormTemplate(template);
+  },
+
   async listVersions(templateId: string) {
     return api<FormTemplateVersion[]>(`/api/v1/form-templates/${templateId}/versions`);
   },

@@ -4,9 +4,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.task_schedule import TaskSchedule
+from app.models.task_schedule_exception import TaskScheduleException
 from app.modules.task_schedules.publisher import TaskSchedulePublisher
 from app.modules.task_schedules.schemas import (
     TaskScheduleCreate,
+    TaskScheduleExceptionCreate,
     TaskScheduleUpcomingResponse,
     TaskScheduleUpdate,
 )
@@ -98,6 +100,42 @@ class TaskScheduleService:
 
     def process_due_schedules(self, schedule_id: int | None = None, force: bool = False) -> dict[str, int]:
         return self.publisher.process_due_schedules(schedule_id=schedule_id, force=force)
+
+    def list_exceptions(self) -> list[TaskScheduleException]:
+        return (
+            self.db.query(TaskScheduleException)
+            .order_by(TaskScheduleException.date.desc(), TaskScheduleException.id.desc())
+            .limit(200)
+            .all()
+        )
+
+    def create_exception(
+        self,
+        payload: TaskScheduleExceptionCreate,
+        *,
+        actor_id: int,
+    ) -> TaskScheduleException:
+        exception = TaskScheduleException(
+            date=payload.date,
+            reason=payload.reason.strip(),
+            outlet_id=payload.outlet_id,
+            created_by=actor_id,
+        )
+        self.db.add(exception)
+        self.db.commit()
+        self.db.refresh(exception)
+        return exception
+
+    def delete_exception(self, exception_id: int) -> None:
+        exception = (
+            self.db.query(TaskScheduleException)
+            .filter(TaskScheduleException.id == exception_id)
+            .first()
+        )
+        if not exception:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule exception not found")
+        self.db.delete(exception)
+        self.db.commit()
 
     def list_upcoming(
         self,
