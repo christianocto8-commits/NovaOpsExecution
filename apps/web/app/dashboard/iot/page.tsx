@@ -14,7 +14,11 @@ import {
 } from "recharts";
 
 import { listIotReadings, listIotSensorHealth } from "@/services/iot.service";
-import { listEquipmentHealth } from "@/services/asset.service";
+import {
+  listEquipmentHealth,
+  listEquipmentRegister,
+  listTemperatureLog,
+} from "@/services/asset.service";
 import { buildApiUrl } from "@/lib/api-url";
 import { useLanguage } from "@/shared/i18n";
 
@@ -53,10 +57,22 @@ export default function IotDashboardPage() {
     queryFn: listEquipmentHealth,
     retry: false,
   });
+  const registerQuery = useQuery({
+    queryKey: ["equipment-register"],
+    queryFn: listEquipmentRegister,
+    retry: false,
+  });
+  const temperatureLogQuery = useQuery({
+    queryKey: ["temperature-log"],
+    queryFn: listTemperatureLog,
+    retry: false,
+  });
 
   const readings = readingsQuery.data ?? [];
   const healthRows = healthQuery.data ?? [];
   const equipmentRows = equipmentQuery.data ?? [];
+  const registerRows = registerQuery.data ?? [];
+  const temperatureRows = temperatureLogQuery.data ?? [];
   const alertSensors = healthRows.filter((row) => row.status === "alert").length;
   const offlineSensors = healthRows.filter((row) => row.status === "offline").length;
   const chartData = buildLast24hChart(readings);
@@ -148,7 +164,14 @@ export default function IotDashboardPage() {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Equipment health</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Equipment health</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {registerRows.length} registered assets, {equipmentRows.length} health rows.
+            </p>
+          </div>
+        </div>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -210,6 +233,44 @@ export default function IotDashboardPage() {
         </div>
       </section>
 
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Asset register</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {registerQuery.isLoading ? (
+            <p className="text-sm text-slate-500">Loading assets...</p>
+          ) : registerRows.length ? (
+            registerRows.slice(0, 12).map((asset) => (
+              <div key={asset.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950">{asset.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{asset.category}</p>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase text-slate-600">
+                    {asset.status}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-slate-500">
+                  <p>Serial: {asset.serial_number ?? "-"}</p>
+                  <p>Location: {asset.location ?? "-"}</p>
+                  <p>Vendor: {asset.vendor ?? "-"}</p>
+                  <p>
+                    Maintenance:{" "}
+                    {asset.maintenance_due_at
+                      ? new Date(asset.maintenance_due_at).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">
+              Belum ada asset manual. Sensor tetap muncul otomatis di Equipment health.
+            </p>
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-2">
           <p className="text-sm font-semibold text-slate-800">{t("iot.ingestUrl")}</p>
@@ -236,6 +297,61 @@ export default function IotDashboardPage() {
           ) : (
             <p className="text-sm text-slate-500">{t("iot.noChartData")}</p>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Food safety temperature log</h2>
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-3 py-2">Recorded</th>
+                <th className="px-3 py-2">Value</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Threshold</th>
+                <th className="px-3 py-2">Gateway</th>
+              </tr>
+            </thead>
+            <tbody>
+              {temperatureLogQuery.isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-slate-500">
+                    Loading temperature log...
+                  </td>
+                </tr>
+              ) : temperatureRows.length ? (
+                temperatureRows.slice(0, 25).map((row) => (
+                  <tr key={row.id} className="border-b border-slate-100">
+                    <td className="px-3 py-3 text-slate-600">
+                      {new Date(row.recorded_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-slate-950">
+                      {row.value}
+                      {row.unit ? ` ${row.unit}` : ""}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
+                        row.status === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {row.threshold_min}-{row.threshold_max}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">{row.gateway_id ?? "-"}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-slate-500">
+                    Belum ada temperature log dari sensor.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 

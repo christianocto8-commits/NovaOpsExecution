@@ -34,6 +34,8 @@ export type FormFieldOptions = {
   system?: boolean;
   /** Template-level setting persisted on the responsible person system field. */
   require_execution_note?: boolean;
+  /** Template-level setting: submitted task waits for owner/admin review. */
+  requires_approval?: boolean;
   /** @deprecated use visibilityRule */
   showWhenFieldId?: string;
   /** @deprecated use visibilityRule */

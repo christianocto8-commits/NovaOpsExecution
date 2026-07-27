@@ -134,6 +134,19 @@ export async function getPendingSyncTaskIds(): Promise<Set<string>> {
   return taskIds;
 }
 
+export async function getFailedSyncTaskIds(): Promise<Set<string>> {
+  const mutations = await getFailedMutations();
+  const taskIds = new Set<string>();
+
+  mutations.forEach((mutation) => {
+    if (mutation.type === "EXECUTION_SUBMIT" || mutation.type === "EXECUTION_DRAFT") {
+      taskIds.add(mutation.taskId);
+    }
+  });
+
+  return taskIds;
+}
+
 export async function removePendingMutationsForTask(taskId: string, type?: QueuedMutation["type"]) {
   const mutations = await getAllMutations();
   const toRemove = mutations.filter(

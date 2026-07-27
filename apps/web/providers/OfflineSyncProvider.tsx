@@ -16,6 +16,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { prefetchOutletWorkpack } from "@/lib/offline/prefetch-outlet-workpack";
 import {
   getFailedMutations,
+  getFailedSyncTaskIds,
   getPendingMutationCount,
   getPendingSyncTaskIds,
 } from "@/lib/offline/store";
@@ -33,6 +34,7 @@ type OfflineSyncContextValue = {
   pendingSyncCount: number;
   failedSyncCount: number;
   pendingTaskIds: Set<string>;
+  failedTaskIds: Set<string>;
   isSyncing: boolean;
   isPrefetching: boolean;
   workpackStats: WorkpackStats | null;
@@ -52,6 +54,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [failedSyncCount, setFailedSyncCount] = useState(0);
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
+  const [failedTaskIds, setFailedTaskIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncErrors, setLastSyncErrors] = useState<string[]>([]);
   const [workpackStats, setWorkpackStats] = useState<WorkpackStats | null>(null);
@@ -82,19 +85,22 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 
   const refreshPendingCount = useCallback(async () => {
     try {
-      const [count, failed, taskIds] = await Promise.all([
+      const [count, failed, taskIds, failedTaskIdSet] = await Promise.all([
         getPendingMutationCount(),
         getFailedMutations(),
         getPendingSyncTaskIds(),
+        getFailedSyncTaskIds(),
       ]);
 
       setPendingSyncCount(count);
       setFailedSyncCount(failed.length);
       setPendingTaskIds(taskIds);
+      setFailedTaskIds(failedTaskIdSet);
     } catch {
       setPendingSyncCount(0);
       setFailedSyncCount(0);
       setPendingTaskIds(new Set());
+      setFailedTaskIds(new Set());
     }
   }, []);
 
@@ -156,6 +162,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       pendingSyncCount,
       failedSyncCount,
       pendingTaskIds,
+      failedTaskIds,
       isSyncing,
       isPrefetching,
       workpackStats,
@@ -169,6 +176,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       pendingSyncCount,
       failedSyncCount,
       pendingTaskIds,
+      failedTaskIds,
       isSyncing,
       isPrefetching,
       workpackStats,

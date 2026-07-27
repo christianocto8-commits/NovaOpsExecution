@@ -345,12 +345,14 @@ function MobileTaskRow({
   onOpen,
   formTemplates,
   isPendingSync,
+  isFailedSync,
 }: {
   task: Task;
   highlighted: boolean;
   onOpen: () => void;
   formTemplates: FormTemplate[];
   isPendingSync?: boolean;
+  isFailedSync?: boolean;
 }) {
   const progress = getTaskExecutionProgressPercentage(task, formTemplates);
   const draftProgress = getTaskDraftProgress(task, formTemplates);
@@ -426,6 +428,11 @@ function MobileTaskRow({
                   Menunggu sync
                 </span>
               ) : null}
+              {isFailedSync ? (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                  Sync gagal
+                </span>
+              ) : null}
               {task.priority === "High" ? (
                 <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
                   Follow-up Task
@@ -458,6 +465,7 @@ function CollapsibleTaskSection({
   collapsed,
   onToggle,
   pendingTaskIds,
+  failedTaskIds,
 }: {
   section: MobileTaskSection;
   highlightedTaskId: string | null;
@@ -466,6 +474,7 @@ function CollapsibleTaskSection({
   collapsed: boolean;
   onToggle: () => void;
   pendingTaskIds: Set<string>;
+  failedTaskIds: Set<string>;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -500,6 +509,7 @@ function CollapsibleTaskSection({
               onOpen={() => onOpenTask(task)}
               formTemplates={formTemplates}
               isPendingSync={pendingTaskIds.has(task.id)}
+              isFailedSync={failedTaskIds.has(task.id)}
             />
           ))}
         </div>
@@ -519,6 +529,7 @@ function TaskGroupedList({
   onCollapseAll,
   emptyMessage,
   pendingTaskIds,
+  failedTaskIds,
   isOutletRole = false,
 }: {
   groups: MobileTaskSection[];
@@ -531,6 +542,7 @@ function TaskGroupedList({
   onCollapseAll: () => void;
   emptyMessage: string;
   pendingTaskIds: Set<string>;
+  failedTaskIds: Set<string>;
   isOutletRole?: boolean;
 }) {
   if (groups.length === 0) {
@@ -580,6 +592,7 @@ function TaskGroupedList({
             collapsed={collapsed}
             onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
             pendingTaskIds={pendingTaskIds}
+            failedTaskIds={failedTaskIds}
           />
         );
       })}
@@ -637,7 +650,7 @@ export function TasksWorkspace() {
     isOnline,
     pendingLocalSyncCount,
   } = useTaskWorkspace();
-  const { pendingTaskIds, workpackStats } = useOfflineSync();
+  const { pendingTaskIds, failedTaskIds, workpackStats } = useOfflineSync();
 
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -1083,6 +1096,7 @@ export function TasksWorkspace() {
             onCollapseAll={collapseAllTaskGroups}
             emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
             pendingTaskIds={pendingTaskIds}
+            failedTaskIds={failedTaskIds}
             isOutletRole={isOutletRole}
           />
         </div>

@@ -9,7 +9,11 @@ import { FormLibraryPanel, rememberRecentTemplate } from "@/features/forms/compo
 import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
-import { getTemplateSettings, setTemplateRequireExecutionNote } from "@/features/forms/utils/template-settings";
+import {
+  getTemplateSettings,
+  setTemplateRequireExecutionNote,
+  setTemplateRequiresApproval,
+} from "@/features/forms/utils/template-settings";
 import { visibilityOperatorLabels } from "@/features/forms/utils/field-visibility";
 import { FormField, FormFieldType, FormTemplate, FieldVisibilityOperator } from "@/features/forms/types";
 import {
@@ -688,7 +692,7 @@ export function FormsWorkspace() {
     0;
   const templateSettings = selectedTemplate
     ? getTemplateSettings(selectedTemplate.fields)
-    : { require_execution_note: true };
+    : { require_execution_note: true, requires_approval: false };
 
   if (templatesQuery.isLoading) {
     return (
@@ -1642,6 +1646,29 @@ export function FormsWorkspace() {
                 <span className="font-semibold text-slate-900">Wajibkan catatan pelaksanaan</span>
                 <span className="mt-1 block text-xs text-slate-500">
                   Jika dimatikan, Execution Note opsional saat submit task.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={templateSettings.requires_approval}
+                disabled={isAreaWorkspace}
+                onChange={(event) =>
+                  updateSelectedTemplate({
+                    fields: setTemplateRequiresApproval(
+                      selectedTemplate.fields,
+                      event.target.checked
+                    ),
+                  })
+                }
+                className="mt-0.5 rounded border-slate-300"
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Wajib review owner/admin</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Submit outlet masuk sebagai evidence submitted dan menunggu approval sebelum completed.
                 </span>
               </span>
             </label>
