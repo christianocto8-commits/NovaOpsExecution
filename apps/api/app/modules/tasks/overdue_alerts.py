@@ -14,6 +14,8 @@ from app.modules.notifications.models import NotificationDelivery, NotificationE
 from app.modules.notifications.task_notifications import notify_task_recipient, resolve_identity_user_id
 from app.services.webhook_dispatcher import dispatch_webhook_event
 
+OVERDUE_ESCALATION_MINUTES = (15, 30, 60)
+
 
 def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:
     from app.models.outlet import Outlet
@@ -99,6 +101,47 @@ def _recipient_already_notified(
     )
 
 
+def _process_escalation_rules(
+    db: Session,
+    *,
+    task: Task,
+    now: datetime,
+    due_date: datetime,
+) -> int:
+    minutes_overdue = int((now - due_date).total_seconds() // 60)
+    recipients = _get_task_recipients(db, task)
+    alerts_created = 0
+
+    for level in OVERDUE_ESCALATION_MINUTES:
+        if minutes_overdue < level:
+            continue
+
+        event_type = f"task_overdue_escalation_{level}m"
+        for recipient_legacy_id in recipients:
+            if _recipient_already_notified(
+                db,
+                task_id=task.id,
+                event_type=event_type,
+                recipient_legacy_user_id=recipient_legacy_id,
+            ):
+                continue
+
+            notify_task_recipient(
+                db,
+                task=task,
+                event_type=event_type,
+                subject=f"Escalation {level}m overdue: {task.title}",
+                body=(
+                    f'Task "{task.title}" sudah overdue {minutes_overdue} menit. '
+                    "Mohon tindak lanjut atau buat corrective action bila perlu."
+                ),
+                recipient_legacy_user_id=recipient_legacy_id,
+            )
+            alerts_created += 1
+
+    return alerts_created
+
+
 def process_overdue_task_alerts(db: Session) -> dict[str, int]:
     now = datetime.now(timezone.utc)
     overdue_tasks = (
@@ -120,6 +163,14 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
         due_date = task.due_date
         if due_date and due_date.tzinfo is None:
             due_date = due_date.replace(tzinfo=timezone.utc)
+
+        if due_date:
+            alerts_created += _process_escalation_rules(
+                db,
+                task=task,
+                now=now,
+                due_date=due_date,
+            )
 
         if due_date and due_date + timedelta(minutes=30) <= now:
             previous_status = task.status

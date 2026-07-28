@@ -73,6 +73,48 @@ export function OfflineSyncBadge() {
     await refreshFailedItems();
   }
 
+  function readableServerVersion(task: BackendTask | null | undefined) {
+    if (task === undefined) return [{ label: "Status", value: "Loading..." }];
+    if (task === null) return [{ label: "Status", value: "Server task unavailable" }];
+
+    return [
+      { label: "Title", value: task.title },
+      { label: "Status", value: task.status },
+      { label: "Priority", value: task.priority },
+      { label: "Due", value: task.due_date ? new Date(task.due_date).toLocaleString() : "-" },
+      { label: "Completed", value: task.completed_at ? new Date(task.completed_at).toLocaleString() : "-" },
+      { label: "Updated", value: task.updated_at ? new Date(task.updated_at).toLocaleString() : "-" },
+    ];
+  }
+
+  function readableOfflineVersion(item: QueuedMutation) {
+    const payload = item.payload ?? {};
+    const answers = payload.answers_json;
+    const answerCount = answers && typeof answers === "object" ? Object.keys(answers).length : 0;
+
+    return [
+      { label: "Queued at", value: new Date(item.createdAt).toLocaleString() },
+      { label: "Type", value: item.type },
+      { label: "Task ID", value: item.taskId },
+      { label: "Answers", value: `${answerCount} fields` },
+      { label: "Evidence", value: JSON.stringify(payload).includes("evidence") ? "Included" : "-" },
+      { label: "Last attempt", value: item.lastAttemptAt ? new Date(item.lastAttemptAt).toLocaleString() : "-" },
+    ];
+  }
+
+  function ReadableFields({ rows }: { rows: Array<{ label: string; value: string }> }) {
+    return (
+      <dl className="mt-1 space-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+            <dt className="text-slate-500">{row.label}</dt>
+            <dd className="break-words font-semibold text-slate-900">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+
   useEffect(() => {
     if (lastSyncErrors.length === 0) return;
 
@@ -163,17 +205,11 @@ export function OfflineSyncBadge() {
                       <div className="grid gap-2 md:grid-cols-2">
                         <div className="rounded-lg bg-white p-2">
                           <p className="font-bold text-slate-900">Server version</p>
-                          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-700">
-                            {serverVersions[item.id] === undefined
-                              ? "Loading..."
-                              : JSON.stringify(serverVersions[item.id] ?? { error: "Server task unavailable" }, null, 2)}
-                          </pre>
+                          <ReadableFields rows={readableServerVersion(serverVersions[item.id])} />
                         </div>
                         <div className="rounded-lg bg-white p-2">
                           <p className="font-bold text-slate-900">Offline version</p>
-                          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-700">
-                            {JSON.stringify(item.payload, null, 2)}
-                          </pre>
+                          <ReadableFields rows={readableOfflineVersion(item)} />
                         </div>
                       </div>
                     ) : null}

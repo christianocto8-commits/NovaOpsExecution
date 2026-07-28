@@ -30,6 +30,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.enterprise-suite": "Enterprise Suite",
     "navigation.notifications": "Notifications",
     "navigation.reports": "Reports",
+    "navigation.benchmarks": "Benchmarks",
+    "navigation.report-automation": "Report Automation",
     "navigation.audit": "Audit Trail",
     "navigation.history": "History",
     "navigation.accounts": "Accounts",
@@ -571,6 +573,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.enterprise-suite": "Enterprise Suite",
     "navigation.notifications": "Notifikasi",
     "navigation.reports": "Laporan",
+    "navigation.benchmarks": "Benchmark",
+    "navigation.report-automation": "Automasi Laporan",
     "navigation.audit": "Audit Trail",
     "navigation.history": "Riwayat",
     "navigation.accounts": "Akun",
@@ -1084,4 +1088,3 @@ export const translations: Record<Language, Record<string, string>> = {
       "Area manager dapat memantau outlet, task, draft, dan laporan area tanpa masuk ke pengaturan inti organisasi.",
   },
 };
-

@@ -10,6 +10,7 @@ from app.modules.task_schedules.service import TaskScheduleService
 from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
 from app.modules.tasks.overdue_alerts import process_overdue_task_alerts
 from app.services.digest_email import send_compliance_digest
+from app.services.scheduled_reports import process_scheduled_reports
 
 
 class SchedulerJobService:
@@ -37,6 +38,10 @@ class SchedulerJobService:
             "compliance_digest": self._run_and_record(
                 "compliance_digest",
                 lambda: send_compliance_digest(self.db, force=force_digest),
+            ),
+            "scheduled_reports": self._run_and_record(
+                "scheduled_reports",
+                lambda: process_scheduled_reports(self.db),
             ),
         }
 

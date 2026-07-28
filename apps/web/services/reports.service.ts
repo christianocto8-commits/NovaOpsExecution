@@ -34,6 +34,39 @@ export type DigestSendResult = {
   delivered: number;
 };
 
+export type OutletBenchmark = {
+  rank: number;
+  outlet_id: number;
+  outlet_name: string;
+  region: string | null;
+  district: string | null;
+  completed_tasks: number;
+  total_tasks: number;
+  completion_rate: number;
+  overdue_tasks: number;
+  compliance_rate: number;
+  audit_score: number;
+  score_delta_from_average: number;
+  status: string;
+};
+
+export type BenchmarkSummary = {
+  average_compliance: number;
+  best_outlet: string | null;
+  worst_outlet: string | null;
+  at_risk_outlets: number;
+  outlets: OutletBenchmark[];
+};
+
+export type ScheduledReportConfig = {
+  enabled: boolean;
+  frequency: string;
+  format: string;
+  include_evidence_bundle: boolean;
+  recipients: string[];
+  last_sent_at: string | null;
+};
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -47,6 +80,48 @@ function getOutletId() {
     localStorage.getItem("current_outlet_id") ??
     localStorage.getItem("outlet_id")
   );
+}
+
+function authHeaders() {
+  const token = getToken();
+  const outletId = getOutletId();
+  const headers = new Headers();
+
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (outletId) headers.set("X-Outlet-Id", outletId);
+
+  return headers;
+}
+
+export async function getBenchmarks(): Promise<BenchmarkSummary> {
+  const response = await fetch(buildApiUrl("/api/v1/reports/benchmarks"), {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) throw new Error("Failed to load benchmark dashboard.");
+  return response.json() as Promise<BenchmarkSummary>;
+}
+
+export async function getScheduledReportConfig(): Promise<ScheduledReportConfig> {
+  const response = await fetch(buildApiUrl("/api/v1/reports/scheduled"), {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) throw new Error("Failed to load scheduled report config.");
+  return response.json() as Promise<ScheduledReportConfig>;
+}
+
+export async function updateScheduledReportConfig(payload: ScheduledReportConfig) {
+  const headers = authHeaders();
+  headers.set("Content-Type", "application/json");
+  const response = await fetch(buildApiUrl("/api/v1/reports/scheduled"), {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) throw new Error("Failed to save scheduled report config.");
+  return response.json() as Promise<ScheduledReportConfig>;
 }
 
 export async function downloadComplianceExport(format = "xlsx"): Promise<void> {

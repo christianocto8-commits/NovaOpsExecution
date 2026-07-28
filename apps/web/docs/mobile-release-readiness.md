@@ -5,6 +5,7 @@
 - Run `npm run release:mobile:qa` before creating a release build.
 - Generate Play Store artifact with `npm run release:android:aab`.
 - Generate internal QA artifact with `npm run release:android:apk`.
+- Run `npm run release:mobile:check` before signing to verify required Capacitor/Android project files.
 - Sign release builds with the production keystore stored outside the repository.
 - Keep `google-services.json`, signing passwords, and store credentials out of git.
 
@@ -28,3 +29,4 @@
 - No `.env`, uploads, videos, keystores, or generated frame files in the release branch.
 - API health must pass against `https://nova-ops.cloud/api/v1/health`.
 - Native push must show live-ready in NovaOps Mobile App settings.
+- Release artifact target is Android App Bundle (`.aab`) for Play Store and signed APK for internal QA.

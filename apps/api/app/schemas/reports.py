@@ -25,6 +25,33 @@ class OutletReport(BaseModel):
     audit_score: int
 
 
+class OutletBenchmarkReport(OutletReport):
+    rank: int
+    region: str | None = None
+    district: str | None = None
+    completed_tasks: int
+    total_tasks: int
+    score_delta_from_average: int
+    status: str
+
+
+class BenchmarkSummary(BaseModel):
+    average_compliance: int
+    best_outlet: str | None
+    worst_outlet: str | None
+    at_risk_outlets: int
+    outlets: list[OutletBenchmarkReport]
+
+
+class ScheduledReportConfig(BaseModel):
+    enabled: bool = False
+    frequency: str = "daily"
+    format: str = "pdf"
+    include_evidence_bundle: bool = True
+    recipients: list[str] = []
+    last_sent_at: str | None = None
+
+
 class ComplianceReport(BaseModel):
     category: str
     score: int

@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import json
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import func, true
@@ -10,17 +12,21 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.scheduler import verify_scheduler_secret
 from app.models.outlet import Outlet
+from app.models.app_settings import AppSettings
 from app.models.task import Task
 from app.modules.identity.dependencies import require_permission
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
+    BenchmarkSummary,
     DigestSendResult,
     FailedChecklistItemTrend,
     FailedChecklistItemsReport,
     OutletReport,
+    OutletBenchmarkReport,
     ReportSummary,
     ReportTrendPoint,
+    ScheduledReportConfig,
     TemplateTrendPoint,
     TemplateTrendsReport,
 )
@@ -35,6 +41,7 @@ from app.services.execution_validation import compliance_score
 from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
+SCHEDULED_REPORT_KEY = "scheduled_report_config"
 
 
 def _completion_rate(completed: int, total: int) -> int:
@@ -250,6 +257,119 @@ def get_outlet_reports(
         )
 
     return reports
+
+
+@router.get("/benchmarks", response_model=BenchmarkSummary)
+def get_outlet_benchmarks(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("report.read")),
+):
+    del current_user
+
+    workspace_settings = get_workspace_settings(db)
+    pass_threshold = workspace_settings.pass_threshold
+    now = datetime.now(timezone.utc)
+    outlets = db.query(Outlet).order_by(Outlet.name.asc()).all()
+    rows: list[OutletBenchmarkReport] = []
+    raw_scores: list[int] = []
+
+    for outlet in outlets:
+        total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
+        completed = (
+            db.query(func.count(Task.id))
+            .filter(Task.outlet_id == outlet.id, Task.status == "completed")
+            .scalar()
+            or 0
+        )
+        overdue = (
+            db.query(func.count(Task.id))
+            .filter(
+                Task.outlet_id == outlet.id,
+                Task.due_date.isnot(None),
+                Task.due_date < now,
+                Task.status != "completed",
+            )
+            .scalar()
+            or 0
+        )
+        completion_rate = _completion_rate(completed, total)
+        compliance_rate = compliance_score(completion_rate, pass_threshold)
+        raw_scores.append(compliance_rate)
+        status_label = "healthy"
+        if compliance_rate < pass_threshold or overdue > 3:
+            status_label = "at_risk"
+        elif overdue > 0:
+            status_label = "watch"
+
+        rows.append(
+            OutletBenchmarkReport(
+                rank=0,
+                outlet_id=outlet.id,
+                outlet_name=outlet.name,
+                region=outlet.region,
+                district=outlet.district,
+                completed_tasks=completed,
+                total_tasks=total,
+                completion_rate=completion_rate,
+                overdue_tasks=overdue,
+                compliance_rate=compliance_rate,
+                audit_score=compliance_rate,
+                score_delta_from_average=0,
+                status=status_label,
+            )
+        )
+
+    average = round(sum(raw_scores) / len(raw_scores)) if raw_scores else 0
+    ranked = sorted(rows, key=lambda row: (row.compliance_rate, -row.overdue_tasks), reverse=True)
+    for index, row in enumerate(ranked, start=1):
+        row.rank = index
+        row.score_delta_from_average = row.compliance_rate - average
+
+    return BenchmarkSummary(
+        average_compliance=average,
+        best_outlet=ranked[0].outlet_name if ranked else None,
+        worst_outlet=ranked[-1].outlet_name if ranked else None,
+        at_risk_outlets=sum(1 for row in ranked if row.status == "at_risk"),
+        outlets=ranked,
+    )
+
+
+def _load_scheduled_report_config(db: Session) -> ScheduledReportConfig:
+    row = db.query(AppSettings).filter(AppSettings.key == SCHEDULED_REPORT_KEY).first()
+    if not row:
+        return ScheduledReportConfig()
+    try:
+        payload = json.loads(row.payload)
+    except json.JSONDecodeError:
+        return ScheduledReportConfig()
+    return ScheduledReportConfig(**payload)
+
+
+@router.get("/scheduled", response_model=ScheduledReportConfig)
+def get_scheduled_report_config(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("report.read")),
+):
+    del current_user
+    return _load_scheduled_report_config(db)
+
+
+@router.put("/scheduled", response_model=ScheduledReportConfig)
+def update_scheduled_report_config(
+    payload: ScheduledReportConfig,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("report.export")),
+):
+    del current_user
+    row = db.query(AppSettings).filter(AppSettings.key == SCHEDULED_REPORT_KEY).first()
+    serialized = json.dumps(payload.model_dump(), default=str)
+    if row:
+        row.payload = serialized
+    else:
+        row = AppSettings(key=SCHEDULED_REPORT_KEY, payload=serialized)
+        db.add(row)
+    db.commit()
+    return payload
 
 
 @router.get("/compliance", response_model=list[ComplianceReport])
