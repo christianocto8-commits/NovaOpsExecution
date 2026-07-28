@@ -277,7 +277,6 @@ def approve_equipment_replacement(
     raise HTTPException(status_code=404, detail="Equipment not found")
 
 
-@router.post("/process-battery-alerts")
 def process_registered_battery_alerts(
     db: Session,
     current_user: IdentityUser | None = None,
