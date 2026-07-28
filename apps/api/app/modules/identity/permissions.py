@@ -2,12 +2,14 @@ OWNER_ROLE = "owner"
 ADMIN_ROLE = "admin"
 AREA_MANAGER_ROLE = "area_manager"
 OUTLET_ROLE = "outlet"
+FINANCE_ROLE = "finance"
 
 SYSTEM_ROLES = [
     OWNER_ROLE,
     ADMIN_ROLE,
     AREA_MANAGER_ROLE,
     OUTLET_ROLE,
+    FINANCE_ROLE,
 ]
 
 DEFAULT_PERMISSIONS = [
@@ -46,6 +48,11 @@ DEFAULT_PERMISSIONS = [
     "outlet.create",
     "outlet.edit",
     "outlet.delete",
+
+    "finance.read",
+    "finance.submit",
+    "finance.review",
+    "finance.export",
 ]
 
 ROLE_PERMISSION_MAP = {
@@ -73,6 +80,17 @@ ROLE_PERMISSION_MAP = {
         "form.submit",
         "workflow.read",
         "notification.read",
+        "finance.submit",
+        "finance.read",
+    ],
+    FINANCE_ROLE: [
+        "task.read",
+        "report.read",
+        "report.export",
+        "notification.read",
+        "finance.read",
+        "finance.review",
+        "finance.export",
+        "outlet.read",
     ],
 }
-

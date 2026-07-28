@@ -8,6 +8,9 @@ function getPermissionChips(role: User["role"]) {
   if (role === "Area Manager") {
     return ["Area outlets", "Compliance", "Reports", "Evidence", "CAPA"];
   }
+  if (role === "Finance") {
+    return ["Finance review", "Shift deposits", "Variance", "Reports", "Evidence"];
+  }
   return ["Own outlet", "Tasks", "Forms", "History", "Offline sync"];
 }
 

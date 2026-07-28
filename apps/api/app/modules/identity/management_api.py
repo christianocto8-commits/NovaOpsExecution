@@ -2,12 +2,13 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete as sa_delete, update as sa_update
+from sqlalchemy import delete as sa_delete, select, update as sa_update
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.identity.dependencies import get_current_active_user, require_permission
-from app.modules.identity.models import AuditLog, Outlet, OutletOperator, RefreshToken, User
+from app.modules.identity.models import AuditLog, Outlet, OutletOperator, Permission, RefreshToken, Role, User
+from app.modules.identity.permissions import ROLE_PERMISSION_MAP, SYSTEM_ROLES
 from app.modules.identity.repository import (
     OrganizationRepository,
     LoginOtpChallengeRepository,
@@ -63,13 +64,13 @@ def resolve_user_outlet_access(
 
         return outlet.id, []
 
-    if role_slug == "area_manager":
+    if role_slug in {"area_manager", "finance"}:
         selected_ids = outlet_ids or []
 
         if not selected_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Area manager must manage at least one outlet",
+                detail=f"{role_slug.replace('_', ' ').title()} must manage at least one outlet",
             )
 
         selected_outlets: list[Outlet] = []
@@ -85,12 +86,61 @@ def resolve_user_outlet_access(
     return None, []
 
 
+def ensure_system_roles_and_permissions(db: Session) -> list[Role]:
+    permissions_by_code = {permission.code: permission for permission in PermissionRepository(db).list()}
+    for code in sorted({code for codes in ROLE_PERMISSION_MAP.values() for code in codes}):
+        if code not in permissions_by_code:
+            permission = Permission(
+                code=code,
+                name=code.replace(".", " ").title(),
+                description=f"Allows {code}",
+            )
+            db.add(permission)
+            db.flush()
+            permissions_by_code[code] = permission
+
+    synced_roles: list[Role] = []
+    for slug in SYSTEM_ROLES:
+        role = RoleRepository(db).find_by_slug(slug)
+        if role is None:
+            role = Role(
+                slug=slug,
+                name=slug.replace("_", " ").title(),
+                description=f"System role: {slug}",
+            )
+            db.add(role)
+            db.flush()
+        role.permissions = [
+            permissions_by_code[code]
+            for code in ROLE_PERMISSION_MAP.get(slug, [])
+            if code in permissions_by_code
+        ]
+        db.add(role)
+        synced_roles.append(role)
+
+    db.commit()
+    return list(
+        db.scalars(
+            select(Role).where(Role.slug.in_(SYSTEM_ROLES)).order_by(Role.slug.asc())
+        ).all()
+    )
+
+
 @router.get("/roles", response_model=list[RoleRead])
 def list_roles(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("user.read")),
 ):
     return RoleRepository(db).list()
+
+
+@router.post("/roles/sync-system", response_model=list[RoleRead])
+def sync_system_roles(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("user.edit")),
+):
+    del current_user
+    return ensure_system_roles_and_permissions(db)
 
 
 @router.get("/permissions", response_model=list[PermissionRead])

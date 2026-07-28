@@ -14,6 +14,7 @@ from app.models.user import User
 from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
+from app.modules.finance_handoff.api import create_finance_deposit_from_form_submission
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
@@ -184,6 +185,16 @@ def create_form_submission(
 
     template = db.get(FormTemplate, stored_submission.form_template_id)
     outlet = db.get(Outlet, stored_submission.outlet_id)
+
+    try:
+        create_finance_deposit_from_form_submission(
+            db,
+            submission=stored_submission,
+            template=template,
+            submitted_by_legacy_user_id=current_user.id,
+        )
+    except Exception:
+        pass
 
     try:
         notify_owner_admin_form_submitted(

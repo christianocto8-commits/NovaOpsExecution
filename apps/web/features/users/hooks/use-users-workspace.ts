@@ -15,6 +15,7 @@ import {
   IdentityRole,
   IdentityUser,
   resetIdentityUserSecurity,
+  syncSystemIdentityRoles,
   updateIdentityUser,
 } from "@/services/identity.service";
 
@@ -23,13 +24,14 @@ import { OutletScope, User, UserFormState, UserRole, UserStatus } from "../types
 
 function getScopeByRole(role: UserRole): OutletScope {
   if (role === "Owner/Admin") return "All Outlets";
-  if (role === "Area Manager") return "Multiple Outlets";
+  if (role === "Area Manager" || role === "Finance") return "Multiple Outlets";
   return "Single Outlet";
 }
 
 function getRoleLabel(slug: string): UserRole {
   if (slug === "owner" || slug === "admin") return "Owner/Admin";
   if (slug === "area_manager") return "Area Manager";
+  if (slug === "finance") return "Finance";
   return "Outlet";
 }
 
@@ -52,7 +54,7 @@ function mapIdentityUser(user: IdentityUser): User {
     outlet:
       role === "Owner/Admin"
         ? "All Outlets"
-        : role === "Area Manager"
+        : role === "Area Manager" || role === "Finance"
           ? assignedOutletNames.length
             ? assignedOutletNames.join(", ")
             : "No outlets assigned"
@@ -66,7 +68,13 @@ function mapIdentityUser(user: IdentityUser): User {
 
 function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
   const slug =
-    role === "Owner/Admin" ? "owner" : role === "Area Manager" ? "area_manager" : "outlet";
+    role === "Owner/Admin"
+      ? "owner"
+      : role === "Area Manager"
+        ? "area_manager"
+        : role === "Finance"
+          ? "finance"
+          : "outlet";
 
   return roles.find((item) => item.slug === slug)?.id ?? "";
 }
@@ -88,7 +96,17 @@ export function useUsersWorkspace() {
 
   const rolesQuery = useQuery({
     queryKey: queryKeys.identity.roles,
-    queryFn: getIdentityRoles,
+    queryFn: async () => {
+      const nextRoles = await getIdentityRoles();
+      if (nextRoles.some((role) => role.slug === "finance")) {
+        return nextRoles;
+      }
+      try {
+        return await syncSystemIdentityRoles();
+      } catch {
+        return nextRoles;
+      }
+    },
   });
 
   const outletsQuery = useQuery({
@@ -182,7 +200,7 @@ export function useUsersWorkspace() {
       outlet:
         user.role === "Outlet"
           ? (user.outletIds[0] ?? "")
-          : user.role === "Area Manager"
+          : user.role === "Area Manager" || user.role === "Finance"
             ? "Multiple Outlets"
             : "All Outlets",
       outletIds: user.outletIds,
@@ -201,9 +219,9 @@ export function useUsersWorkspace() {
       };
     }
 
-    if (normalizedForm.role === "Area Manager") {
+    if (normalizedForm.role === "Area Manager" || normalizedForm.role === "Finance") {
       if (normalizedForm.outletIds.length === 0) {
-        throw new Error("Area Manager must manage at least one outlet");
+        throw new Error(`${normalizedForm.role} must manage at least one outlet`);
       }
 
       return {

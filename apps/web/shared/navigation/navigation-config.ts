@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Banknote,
   Bell,
   Building2,
   ClipboardCheck,
@@ -146,6 +147,14 @@ export const navigationItems: NavigationItem[] = [
     label: "Enterprise Suite",
     href: "/dashboard/enterprise-suite",
     icon: ShoppingCart,
+    requiredPermissions: ["report.read"],
+    section: "enterprise",
+  },
+  {
+    id: "finance-handoff",
+    label: "Finance Handoff",
+    href: "/dashboard/finance-handoff",
+    icon: Banknote,
     requiredPermissions: ["report.read"],
     section: "enterprise",
   },

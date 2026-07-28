@@ -79,6 +79,12 @@ export async function updateIdentityRolePermissions(roleId: string, permissionCo
   });
 }
 
+export async function syncSystemIdentityRoles() {
+  return api<IdentityRole[]>("/api/v1/identity/roles/sync-system", {
+    method: "POST",
+  });
+}
+
 export async function getIdentityOutlets() {
   return api<IdentityOutlet[]>("/api/v1/identity/outlets");
 }

@@ -20,12 +20,12 @@ type UserFormDialogProps = {
   onSave: () => void;
 };
 
-const roles: UserRole[] = ["Owner/Admin", "Area Manager", "Outlet"];
+const roles: UserRole[] = ["Owner/Admin", "Area Manager", "Finance", "Outlet"];
 const statuses: UserStatus[] = ["Active", "Pending", "Suspended"];
 
 function getScopeLabel(role: UserRole) {
   if (role === "Owner/Admin") return "All Outlets";
-  if (role === "Area Manager") return "Multiple Outlets";
+  if (role === "Area Manager" || role === "Finance") return "Multiple Outlets";
   return "Single Outlet";
 }
 
@@ -118,7 +118,7 @@ export function UserFormDialog({
             {editingUserId ? "Edit Account" : "Create Account"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Owner/Admin gets all outlets, Area Manager can manage selected outlets, and Outlet
+            Owner/Admin gets all outlets, Area Manager and Finance can manage selected outlets, and Outlet
             account is restricted to one outlet.
           </p>
             </div>
@@ -180,7 +180,7 @@ export function UserFormDialog({
                     outlet:
                       role === "Owner/Admin"
                         ? "All Outlets"
-                        : role === "Area Manager"
+                        : role === "Area Manager" || role === "Finance"
                           ? "Multiple Outlets"
                           : (firstOutlet?.id ?? ""),
                     outletIds: [],
@@ -252,7 +252,7 @@ export function UserFormDialog({
             </Field>
           ) : null}
 
-          {form.role === "Area Manager" ? (
+          {form.role === "Area Manager" || form.role === "Finance" ? (
             <div className="grid gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Managed Outlets

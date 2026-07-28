@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Banknote,
   Building2,
   ClipboardCheck,
   FileText,
@@ -111,6 +112,16 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: ShoppingCart,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+  },
+  {
+    id: "go-finance-handoff",
+    title: "Go to Finance Handoff",
+    description: "Open shift deposit, variance, and finance review workflow",
+    href: "/dashboard/finance-handoff",
+    group: "Navigation",
+    type: "navigation",
+    icon: Banknote,
     allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
