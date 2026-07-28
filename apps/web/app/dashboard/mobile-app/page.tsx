@@ -122,6 +122,10 @@ export default function MobileAppPage() {
           {[
             ["Capacitor production sync", "npm run release:android"],
             ["Android APK/AAB", "npm run release:android:apk"],
+            ["Play Store bundle", "npm run release:android:aab"],
+            ["QA gate", "npm run release:mobile:qa"],
+            ["App signing", "Production keystore outside git"],
+            ["MDM", "Managed config + remote logout"],
             ["Push ready", nativePush?.live_ready ? "Ready" : "Configure FCM"],
             ["Offline execution", "Workpack + conflict guard"],
           ].map(([label, value]) => (

@@ -17,6 +17,8 @@
     "build:mobile": "next build",
     "release:android": "set CAPACITOR_ENV=production&& npm run prepare:capacitor && npx cap sync android",
     "release:android:apk": "npm run release:android && cd android && gradlew assembleRelease",
+    "release:android:aab": "npm run release:android && cd android && gradlew bundleRelease",
+    "release:mobile:qa": "npm run lint && npm run typecheck && npm run build && npm run prepare:capacitor",
     "prepare:capacitor": "node scripts/prepare-capacitor.mjs",
     "test:e2e": "playwright test",
     "test:e2e:offline": "playwright test e2e/offline-sync.spec.ts"

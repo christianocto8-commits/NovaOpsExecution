@@ -14,7 +14,16 @@ from app.modules.ops_suite.schemas import OpsSuiteItem, OpsSuiteItemUpsert, OpsS
 
 router = APIRouter(prefix="/ops-suite", tags=["Ops Suite"])
 OPS_SUITE_KEY = "ops_suite_items"
-VALID_MODULES = {"inventory", "labor", "food_label", "procurement"}
+VALID_MODULES = {
+    "inventory",
+    "labor",
+    "food_label",
+    "procurement",
+    "onboarding",
+    "customer_success",
+    "benchmark",
+    "integration",
+}
 
 
 def _load_items(db: Session) -> list[dict]:
@@ -101,10 +110,28 @@ def get_ops_suite_summary(
 ):
     del current_user
     items = [OpsSuiteItem(**item) for item in _load_items(db)]
+    inventory_cost = sum(
+        (item.actual_cost if item.actual_cost is not None else (item.quantity or 0) * (item.cost_per_unit or 0))
+        for item in items
+        if item.module == "inventory"
+    )
+    forecast_variance = sum(
+        (item.quantity or 0) - (item.forecast_quantity or 0)
+        for item in items
+        if item.forecast_quantity is not None
+    )
     return OpsSuiteSummary(
         inventory_items=sum(1 for item in items if item.module == "inventory"),
         labor_items=sum(1 for item in items if item.module == "labor"),
         food_label_items=sum(1 for item in items if item.module == "food_label"),
         procurement_items=sum(1 for item in items if item.module == "procurement"),
+        onboarding_items=sum(1 for item in items if item.module == "onboarding"),
+        customer_success_items=sum(1 for item in items if item.module == "customer_success"),
+        benchmark_items=sum(1 for item in items if item.module == "benchmark"),
+        integration_items=sum(1 for item in items if item.module == "integration"),
         open_items=sum(1 for item in items if item.status != "closed"),
+        inventory_cost=round(inventory_cost, 2),
+        forecast_variance=round(forecast_variance, 2),
+        labor_hours=round(sum(item.labor_hours or 0 for item in items), 2),
+        open_procurement_items=sum(1 for item in items if item.module == "procurement" and item.status != "closed"),
     )

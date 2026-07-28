@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudOff, RefreshCw } from "lucide-react";
 
-import { getFailedMutations } from "@/lib/offline/store";
+import { deleteMutation, getFailedMutations, updateMutation } from "@/lib/offline/store";
 import type { QueuedMutation } from "@/lib/offline/types";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { useLanguage } from "@/shared/i18n";
 import { useToast } from "@/shared/toast";
+import { taskService, type BackendTask } from "@/services/task.service";
 
 export function OfflineSyncBadge() {
   const { t } = useLanguage();
@@ -22,7 +23,13 @@ export function OfflineSyncBadge() {
   } = useOfflineSync();
   const [isOpen, setIsOpen] = useState(false);
   const [failedItems, setFailedItems] = useState<QueuedMutation[]>([]);
+  const [compareItemId, setCompareItemId] = useState<string | null>(null);
+  const [serverVersions, setServerVersions] = useState<Record<string, BackendTask | null>>({});
   const lastReportedErrorsRef = useRef<string>("");
+
+  async function refreshFailedItems() {
+    setFailedItems(await getFailedMutations());
+  }
 
   async function toggleDetails() {
     if (failedSyncCount === 0) {
@@ -33,8 +40,37 @@ export function OfflineSyncBadge() {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
     if (nextOpen) {
-      setFailedItems(await getFailedMutations());
+      await refreshFailedItems();
     }
+  }
+
+  async function compareConflict(item: QueuedMutation) {
+    setCompareItemId((current) => (current === item.id ? null : item.id));
+    if (serverVersions[item.id] !== undefined) return;
+
+    try {
+      const serverTask = await taskService.getBackendTask(item.taskId);
+      setServerVersions((current) => ({ ...current, [item.id]: serverTask }));
+    } catch {
+      setServerVersions((current) => ({ ...current, [item.id]: null }));
+    }
+  }
+
+  async function retryOfflineCopy(item: QueuedMutation) {
+    await updateMutation({
+      ...item,
+      status: "pending",
+      error: undefined,
+      retryCount: 0,
+      lastAttemptAt: undefined,
+    });
+    await refreshFailedItems();
+    await syncNow();
+  }
+
+  async function discardOfflineCopy(item: QueuedMutation) {
+    await deleteMutation(item.id);
+    await refreshFailedItems();
   }
 
   useEffect(() => {
@@ -110,6 +146,39 @@ export function OfflineSyncBadge() {
                 <p className="mt-1 text-red-600">
                   Retry {item.retryCount ?? 0}x {item.lastAttemptAt ? `- ${new Date(item.lastAttemptAt).toLocaleString()}` : ""}
                 </p>
+                {item.status === "conflict" ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void compareConflict(item)} className="rounded-lg bg-white px-2 py-1 font-bold text-red-700">
+                        Compare
+                      </button>
+                      <button type="button" onClick={() => void retryOfflineCopy(item)} className="rounded-lg bg-emerald-700 px-2 py-1 font-bold text-white">
+                        Retry offline copy
+                      </button>
+                      <button type="button" onClick={() => void discardOfflineCopy(item)} className="rounded-lg bg-slate-900 px-2 py-1 font-bold text-white">
+                        Discard
+                      </button>
+                    </div>
+                    {compareItemId === item.id ? (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="rounded-lg bg-white p-2">
+                          <p className="font-bold text-slate-900">Server version</p>
+                          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-700">
+                            {serverVersions[item.id] === undefined
+                              ? "Loading..."
+                              : JSON.stringify(serverVersions[item.id] ?? { error: "Server task unavailable" }, null, 2)}
+                          </pre>
+                        </div>
+                        <div className="rounded-lg bg-white p-2">
+                          <p className="font-bold text-slate-900">Offline version</p>
+                          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-700">
+                            {JSON.stringify(item.payload, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

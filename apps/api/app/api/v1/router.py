@@ -27,6 +27,7 @@ from app.modules.iot.api import router as iot_router
 from app.modules.jobs.router import router as jobs_router
 from app.modules.lms.api import router as lms_router
 from app.modules.ops_suite.api import router as ops_suite_router
+from app.modules.enterprise_suite.api import router as enterprise_suite_router
 from app.routers.activity import router as activity_router
 from app.routers.audit import router as audit_router
 from app.routers.builder_documents import router as builder_document_router
@@ -68,6 +69,7 @@ api_router.include_router(iot_router)
 api_router.include_router(jobs_router)
 api_router.include_router(lms_router)
 api_router.include_router(ops_suite_router)
+api_router.include_router(enterprise_suite_router)
 api_router.include_router(runtime_template_router)
 api_router.include_router(builder_document_router)
 

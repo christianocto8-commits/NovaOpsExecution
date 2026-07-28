@@ -56,8 +56,15 @@ const emptyAssetForm: EquipmentRegisterPayload = {
   lifecycle_status: "in_service",
   replacement_for_id: null,
   gateway_id: null,
+  pairing_code: null,
+  gateway_provisioned_at: null,
+  battery_level: null,
+  battery_alert_threshold: 20,
   sensor_enabled: true,
   calibration_status: "not_required",
+  replacement_approval_status: "not_requested",
+  replacement_requested_at: null,
+  replacement_approved_at: null,
   qr_code: null,
   maintenance_due_at: null,
   calibration_due_at: null,
@@ -124,8 +131,15 @@ export default function IotDashboardPage() {
       lifecycle_status: asset.lifecycle_status,
       replacement_for_id: asset.replacement_for_id,
       gateway_id: asset.gateway_id,
+      pairing_code: asset.pairing_code,
+      gateway_provisioned_at: normalizeDateInput(asset.gateway_provisioned_at),
+      battery_level: asset.battery_level,
+      battery_alert_threshold: asset.battery_alert_threshold,
       sensor_enabled: asset.sensor_enabled,
       calibration_status: asset.calibration_status,
+      replacement_approval_status: asset.replacement_approval_status,
+      replacement_requested_at: asset.replacement_requested_at,
+      replacement_approved_at: asset.replacement_approved_at,
       qr_code: asset.qr_code,
       maintenance_due_at: normalizeDateInput(asset.maintenance_due_at),
       calibration_due_at: normalizeDateInput(asset.calibration_due_at),
@@ -158,6 +172,8 @@ export default function IotDashboardPage() {
       location: assetForm.location?.trim() || null,
       replacement_for_id: assetForm.replacement_for_id?.trim() || null,
       gateway_id: assetForm.gateway_id?.trim() || null,
+      pairing_code: assetForm.pairing_code?.trim() || null,
+      gateway_provisioned_at: assetForm.gateway_provisioned_at || null,
       qr_code: assetForm.qr_code?.trim() || null,
       maintenance_due_at: assetForm.maintenance_due_at || null,
       calibration_due_at: assetForm.calibration_due_at || null,
@@ -383,7 +399,16 @@ export default function IotDashboardPage() {
               <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Vendor" value={assetForm.vendor ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, vendor: event.target.value || null }))} />
               <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Location" value={assetForm.location ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, location: event.target.value || null }))} />
               <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Gateway ID" value={assetForm.gateway_id ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, gateway_id: event.target.value || null }))} />
+              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Pairing code" value={assetForm.pairing_code ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, pairing_code: event.target.value || null }))} />
+              <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Battery %" value={assetForm.battery_level ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, battery_level: event.target.value ? Number(event.target.value) : null }))} />
+              <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Battery alert threshold" value={assetForm.battery_alert_threshold ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, battery_alert_threshold: event.target.value ? Number(event.target.value) : null }))} />
               <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Replacement for asset ID" value={assetForm.replacement_for_id ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, replacement_for_id: event.target.value || null }))} />
+              <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.replacement_approval_status} onChange={(event) => setAssetForm((form) => ({ ...form, replacement_approval_status: event.target.value }))}>
+                <option value="not_requested">Replacement not requested</option>
+                <option value="pending">Replacement pending</option>
+                <option value="approved">Replacement approved</option>
+                <option value="rejected">Replacement rejected</option>
+              </select>
               <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.calibration_status} onChange={(event) => setAssetForm((form) => ({ ...form, calibration_status: event.target.value }))}>
                 <option value="not_required">Calibration not required</option>
                 <option value="due">Calibration due</option>
@@ -395,6 +420,10 @@ export default function IotDashboardPage() {
                 Sensor enabled
               </label>
               <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="QR code" value={assetForm.qr_code ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, qr_code: event.target.value || null }))} />
+              <label className="text-xs font-bold text-slate-500">
+                Gateway provisioned
+                <input type="date" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900" value={assetForm.gateway_provisioned_at ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, gateway_provisioned_at: event.target.value || null }))} />
+              </label>
               <label className="text-xs font-bold text-slate-500">
                 Maintenance due
                 <input type="date" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900" value={assetForm.maintenance_due_at ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, maintenance_due_at: event.target.value || null }))} />
@@ -436,7 +465,10 @@ export default function IotDashboardPage() {
                   <p>Location: {asset.location ?? "-"}</p>
                   <p>Vendor: {asset.vendor ?? "-"}</p>
                   <p>Gateway: {asset.gateway_id ?? "-"}</p>
+                  <p>Pairing: {asset.pairing_code ?? "-"}</p>
+                  <p>Battery: {asset.battery_level != null ? `${asset.battery_level}%` : "-"}</p>
                   <p>Lifecycle: {asset.lifecycle_status}</p>
+                  <p>Replacement: {asset.replacement_approval_status}</p>
                   <p>Calibration: {asset.calibration_status}</p>
                   <p>Sensor: {asset.sensor_enabled ? "Enabled" : "Disabled"}</p>
                   <p>
