@@ -5,9 +5,11 @@ import {
   FileText,
   Gauge,
   Home,
+  PackageCheck,
   Plus,
   Search,
   Settings,
+  ShoppingCart,
   Users,
 } from "lucide-react";
 import { CommandItem } from "./types";
@@ -68,6 +70,26 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Building2,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+  },
+  {
+    id: "go-ops-suite",
+    title: "Go to Ops Suite",
+    description: "Open inventory, labor, procurement, and implementation controls",
+    href: "/dashboard/ops-suite",
+    group: "Navigation",
+    type: "navigation",
+    icon: PackageCheck,
+    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+  },
+  {
+    id: "go-enterprise-suite",
+    title: "Go to Enterprise Suite",
+    description: "Open variance, purchase, attendance, support, and battery alerts",
+    href: "/dashboard/enterprise-suite",
+    group: "Navigation",
+    type: "navigation",
+    icon: ShoppingCart,
     allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
   },
   {
