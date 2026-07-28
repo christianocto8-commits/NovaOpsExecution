@@ -1069,8 +1069,8 @@ export function FormsWorkspace() {
               </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="min-h-0 overflow-y-auto p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              <div className="order-2 p-4">
                 <div className="space-y-3">
                   {selectedTemplate.fields.map((field, index) => {
                     const isSystemResponsibleField = isResponsiblePersonField(field);
@@ -1640,7 +1640,7 @@ export function FormsWorkspace() {
                 </div>
               </div>
 
-              <aside className="min-h-0 overflow-y-auto border-t border-slate-200 bg-slate-50/70 p-4 lg:border-l lg:border-t-0">
+              <aside className="order-1 border-b border-slate-200 bg-slate-50/70 p-4">
                 {!hasSelectedTemplate ? (
                   <p className="text-sm text-slate-500">
                     Pilih atau buat template untuk mengatur field dan publish status.
@@ -1657,7 +1657,7 @@ export function FormsWorkspace() {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid grid-cols-3 gap-2">
+                    <div className="mt-5 grid gap-2 sm:grid-cols-3">
                       <div className="rounded-xl bg-slate-50 p-3">
                         <p className="text-xs text-slate-500">Items</p>
                         <p className="mt-1 text-xl font-bold text-slate-950">
