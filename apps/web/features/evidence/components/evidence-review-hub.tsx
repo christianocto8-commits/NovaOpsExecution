@@ -230,6 +230,10 @@ export function EvidenceReviewHub({
       );
     });
   }, [evidenceItems, query, sourceFilter, outletFilter, statusFilter]);
+  const pendingItems = useMemo(
+    () => evidenceItems.filter((item) => (item.reviewStatus ?? "pending") === "pending"),
+    [evidenceItems]
+  );
 
   const activeItem = lightboxIndex != null ? filteredItems[lightboxIndex] ?? null : null;
 
@@ -305,6 +309,65 @@ export function EvidenceReviewHub({
           <option value="pending">{t("evidence.statusPending")}</option>
         </select>
       </div>
+
+      {pendingItems.length > 0 ? (
+        <div className="mt-5 overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/60">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 px-4 py-3">
+            <div>
+              <p className="text-sm font-bold text-blue-950">Approval Queue</p>
+              <p className="text-xs text-blue-700">Evidence yang belum disetujui owner/admin.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("pending")}
+              className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700"
+            >
+              Show pending only
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-blue-100 text-left text-xs uppercase tracking-wide text-blue-700">
+                  <th className="px-4 py-3">Task</th>
+                  <th className="px-4 py-3">Outlet</th>
+                  <th className="px-4 py-3">Submitted</th>
+                  <th className="px-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingItems.slice(0, 8).map((item) => (
+                  <tr key={`approval-${item.id}`} className="border-b border-blue-100/70 last:border-b-0">
+                    <td className="px-4 py-3 font-semibold text-slate-950">{item.taskTitle}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.outlet}</td>
+                    <td className="px-4 py-3 text-slate-600">{new Date(item.submittedAt).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => reviewMutation.mutate({ taskId: item.taskId, review: "approved" })}
+                          disabled={reviewMutation.isPending}
+                          className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reviewMutation.mutate({ taskId: item.taskId, review: "rejected" })}
+                          disabled={reviewMutation.isPending}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-60"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       {filteredItems.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">

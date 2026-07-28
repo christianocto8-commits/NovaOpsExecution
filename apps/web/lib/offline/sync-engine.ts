@@ -168,6 +168,13 @@ async function processExecutionDraft(mutation: QueuedMutation) {
 
 async function processExecutionSubmit(mutation: QueuedMutation) {
   const payload = mutation.payload;
+  const latestTask = await taskService.getBackendTask(mutation.taskId);
+  if (latestTask.status === "completed" || latestTask.status === "cancelled") {
+    throw new Error(
+      `Conflict: task sudah ${latestTask.status} di server. Buka task dan review sebelum submit ulang.`
+    );
+  }
+
   const answersJson = await resolveAnswersJson(
     (payload.answers_json as Record<string, unknown>) ?? {}
   );
@@ -252,12 +259,13 @@ async function processMutation(mutation: QueuedMutation) {
 
     await deleteMutation(mutation.id);
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Sinkronisasi gagal.";
     const failedMutation: QueuedMutation = {
       ...mutation,
-      status: "failed",
+      status: message.startsWith("Conflict:") ? "conflict" : "failed",
       retryCount: (mutation.retryCount ?? 0) + 1,
       lastAttemptAt: new Date().toISOString(),
-      error: error instanceof Error ? error.message : "Sinkronisasi gagal.",
+      error: message,
     };
 
     await updateMutation(failedMutation);

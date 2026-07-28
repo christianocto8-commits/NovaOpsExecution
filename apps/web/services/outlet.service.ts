@@ -20,6 +20,18 @@ export type CurrentOutletResponse = {
   permissions: string[];
 };
 
+export type FranchiseHierarchyNode = {
+  corporate: string;
+  brand: string;
+  franchisee: string;
+  region: string;
+  district: string;
+  store_id: number;
+  store_name: string;
+  store_code: string;
+  is_active: boolean;
+};
+
 export const outletService = {
   async listMine() {
     return api<LegacyOutlet[]>("/api/v1/outlets/me");
@@ -41,5 +53,9 @@ export const outletService = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+  },
+
+  async listHierarchy() {
+    return api<FranchiseHierarchyNode[]>("/api/v1/outlets/hierarchy");
   },
 };

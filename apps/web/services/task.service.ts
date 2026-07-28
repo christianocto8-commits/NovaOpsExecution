@@ -284,6 +284,10 @@ export const taskService = {
     return taskService.list();
   },
 
+  async getBackendTask(taskId: string) {
+    return api<BackendTask>(`/api/v1/tasks/${taskId}`);
+  },
+
   async listCorrectiveActions() {
     return taskService.list("corrective_action");
   },

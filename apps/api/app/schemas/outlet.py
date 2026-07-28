@@ -39,3 +39,15 @@ class CurrentOutletResponse(BaseModel):
     organization: OrganizationResponse | None = None
     role: str
     permissions: list[str]
+
+
+class FranchiseHierarchyNode(BaseModel):
+    corporate: str
+    brand: str
+    franchisee: str
+    region: str
+    district: str
+    store_id: int
+    store_name: str
+    store_code: str
+    is_active: bool

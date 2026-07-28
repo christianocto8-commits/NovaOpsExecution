@@ -117,6 +117,23 @@ export default function MobileAppPage() {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">Production mobile release checklist</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Capacitor production sync", "npm run release:android"],
+            ["Android APK/AAB", "npm run release:android:apk"],
+            ["Push ready", nativePush?.live_ready ? "Ready" : "Configure FCM"],
+            ["Offline execution", "Workpack + conflict guard"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+              <p className="mt-2 break-words text-sm font-semibold text-slate-950">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">{t("mobileApp.pwaTitle")}</h2>
         <p className="mt-1 text-sm text-slate-500">{t("mobileApp.pwaHint")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-6">

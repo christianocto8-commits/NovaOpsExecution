@@ -117,7 +117,7 @@ export async function getFailedMutations(): Promise<QueuedMutation[]> {
   const mutations = await getAllMutations();
 
   return mutations
-    .filter((mutation) => mutation.status === "failed")
+    .filter((mutation) => mutation.status === "failed" || mutation.status === "conflict")
     .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
@@ -152,7 +152,7 @@ export async function removePendingMutationsForTask(taskId: string, type?: Queue
   const toRemove = mutations.filter(
     (mutation) =>
       mutation.taskId === taskId &&
-      (mutation.status === "pending" || mutation.status === "failed") &&
+      (mutation.status === "pending" || mutation.status === "failed" || mutation.status === "conflict") &&
       (!type || mutation.type === type)
   );
 
@@ -179,7 +179,12 @@ export async function getPendingMutations(): Promise<QueuedMutation[]> {
   const mutations = await getAllFromStore<QueuedMutation>(OFFLINE_STORES.MUTATION_QUEUE);
 
   return mutations
-    .filter((mutation) => mutation.status === "pending" || mutation.status === "failed")
+    .filter(
+      (mutation) =>
+        mutation.status === "pending" ||
+        mutation.status === "failed" ||
+        mutation.status === "conflict"
+    )
     .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 

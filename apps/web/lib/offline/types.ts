@@ -15,7 +15,7 @@ export type QueuedMutation = {
   taskId: string;
   payload: Record<string, unknown>;
   createdAt: string;
-  status: "pending" | "processing" | "failed";
+  status: "pending" | "processing" | "failed" | "conflict";
   error?: string;
   retryCount?: number;
   lastAttemptAt?: string;

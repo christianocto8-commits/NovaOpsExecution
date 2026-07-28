@@ -17,6 +17,8 @@ class EquipmentHealthRead(BaseModel):
     last_seen_at: datetime | None = None
     calibration_due_at: datetime | None = None
     gateway_id: str | None = None
+    gateway_status: str | None = None
+    battery_level: float | None = None
     message: str
 
 
@@ -29,6 +31,11 @@ class EquipmentRegisterItem(BaseModel):
     vendor: str | None = None
     location: str | None = None
     status: str = "active"
+    lifecycle_status: str = "in_service"
+    replacement_for_id: str | None = None
+    gateway_id: str | None = None
+    sensor_enabled: bool = True
+    calibration_status: str = "not_required"
     qr_code: str | None = None
     maintenance_due_at: datetime | None = None
     calibration_due_at: datetime | None = None
@@ -43,6 +50,11 @@ class EquipmentRegisterUpsert(BaseModel):
     vendor: str | None = None
     location: str | None = None
     status: str = "active"
+    lifecycle_status: str = "in_service"
+    replacement_for_id: str | None = None
+    gateway_id: str | None = None
+    sensor_enabled: bool = True
+    calibration_status: str = "not_required"
     qr_code: str | None = None
     maintenance_due_at: datetime | None = None
     calibration_due_at: datetime | None = None
@@ -59,4 +71,6 @@ class TemperatureLogRead(BaseModel):
     threshold_min: float
     threshold_max: float
     gateway_id: str | None = None
+    gateway_status: str | None = None
+    battery_level: float | None = None
     calibration_due_at: datetime | None = None

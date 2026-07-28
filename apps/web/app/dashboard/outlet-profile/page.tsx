@@ -19,6 +19,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { OutletGeofencePanel } from "@/shared/outlets";
+import { outletService } from "@/services/outlet.service";
 
 function getAccessibleOutletIds(user: ReturnType<typeof useAuth>["user"]) {
   if (!user) return [];
@@ -91,6 +92,11 @@ export default function OutletProfilePage() {
     queryFn: getIdentityOutletMetrics,
     retry: false,
   });
+  const hierarchyQuery = useQuery({
+    queryKey: ["outlet-hierarchy"],
+    queryFn: outletService.listHierarchy,
+    retry: false,
+  });
 
   const availableOutlets = useMemo(() => {
     const outlets = outletsQuery.data ?? [];
@@ -140,6 +146,9 @@ export default function OutletProfilePage() {
 
   const metrics =
     metricsQuery.data?.find((item) => item.outlet_id === activeOutletId) ?? null;
+  const hierarchyNode = hierarchyQuery.data?.find(
+    (node) => String(node.store_id) === String(workspace.legacyOutletId)
+  ) ?? hierarchyQuery.data?.[0] ?? null;
 
   const sparklineValues = useMemo(() => {
     const base = Math.round(metrics?.compliance ?? 75);
@@ -247,6 +256,25 @@ export default function OutletProfilePage() {
         >
           {saveHoursMutation.isPending ? "Saving..." : "Save hours"}
         </button>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-950">Enterprise Franchise Hierarchy</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          {[
+            ["Corporate", hierarchyNode?.corporate ?? "-"],
+            ["Brand", hierarchyNode?.brand ?? "-"],
+            ["Franchisee", hierarchyNode?.franchisee ?? "-"],
+            ["Region", hierarchyNode?.region ?? "-"],
+            ["District", hierarchyNode?.district ?? "-"],
+            ["Store", hierarchyNode?.store_name ?? "-"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+              <p className="mt-1 break-words text-sm font-semibold text-slate-900">{value}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">

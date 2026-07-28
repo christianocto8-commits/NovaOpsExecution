@@ -86,6 +86,8 @@ def list_equipment_health(
                 last_seen_at=sensor.last_seen_at,
                 calibration_due_at=sensor.calibration_due_at,
                 gateway_id=sensor.gateway_id,
+                gateway_status=sensor.gateway_status,
+                battery_level=sensor.battery_level,
                 message=sensor.message,
             )
         )
@@ -159,6 +161,13 @@ def list_temperature_log(
     rows: list[TemperatureLogRead] = []
     for reading in readings:
         metadata = reading.metadata_json if isinstance(reading.metadata_json, dict) else {}
+        raw_battery_level = metadata.get("battery_level")
+        battery_level = None
+        if raw_battery_level is not None:
+            try:
+                battery_level = float(raw_battery_level)
+            except (TypeError, ValueError):
+                battery_level = None
         raw_calibration_due = metadata.get("calibration_due_at")
         calibration_due = None
         if isinstance(raw_calibration_due, str):
@@ -180,6 +189,8 @@ def list_temperature_log(
                 threshold_min=threshold_min,
                 threshold_max=threshold_max,
                 gateway_id=str(metadata.get("gateway_id")) if metadata.get("gateway_id") else None,
+                gateway_status=str(metadata.get("gateway_status")) if metadata.get("gateway_status") else None,
+                battery_level=battery_level,
                 calibration_due_at=calibration_due,
             )
         )

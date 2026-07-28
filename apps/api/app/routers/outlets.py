@@ -5,7 +5,13 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import get_permissions_for_role
 from app.repositories.outlet_repository import OutletRepository
-from app.schemas.outlet import CurrentOutletResponse, OutletLocationUpdate, OutletResponse, OutletUpdate
+from app.schemas.outlet import (
+    CurrentOutletResponse,
+    FranchiseHierarchyNode,
+    OutletLocationUpdate,
+    OutletResponse,
+    OutletUpdate,
+)
 
 MANAGER_ADMIN_OUTLET_ROLES = {
     "Owner",
@@ -42,6 +48,39 @@ def get_my_outlets(
 ):
     repo = OutletRepository(db)
     return repo.list_by_user(current_user.id)
+
+
+@router.get("/hierarchy", response_model=list[FranchiseHierarchyNode])
+def get_franchise_hierarchy(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    repo = OutletRepository(db)
+    outlets = repo.list_by_user(current_user.id)
+    nodes: list[FranchiseHierarchyNode] = []
+
+    for outlet in outlets:
+        corporate = outlet.organization.name if outlet.organization else "NovaOps Corporate"
+        region = outlet.region or "Unassigned Region"
+        district = outlet.district or "Unassigned District"
+        code_parts = (outlet.code or "").split("-")
+        brand = code_parts[0] if code_parts and code_parts[0] else "Default Brand"
+        franchisee = code_parts[1] if len(code_parts) > 2 else "Corporate Owned"
+        nodes.append(
+            FranchiseHierarchyNode(
+                corporate=corporate,
+                brand=brand,
+                franchisee=franchisee,
+                region=region,
+                district=district,
+                store_id=outlet.id,
+                store_name=outlet.name,
+                store_code=outlet.code,
+                is_active=outlet.is_active,
+            )
+        )
+
+    return nodes
 
 
 @router.get("/current", response_model=CurrentOutletResponse)

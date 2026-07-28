@@ -59,4 +59,6 @@ class IotSensorHealthRead(BaseModel):
     threshold_max: float | None = None
     calibration_due_at: datetime | None = None
     gateway_id: str | None = None
+    gateway_status: str | None = None
+    battery_level: float | None = None
     message: str

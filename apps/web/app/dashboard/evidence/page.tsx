@@ -41,6 +41,10 @@ export default function EvidencePage() {
     const sessions = executionSessionsQuery.data ?? [];
     return enrichTasksWithCompletedSessions(baseTasks, sessions);
   }, [tasksQuery.data, executionSessionsQuery.data]);
+  const pendingReviewCount = tasks.filter(
+    (task) => task.execution?.reviewStatus === "pending_review"
+  ).length;
+  const rejectedCount = tasks.filter((task) => task.execution?.reviewStatus === "rejected").length;
 
   return (
     <main className={mobileDashboardMainClass}>
@@ -59,6 +63,19 @@ export default function EvidencePage() {
               : t("evidence.loadError")}
         </div>
       ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Approval Review Queue</p>
+          <p className="mt-2 text-2xl font-bold text-blue-950">{pendingReviewCount}</p>
+          <p className="mt-1 text-sm text-blue-800">Evidence menunggu approval owner/admin.</p>
+        </div>
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-red-700">Rejected Evidence</p>
+          <p className="mt-2 text-2xl font-bold text-red-950">{rejectedCount}</p>
+          <p className="mt-1 text-sm text-red-800">Perlu koreksi dari outlet.</p>
+        </div>
+      </section>
 
       <EvidenceReviewHub
         tasks={tasks}

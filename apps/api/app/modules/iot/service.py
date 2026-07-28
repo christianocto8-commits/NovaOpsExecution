@@ -131,6 +131,14 @@ class IotService:
                 except ValueError:
                     calibration_due = None
             gateway_id = metadata.get("gateway_id") if isinstance(metadata, dict) else None
+            gateway_status = metadata.get("gateway_status") if isinstance(metadata, dict) else None
+            raw_battery_level = metadata.get("battery_level") if isinstance(metadata, dict) else None
+            battery_level = None
+            if raw_battery_level is not None:
+                try:
+                    battery_level = float(raw_battery_level)
+                except (TypeError, ValueError):
+                    battery_level = None
 
             health_rows.append(
                 IotSensorHealthRead(
@@ -146,6 +154,8 @@ class IotService:
                     threshold_max=row_threshold_max,
                     calibration_due_at=calibration_due,
                     gateway_id=str(gateway_id) if gateway_id else None,
+                    gateway_status=str(gateway_status) if gateway_status else None,
+                    battery_level=battery_level,
                     message=f"Last seen {minutes_since_seen} minutes ago",
                 )
             )
