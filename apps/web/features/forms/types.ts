@@ -16,11 +16,7 @@
   | "responsible_person";
 
 export type FieldVisibilityOperator =
-  | "equals"
-  | "not_equals"
-  | "contains"
-  | "is_empty"
-  | "is_not_empty";
+  "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
 
 export type FieldVisibilityRule = {
   fieldId: string;
@@ -69,6 +65,7 @@ export type FormTemplate = {
   id: string;
   name: string;
   category: string;
+  formType?: string;
   urgency?: "Low" | "Medium" | "High" | "Critical";
   description: string;
   status: "Active" | "Draft" | "Pending Review" | "Archived";

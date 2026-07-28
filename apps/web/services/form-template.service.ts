@@ -1,6 +1,10 @@
 import { api } from "@/services/api";
 import { createLocalId } from "@/lib/local-id";
-import { cacheFormTemplates, getCachedFormTemplate, getCachedFormTemplates } from "@/lib/offline/store";
+import {
+  cacheFormTemplates,
+  getCachedFormTemplate,
+  getCachedFormTemplates,
+} from "@/lib/offline/store";
 import type {
   FieldVisibilityOperator,
   FormField,
@@ -8,9 +12,7 @@ import type {
   FormFieldValidation,
   FormTemplate,
 } from "@/features/forms/types";
-import {
-  ensureResponsiblePersonField,
-} from "@/features/forms/utils/system-fields";
+import { ensureResponsiblePersonField } from "@/features/forms/utils/system-fields";
 import {
   getFormCategoryLabel,
   normalizeFormCategoryId,
@@ -102,7 +104,8 @@ function parseVisibilityRule(options: Record<string, unknown>) {
   const rule = rawRule as Record<string, unknown>;
   const fieldId = typeof rule.fieldId === "string" ? rule.fieldId : undefined;
   const operator =
-    typeof rule.operator === "string" && visibilityOperators.has(rule.operator as FieldVisibilityOperator)
+    typeof rule.operator === "string" &&
+    visibilityOperators.has(rule.operator as FieldVisibilityOperator)
       ? (rule.operator as FieldVisibilityOperator)
       : undefined;
 
@@ -129,15 +132,16 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
     system: options.system === true,
     showWhenFieldId:
       typeof options.showWhenFieldId === "string" ? options.showWhenFieldId : undefined,
-    showWhenValue:
-      typeof options.showWhenValue === "string" ? options.showWhenValue : undefined,
+    showWhenValue: typeof options.showWhenValue === "string" ? options.showWhenValue : undefined,
     visibilityRule,
     choices: Array.isArray(options.choices)
       ? options.choices.filter((value): value is string => typeof value === "string")
       : undefined,
     allow_na: options.allow_na === true,
     require_execution_note:
-      options.require_execution_note === undefined ? undefined : options.require_execution_note === true,
+      options.require_execution_note === undefined
+        ? undefined
+        : options.require_execution_note === true,
     maxStars:
       typeof options.maxStars === "number" && options.maxStars > 0
         ? Math.min(10, Math.round(options.maxStars))
@@ -202,8 +206,11 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
   return {
     id: String(template.id),
     name: template.title,
+    formType: template.form_type,
     category: normalizeFormCategoryId(
-      template.form_type === "draft" || template.form_type === "pending_review" ? "uncategorized" : template.form_type
+      template.form_type === "draft" || template.form_type === "pending_review"
+        ? "uncategorized"
+        : template.form_type
     ),
     description: template.description ?? "",
     status,
@@ -238,7 +245,13 @@ function toBackendPayload(template: FormTemplate): BackendFormTemplateCreate {
   return {
     title,
     description: template.description?.trim() || null,
-    form_type: isDraft ? "draft" : isPendingReview ? "pending_review" : normalizeFormCategoryId(template.category),
+    form_type: isDraft
+      ? "draft"
+      : isPendingReview
+        ? "pending_review"
+        : template.formType === "finance_shift_deposit" || template.category === "finance"
+          ? "finance_shift_deposit"
+          : normalizeFormCategoryId(template.category),
     outlet_id: null,
     is_active: template.status === "Active",
     fields: toBackendFields(ensureResponsiblePersonField(template.fields)),

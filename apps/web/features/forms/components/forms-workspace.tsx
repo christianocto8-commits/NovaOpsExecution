@@ -385,6 +385,7 @@ export function FormsWorkspace() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [advancedEditorOpen, setAdvancedEditorOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewResponses, setPreviewResponses] = useState<TaskFormResponses>({});
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -720,6 +721,9 @@ export function FormsWorkspace() {
   const templateSettings = selectedTemplate
     ? getTemplateSettings(selectedTemplate.fields)
     : { require_execution_note: true, requires_approval: false };
+  const isFinanceTemplate =
+    selectedTemplate?.formType === "finance_shift_deposit" ||
+    selectedTemplate?.category === "finance";
 
   if (templatesQuery.isLoading) {
     return (
@@ -1181,17 +1185,24 @@ export function FormsWorkspace() {
 
                         {!isSystemResponsibleField ? (
                           <div className="mt-3 space-y-3">
-                            <input
-                              value={field.section ?? ""}
-                              readOnly={isAreaWorkspace}
-                              onChange={(event) =>
-                                updateField(field.id, {
-                                  section: event.target.value,
-                                })
-                              }
-                              placeholder="Section name (e.g. Opening, Kitchen)"
-                              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                            />
+                            {!isFinanceTemplate ? (
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                  Bagian Form
+                                </span>
+                                <input
+                                  value={field.section ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      section: event.target.value,
+                                    })
+                                  }
+                                  placeholder="Contoh: Opening, Kitchen"
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                              </label>
+                            ) : null}
 
                             {field.type === "number" ? (
                               <div className="grid grid-cols-2 gap-2">
@@ -1342,50 +1353,52 @@ export function FormsWorkspace() {
                               </p>
                             ) : null}
 
-                            <div className="grid gap-2 md:grid-cols-2">
-                              <label className="grid gap-1">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                  Bobot skor
-                                </span>
-                                <input
-                                  type="number"
-                                  min={0.1}
-                                  step={0.1}
-                                  value={field.validation?.weight ?? ""}
-                                  readOnly={isAreaWorkspace}
-                                  onChange={(event) =>
-                                    updateField(field.id, {
-                                      validation: {
-                                        ...field.validation,
-                                        weight:
-                                          event.target.value === ""
-                                            ? undefined
-                                            : Number(event.target.value),
-                                      },
-                                    })
-                                  }
-                                  placeholder="Default: 1"
-                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                                />
-                              </label>
-                              <label className="flex items-end gap-2 pb-2 text-sm text-slate-600">
-                                <input
-                                  type="checkbox"
-                                  checked={field.validation?.critical ?? false}
-                                  disabled={isAreaWorkspace}
-                                  onChange={(event) =>
-                                    updateField(field.id, {
-                                      validation: {
-                                        ...field.validation,
-                                        critical: event.target.checked || undefined,
-                                      },
-                                    })
-                                  }
-                                  className="rounded border-slate-300"
-                                />
-                                Item kritis (gagal = checklist fail)
-                              </label>
-                            </div>
+                            {advancedEditorOpen ? (
+                              <div className="grid gap-2 md:grid-cols-2">
+                                <label className="grid gap-1">
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    Bobot skor
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={0.1}
+                                    step={0.1}
+                                    value={field.validation?.weight ?? ""}
+                                    readOnly={isAreaWorkspace}
+                                    onChange={(event) =>
+                                      updateField(field.id, {
+                                        validation: {
+                                          ...field.validation,
+                                          weight:
+                                            event.target.value === ""
+                                              ? undefined
+                                              : Number(event.target.value),
+                                        },
+                                      })
+                                    }
+                                    placeholder="Default: 1"
+                                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                  />
+                                </label>
+                                <label className="flex items-end gap-2 pb-2 text-sm text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={field.validation?.critical ?? false}
+                                    disabled={isAreaWorkspace}
+                                    onChange={(event) =>
+                                      updateField(field.id, {
+                                        validation: {
+                                          ...field.validation,
+                                          critical: event.target.checked || undefined,
+                                        },
+                                      })
+                                    }
+                                    className="rounded border-slate-300"
+                                  />
+                                  Item kritis (gagal = checklist fail)
+                                </label>
+                              </div>
+                            ) : null}
 
                             {field.type === "select" ? (
                               <div className="space-y-2">
@@ -1458,103 +1471,71 @@ export function FormsWorkspace() {
                               </div>
                             ) : null}
 
-                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                Visibilitas kondisional
-                              </p>
-                              <div className="mt-2 grid gap-2 md:grid-cols-3">
-                                <select
-                                  value={
-                                    field.options?.visibilityRule?.fieldId ??
-                                    field.options?.showWhenFieldId ??
-                                    ""
-                                  }
-                                  disabled={isAreaWorkspace}
-                                  onChange={(event) => {
-                                    const fieldId = event.target.value;
-                                    if (!fieldId) {
-                                      updateField(field.id, {
-                                        options: {
-                                          ...field.options,
-                                          visibilityRule: undefined,
-                                          showWhenFieldId: undefined,
-                                          showWhenValue: undefined,
-                                        },
-                                      });
-                                      return;
+                            {advancedEditorOpen ? (
+                              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                  Visibilitas kondisional
+                                </p>
+                                <div className="mt-2 grid gap-2 md:grid-cols-3">
+                                  <select
+                                    value={
+                                      field.options?.visibilityRule?.fieldId ??
+                                      field.options?.showWhenFieldId ??
+                                      ""
                                     }
-
-                                    updateField(field.id, {
-                                      options: {
-                                        ...field.options,
-                                        showWhenFieldId: undefined,
-                                        showWhenValue: undefined,
-                                        visibilityRule: {
-                                          fieldId,
-                                          operator:
-                                            field.options?.visibilityRule?.operator ?? "equals",
-                                          value: field.options?.visibilityRule?.value ?? "No",
-                                        },
-                                      },
-                                    });
-                                  }}
-                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                                >
-                                  <option value="">Selalu tampil</option>
-                                  {selectedTemplate.fields
-                                    .filter((candidate) => candidate.id !== field.id)
-                                    .map((candidate) => (
-                                      <option key={candidate.id} value={candidate.id}>
-                                        {candidate.label}
-                                      </option>
-                                    ))}
-                                </select>
-
-                                {field.options?.visibilityRule?.fieldId ||
-                                field.options?.showWhenFieldId ? (
-                                  <>
-                                    <select
-                                      value={
-                                        field.options?.visibilityRule?.operator ??
-                                        (field.options?.showWhenFieldId ? "equals" : "equals")
-                                      }
-                                      disabled={isAreaWorkspace}
-                                      onChange={(event) => {
-                                        const operator = event.target
-                                          .value as FieldVisibilityOperator;
-                                        const currentFieldId =
-                                          field.options?.visibilityRule?.fieldId ??
-                                          field.options?.showWhenFieldId ??
-                                          "";
-
+                                    disabled={isAreaWorkspace}
+                                    onChange={(event) => {
+                                      const fieldId = event.target.value;
+                                      if (!fieldId) {
                                         updateField(field.id, {
                                           options: {
                                             ...field.options,
+                                            visibilityRule: undefined,
                                             showWhenFieldId: undefined,
                                             showWhenValue: undefined,
-                                            visibilityRule: {
-                                              fieldId: currentFieldId,
-                                              operator,
-                                              value: field.options?.visibilityRule?.value ?? "No",
-                                            },
                                           },
                                         });
-                                      }}
-                                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                                    >
-                                      {visibilityOperatorOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                          {option.label}
+                                        return;
+                                      }
+
+                                      updateField(field.id, {
+                                        options: {
+                                          ...field.options,
+                                          showWhenFieldId: undefined,
+                                          showWhenValue: undefined,
+                                          visibilityRule: {
+                                            fieldId,
+                                            operator:
+                                              field.options?.visibilityRule?.operator ?? "equals",
+                                            value: field.options?.visibilityRule?.value ?? "No",
+                                          },
+                                        },
+                                      });
+                                    }}
+                                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                  >
+                                    <option value="">Selalu tampil</option>
+                                    {selectedTemplate.fields
+                                      .filter((candidate) => candidate.id !== field.id)
+                                      .map((candidate) => (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {candidate.label}
                                         </option>
                                       ))}
-                                    </select>
+                                  </select>
 
-                                    {field.options?.visibilityRule?.operator !== "is_empty" &&
-                                    field.options?.visibilityRule?.operator !== "is_not_empty" ? (
-                                      <input
-                                        value={field.options?.visibilityRule?.value ?? ""}
+                                  {field.options?.visibilityRule?.fieldId ||
+                                  field.options?.showWhenFieldId ? (
+                                    <>
+                                      <select
+                                        value={
+                                          field.options?.visibilityRule?.operator ??
+                                          (field.options?.showWhenFieldId ? "equals" : "equals")
+                                        }
                                         disabled={isAreaWorkspace}
                                         onChange={(event) => {
+                                          const operator = event.target
+                                            .value as FieldVisibilityOperator;
                                           const currentFieldId =
                                             field.options?.visibilityRule?.fieldId ??
                                             field.options?.showWhenFieldId ??
@@ -1563,28 +1544,62 @@ export function FormsWorkspace() {
                                           updateField(field.id, {
                                             options: {
                                               ...field.options,
+                                              showWhenFieldId: undefined,
+                                              showWhenValue: undefined,
                                               visibilityRule: {
                                                 fieldId: currentFieldId,
-                                                operator:
-                                                  field.options?.visibilityRule?.operator ??
-                                                  "equals",
-                                                value: event.target.value,
+                                                operator,
+                                                value: field.options?.visibilityRule?.value ?? "No",
                                               },
                                             },
                                           });
                                         }}
-                                        placeholder="Nilai (mis. No, Fail)"
                                         className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                                      />
-                                    ) : (
-                                      <div className="flex h-10 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500">
-                                        Operator tidak memerlukan nilai
-                                      </div>
-                                    )}
-                                  </>
-                                ) : null}
+                                      >
+                                        {visibilityOperatorOptions.map((option) => (
+                                          <option key={option.value} value={option.value}>
+                                            {option.label}
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                      {field.options?.visibilityRule?.operator !== "is_empty" &&
+                                      field.options?.visibilityRule?.operator !== "is_not_empty" ? (
+                                        <input
+                                          value={field.options?.visibilityRule?.value ?? ""}
+                                          disabled={isAreaWorkspace}
+                                          onChange={(event) => {
+                                            const currentFieldId =
+                                              field.options?.visibilityRule?.fieldId ??
+                                              field.options?.showWhenFieldId ??
+                                              "";
+
+                                            updateField(field.id, {
+                                              options: {
+                                                ...field.options,
+                                                visibilityRule: {
+                                                  fieldId: currentFieldId,
+                                                  operator:
+                                                    field.options?.visibilityRule?.operator ??
+                                                    "equals",
+                                                  value: event.target.value,
+                                                },
+                                              },
+                                            });
+                                          }}
+                                          placeholder="Nilai (mis. No, Fail)"
+                                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                        />
+                                      ) : (
+                                        <div className="flex h-10 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500">
+                                          Operator tidak memerlukan nilai
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : null}
+                                </div>
                               </div>
-                            </div>
+                            ) : null}
                           </div>
                         ) : null}
 
@@ -1647,14 +1662,28 @@ export function FormsWorkspace() {
                   </p>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <Settings2 className="size-4" />
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                          <Settings2 className="size-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">Template Settings</p>
+                          <p className="text-xs text-slate-500">Publish rules for outlets</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">Template Settings</p>
-                        <p className="text-xs text-slate-500">Publish rules for outlets</p>
-                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setAdvancedEditorOpen((current) => !current)}
+                        className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                          advancedEditorOpen
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {advancedEditorOpen ? "Advanced on" : "Advanced"}
+                      </button>
                     </div>
 
                     <div className="mt-5 grid gap-2 sm:grid-cols-3">
@@ -1698,7 +1727,7 @@ export function FormsWorkspace() {
                         <label className="text-xs font-semibold text-slate-700">Category</label>
                         <select
                           value={selectedTemplate.category}
-                          disabled={isAreaWorkspace}
+                          disabled={isAreaWorkspace || isFinanceTemplate}
                           onChange={(event) =>
                             updateSelectedTemplate({
                               category: event.target.value,

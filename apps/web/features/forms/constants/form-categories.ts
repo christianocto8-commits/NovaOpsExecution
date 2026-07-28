@@ -4,6 +4,7 @@ export type FormCategoryId =
   | "food_safety"
   | "cleaning"
   | "audit"
+  | "finance"
   | "inventory"
   | "maintenance"
   | "quality_check"
@@ -44,6 +45,11 @@ export const ZENPUT_FORM_CATEGORIES: FormCategory[] = [
     description: "Compliance audits and line checks",
   },
   {
+    id: "finance",
+    label: "Finance",
+    description: "Cash control, shift deposit, and finance audit forms",
+  },
+  {
     id: "inventory",
     label: "Inventory",
     description: "Stock counts and inventory control",
@@ -74,6 +80,9 @@ const LEGACY_CATEGORY_MAP: Record<string, FormCategoryId> = {
   Daily: "uncategorized",
   Checklist: "audit",
   Audit: "audit",
+  Finance: "finance",
+  "Finance Handoff": "finance",
+  "Audit Finance": "finance",
   Cleaning: "cleaning",
   "Cleaning Audit": "audit",
   Opening: "opening",
@@ -88,6 +97,8 @@ const LEGACY_CATEGORY_MAP: Record<string, FormCategoryId> = {
   food_safety: "food_safety",
   cleaning: "cleaning",
   audit: "audit",
+  finance: "finance",
+  finance_shift_deposit: "finance",
   inventory: "inventory",
   maintenance: "maintenance",
   quality_check: "quality_check",
