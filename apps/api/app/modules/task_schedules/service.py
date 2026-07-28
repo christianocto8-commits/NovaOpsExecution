@@ -42,6 +42,7 @@ class TaskScheduleService:
             shifts_json=payload.shifts,
             outlet_ids_json=payload.outlet_ids,
             due_time=payload.due_time,
+            one_time_due_at=payload.one_time_due_at,
             weekly_publish_day=payload.weekly_publish_day,
             monthly_publish_day=payload.monthly_publish_day,
             assigned_to=payload.assigned_to,
@@ -50,9 +51,10 @@ class TaskScheduleService:
             created_by=actor_id,
         )
         self.db.add(schedule)
-        schedule.next_publish_at = self.publisher.compute_next_publish_at(
-            schedule,
-            datetime.now(timezone.utc),
+        schedule.next_publish_at = (
+            payload.publish_at
+            if payload.recurrence == "once" and payload.publish_at
+            else self.publisher.compute_next_publish_at(schedule, datetime.now(timezone.utc))
         )
         self.db.commit()
         self.db.refresh(schedule)
@@ -75,6 +77,8 @@ class TaskScheduleService:
             next_outlet_ids = update_data.pop("outlet_ids")
             schedule.outlet_ids_json = next_outlet_ids
 
+        publish_at = update_data.pop("publish_at", None)
+
         next_assigned_to = update_data.get("assigned_to", schedule.assigned_to)
         if next_assigned_to and (
             "assigned_to" in update_data or "outlet_ids" in payload.model_dump(exclude_unset=True)
@@ -84,9 +88,10 @@ class TaskScheduleService:
         for key, value in update_data.items():
             setattr(schedule, key, value)
 
-        schedule.next_publish_at = self.publisher.compute_next_publish_at(
-            schedule,
-            datetime.now(timezone.utc),
+        schedule.next_publish_at = (
+            publish_at
+            if schedule.recurrence == "once" and publish_at
+            else self.publisher.compute_next_publish_at(schedule, datetime.now(timezone.utc))
         )
 
         self.db.commit()
@@ -186,6 +191,21 @@ class TaskScheduleService:
         return items
 
     def _validate_payload(self, payload: TaskScheduleCreate) -> None:
+        if payload.recurrence == "once":
+            if not payload.publish_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="publish_at is required for one-time project tasks",
+                )
+            if not payload.one_time_due_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="one_time_due_at is required for one-time project tasks",
+                )
+            if payload.assigned_to:
+                self._validate_assignee(payload.assigned_to, payload.outlet_ids)
+            return
+
         if payload.recurrence == "weekly" and not payload.weekly_publish_day:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

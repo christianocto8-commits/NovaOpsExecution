@@ -165,6 +165,7 @@ export type TaskFormState = {
   assignedToId?: number | null;
   assigneeSelection?: TaskAssigneeSelection;
   due: string;
+  publishAt: string;
   description: string;
   formTemplateId: string;
   recurrence: TaskRecurrence;

@@ -1,7 +1,14 @@
 import { api } from "@/services/api";
 import { cacheTasks, getCachedTasks } from "@/lib/offline/store";
 import { taskScheduleService } from "@/services/task-schedule.service";
-import type { Task, TaskFormState, TaskPriority, TaskReviewStatus, TaskShift, TaskStatus } from "@/features/tasks/types";
+import type {
+  Task,
+  TaskFormState,
+  TaskPriority,
+  TaskReviewStatus,
+  TaskShift,
+  TaskStatus,
+} from "@/features/tasks/types";
 
 export type OutletMember = {
   id: number;
@@ -123,14 +130,6 @@ function parseSourceFormTemplateId(task: BackendTask) {
   }
 
   return "";
-}
-
-function resolveTaskOutletHeader(form: TaskFormState) {
-  if (form.recurrence === "once") {
-    return form.outletId ?? form.targetOutletIds?.[0] ?? undefined;
-  }
-
-  return form.targetOutletIds?.[0] ?? form.outletId ?? undefined;
 }
 
 function deriveReviewStatus(task: BackendTask): TaskReviewStatus | undefined {
@@ -293,38 +292,28 @@ export const taskService = {
   },
 
   async create(form: TaskFormState) {
-    if (form.recurrence !== "once") {
-      const schedule = await taskScheduleService.create(form);
+    const schedule = await taskScheduleService.create(form);
 
-      return {
-        id: `SCHEDULE-${schedule.id}`,
-        title: schedule.title,
-        outlet: form.targetOutlets[0] ?? form.outlet,
-        outletId: form.targetOutletIds?.[0] ?? form.outletId,
-        status: "Pending",
-        priority: form.priority,
-        assignee: form.assignee || "Outlet Team",
-        assignedToId: form.assignedToId ?? null,
-        due: form.dueTime,
-        description: form.description,
-        formTemplateId: form.formTemplateId,
-        recurrence: schedule.recurrence,
-        shifts: form.shifts,
-        targetOutlets: form.targetOutlets,
-        autoPublish: schedule.auto_publish,
-        dueTime: schedule.due_time,
-        weeklyPublishDay: form.weeklyPublishDay,
-      };
-    }
-
-    const task = await api<BackendTask>("/api/v1/tasks", {
-      method: "POST",
-      headers: resolveTaskOutletHeader(form)
-        ? { "X-Outlet-Id": resolveTaskOutletHeader(form) as string }
-        : undefined,
-      body: JSON.stringify(toBackendPayload(form)),
-    });
-    return mapBackendTask(task);
+    return {
+      id: `SCHEDULE-${schedule.id}`,
+      title: schedule.title,
+      outlet: form.targetOutlets[0] ?? form.outlet,
+      outletId: form.targetOutletIds?.[0] ?? form.outletId,
+      status: "Pending",
+      priority: form.priority,
+      assignee: form.assignee || "Outlet Team",
+      assignedToId: form.assignedToId ?? null,
+      due: form.recurrence === "once" ? form.due : form.dueTime,
+      description: form.description,
+      formTemplateId: form.formTemplateId,
+      recurrence: schedule.recurrence,
+      shifts: form.shifts,
+      targetOutlets: form.targetOutlets,
+      autoPublish: schedule.auto_publish,
+      dueTime: schedule.due_time,
+      publishAt: schedule.next_publish_at ?? form.publishAt,
+      weeklyPublishDay: form.weeklyPublishDay,
+    };
   },
 
   async update(taskId: string, form: TaskFormState) {
@@ -425,9 +414,7 @@ export const taskService = {
     return {
       task: mapBackendTask(response.task),
       checklist: response.checklist,
-      correctiveTask: response.corrective_task
-        ? mapBackendTask(response.corrective_task)
-        : null,
+      correctiveTask: response.corrective_task ? mapBackendTask(response.corrective_task) : null,
     };
   },
 };

@@ -37,7 +37,7 @@ type TaskFormDrawerProps = {
 const statuses: TaskStatus[] = ["Pending", "In Progress", "Completed"];
 const priorities: TaskPriority[] = ["Low", "Medium", "High", "Critical"];
 const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
-  { value: "once", label: "Once" },
+  { value: "once", label: "One-time project" },
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
@@ -56,6 +56,12 @@ const weeklyPublishDayOptions: Array<{ value: TaskWeeklyPublishDay; label: strin
   { value: "friday", label: "Friday" },
   { value: "saturday", label: "Saturday" },
 ];
+
+function getLocalDateTimeValue(offsetMinutes = 0) {
+  const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  date.setSeconds(0, 0);
+  return date.toISOString().slice(0, 16);
+}
 
 export function TaskFormDrawer({
   open,
@@ -153,7 +159,7 @@ export function TaskFormDrawer({
     Boolean(form.title?.trim()) &&
     Boolean((form.assignee ?? "Outlet Team").trim()) &&
     (form.recurrence === "once"
-      ? Boolean(form.due?.trim())
+      ? Boolean(form.publishAt?.trim()) && Boolean(form.due?.trim())
       : Boolean(form.dueTime?.trim()) &&
         (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay)) &&
         (form.recurrence !== "monthly" || Boolean(form.monthlyPublishDay))) &&
@@ -254,7 +260,8 @@ export function TaskFormDrawer({
             {selectedTemplate ? (
               <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-sm font-semibold text-emerald-900">
-                  {getFormCategoryLabel(selectedTemplate.category)} - {selectedTemplate.fields.length} fields
+                  {getFormCategoryLabel(selectedTemplate.category)} -{" "}
+                  {selectedTemplate.fields.length} fields
                 </p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
                   {selectedTemplate.description}
@@ -348,7 +355,8 @@ export function TaskFormDrawer({
               <div>
                 <p className="text-sm font-bold text-emerald-950">Schedule</p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  Once uses a full due date. Daily and weekly auto publish use due time only.
+                  One-time project appears once at publish time. Recurring tasks regenerate by
+                  schedule.
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
@@ -369,12 +377,22 @@ export function TaskFormDrawer({
                     onChange({
                       ...form,
                       recurrence,
-                      autoPublish: recurrence !== "once",
+                      autoPublish: true,
+                      publishAt:
+                        recurrence === "once"
+                          ? form.publishAt || getLocalDateTimeValue()
+                          : form.publishAt,
+                      due:
+                        recurrence === "once"
+                          ? form.due || getLocalDateTimeValue(24 * 60)
+                          : form.due,
                       dueTime: form.dueTime || defaultTaskDueTime,
                       shifts: recurrence === "daily" ? form.shifts : [],
                       weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
                       monthlyPublishDay:
-                        recurrence === "monthly" ? form.monthlyPublishDay || 1 : form.monthlyPublishDay,
+                        recurrence === "monthly"
+                          ? form.monthlyPublishDay || 1
+                          : form.monthlyPublishDay,
                     });
                   }}
                   className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
@@ -388,17 +406,31 @@ export function TaskFormDrawer({
               </div>
 
               {form.recurrence === "once" ? (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                    Due Date & Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.due ?? ""}
-                    onChange={(event) => onChange({ ...form, due: event.target.value })}
-                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                      Publish Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={form.publishAt ?? ""}
+                      onChange={(event) => onChange({ ...form, publishAt: event.target.value })}
+                      className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                      Due Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={form.due ?? ""}
+                      onChange={(event) => onChange({ ...form, due: event.target.value })}
+                      className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                </>
               ) : (
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
@@ -589,4 +621,3 @@ export function TaskFormDrawer({
     </div>
   );
 }
-

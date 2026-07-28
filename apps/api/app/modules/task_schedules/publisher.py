@@ -66,7 +66,11 @@ class TaskSchedulePublisher:
             created, skipped, skipped_by_exception = self._publish_schedule(schedule, current, force=force)
             if created > 0 or force:
                 schedule.last_published_at = current
-                schedule.next_publish_at = self.compute_next_publish_at(schedule, current)
+                if schedule.recurrence == "once":
+                    schedule.is_active = False
+                    schedule.next_publish_at = None
+                else:
+                    schedule.next_publish_at = self.compute_next_publish_at(schedule, current)
                 schedules_published += 1
 
                 if created > 0:
@@ -103,6 +107,9 @@ class TaskSchedulePublisher:
         }
 
     def _should_publish(self, schedule: TaskSchedule, current: datetime) -> bool:
+        if schedule.recurrence == "once":
+            return bool(schedule.next_publish_at and schedule.next_publish_at <= current)
+
         if schedule.recurrence == "daily":
             return self._is_past_due_time(schedule.due_time, current)
 
@@ -148,6 +155,16 @@ class TaskSchedulePublisher:
         skipped = 0
         skipped_by_exception = 0
         outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
+
+        if schedule.recurrence == "once":
+            for outlet_ref in outlet_ids:
+                if self._task_exists(schedule, outlet_ref, None, current, force=force):
+                    skipped += 1
+                    continue
+
+                if self._create_task(schedule, outlet_ref, None, current):
+                    created += 1
+            return created, skipped, skipped_by_exception
 
         if schedule.recurrence == "weekly":
             for outlet_ref in outlet_ids:
@@ -232,7 +249,9 @@ class TaskSchedulePublisher:
         if shift:
             query = query.filter(Task.shift == shift)
 
-        if schedule.recurrence == "weekly":
+        if schedule.recurrence == "once":
+            query = query.filter(Task.schedule_id == schedule.id)
+        elif schedule.recurrence == "weekly":
             week_start = current.date() - timedelta(days=current.weekday())
             query = query.filter(func.date(Task.created_at) >= week_start)
         elif schedule.recurrence == "monthly":
@@ -307,6 +326,9 @@ class TaskSchedulePublisher:
         current: datetime,
     ) -> datetime:
         due_time = schedule.due_time
+        if schedule.recurrence == "once" and schedule.one_time_due_at:
+            return schedule.one_time_due_at
+
         if shift == "morning":
             due_time = "07:00"
         elif shift == "evening":
@@ -356,13 +378,16 @@ class TaskSchedulePublisher:
 
     def expand_schedule_targets(self, schedule: TaskSchedule) -> list[tuple[str, str | None]]:
         outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
-        if schedule.recurrence in {"weekly", "monthly"}:
+        if schedule.recurrence in {"once", "weekly", "monthly"}:
             return [(outlet_ref, None) for outlet_ref in outlet_ids]
 
         shifts = schedule.shifts_json or ["morning"]
         return [(outlet_ref, shift) for outlet_ref in outlet_ids for shift in shifts]
 
     def compute_next_publish_at(self, schedule: TaskSchedule, current: datetime) -> datetime:
+        if schedule.recurrence == "once" and schedule.next_publish_at:
+            return schedule.next_publish_at
+
         try:
             hour, minute = [int(part) for part in schedule.due_time.split(":")]
         except (TypeError, ValueError):

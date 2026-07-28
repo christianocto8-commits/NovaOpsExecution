@@ -10,6 +10,7 @@ export const emptyTaskForm: TaskFormState = {
   assignedToId: null,
   assigneeSelection: "outlet_team",
   due: "",
+  publishAt: "",
   dueTime: "",
   weeklyPublishDay: "sunday",
   monthlyPublishDay: 1,

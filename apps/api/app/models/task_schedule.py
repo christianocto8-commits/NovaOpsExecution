@@ -30,6 +30,7 @@ class TaskSchedule(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     last_published_at = Column(DateTime(timezone=True), nullable=True)
     next_publish_at = Column(DateTime(timezone=True), nullable=True)
+    one_time_due_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

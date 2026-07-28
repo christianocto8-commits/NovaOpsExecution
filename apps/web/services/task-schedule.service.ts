@@ -1,5 +1,10 @@
 import { api } from "@/services/api";
-import type { TaskFormState, TaskRecurrence, TaskShift, TaskWeeklyPublishDay } from "@/features/tasks/types";
+import type {
+  TaskFormState,
+  TaskRecurrence,
+  TaskShift,
+  TaskWeeklyPublishDay,
+} from "@/features/tasks/types";
 
 export type BackendTaskSchedule = {
   id: number;
@@ -19,6 +24,7 @@ export type BackendTaskSchedule = {
   created_by: number;
   last_published_at: string | null;
   next_publish_at: string | null;
+  one_time_due_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -52,10 +58,12 @@ type CreateTaskSchedulePayload = {
   description: string | null;
   form_template_id: number | null;
   priority: string;
-  recurrence: "daily" | "weekly" | "monthly";
+  recurrence: "once" | "daily" | "weekly" | "monthly";
   shifts: TaskShift[];
   outlet_ids: string[];
   due_time: string;
+  publish_at: string | null;
+  one_time_due_at: string | null;
   weekly_publish_day: TaskWeeklyPublishDay | null;
   monthly_publish_day: number | null;
   assigned_to: number | null;
@@ -103,6 +111,7 @@ function resolveFormTemplateId(formTemplateId: string): number | null {
 }
 
 function resolveRecurrence(form: TaskFormState): CreateTaskSchedulePayload["recurrence"] {
+  if (form.recurrence === "once") return "once";
   if (form.recurrence === "weekly") return "weekly";
   if (form.recurrence === "monthly") return "monthly";
   return "daily";
@@ -120,6 +129,9 @@ function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
     shifts: recurrence === "daily" ? form.shifts : [],
     outlet_ids: resolveOutletIds(form),
     due_time: form.dueTime || "09:00",
+    publish_at:
+      recurrence === "once" && form.publishAt ? new Date(form.publishAt).toISOString() : null,
+    one_time_due_at: recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
     weekly_publish_day: recurrence === "weekly" ? form.weeklyPublishDay : null,
     monthly_publish_day: recurrence === "monthly" ? form.monthlyPublishDay || 1 : null,
     assigned_to: form.assignedToId ?? null,
@@ -136,16 +148,16 @@ export function scheduleToFormState(
   );
 
   const recurrence: TaskFormState["recurrence"] =
-    schedule.recurrence === "weekly"
-      ? "weekly"
-      : schedule.recurrence === "monthly"
-        ? "monthly"
-        : "daily";
+    schedule.recurrence === "once"
+      ? "once"
+      : schedule.recurrence === "weekly"
+        ? "weekly"
+        : schedule.recurrence === "monthly"
+          ? "monthly"
+          : "daily";
 
   const assigneeSelection =
-    schedule.assigned_to != null
-      ? (`user:${schedule.assigned_to}` as const)
-      : "outlet_team";
+    schedule.assigned_to != null ? (`user:${schedule.assigned_to}` as const) : "outlet_team";
 
   return {
     title: schedule.title,
@@ -156,7 +168,8 @@ export function scheduleToFormState(
     assignee: schedule.assigned_to ? `User ${schedule.assigned_to}` : "Outlet Team",
     assignedToId: schedule.assigned_to,
     assigneeSelection,
-    due: "",
+    due: schedule.one_time_due_at ? schedule.one_time_due_at.slice(0, 16) : "",
+    publishAt: schedule.next_publish_at ? schedule.next_publish_at.slice(0, 16) : "",
     description: schedule.description ?? "",
     formTemplateId: schedule.form_template_id ? String(schedule.form_template_id) : "",
     recurrence,

@@ -22,7 +22,11 @@ import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { resolveAssigneeSelection } from "@/features/tasks/utils/assignee-options";
-import { taskService, hasValidTaskFormTemplate, resolveTaskFormTemplate } from "@/services/task.service";
+import {
+  taskService,
+  hasValidTaskFormTemplate,
+  resolveTaskFormTemplate,
+} from "@/services/task.service";
 import { formTemplateService } from "@/services/form-template.service";
 import { scoreChecklistClientSide } from "@/shared/checklist/checklist-scoring";
 import { getIdentityOutlets } from "@/services/identity.service";
@@ -57,6 +61,12 @@ function getTimeFromDue(value?: string, fallback = "09:00") {
   const timeMatch = value.match(/(\d{2}):(\d{2})/);
 
   return timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : fallback;
+}
+
+function getLocalDateTimeValue(offsetMinutes = 0) {
+  const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  date.setSeconds(0, 0);
+  return date.toISOString().slice(0, 16);
 }
 
 function isTaskPastDue(task: Task) {
@@ -130,7 +140,10 @@ function parseExecutionDraft(session: ExecutionSessionResponse): TaskExecutionFo
     note: typeof payload.note === "string" ? payload.note : "",
     evidenceText: typeof payload.evidence === "string" ? payload.evidence : "",
     formResponses: Object.fromEntries(
-      Object.entries(responses ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : ""])
+      Object.entries(responses ?? {}).map(([key, value]) => [
+        key,
+        typeof value === "string" ? value : "",
+      ])
     ),
   };
 }
@@ -139,7 +152,11 @@ function getLatestDraftSessionsByTask(executionSessions: ExecutionSessionRespons
   const latestDraftMap = new Map<string, ExecutionSessionResponse>();
 
   executionSessions.forEach((session) => {
-    if (session.status !== "draft" || session.source_type !== "sop_task" || session.task_id == null) {
+    if (
+      session.status !== "draft" ||
+      session.source_type !== "sop_task" ||
+      session.task_id == null
+    ) {
       return;
     }
 
@@ -158,7 +175,11 @@ function getLatestCompletedSessionsByTask(executionSessions: ExecutionSessionRes
   const latestCompletedMap = new Map<string, ExecutionSessionResponse>();
 
   executionSessions.forEach((session) => {
-    if (session.status !== "completed" || session.source_type !== "sop_task" || session.task_id == null) {
+    if (
+      session.status !== "completed" ||
+      session.source_type !== "sop_task" ||
+      session.task_id == null
+    ) {
       return;
     }
 
@@ -206,10 +227,7 @@ function hasPhotoInFormResponses(formResponses: TaskExecutionForm["formResponses
   });
 }
 
-function hasPhotoEvidence(
-  evidenceText: string,
-  formResponses: TaskExecutionForm["formResponses"]
-) {
+function hasPhotoEvidence(evidenceText: string, formResponses: TaskExecutionForm["formResponses"]) {
   const galleryItems = parseEvidenceGallery(evidenceText);
   if (galleryItems.some((item) => isPhotoUrl(item.url))) return true;
 
@@ -285,11 +303,18 @@ function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undef
   const payload = value as Record<string, unknown>;
   const failedItems = Array.isArray(payload.failed_items)
     ? payload.failed_items
-        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .filter(
+          (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+        )
         .map((item) => ({
           field_id: Number(item.field_id),
           label: typeof item.label === "string" ? item.label : "Unknown field",
-          value: typeof item.value === "string" ? item.value : item.value == null ? null : String(item.value),
+          value:
+            typeof item.value === "string"
+              ? item.value
+              : item.value == null
+                ? null
+                : String(item.value),
           reason: typeof item.reason === "string" ? item.reason : "Failed",
           critical: item.critical === true,
         }))
@@ -297,11 +322,18 @@ function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undef
 
   const criticalFailures = Array.isArray(payload.critical_failures)
     ? payload.critical_failures
-        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .filter(
+          (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+        )
         .map((item) => ({
           field_id: Number(item.field_id),
           label: typeof item.label === "string" ? item.label : "Unknown field",
-          value: typeof item.value === "string" ? item.value : item.value == null ? null : String(item.value),
+          value:
+            typeof item.value === "string"
+              ? item.value
+              : item.value == null
+                ? null
+                : String(item.value),
           reason: typeof item.reason === "string" ? item.reason : "Failed",
           critical: true,
         }))
@@ -315,7 +347,8 @@ function parseChecklistScore(value: unknown): TaskExecution["checklist"] | undef
   return {
     score: typeof payload.score === "number" ? payload.score : Number(payload.score ?? 0),
     passed_count: typeof payload.passed_count === "number" ? payload.passed_count : 0,
-    failed_count: typeof payload.failed_count === "number" ? payload.failed_count : failedItems.length,
+    failed_count:
+      typeof payload.failed_count === "number" ? payload.failed_count : failedItems.length,
     total_scorable: typeof payload.total_scorable === "number" ? payload.total_scorable : 0,
     na_count: typeof payload.na_count === "number" ? payload.na_count : 0,
     failed_items: failedItems,
@@ -334,7 +367,7 @@ function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution
   const submittedAt =
     typeof payload.submittedAt === "string"
       ? payload.submittedAt
-      : session.submitted_at ?? new Date().toISOString();
+      : (session.submitted_at ?? new Date().toISOString());
   const evidenceText = typeof payload.evidence === "string" ? payload.evidence : "";
 
   return {
@@ -346,7 +379,10 @@ function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution
     note: typeof payload.note === "string" ? payload.note : "",
     evidence: buildTaskEvidence(evidenceText, submittedAt),
     formResponses: Object.fromEntries(
-      Object.entries(responses ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : ""])
+      Object.entries(responses ?? {}).map(([key, value]) => [
+        key,
+        typeof value === "string" ? value : "",
+      ])
     ),
     completedAt: submittedAt,
     checklist: parseChecklistScore(payload._checklist),
@@ -453,9 +489,7 @@ export function useTaskWorkspace() {
   );
   const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
   const isOutletWorkspace = workspace.mode === "outlet";
-  const approvalRequired = isOutletWorkspace
-    ? false
-    : (settings?.approval_required ?? false);
+  const approvalRequired = isOutletWorkspace ? false : (settings?.approval_required ?? false);
   const confirm = useConfirmation();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -580,6 +614,8 @@ export function useTaskWorkspace() {
       assignee: "Outlet Team",
       assigneeSelection: "outlet_team",
       assignedToId: null,
+      publishAt: getLocalDateTimeValue(),
+      due: getLocalDateTimeValue(24 * 60),
       dueTime: defaultTaskDueTime,
     });
     setIsFormOpen(true);
@@ -599,6 +635,7 @@ export function useTaskWorkspace() {
         assignee: task.assignee,
       }),
       due: task.due,
+      publishAt: task.publishAt ?? "",
       description: task.description,
       formTemplateId: task.formTemplateId ?? "",
       recurrence: task.recurrence ?? "once",
@@ -686,9 +723,9 @@ export function useTaskWorkspace() {
       } else {
         await createTaskMutation.mutateAsync(resolvedForm);
         toast.success(
-          resolvedForm.recurrence !== "once"
-            ? "Schedule recurring berhasil dibuat."
-            : "Task berhasil dibuat."
+          resolvedForm.recurrence === "once"
+            ? "One-time project berhasil dijadwalkan."
+            : "Schedule recurring berhasil dibuat."
         );
       }
 
@@ -1092,7 +1129,8 @@ export function useTaskWorkspace() {
 
       closeExecution();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal menyelesaikan task secara lokal.";
+      const message =
+        error instanceof Error ? error.message : "Gagal menyelesaikan task secara lokal.";
       toast.error(message);
     }
   }

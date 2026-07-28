@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-TaskScheduleRecurrence = Literal["daily", "weekly", "monthly"]
+TaskScheduleRecurrence = Literal["once", "daily", "weekly", "monthly"]
 TaskScheduleShift = Literal["morning", "evening", "midnight"]
 TaskWeeklyPublishDay = Literal[
     "monday",
@@ -26,6 +26,8 @@ class TaskScheduleCreate(BaseModel):
     shifts: list[TaskScheduleShift] = Field(default_factory=list)
     outlet_ids: list[str] = Field(min_length=1)
     due_time: str = "09:00"
+    publish_at: datetime | None = None
+    one_time_due_at: datetime | None = None
     weekly_publish_day: TaskWeeklyPublishDay | None = None
     monthly_publish_day: int | None = Field(default=None, ge=1, le=28)
     assigned_to: int | None = None
@@ -41,7 +43,7 @@ class TaskScheduleCreate(BaseModel):
     @model_validator(mode="after")
     def require_form_template(self) -> "TaskScheduleCreate":
         if self.form_template_id is None:
-            raise ValueError("form_template_id is required for recurring task schedules")
+            raise ValueError("form_template_id is required for task schedules")
         return self
 
 
@@ -54,6 +56,8 @@ class TaskScheduleUpdate(BaseModel):
     shifts: list[TaskScheduleShift] | None = None
     outlet_ids: list[str] | None = None
     due_time: str | None = None
+    publish_at: datetime | None = None
+    one_time_due_at: datetime | None = None
     weekly_publish_day: TaskWeeklyPublishDay | None = None
     monthly_publish_day: int | None = Field(default=None, ge=1, le=28)
     assigned_to: int | None = None
@@ -79,6 +83,7 @@ class TaskScheduleResponse(BaseModel):
     created_by: int
     last_published_at: datetime | None
     next_publish_at: datetime | None
+    one_time_due_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
