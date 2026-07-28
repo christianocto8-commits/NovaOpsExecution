@@ -23,10 +23,7 @@ export function WorkflowFormDialog({
 }: WorkflowFormDialogProps) {
   if (!open) return null;
 
-  function updateField<K extends keyof WorkflowFormState>(
-    key: K,
-    value: WorkflowFormState[K],
-  ) {
+  function updateField<K extends keyof WorkflowFormState>(key: K, value: WorkflowFormState[K]) {
     onChange({
       ...form,
       [key]: value,
@@ -34,7 +31,7 @@ export function WorkflowFormDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-0 sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close workflow form"
@@ -42,9 +39,9 @@ export function WorkflowFormDialog({
         onClick={onClose}
       />
 
-      <section className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+      <section className="relative flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-emerald-700">
               {mode === "edit" ? "Edit Workflow" : "Create Workflow"}
             </p>
@@ -54,7 +51,8 @@ export function WorkflowFormDialog({
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Configure the workflow definition before attaching approval, escalation, and notification rules.
+              Configure the workflow definition before attaching approval, escalation, and
+              notification rules.
             </p>
           </div>
 
@@ -68,80 +66,82 @@ export function WorkflowFormDialog({
           </button>
         </div>
 
-        {error ? (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-            {error}
-          </div>
-        ) : null}
+        <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              {error}
+            </div>
+          ) : null}
 
-        <div className="mt-6 grid gap-4">
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-700">Workflow Name</span>
-            <input
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-              placeholder="Example: Purchase Approval"
-            />
-          </label>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-4">
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-700">Code</span>
+              <span className="text-sm font-bold text-slate-700">Workflow Name</span>
               <input
-                value={form.code}
-                onChange={(event) => updateField("code", event.target.value)}
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-                placeholder="purchase_approval"
+                placeholder="Example: Purchase Approval"
+              />
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-slate-700">Code</span>
+                <input
+                  value={form.code}
+                  onChange={(event) => updateField("code", event.target.value)}
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                  placeholder="purchase_approval"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-slate-700">Module</span>
+                <input
+                  value={form.module}
+                  onChange={(event) => updateField("module", event.target.value)}
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                  placeholder="operations"
+                />
+              </label>
+            </div>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-700">Status</span>
+              <select
+                value={form.status}
+                onChange={(event) => updateField("status", event.target.value)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-700">Description</span>
+              <textarea
+                value={form.description}
+                onChange={(event) => updateField("description", event.target.value)}
+                className="min-h-24 rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                placeholder="Describe when this workflow should be used."
               />
             </label>
 
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-700">Module</span>
-              <input
-                value={form.module}
-                onChange={(event) => updateField("module", event.target.value)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-                placeholder="operations"
+              <span className="text-sm font-bold text-slate-700">Metadata JSON</span>
+              <textarea
+                value={form.metadataText}
+                onChange={(event) => updateField("metadataText", event.target.value)}
+                className="min-h-40 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                spellCheck={false}
               />
             </label>
           </div>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-700">Status</span>
-            <select
-              value={form.status}
-              onChange={(event) => updateField("status", event.target.value)}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-700">Description</span>
-            <textarea
-              value={form.description}
-              onChange={(event) => updateField("description", event.target.value)}
-              className="min-h-24 rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-              placeholder="Describe when this workflow should be used."
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-700">Metadata JSON</span>
-            <textarea
-              value={form.metadataText}
-              onChange={(event) => updateField("metadataText", event.target.value)}
-              className="min-h-40 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-              spellCheck={false}
-            />
-          </label>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-6">
           <button
             type="button"
             onClick={onClose}

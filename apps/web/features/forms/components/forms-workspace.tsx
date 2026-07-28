@@ -3,10 +3,29 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Eye, GripVertical, History, Plus, Save, Search, Settings2, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  GripVertical,
+  History,
+  PanelRightOpen,
+  Plus,
+  Save,
+  Search,
+  Settings2,
+  Trash2,
+  X,
+} from "lucide-react";
 
-import { FormLibraryPanel, rememberRecentTemplate } from "@/features/forms/components/form-library-panel";
-import { useActiveFormTemplates, useFormTemplates } from "@/features/forms/hooks/use-form-templates";
+import {
+  FormLibraryPanel,
+  rememberRecentTemplate,
+} from "@/features/forms/components/form-library-panel";
+import {
+  useActiveFormTemplates,
+  useFormTemplates,
+} from "@/features/forms/hooks/use-form-templates";
 import { SectionedFormRenderer, getMissingRequiredFields } from "@/features/forms/renderer";
 import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
 import {
@@ -15,7 +34,12 @@ import {
   setTemplateRequiresApproval,
 } from "@/features/forms/utils/template-settings";
 import { visibilityOperatorLabels } from "@/features/forms/utils/field-visibility";
-import { FormField, FormFieldType, FormTemplate, FieldVisibilityOperator } from "@/features/forms/types";
+import {
+  FormField,
+  FormFieldType,
+  FormTemplate,
+  FieldVisibilityOperator,
+} from "@/features/forms/types";
 import {
   getFormCategoryLabel,
   ZENPUT_FORM_CATEGORIES,
@@ -176,14 +200,12 @@ function OutletManualFormsWorkspace() {
   }, [activeTemplates, searchParams, selectedTemplateId]);
 
   const selectedTemplate =
-    activeTemplates.find((template) => template.id === selectedTemplateId) ??
-    activeTemplates[0];
+    activeTemplates.find((template) => template.id === selectedTemplateId) ?? activeTemplates[0];
 
   async function submitManualForm() {
     if (!selectedTemplate || !user) return;
 
-    const outletId =
-      workspace.legacyOutletId ?? user.outlet_access.legacy_outlet_id ?? null;
+    const outletId = workspace.legacyOutletId ?? user.outlet_access.legacy_outlet_id ?? null;
     if (outletId == null || !Number.isFinite(outletId)) {
       setNotice("Outlet context belum tersedia. Login ulang sebagai operator outlet.");
       return;
@@ -280,7 +302,9 @@ function OutletManualFormsWorkspace() {
           <h1 className="text-2xl font-semibold text-slate-950">{t("forms.manual.title")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("forms.manual.subtitle")}</p>
           {!isOnline ? (
-            <p className="mt-2 text-xs font-semibold text-amber-700">{t("forms.manual.offlineHint")}</p>
+            <p className="mt-2 text-xs font-semibold text-amber-700">
+              {t("forms.manual.offlineHint")}
+            </p>
           ) : null}
         </div>
       </div>
@@ -360,6 +384,7 @@ export function FormsWorkspace() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewResponses, setPreviewResponses] = useState<TaskFormResponses>({});
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -384,7 +409,10 @@ export function FormsWorkspace() {
           (template) => template.id !== submittedTemplate.id
         );
 
-        return [savedTemplate, ...withoutSubmitted.filter((template) => template.id !== savedTemplate.id)];
+        return [
+          savedTemplate,
+          ...withoutSubmitted.filter((template) => template.id !== savedTemplate.id),
+        ];
       });
       setSelectedTemplateId(savedTemplate.id);
       setLastSavedAt(new Date().toISOString());
@@ -426,8 +454,7 @@ export function FormsWorkspace() {
       setSaveError(null);
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Gagal menduplikasi template.";
+      const message = error instanceof Error ? error.message : "Gagal menduplikasi template.";
       setSaveError(message);
     },
   });
@@ -443,8 +470,7 @@ export function FormsWorkspace() {
       const items = await formTemplateService.listVersions(selectedTemplate.id);
       setVersions(items);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("forms.admin.versionLoadError");
+      const message = error instanceof Error ? error.message : t("forms.admin.versionLoadError");
       setVersionsError(message);
       setVersions([]);
     } finally {
@@ -546,6 +572,7 @@ export function FormsWorkspace() {
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
     setSelectedTemplateId(newTemplate.id);
+    setEditorOpen(true);
   }
 
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
@@ -688,15 +715,15 @@ export function FormsWorkspace() {
 
   const requiredItems = selectedTemplate?.fields.filter((field) => field.required).length ?? 0;
   const evidenceItems =
-    selectedTemplate?.fields.filter((field) => ["photo", "signature"].includes(field.type)).length ??
-    0;
+    selectedTemplate?.fields.filter((field) => ["photo", "signature"].includes(field.type))
+      .length ?? 0;
   const templateSettings = selectedTemplate
     ? getTemplateSettings(selectedTemplate.fields)
     : { require_execution_note: true, requires_approval: false };
 
   if (templatesQuery.isLoading) {
     return (
-      <main className="space-y-6 p-6">
+      <main className={mobileDashboardMainClass}>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
           {t("forms.admin.loading")}
         </div>
@@ -705,7 +732,7 @@ export function FormsWorkspace() {
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("forms.admin.eyebrow")}</p>
@@ -753,7 +780,9 @@ export function FormsWorkspace() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => createTemplate(categoryFilter === "all" ? "uncategorized" : categoryFilter)}
+              onClick={() =>
+                createTemplate(categoryFilter === "all" ? "uncategorized" : categoryFilter)
+              }
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
             >
               <Plus className="size-4" />
@@ -785,7 +814,9 @@ export function FormsWorkspace() {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               <Copy className="size-4" />
-              {duplicateMutation.isPending ? t("forms.admin.duplicating") : t("forms.admin.duplicate")}
+              {duplicateMutation.isPending
+                ? t("forms.admin.duplicating")
+                : t("forms.admin.duplicate")}
             </button>
 
             <button
@@ -824,7 +855,7 @@ export function FormsWorkspace() {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Categories</p>
           <div className="mt-3 space-y-1">
@@ -881,7 +912,10 @@ export function FormsWorkspace() {
               <button
                 key={template.id}
                 type="button"
-                onClick={() => setSelectedTemplateId(template.id)}
+                onClick={() => {
+                  setSelectedTemplateId(template.id);
+                  setEditorOpen(true);
+                }}
                 className={[
                   "w-full rounded-xl border p-3 text-left transition",
                   selectedTemplate?.id === template.id
@@ -898,7 +932,7 @@ export function FormsWorkspace() {
           </div>
         </aside>
 
-        <section className="rounded-xl border border-slate-200 bg-white">
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
           {!hasSelectedTemplate ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 p-8 text-center">
               <p className="text-lg font-semibold text-slate-900">Belum ada form template</p>
@@ -920,763 +954,847 @@ export function FormsWorkspace() {
               ) : null}
             </div>
           ) : (
-            <>
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Template Workspace
-              </p>
-              <input
-                value={selectedTemplate.name}
-                readOnly={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    name: event.target.value,
-                  })
-                }
-                className="mt-1 w-full border-0 bg-transparent p-0 text-lg font-semibold text-slate-950 outline-none"
-              />
-              <textarea
-                value={selectedTemplate.description}
-                readOnly={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    description: event.target.value,
-                  })
-                }
-                rows={2}
-                className="mt-1 w-full resize-none border-0 bg-transparent p-0 text-sm text-slate-500 outline-none"
-              />
-            </div>
-
-            {!isAreaWorkspace ? (
-              <>
-                <button
-                  type="button"
-                  onClick={addField}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                >
-                  <Plus className="size-4" />
-                  Add Item
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void deleteSelectedTemplate()}
-                  disabled={templates.length <= 1 || deleteMutation.isPending}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-                >
-                  <Trash2 className="size-4" />
-                  Delete
-                </button>
-              </>
-            ) : null}
-          </div>
-
-          <div className="space-y-3 p-4">
-            {selectedTemplate.fields.map((field, index) => {
-              const isSystemResponsibleField = isResponsiblePersonField(field);
-
-              return (
-              <div
-                key={field.id}
-                className={`rounded-xl border p-4 transition ${
-                  draggingFieldId === field.id
-                    ? "border-emerald-400 bg-emerald-50/40 opacity-70"
-                    : "border-slate-200"
-                }`}
-                onDragOver={(event) => {
-                  if (isAreaWorkspace) return;
-                  event.preventDefault();
-                }}
-                onDrop={(event) => {
-                  if (isAreaWorkspace) return;
-                  event.preventDefault();
-                  const sourceId = event.dataTransfer.getData("text/plain");
-                  const sourceIndex = selectedTemplate.fields.findIndex(
-                    (candidate) => candidate.id === sourceId
-                  );
-                  if (sourceIndex >= 0) {
-                    reorderField(sourceIndex, index);
-                  }
-                  setDraggingFieldId(null);
-                }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  {!isAreaWorkspace ? (
-                    <button
-                      type="button"
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("text/plain", field.id);
-                        event.dataTransfer.effectAllowed = "move";
-                        setDraggingFieldId(field.id);
-                      }}
-                      onDragEnd={() => setDraggingFieldId(null)}
-                      className="mt-1 flex size-9 shrink-0 cursor-grab items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 active:cursor-grabbing"
-                      aria-label="Urutkan item"
-                    >
-                      <GripVertical className="size-4" />
-                    </button>
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Item {index + 1}
+            <div className="flex min-h-[320px] flex-col justify-between gap-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Selected template
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-950">
+                  {selectedTemplate.name}
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                  {selectedTemplate.description || "Tidak ada deskripsi."}
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Items</p>
+                    <p className="mt-1 text-xl font-bold text-slate-950">
+                      {selectedTemplate.fields.length}
                     </p>
-                    <input
-                      value={field.label}
-                      readOnly={isAreaWorkspace || isSystemResponsibleField}
-                      onChange={(event) =>
-                        updateField(field.id, {
-                          label: event.target.value,
-                        })
-                      }
-                      className="mt-1 w-full border-0 bg-transparent p-0 font-semibold text-slate-950 outline-none"
-                    />
                   </div>
-
-                  {!isAreaWorkspace && !isSystemResponsibleField ? (
-                    <button
-                      type="button"
-                      onClick={() => deleteField(field.id)}
-                      className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
-                      aria-label="Delete item"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-                  <select
-                    value={field.type}
-                    disabled={isAreaWorkspace || isSystemResponsibleField}
-                    onChange={(event) =>
-                      updateField(field.id, {
-                        type: event.target.value as FormFieldType,
-                      })
-                    }
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-50"
-                  >
-                    {fieldTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={field.required}
-                      disabled={isAreaWorkspace || isSystemResponsibleField}
-                      onChange={(event) =>
-                        updateField(field.id, {
-                          required: event.target.checked,
-                        })
-                      }
-                      className="size-4 accent-emerald-700"
-                    />
-                    Required
-                  </label>
-                </div>
-
-                {!isSystemResponsibleField ? (
-                  <div className="mt-3 space-y-3">
-                    <input
-                      value={field.section ?? ""}
-                      readOnly={isAreaWorkspace}
-                      onChange={(event) =>
-                        updateField(field.id, {
-                          section: event.target.value,
-                        })
-                      }
-                      placeholder="Section name (e.g. Opening, Kitchen)"
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                    />
-
-                    {field.type === "number" ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          value={field.validation?.min ?? ""}
-                          readOnly={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              validation: {
-                                ...field.validation,
-                                min:
-                                  event.target.value === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                              },
-                            })
-                          }
-                          placeholder="Min value"
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        />
-                        <input
-                          type="number"
-                          value={field.validation?.max ?? ""}
-                          readOnly={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              validation: {
-                                ...field.validation,
-                                max:
-                                  event.target.value === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                              },
-                            })
-                          }
-                          placeholder="Max value"
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        />
-                      </div>
-                    ) : null}
-
-                    {field.type === "yes_no" ? (
-                      <label className="flex items-center gap-2 text-sm text-slate-600">
-                        <input
-                          type="checkbox"
-                          checked={field.options?.allow_na ?? false}
-                          disabled={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              options: {
-                                ...field.options,
-                                allow_na: event.target.checked,
-                              },
-                            })
-                          }
-                          className="rounded border-slate-300"
-                        />
-                        Izinkan opsi N/A / Tidak Berlaku
-                      </label>
-                    ) : null}
-
-                    {field.type === "rating" ? (
-                      <div className="grid gap-2 md:grid-cols-3">
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Maks bintang
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={10}
-                            value={field.options?.maxStars ?? 5}
-                            readOnly={isAreaWorkspace}
-                            onChange={(event) =>
-                              updateField(field.id, {
-                                options: {
-                                  ...field.options,
-                                  maxStars:
-                                    event.target.value === ""
-                                      ? 5
-                                      : Number(event.target.value),
-                                },
-                              })
-                            }
-                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                          />
-                        </label>
-                        <input
-                          value={field.options?.lowLabel ?? ""}
-                          readOnly={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              options: {
-                                ...field.options,
-                                lowLabel: event.target.value || undefined,
-                              },
-                            })
-                          }
-                          placeholder="Label rendah (opsional)"
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        />
-                        <input
-                          value={field.options?.highLabel ?? ""}
-                          readOnly={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              options: {
-                                ...field.options,
-                                highLabel: event.target.value || undefined,
-                              },
-                            })
-                          }
-                          placeholder="Label tinggi (opsional)"
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        />
-                        <label className="grid gap-1 md:col-span-3">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Ambang lulus (min bintang)
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={field.options?.maxStars ?? 5}
-                            value={field.validation?.min ?? 3}
-                            readOnly={isAreaWorkspace}
-                            onChange={(event) =>
-                              updateField(field.id, {
-                                validation: {
-                                  ...field.validation,
-                                  min:
-                                    event.target.value === ""
-                                      ? undefined
-                                      : Number(event.target.value),
-                                },
-                              })
-                            }
-                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-
-                    {field.type === "barcode" ? (
-                      <p className="text-xs text-slate-500">
-                        Operator dapat scan kamera (jika browser mendukung) atau input manual kode
-                        barcode / QR.
-                      </p>
-                    ) : null}
-
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <label className="grid gap-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Bobot skor
-                        </span>
-                        <input
-                          type="number"
-                          min={0.1}
-                          step={0.1}
-                          value={field.validation?.weight ?? ""}
-                          readOnly={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              validation: {
-                                ...field.validation,
-                                weight:
-                                  event.target.value === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                              },
-                            })
-                          }
-                          placeholder="Default: 1"
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        />
-                      </label>
-                      <label className="flex items-end gap-2 pb-2 text-sm text-slate-600">
-                        <input
-                          type="checkbox"
-                          checked={field.validation?.critical ?? false}
-                          disabled={isAreaWorkspace}
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              validation: {
-                                ...field.validation,
-                                critical: event.target.checked || undefined,
-                              },
-                            })
-                          }
-                          className="rounded border-slate-300"
-                        />
-                        Item kritis (gagal = checklist fail)
-                      </label>
-                    </div>
-
-                    {field.type === "select" ? (
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Pilihan dropdown
-                        </p>
-                        {(field.options?.choices ?? []).map((choice, choiceIndex) => (
-                          <div key={`${field.id}-choice-${choiceIndex}`} className="flex gap-2">
-                            <input
-                              value={choice}
-                              readOnly={isAreaWorkspace}
-                              onChange={(event) => {
-                                const nextChoices = [...(field.options?.choices ?? [])];
-                                nextChoices[choiceIndex] = event.target.value;
-                                updateField(field.id, {
-                                  options: {
-                                    ...field.options,
-                                    choices: nextChoices,
-                                  },
-                                });
-                              }}
-                              placeholder={`Pilihan ${choiceIndex + 1}`}
-                              className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                            />
-                            {!isAreaWorkspace ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextChoices = (field.options?.choices ?? []).filter(
-                                    (_, index) => index !== choiceIndex
-                                  );
-                                  updateField(field.id, {
-                                    options: {
-                                      ...field.options,
-                                      choices: nextChoices.length ? nextChoices : ["Option 1"],
-                                    },
-                                  });
-                                }}
-                                className="rounded-xl border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50"
-                              >
-                                Hapus
-                              </button>
-                            ) : null}
-                          </div>
-                        ))}
-                        {!isAreaWorkspace ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateField(field.id, {
-                                options: {
-                                  ...field.options,
-                                  choices: [
-                                    ...(field.options?.choices ?? []),
-                                    `Option ${(field.options?.choices?.length ?? 0) + 1}`,
-                                  ],
-                                },
-                              })
-                            }
-                            className="rounded-xl border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            + Tambah pilihan
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Visibilitas kondisional
-                      </p>
-                      <div className="mt-2 grid gap-2 md:grid-cols-3">
-                        <select
-                          value={field.options?.visibilityRule?.fieldId ?? field.options?.showWhenFieldId ?? ""}
-                          disabled={isAreaWorkspace}
-                          onChange={(event) => {
-                            const fieldId = event.target.value;
-                            if (!fieldId) {
-                              updateField(field.id, {
-                                options: {
-                                  ...field.options,
-                                  visibilityRule: undefined,
-                                  showWhenFieldId: undefined,
-                                  showWhenValue: undefined,
-                                },
-                              });
-                              return;
-                            }
-
-                            updateField(field.id, {
-                              options: {
-                                ...field.options,
-                                showWhenFieldId: undefined,
-                                showWhenValue: undefined,
-                                visibilityRule: {
-                                  fieldId,
-                                  operator: field.options?.visibilityRule?.operator ?? "equals",
-                                  value: field.options?.visibilityRule?.value ?? "No",
-                                },
-                              },
-                            });
-                          }}
-                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                        >
-                          <option value="">Selalu tampil</option>
-                          {selectedTemplate.fields
-                            .filter((candidate) => candidate.id !== field.id)
-                            .map((candidate) => (
-                              <option key={candidate.id} value={candidate.id}>
-                                {candidate.label}
-                              </option>
-                            ))}
-                        </select>
-
-                        {field.options?.visibilityRule?.fieldId ||
-                        field.options?.showWhenFieldId ? (
-                          <>
-                            <select
-                              value={
-                                field.options?.visibilityRule?.operator ??
-                                (field.options?.showWhenFieldId ? "equals" : "equals")
-                              }
-                              disabled={isAreaWorkspace}
-                              onChange={(event) => {
-                                const operator = event.target.value as FieldVisibilityOperator;
-                                const currentFieldId =
-                                  field.options?.visibilityRule?.fieldId ??
-                                  field.options?.showWhenFieldId ??
-                                  "";
-
-                                updateField(field.id, {
-                                  options: {
-                                    ...field.options,
-                                    showWhenFieldId: undefined,
-                                    showWhenValue: undefined,
-                                    visibilityRule: {
-                                      fieldId: currentFieldId,
-                                      operator,
-                                      value: field.options?.visibilityRule?.value ?? "No",
-                                    },
-                                  },
-                                });
-                              }}
-                              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                            >
-                              {visibilityOperatorOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-
-                            {field.options?.visibilityRule?.operator !== "is_empty" &&
-                            field.options?.visibilityRule?.operator !== "is_not_empty" ? (
-                              <input
-                                value={field.options?.visibilityRule?.value ?? ""}
-                                disabled={isAreaWorkspace}
-                                onChange={(event) => {
-                                  const currentFieldId =
-                                    field.options?.visibilityRule?.fieldId ??
-                                    field.options?.showWhenFieldId ??
-                                    "";
-
-                                  updateField(field.id, {
-                                    options: {
-                                      ...field.options,
-                                      visibilityRule: {
-                                        fieldId: currentFieldId,
-                                        operator:
-                                          field.options?.visibilityRule?.operator ?? "equals",
-                                        value: event.target.value,
-                                      },
-                                    },
-                                  });
-                                }}
-                                placeholder="Nilai (mis. No, Fail)"
-                                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
-                              />
-                            ) : (
-                              <div className="flex h-10 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500">
-                                Operator tidak memerlukan nilai
-                              </div>
-                            )}
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Required</p>
+                    <p className="mt-1 text-xl font-bold text-slate-950">{requiredItems}</p>
                   </div>
-                ) : null}
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {fieldTypeLabel[field.type]}
-                  </span>
-
-                  {isSystemResponsibleField ? (
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      Wajib sistem
-                    </span>
-                  ) : null}
-
-                  {field.options?.visibilityRule?.fieldId || field.options?.showWhenFieldId ? (
-                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-                      Conditional
-                    </span>
-                  ) : null}
-
-                  {field.required ? (
-                    <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-                      Required
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                      Optional
-                    </span>
-                  )}
-
-                  {["photo", "signature"].includes(field.type) ? (
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      Evidence
-                    </span>
-                  ) : null}
-
-                  {field.type === "rating" ? (
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                      {field.options?.maxStars ?? 5} bintang
-                    </span>
-                  ) : null}
-
-                  {field.type === "barcode" ? (
-                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-                      Scan / manual
-                    </span>
-                  ) : null}
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Evidence</p>
+                    <p className="mt-1 text-xl font-bold text-slate-950">{evidenceItems}</p>
+                  </div>
                 </div>
               </div>
-            );
-            })}
-          </div>
-            </>
+
+              <button
+                type="button"
+                onClick={() => setEditorOpen(true)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 sm:w-fit"
+              >
+                <PanelRightOpen className="size-4" />
+                Open template editor
+              </button>
+            </div>
           )}
         </section>
-
-        <aside className="rounded-xl border border-slate-200 bg-white p-4">
-          {!hasSelectedTemplate ? (
-            <p className="text-sm text-slate-500">
-              Pilih atau buat template untuk mengatur field dan publish status.
-            </p>
-          ) : (
-            <>
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-              <Settings2 className="size-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Template Settings</p>
-              <p className="text-xs text-slate-500">Publish rules for outlets</p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Items</p>
-              <p className="mt-1 text-xl font-bold text-slate-950">
-                {selectedTemplate.fields.length}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Required</p>
-              <p className="mt-1 text-xl font-bold text-slate-950">{requiredItems}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Evidence</p>
-              <p className="mt-1 text-xl font-bold text-slate-950">{evidenceItems}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                Governance lifecycle
-              </p>
-              <p className="mt-1 text-sm font-semibold text-emerald-950">
-                {selectedTemplate.status === "Draft"
-                  ? "Draft - belum tersedia untuk outlet"
-                  : selectedTemplate.status === "Pending Review"
-                    ? "Pending review - menunggu approval owner/admin"
-                  : selectedTemplate.status === "Active"
-                    ? "Published - tersedia untuk execution"
-                    : "Archived - disimpan untuk history"}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-emerald-800">
-                Simpan perubahan besar sebagai draft/copy dulu, lalu aktifkan setelah review.
-                Version history menyimpan snapshot sebelum perubahan penting.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Category</label>
-              <select
-                value={selectedTemplate.category}
-                disabled={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    category: event.target.value,
-                  })
-                }
-                className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              >
-                {ZENPUT_FORM_CATEGORIES.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-slate-500">
-                {getFormCategoryLabel(selectedTemplate.category)} — folder kategori operasional
-              </p>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Status</label>
-              <select
-                value={selectedTemplate.status}
-                disabled={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    status: event.target.value as FormTemplate["status"],
-                  })
-                }
-                className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              >
-                <option value="Draft">Draft</option>
-                <option value="Pending Review">Pending Review</option>
-                <option value="Active">Active</option>
-                <option value="Archived">Archived</option>
-              </select>
-            </div>
-
-            <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={templateSettings.require_execution_note}
-                disabled={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    fields: setTemplateRequireExecutionNote(
-                      selectedTemplate.fields,
-                      event.target.checked
-                    ),
-                  })
-                }
-                className="mt-0.5 rounded border-slate-300"
-              />
-              <span>
-                <span className="font-semibold text-slate-900">Wajibkan catatan pelaksanaan</span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Jika dimatikan, Execution Note opsional saat submit task.
-                </span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={templateSettings.requires_approval}
-                disabled={isAreaWorkspace}
-                onChange={(event) =>
-                  updateSelectedTemplate({
-                    fields: setTemplateRequiresApproval(
-                      selectedTemplate.fields,
-                      event.target.checked
-                    ),
-                  })
-                }
-                className="mt-0.5 rounded border-slate-300"
-              />
-              <span>
-                <span className="font-semibold text-slate-900">Wajib review owner/admin</span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Submit outlet masuk sebagai evidence submitted dan menunggu approval sebelum completed.
-                </span>
-              </span>
-            </label>
-          </div>
-            </>
-          )}
-        </aside>
       </div>
+
+      {hasSelectedTemplate && editorOpen ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/45">
+          <button
+            type="button"
+            aria-label="Close template editor"
+            className="absolute inset-0 hidden cursor-default sm:block"
+            onClick={() => setEditorOpen(false)}
+          />
+
+          <div className="relative z-10 flex h-dvh w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-5xl sm:rounded-l-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Template Workspace
+                </p>
+                <input
+                  value={selectedTemplate.name}
+                  readOnly={isAreaWorkspace}
+                  onChange={(event) =>
+                    updateSelectedTemplate({
+                      name: event.target.value,
+                    })
+                  }
+                  className="mt-1 w-full border-0 bg-transparent p-0 text-lg font-semibold text-slate-950 outline-none"
+                />
+                <textarea
+                  value={selectedTemplate.description}
+                  readOnly={isAreaWorkspace}
+                  onChange={(event) =>
+                    updateSelectedTemplate({
+                      description: event.target.value,
+                    })
+                  }
+                  rows={2}
+                  className="mt-1 w-full resize-none border-0 bg-transparent p-0 text-sm text-slate-500 outline-none"
+                />
+              </div>
+
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                {!isAreaWorkspace ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={addField}
+                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                    >
+                      <Plus className="size-4" />
+                      Add Item
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void deleteSelectedTemplate()}
+                      disabled={templates.length <= 1 || deleteMutation.isPending}
+                      className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </button>
+                  </>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setEditorOpen(false)}
+                  className="flex size-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  aria-label="Close template editor"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="min-h-0 overflow-y-auto p-4">
+                <div className="space-y-3">
+                  {selectedTemplate.fields.map((field, index) => {
+                    const isSystemResponsibleField = isResponsiblePersonField(field);
+
+                    return (
+                      <div
+                        key={field.id}
+                        className={`rounded-xl border p-4 transition ${
+                          draggingFieldId === field.id
+                            ? "border-emerald-400 bg-emerald-50/40 opacity-70"
+                            : "border-slate-200"
+                        }`}
+                        onDragOver={(event) => {
+                          if (isAreaWorkspace) return;
+                          event.preventDefault();
+                        }}
+                        onDrop={(event) => {
+                          if (isAreaWorkspace) return;
+                          event.preventDefault();
+                          const sourceId = event.dataTransfer.getData("text/plain");
+                          const sourceIndex = selectedTemplate.fields.findIndex(
+                            (candidate) => candidate.id === sourceId
+                          );
+                          if (sourceIndex >= 0) {
+                            reorderField(sourceIndex, index);
+                          }
+                          setDraggingFieldId(null);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          {!isAreaWorkspace ? (
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={(event) => {
+                                event.dataTransfer.setData("text/plain", field.id);
+                                event.dataTransfer.effectAllowed = "move";
+                                setDraggingFieldId(field.id);
+                              }}
+                              onDragEnd={() => setDraggingFieldId(null)}
+                              className="mt-1 flex size-9 shrink-0 cursor-grab items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 active:cursor-grabbing"
+                              aria-label="Urutkan item"
+                            >
+                              <GripVertical className="size-4" />
+                            </button>
+                          ) : null}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                              Item {index + 1}
+                            </p>
+                            <input
+                              value={field.label}
+                              readOnly={isAreaWorkspace || isSystemResponsibleField}
+                              onChange={(event) =>
+                                updateField(field.id, {
+                                  label: event.target.value,
+                                })
+                              }
+                              className="mt-1 w-full border-0 bg-transparent p-0 font-semibold text-slate-950 outline-none"
+                            />
+                          </div>
+
+                          {!isAreaWorkspace && !isSystemResponsibleField ? (
+                            <button
+                              type="button"
+                              onClick={() => deleteField(field.id)}
+                              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
+                              aria-label="Delete item"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+                          <select
+                            value={field.type}
+                            disabled={isAreaWorkspace || isSystemResponsibleField}
+                            onChange={(event) =>
+                              updateField(field.id, {
+                                type: event.target.value as FormFieldType,
+                              })
+                            }
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-50"
+                          >
+                            {fieldTypeOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={field.required}
+                              disabled={isAreaWorkspace || isSystemResponsibleField}
+                              onChange={(event) =>
+                                updateField(field.id, {
+                                  required: event.target.checked,
+                                })
+                              }
+                              className="size-4 accent-emerald-700"
+                            />
+                            Required
+                          </label>
+                        </div>
+
+                        {!isSystemResponsibleField ? (
+                          <div className="mt-3 space-y-3">
+                            <input
+                              value={field.section ?? ""}
+                              readOnly={isAreaWorkspace}
+                              onChange={(event) =>
+                                updateField(field.id, {
+                                  section: event.target.value,
+                                })
+                              }
+                              placeholder="Section name (e.g. Opening, Kitchen)"
+                              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                            />
+
+                            {field.type === "number" ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="number"
+                                  value={field.validation?.min ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      validation: {
+                                        ...field.validation,
+                                        min:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      },
+                                    })
+                                  }
+                                  placeholder="Min value"
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                                <input
+                                  type="number"
+                                  value={field.validation?.max ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      validation: {
+                                        ...field.validation,
+                                        max:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      },
+                                    })
+                                  }
+                                  placeholder="Max value"
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                              </div>
+                            ) : null}
+
+                            {field.type === "yes_no" ? (
+                              <label className="flex items-center gap-2 text-sm text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={field.options?.allow_na ?? false}
+                                  disabled={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      options: {
+                                        ...field.options,
+                                        allow_na: event.target.checked,
+                                      },
+                                    })
+                                  }
+                                  className="rounded border-slate-300"
+                                />
+                                Izinkan opsi N/A / Tidak Berlaku
+                              </label>
+                            ) : null}
+
+                            {field.type === "rating" ? (
+                              <div className="grid gap-2 md:grid-cols-3">
+                                <label className="grid gap-1">
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    Maks bintang
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={10}
+                                    value={field.options?.maxStars ?? 5}
+                                    readOnly={isAreaWorkspace}
+                                    onChange={(event) =>
+                                      updateField(field.id, {
+                                        options: {
+                                          ...field.options,
+                                          maxStars:
+                                            event.target.value === ""
+                                              ? 5
+                                              : Number(event.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                  />
+                                </label>
+                                <input
+                                  value={field.options?.lowLabel ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      options: {
+                                        ...field.options,
+                                        lowLabel: event.target.value || undefined,
+                                      },
+                                    })
+                                  }
+                                  placeholder="Label rendah (opsional)"
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                                <input
+                                  value={field.options?.highLabel ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      options: {
+                                        ...field.options,
+                                        highLabel: event.target.value || undefined,
+                                      },
+                                    })
+                                  }
+                                  placeholder="Label tinggi (opsional)"
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                                <label className="grid gap-1 md:col-span-3">
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    Ambang lulus (min bintang)
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={field.options?.maxStars ?? 5}
+                                    value={field.validation?.min ?? 3}
+                                    readOnly={isAreaWorkspace}
+                                    onChange={(event) =>
+                                      updateField(field.id, {
+                                        validation: {
+                                          ...field.validation,
+                                          min:
+                                            event.target.value === ""
+                                              ? undefined
+                                              : Number(event.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                  />
+                                </label>
+                              </div>
+                            ) : null}
+
+                            {field.type === "barcode" ? (
+                              <p className="text-xs text-slate-500">
+                                Operator dapat scan kamera (jika browser mendukung) atau input
+                                manual kode barcode / QR.
+                              </p>
+                            ) : null}
+
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                  Bobot skor
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0.1}
+                                  step={0.1}
+                                  value={field.validation?.weight ?? ""}
+                                  readOnly={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      validation: {
+                                        ...field.validation,
+                                        weight:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      },
+                                    })
+                                  }
+                                  placeholder="Default: 1"
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                />
+                              </label>
+                              <label className="flex items-end gap-2 pb-2 text-sm text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={field.validation?.critical ?? false}
+                                  disabled={isAreaWorkspace}
+                                  onChange={(event) =>
+                                    updateField(field.id, {
+                                      validation: {
+                                        ...field.validation,
+                                        critical: event.target.checked || undefined,
+                                      },
+                                    })
+                                  }
+                                  className="rounded border-slate-300"
+                                />
+                                Item kritis (gagal = checklist fail)
+                              </label>
+                            </div>
+
+                            {field.type === "select" ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                  Pilihan dropdown
+                                </p>
+                                {(field.options?.choices ?? []).map((choice, choiceIndex) => (
+                                  <div
+                                    key={`${field.id}-choice-${choiceIndex}`}
+                                    className="flex gap-2"
+                                  >
+                                    <input
+                                      value={choice}
+                                      readOnly={isAreaWorkspace}
+                                      onChange={(event) => {
+                                        const nextChoices = [...(field.options?.choices ?? [])];
+                                        nextChoices[choiceIndex] = event.target.value;
+                                        updateField(field.id, {
+                                          options: {
+                                            ...field.options,
+                                            choices: nextChoices,
+                                          },
+                                        });
+                                      }}
+                                      placeholder={`Pilihan ${choiceIndex + 1}`}
+                                      className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                    />
+                                    {!isAreaWorkspace ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextChoices = (field.options?.choices ?? []).filter(
+                                            (_, index) => index !== choiceIndex
+                                          );
+                                          updateField(field.id, {
+                                            options: {
+                                              ...field.options,
+                                              choices: nextChoices.length
+                                                ? nextChoices
+                                                : ["Option 1"],
+                                            },
+                                          });
+                                        }}
+                                        className="rounded-xl border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50"
+                                      >
+                                        Hapus
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                                {!isAreaWorkspace ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateField(field.id, {
+                                        options: {
+                                          ...field.options,
+                                          choices: [
+                                            ...(field.options?.choices ?? []),
+                                            `Option ${(field.options?.choices?.length ?? 0) + 1}`,
+                                          ],
+                                        },
+                                      })
+                                    }
+                                    className="rounded-xl border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                                  >
+                                    + Tambah pilihan
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                Visibilitas kondisional
+                              </p>
+                              <div className="mt-2 grid gap-2 md:grid-cols-3">
+                                <select
+                                  value={
+                                    field.options?.visibilityRule?.fieldId ??
+                                    field.options?.showWhenFieldId ??
+                                    ""
+                                  }
+                                  disabled={isAreaWorkspace}
+                                  onChange={(event) => {
+                                    const fieldId = event.target.value;
+                                    if (!fieldId) {
+                                      updateField(field.id, {
+                                        options: {
+                                          ...field.options,
+                                          visibilityRule: undefined,
+                                          showWhenFieldId: undefined,
+                                          showWhenValue: undefined,
+                                        },
+                                      });
+                                      return;
+                                    }
+
+                                    updateField(field.id, {
+                                      options: {
+                                        ...field.options,
+                                        showWhenFieldId: undefined,
+                                        showWhenValue: undefined,
+                                        visibilityRule: {
+                                          fieldId,
+                                          operator:
+                                            field.options?.visibilityRule?.operator ?? "equals",
+                                          value: field.options?.visibilityRule?.value ?? "No",
+                                        },
+                                      },
+                                    });
+                                  }}
+                                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                >
+                                  <option value="">Selalu tampil</option>
+                                  {selectedTemplate.fields
+                                    .filter((candidate) => candidate.id !== field.id)
+                                    .map((candidate) => (
+                                      <option key={candidate.id} value={candidate.id}>
+                                        {candidate.label}
+                                      </option>
+                                    ))}
+                                </select>
+
+                                {field.options?.visibilityRule?.fieldId ||
+                                field.options?.showWhenFieldId ? (
+                                  <>
+                                    <select
+                                      value={
+                                        field.options?.visibilityRule?.operator ??
+                                        (field.options?.showWhenFieldId ? "equals" : "equals")
+                                      }
+                                      disabled={isAreaWorkspace}
+                                      onChange={(event) => {
+                                        const operator = event.target
+                                          .value as FieldVisibilityOperator;
+                                        const currentFieldId =
+                                          field.options?.visibilityRule?.fieldId ??
+                                          field.options?.showWhenFieldId ??
+                                          "";
+
+                                        updateField(field.id, {
+                                          options: {
+                                            ...field.options,
+                                            showWhenFieldId: undefined,
+                                            showWhenValue: undefined,
+                                            visibilityRule: {
+                                              fieldId: currentFieldId,
+                                              operator,
+                                              value: field.options?.visibilityRule?.value ?? "No",
+                                            },
+                                          },
+                                        });
+                                      }}
+                                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                    >
+                                      {visibilityOperatorOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    {field.options?.visibilityRule?.operator !== "is_empty" &&
+                                    field.options?.visibilityRule?.operator !== "is_not_empty" ? (
+                                      <input
+                                        value={field.options?.visibilityRule?.value ?? ""}
+                                        disabled={isAreaWorkspace}
+                                        onChange={(event) => {
+                                          const currentFieldId =
+                                            field.options?.visibilityRule?.fieldId ??
+                                            field.options?.showWhenFieldId ??
+                                            "";
+
+                                          updateField(field.id, {
+                                            options: {
+                                              ...field.options,
+                                              visibilityRule: {
+                                                fieldId: currentFieldId,
+                                                operator:
+                                                  field.options?.visibilityRule?.operator ??
+                                                  "equals",
+                                                value: event.target.value,
+                                              },
+                                            },
+                                          });
+                                        }}
+                                        placeholder="Nilai (mis. No, Fail)"
+                                        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                                      />
+                                    ) : (
+                                      <div className="flex h-10 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500">
+                                        Operator tidak memerlukan nilai
+                                      </div>
+                                    )}
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {fieldTypeLabel[field.type]}
+                          </span>
+
+                          {isSystemResponsibleField ? (
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                              Wajib sistem
+                            </span>
+                          ) : null}
+
+                          {field.options?.visibilityRule?.fieldId ||
+                          field.options?.showWhenFieldId ? (
+                            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                              Conditional
+                            </span>
+                          ) : null}
+
+                          {field.required ? (
+                            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                              Required
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                              Optional
+                            </span>
+                          )}
+
+                          {["photo", "signature"].includes(field.type) ? (
+                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              Evidence
+                            </span>
+                          ) : null}
+
+                          {field.type === "rating" ? (
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                              {field.options?.maxStars ?? 5} bintang
+                            </span>
+                          ) : null}
+
+                          {field.type === "barcode" ? (
+                            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                              Scan / manual
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <aside className="min-h-0 overflow-y-auto border-t border-slate-200 bg-slate-50/70 p-4 lg:border-l lg:border-t-0">
+                {!hasSelectedTemplate ? (
+                  <p className="text-sm text-slate-500">
+                    Pilih atau buat template untuk mengatur field dan publish status.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                        <Settings2 className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">Template Settings</p>
+                        <p className="text-xs text-slate-500">Publish rules for outlets</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs text-slate-500">Items</p>
+                        <p className="mt-1 text-xl font-bold text-slate-950">
+                          {selectedTemplate.fields.length}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs text-slate-500">Required</p>
+                        <p className="mt-1 text-xl font-bold text-slate-950">{requiredItems}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs text-slate-500">Evidence</p>
+                        <p className="mt-1 text-xl font-bold text-slate-950">{evidenceItems}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                          Governance lifecycle
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-emerald-950">
+                          {selectedTemplate.status === "Draft"
+                            ? "Draft - belum tersedia untuk outlet"
+                            : selectedTemplate.status === "Pending Review"
+                              ? "Pending review - menunggu approval owner/admin"
+                              : selectedTemplate.status === "Active"
+                                ? "Published - tersedia untuk execution"
+                                : "Archived - disimpan untuk history"}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-emerald-800">
+                          Simpan perubahan besar sebagai draft/copy dulu, lalu aktifkan setelah
+                          review. Version history menyimpan snapshot sebelum perubahan penting.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Category</label>
+                        <select
+                          value={selectedTemplate.category}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateSelectedTemplate({
+                              category: event.target.value,
+                            })
+                          }
+                          className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                        >
+                          {ZENPUT_FORM_CATEGORIES.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.label}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {getFormCategoryLabel(selectedTemplate.category)} — folder kategori
+                          operasional
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Status</label>
+                        <select
+                          value={selectedTemplate.status}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateSelectedTemplate({
+                              status: event.target.value as FormTemplate["status"],
+                            })
+                          }
+                          className="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                        >
+                          <option value="Draft">Draft</option>
+                          <option value="Pending Review">Pending Review</option>
+                          <option value="Active">Active</option>
+                          <option value="Archived">Archived</option>
+                        </select>
+                      </div>
+
+                      <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={templateSettings.require_execution_note}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateSelectedTemplate({
+                              fields: setTemplateRequireExecutionNote(
+                                selectedTemplate.fields,
+                                event.target.checked
+                              ),
+                            })
+                          }
+                          className="mt-0.5 rounded border-slate-300"
+                        />
+                        <span>
+                          <span className="font-semibold text-slate-900">
+                            Wajibkan catatan pelaksanaan
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            Jika dimatikan, Execution Note opsional saat submit task.
+                          </span>
+                        </span>
+                      </label>
+
+                      <label className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={templateSettings.requires_approval}
+                          disabled={isAreaWorkspace}
+                          onChange={(event) =>
+                            updateSelectedTemplate({
+                              fields: setTemplateRequiresApproval(
+                                selectedTemplate.fields,
+                                event.target.checked
+                              ),
+                            })
+                          }
+                          className="mt-0.5 rounded border-slate-300"
+                        />
+                        <span>
+                          <span className="font-semibold text-slate-900">
+                            Wajib review owner/admin
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            Submit outlet masuk sebagai evidence submitted dan menunggu approval
+                            sebelum completed.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
+              </aside>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <EnterpriseDataTable
         title={t("forms.admin.tableTitle")}
@@ -1686,6 +1804,7 @@ export function FormsWorkspace() {
         getRowId={(form) => form.id}
         onRowClick={(form) => {
           setSelectedTemplateId(form.id);
+          setEditorOpen(true);
         }}
       />
 
@@ -1710,9 +1829,7 @@ export function FormsWorkspace() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
               >
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    v{version.version_number}
-                  </p>
+                  <p className="text-sm font-semibold text-slate-900">v{version.version_number}</p>
                   <p className="text-xs text-slate-500">
                     {new Date(version.created_at).toLocaleString()}
                   </p>

@@ -61,20 +61,20 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-0 backdrop-blur-sm sm:items-center sm:px-4">
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl",
+          "relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:rounded-3xl",
           "animate-in fade-in zoom-in-95 duration-200",
           sizeClass[size]
         )}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-            <div>
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5">
+            <div className="min-w-0">
               {title ? <h2 className="text-lg font-bold text-slate-950">{title}</h2> : null}
 
               {description ? (
@@ -104,10 +104,12 @@ export function Modal({
           </button>
         ) : null}
 
-        <div className="px-6 py-5">{children}</div>
+        <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
         {footer ? (
-          <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">{footer}</div>
+          <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-6">
+            {footer}
+          </div>
         ) : null}
       </div>
     </div>

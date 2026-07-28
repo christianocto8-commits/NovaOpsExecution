@@ -60,7 +60,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
 
   function updateField<K extends keyof EscalationRuleFormState>(
     key: K,
-    value: EscalationRuleFormState[K],
+    value: EscalationRuleFormState[K]
   ) {
     setForm((current) => ({
       ...current,
@@ -89,7 +89,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
         });
       } else {
         await mutations.createEscalationRule.mutateAsync(
-          buildEscalationRuleCreatePayload(workflowId, form),
+          buildEscalationRuleCreatePayload(workflowId, form)
         );
       }
 
@@ -107,7 +107,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
       await mutations.deleteEscalationRule.mutateAsync(rule.id);
     } catch (deleteError) {
       window.alert(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete escalation rule.",
+        deleteError instanceof Error ? deleteError.message : "Failed to delete escalation rule."
       );
     }
   }
@@ -118,7 +118,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
       window.alert(`Due dates assigned: ${result.due_dates_assigned}`);
     } catch (processError) {
       window.alert(
-        processError instanceof Error ? processError.message : "Failed to assign due dates.",
+        processError instanceof Error ? processError.message : "Failed to assign due dates."
       );
     }
   }
@@ -129,7 +129,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
       window.alert(JSON.stringify(result, null, 2));
     } catch (processError) {
       window.alert(
-        processError instanceof Error ? processError.message : "Failed to process escalations.",
+        processError instanceof Error ? processError.message : "Failed to process escalations."
       );
     }
   }
@@ -183,7 +183,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
         </div>
       ) : null}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -273,7 +273,7 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
       </div>
 
       {formOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/30 p-0 sm:items-center sm:p-4">
           <button
             type="button"
             aria-label="Close escalation rule form"
@@ -281,9 +281,9 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
             onClick={closeForm}
           />
 
-          <section className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+          <section className="relative flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-emerald-700">
                   {editingRule ? "Edit Escalation Rule" : "Add Escalation Rule"}
                 </p>
@@ -300,97 +300,93 @@ export function EscalationRulesPanel({ workflowId }: EscalationRulesPanelProps) 
               </button>
             </div>
 
-            {error ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-                {error}
-              </div>
-            ) : null}
+            <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+              {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                  {error}
+                </div>
+              ) : null}
 
-            <div className="mt-5 grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-700">Step Order</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.step_order}
+                      onChange={(event) => updateField("step_order", event.target.value)}
+                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-700">Trigger After Minutes</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.trigger_after_minutes}
+                      onChange={(event) => updateField("trigger_after_minutes", event.target.value)}
+                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </label>
+                </div>
+
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">Step Order</span>
+                  <span className="text-sm font-bold text-slate-700">Rule Name</span>
                   <input
-                    type="number"
-                    min={1}
-                    value={form.step_order}
-                    onChange={(event) => updateField("step_order", event.target.value)}
+                    value={form.name}
+                    onChange={(event) => updateField("name", event.target.value)}
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    placeholder="Example: Escalate to Area Manager after 2 hours"
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">
-                    Trigger After Minutes
-                  </span>
+                  <span className="text-sm font-bold text-slate-700">Escalate To Role ID</span>
                   <input
-                    type="number"
-                    min={1}
-                    value={form.trigger_after_minutes}
+                    value={form.escalate_to_role_id}
+                    onChange={(event) => updateField("escalate_to_role_id", event.target.value)}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                    placeholder="Optional UUID role id"
+                  />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-700">Escalate To User ID</span>
+                  <input
+                    value={form.escalate_to_user_id}
+                    onChange={(event) => updateField("escalate_to_user_id", event.target.value)}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                    placeholder="Optional UUID user id"
+                  />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-700">Notification Template ID</span>
+                  <input
+                    value={form.notification_template_id}
                     onChange={(event) =>
-                      updateField("trigger_after_minutes", event.target.value)
+                      updateField("notification_template_id", event.target.value)
                     }
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                    placeholder="Optional UUID template id"
                   />
                 </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(event) => updateField("is_active", event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Active escalation rule</span>
+                </label>
               </div>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Rule Name</span>
-                <input
-                  value={form.name}
-                  onChange={(event) => updateField("name", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-                  placeholder="Example: Escalate to Area Manager after 2 hours"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Escalate To Role ID</span>
-                <input
-                  value={form.escalate_to_role_id}
-                  onChange={(event) => updateField("escalate_to_role_id", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-                  placeholder="Optional UUID role id"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Escalate To User ID</span>
-                <input
-                  value={form.escalate_to_user_id}
-                  onChange={(event) => updateField("escalate_to_user_id", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-                  placeholder="Optional UUID user id"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">
-                  Notification Template ID
-                </span>
-                <input
-                  value={form.notification_template_id}
-                  onChange={(event) =>
-                    updateField("notification_template_id", event.target.value)
-                  }
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-                  placeholder="Optional UUID template id"
-                />
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(event) => updateField("is_active", event.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm font-bold text-slate-700">Active escalation rule</span>
-              </label>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-6">
               <button
                 type="button"
                 onClick={closeForm}

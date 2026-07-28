@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 
-import {
-  useApprovalMatrix,
-  useApprovalMatrixMutations,
-} from "@/features/workflows/hooks";
+import { useApprovalMatrix, useApprovalMatrixMutations } from "@/features/workflows/hooks";
 import type { UUID, WorkflowApprovalMatrix } from "@/features/workflows/types";
 import {
   approvalMatrixToForm,
@@ -60,7 +57,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
 
   function updateField<K extends keyof ApprovalMatrixFormState>(
     key: K,
-    value: ApprovalMatrixFormState[K],
+    value: ApprovalMatrixFormState[K]
   ) {
     setForm((current) => ({
       ...current,
@@ -84,7 +81,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
         });
       } else {
         await mutations.createApprovalMatrix.mutateAsync(
-          buildApprovalMatrixCreatePayload(workflowId, form),
+          buildApprovalMatrixCreatePayload(workflowId, form)
         );
       }
 
@@ -96,7 +93,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
 
   async function deleteMatrix(item: WorkflowApprovalMatrix) {
     const confirmed = window.confirm(
-      `Delete approval step ${item.step_order}${item.step_name ? ` - ${item.step_name}` : ""}?`,
+      `Delete approval step ${item.step_order}${item.step_name ? ` - ${item.step_name}` : ""}?`
     );
 
     if (!confirmed) return;
@@ -105,7 +102,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
       await mutations.deleteApprovalMatrix.mutateAsync(item.id);
     } catch (deleteError) {
       window.alert(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete approval matrix.",
+        deleteError instanceof Error ? deleteError.message : "Failed to delete approval matrix."
       );
     }
   }
@@ -138,7 +135,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
         </div>
       ) : null}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -177,9 +174,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
                   <td className="px-4 py-3 font-mono text-xs text-slate-600">
                     {item.approver_user_id ?? "-"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {item.required_approval_count ?? 1}
-                  </td>
+                  <td className="px-4 py-3 text-slate-700">{item.required_approval_count ?? 1}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                       {item.is_required === false ? "Optional" : "Required"}
@@ -212,7 +207,7 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
       </div>
 
       {formOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/30 p-0 sm:items-center sm:p-4">
           <button
             type="button"
             aria-label="Close approval matrix form"
@@ -220,9 +215,9 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
             onClick={closeForm}
           />
 
-          <section className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+          <section className="relative flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-emerald-700">
                   {editingMatrix ? "Edit Approval Step" : "Add Approval Step"}
                 </p>
@@ -239,81 +234,85 @@ export function ApprovalMatrixPanel({ workflowId }: ApprovalMatrixPanelProps) {
               </button>
             </div>
 
-            {error ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-                {error}
-              </div>
-            ) : null}
+            <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+              {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                  {error}
+                </div>
+              ) : null}
 
-            <div className="mt-5 grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-700">Step Order</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.step_order}
+                      onChange={(event) => updateField("step_order", event.target.value)}
+                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-700">Approval Count</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.required_approval_count}
+                      onChange={(event) =>
+                        updateField("required_approval_count", event.target.value)
+                      }
+                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    />
+                  </label>
+                </div>
+
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">Step Order</span>
+                  <span className="text-sm font-bold text-slate-700">Step Name</span>
                   <input
-                    type="number"
-                    min={1}
-                    value={form.step_order}
-                    onChange={(event) => updateField("step_order", event.target.value)}
+                    value={form.step_name}
+                    onChange={(event) => updateField("step_name", event.target.value)}
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    placeholder="Example: Area Manager Review"
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-700">Approval Count</span>
+                  <span className="text-sm font-bold text-slate-700">Approver Role ID</span>
                   <input
-                    type="number"
-                    min={1}
-                    value={form.required_approval_count}
-                    onChange={(event) =>
-                      updateField("required_approval_count", event.target.value)
-                    }
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                    value={form.approver_role_id}
+                    onChange={(event) => updateField("approver_role_id", event.target.value)}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                    placeholder="UUID role id"
                   />
                 </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-700">
+                    Specific Approver User ID
+                  </span>
+                  <input
+                    value={form.approver_user_id}
+                    onChange={(event) => updateField("approver_user_id", event.target.value)}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
+                    placeholder="Optional UUID user id"
+                  />
+                </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input
+                    type="checkbox"
+                    checked={form.is_required}
+                    onChange={(event) => updateField("is_required", event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Required approval step</span>
+                </label>
               </div>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Step Name</span>
-                <input
-                  value={form.step_name}
-                  onChange={(event) => updateField("step_name", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
-                  placeholder="Example: Area Manager Review"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Approver Role ID</span>
-                <input
-                  value={form.approver_role_id}
-                  onChange={(event) => updateField("approver_role_id", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-                  placeholder="UUID role id"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-700">Specific Approver User ID</span>
-                <input
-                  value={form.approver_user_id}
-                  onChange={(event) => updateField("approver_user_id", event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs outline-none focus:border-emerald-600"
-                  placeholder="Optional UUID user id"
-                />
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
-                <input
-                  type="checkbox"
-                  checked={form.is_required}
-                  onChange={(event) => updateField("is_required", event.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm font-bold text-slate-700">Required approval step</span>
-              </label>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-6">
               <button
                 type="button"
                 onClick={closeForm}

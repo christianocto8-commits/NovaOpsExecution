@@ -33,7 +33,7 @@ export function OperatorFormDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-0 sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close dialog overlay"
@@ -41,8 +41,8 @@ export function OperatorFormDialog({
         onClick={onClose}
       />
 
-      <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl">
-        <div className="border-b border-slate-200 p-6">
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+        <div className="shrink-0 border-b border-slate-200 px-4 py-4 sm:p-6">
           <p className="text-sm font-medium text-emerald-700">Outlet Operator</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">
             {editingOperatorId ? "Edit Operator" : "Add Operator"}
@@ -52,7 +52,7 @@ export function OperatorFormDialog({
           </p>
         </div>
 
-        <div className="grid gap-4 p-6">
+        <div className="grid min-w-0 flex-1 gap-4 overflow-y-auto px-4 py-4 sm:p-6">
           <Field label="Outlet">
             <select
               value={form.outletId}
@@ -117,7 +117,7 @@ export function OperatorFormDialog({
           </label>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-200 p-6">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:p-6">
           <button
             type="button"
             onClick={onClose}
