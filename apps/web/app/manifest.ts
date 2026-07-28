@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/dashboard/operator",
+    id: "/dashboard/tasks",
     name: "NovaOps Operations",
     short_name: "NovaOps",
     description: "Multi-outlet task, checklist, and compliance execution platform.",
-    start_url: "/dashboard/operator",
+    start_url: "/dashboard/tasks",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],

@@ -2,13 +2,12 @@
 
 import { useMemo, useState, useSyncExternalStore, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Clock3, Phone, ShieldCheck, Users } from "lucide-react";
+import { Building2, Clock3, Phone, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { queryKeys } from "@/lib/query/keys";
 import {
   getIdentityOutletMetrics,
-  getIdentityOutletOperators,
   getIdentityOutlets,
   updateIdentityOutlet,
   type IdentityOutlet,
@@ -20,6 +19,7 @@ import {
 } from "@/shared/navigation";
 import { OutletGeofencePanel } from "@/shared/outlets";
 import { outletService } from "@/services/outlet.service";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 function getAccessibleOutletIds(user: ReturnType<typeof useAuth>["user"]) {
   if (!user) return [];
@@ -37,13 +37,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
@@ -137,18 +131,13 @@ export default function OutletProfilePage() {
     },
   });
 
-  const operatorsQuery = useQuery({
-    queryKey: [...queryKeys.identity.operators, activeOutletId],
-    queryFn: () => getIdentityOutletOperators(activeOutletId),
-    enabled: Boolean(activeOutletId),
-    retry: false,
-  });
-
-  const metrics =
-    metricsQuery.data?.find((item) => item.outlet_id === activeOutletId) ?? null;
-  const hierarchyNode = hierarchyQuery.data?.find(
-    (node) => String(node.store_id) === String(workspace.legacyOutletId)
-  ) ?? hierarchyQuery.data?.[0] ?? null;
+  const metrics = metricsQuery.data?.find((item) => item.outlet_id === activeOutletId) ?? null;
+  const hierarchyNode =
+    hierarchyQuery.data?.find(
+      (node) => String(node.store_id) === String(workspace.legacyOutletId)
+    ) ??
+    hierarchyQuery.data?.[0] ??
+    null;
 
   const sparklineValues = useMemo(() => {
     const base = Math.round(metrics?.compliance ?? 75);
@@ -158,7 +147,7 @@ export default function OutletProfilePage() {
   }, [metrics?.compliance]);
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Outlet Account</p>
@@ -166,8 +155,7 @@ export default function OutletProfilePage() {
             Outlet Profile
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Data below is loaded from the active login, outlet registry, operators, and outlet
-            metrics.
+            Data below is loaded from the active login, outlet registry, and outlet metrics.
           </p>
         </div>
 
@@ -201,11 +189,8 @@ export default function OutletProfilePage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Open Tasks" value={metrics?.open_tasks ?? "-"} />
         <StatCard label="Completed Today" value={metrics?.completed_today ?? "-"} />
-        <StatCard
-          label="Compliance"
-          value={metrics ? `${Math.round(metrics.compliance)}%` : "-"}
-        />
-        <StatCard label="Active Operators" value={metrics?.active_operators ?? "-"} />
+        <StatCard label="Compliance" value={metrics ? `${Math.round(metrics.compliance)}%` : "-"} />
+        <StatCard label="Executor Input" value="Manual" />
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -277,7 +262,7 @@ export default function OutletProfilePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -303,17 +288,13 @@ export default function OutletProfilePage() {
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Status
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
               <p className="mt-1 text-sm font-semibold capitalize text-slate-900">
                 {activeOutlet?.status ?? "Active account"}
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Phone
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Phone</p>
               <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Phone className="size-4 text-slate-400" />
                 {activeOutlet?.phone ?? "Not set"}
@@ -331,60 +312,12 @@ export default function OutletProfilePage() {
           </div>
 
           <div className="mt-5 rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Address
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Address</p>
             <p className="mt-1 text-sm leading-6 text-slate-700">
               {activeOutlet?.address ?? "Address has not been set in outlet registry."}
             </p>
           </div>
         </div>
-
-        <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-              <Users className="size-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-950">Outlet Operators</p>
-              <p className="text-xs text-slate-500">
-                {operatorsQuery.data?.length ?? 0} registered
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {operatorsQuery.isLoading ? (
-              <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-500">
-                Loading operators...
-              </div>
-            ) : operatorsQuery.data?.length ? (
-              operatorsQuery.data.map((operator) => (
-                <div key={operator.id} className="rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-950">{operator.name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{operator.position}</p>
-                    </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        operator.is_active
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {operator.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
-                No operators registered for this outlet yet.
-              </div>
-            )}
-          </div>
-        </aside>
       </section>
 
       {notice ? (

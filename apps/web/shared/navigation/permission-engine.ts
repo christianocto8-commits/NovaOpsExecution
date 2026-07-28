@@ -13,7 +13,6 @@ function isCapaNavigationItem(item: NavigationItem) {
 
 const outletNavigationItemIds = new Set([
   "dashboard",
-  "operator",
   "tasks",
   "forms",
   "reports",

@@ -7,10 +7,11 @@ import { Copy, Smartphone } from "lucide-react";
 import { fetchIntegrationsStatus } from "@/services/integrations.service";
 import { buildApiUrl } from "@/lib/api-url";
 import { useLanguage } from "@/shared/i18n";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 const DEEP_LINKS = [
-  { label: "Operator home", path: "/dashboard/operator" },
   { label: "Tasks", path: "/dashboard/tasks" },
+  { label: "My Form", path: "/dashboard/forms" },
 ];
 
 export default function MobileAppPage() {
@@ -22,8 +23,9 @@ export default function MobileAppPage() {
   });
 
   const nativePush = statusQuery.data?.native_push;
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://app.novaops.local";
-  const pwaUrl = `${origin}/dashboard/operator`;
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "https://app.novaops.local";
+  const pwaUrl = `${origin}/dashboard/tasks`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pwaUrl)}`;
 
   async function copyText(value: string) {
@@ -35,7 +37,7 @@ export default function MobileAppPage() {
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">{t("mobileApp.eyebrow")}</p>
         <h1 className="text-2xl font-semibold text-slate-950">{t("mobileApp.title")}</h1>
@@ -96,7 +98,10 @@ export default function MobileAppPage() {
             {DEEP_LINKS.map((link) => {
               const href = `${origin}${link.path}`;
               return (
-                <li key={link.path} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                <li
+                  key={link.path}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                >
                   <span className="font-medium text-slate-800">{link.label}</span>
                   <button
                     type="button"
@@ -111,13 +116,16 @@ export default function MobileAppPage() {
             })}
           </ul>
           <p className="mt-3 text-xs text-slate-500">
-            Capacitor universal links: register {origin} in Android intent filters and iOS associated domains.
+            Capacitor universal links: register {origin} in Android intent filters and iOS
+            associated domains.
           </p>
         </article>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Production mobile release checklist</h2>
+        <h2 className="text-lg font-semibold text-slate-950">
+          Production mobile release checklist
+        </h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {[
             ["Capacitor production sync", "npm run release:android"],
@@ -142,11 +150,20 @@ export default function MobileAppPage() {
         <p className="mt-1 text-sm text-slate-500">{t("mobileApp.pwaHint")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrUrl} alt="PWA install QR" className="rounded-xl border border-slate-200" width={180} height={180} />
+          <img
+            src={qrUrl}
+            alt="PWA install QR"
+            className="rounded-xl border border-slate-200"
+            width={180}
+            height={180}
+          />
           <div className="space-y-2 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">{pwaUrl}</p>
-            <Link href="/dashboard/operator" className="font-bold text-emerald-700 hover:text-emerald-800">
-              Open operator landing
+            <Link
+              href="/dashboard/tasks"
+              className="font-bold text-emerald-700 hover:text-emerald-800"
+            >
+              Open outlet tasks
             </Link>
             <p className="text-xs text-slate-500">
               SAML SP metadata:{" "}

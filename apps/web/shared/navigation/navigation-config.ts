@@ -11,7 +11,6 @@ import {
   GitBranch,
   History,
   LayoutDashboard,
-  LayoutGrid,
   MailCheck,
   Megaphone,
   PackageCheck,
@@ -44,14 +43,6 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
     requiredPermissions: ["report.read"],
-    section: "sop",
-  },
-  {
-    id: "operator",
-    label: "Beranda Outlet",
-    href: "/dashboard/operator",
-    icon: LayoutGrid,
-    requiredPermissions: ["task.read"],
     section: "sop",
   },
   {

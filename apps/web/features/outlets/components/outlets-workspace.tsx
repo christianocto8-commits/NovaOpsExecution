@@ -12,7 +12,6 @@ import { Button, PageHeader } from "@/shared/ui";
 import { exportToCsv } from "@/shared/export/utils";
 
 import { useOutletsWorkspace } from "../hooks";
-import { OperatorFormDialog } from "./operator-form-dialog";
 import { OutletDetailDrawer } from "./outlet-detail-drawer";
 import { OutletFormDialog } from "./outlet-form-dialog";
 import { OutletMetrics } from "./outlet-metrics";
@@ -58,10 +57,6 @@ export function OutletsWorkspace() {
     outletsWorkspace.setOutletModalOpen(false);
   }
 
-  function handleCloseOperatorForm() {
-    outletsWorkspace.setOperatorModalOpen(false);
-  }
-
   return (
     <main className="space-y-6">
       <PageHeader
@@ -69,8 +64,8 @@ export function OutletsWorkspace() {
         title="Enterprise Outlets"
         description={
           isAreaWorkspace
-            ? "Area manager dapat melihat outlet, status operasional, dan operator untuk koordinasi area tanpa mengubah struktur outlet."
-            : "Manage outlet identity, operational accounts, compliance visibility, and outlet operators for task audit."
+            ? "Area manager dapat melihat outlet dan status operasional tanpa mengubah struktur outlet."
+            : "Manage outlet identity, operational accounts, compliance visibility, and outlet setup."
         }
         actions={
           isOwnerAdminWorkspace ? (
@@ -158,27 +153,12 @@ export function OutletsWorkspace() {
             onFormChange={outletsWorkspace.setOutletForm}
             onSave={outletsWorkspace.saveOutlet}
           />
-
-          <OperatorFormDialog
-            open={outletsWorkspace.operatorModalOpen}
-            editingOperatorId={outletsWorkspace.editingOperatorId}
-            form={outletsWorkspace.operatorForm}
-            outlets={outletsWorkspace.outlets}
-            onClose={handleCloseOperatorForm}
-            onFormChange={outletsWorkspace.setOperatorForm}
-            onSave={outletsWorkspace.saveOperator}
-          />
         </>
       ) : null}
 
       <OutletDetailDrawer
         outlet={outletsWorkspace.selectedOutlet}
-        operators={outletsWorkspace.selectedOutletOperators}
         onClose={() => outletsWorkspace.setSelectedOutlet(null)}
-        onAddOperator={outletsWorkspace.openCreateOperatorDialog}
-        onEditOperator={outletsWorkspace.openEditOperatorDialog}
-        onDeleteOperator={outletsWorkspace.deleteOperator}
-        canManage={isOwnerAdminWorkspace}
       />
     </main>
   );
