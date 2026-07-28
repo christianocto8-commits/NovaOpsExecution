@@ -13,16 +13,18 @@ import {
   reviewFinanceDeposit,
   type FinanceShiftDepositPayload,
 } from "@/services/finance-handoff.service";
+import { outletService, type LegacyOutlet } from "@/services/outlet.service";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { useToast } from "@/shared/toast";
 
 const today = new Date().toISOString().slice(0, 10);
+const shiftOptions = ["morning", "evening", "midnight"];
 
 const emptyForm: FinanceShiftDepositPayload = {
   outlet_id: null,
   outlet_name: null,
   business_date: today,
-  shift_name: "closing",
+  shift_name: "midnight",
   department: "bar",
   cashier_name: null,
   cash_sales: 0,
@@ -44,7 +46,9 @@ export default function FinanceHandoffPage() {
 
   const summaryQuery = useQuery({ queryKey: ["finance-summary"], queryFn: getFinanceSummary, retry: false });
   const depositsQuery = useQuery({ queryKey: ["finance-deposits"], queryFn: listFinanceDeposits, retry: false });
+  const outletsQuery = useQuery({ queryKey: ["finance-outlets"], queryFn: outletService.listMine, retry: false });
   const deposits = depositsQuery.data ?? [];
+  const outlets = outletsQuery.data ?? [];
   const summary = summaryQuery.data;
   const variance = form.actual_cash - form.expected_cash;
   const summaryCards: Array<{ label: string; value: number; icon: LucideIcon }> = [
@@ -59,15 +63,21 @@ export default function FinanceHandoffPage() {
   }
 
   async function submitDeposit() {
+    if (!form.outlet_id) {
+      toast.error("Pilih outlet terlebih dahulu.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const evidence_urls = evidenceText.split("\n").map((line) => line.trim()).filter(Boolean);
+      const selectedOutlet = outlets.find((outlet) => String(outlet.id) === form.outlet_id);
       await createFinanceDeposit({
         ...form,
-        outlet_id: form.outlet_id?.trim() || null,
-        outlet_name: form.outlet_name?.trim() || null,
+        outlet_id: selectedOutlet ? String(selectedOutlet.id) : form.outlet_id?.trim() || null,
+        outlet_name: selectedOutlet ? selectedOutlet.name : form.outlet_name?.trim() || null,
         department: form.department.trim() || "bar",
-        shift_name: form.shift_name.trim() || "closing",
+        shift_name: form.shift_name.trim() || "midnight",
         cashier_name: form.cashier_name?.trim() || null,
         variance_reason: form.variance_reason?.trim() || null,
         evidence_urls,
@@ -96,6 +106,15 @@ export default function FinanceHandoffPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal membuat template Finance.");
     }
+  }
+
+  function selectOutlet(outletId: string) {
+    const selectedOutlet = outlets.find((outlet) => String(outlet.id) === outletId);
+    setForm((current) => ({
+      ...current,
+      outlet_id: outletId || null,
+      outlet_name: selectedOutlet?.name ?? null,
+    }));
   }
 
   return (
@@ -128,10 +147,21 @@ export default function FinanceHandoffPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">Submit closing shift</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Input value={form.outlet_id ?? ""} placeholder="Outlet ID" onChange={(value) => setForm((current) => ({ ...current, outlet_id: value || null }))} />
-          <Input value={form.outlet_name ?? ""} placeholder="Outlet name" onChange={(value) => setForm((current) => ({ ...current, outlet_name: value || null }))} />
+          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.outlet_id ?? ""} onChange={(event) => selectOutlet(event.target.value)}>
+            <option value="">Select outlet</option>
+            {outlets.map((outlet: LegacyOutlet) => (
+              <option key={outlet.id} value={String(outlet.id)}>
+                {outlet.name}
+              </option>
+            ))}
+          </select>
+          <input className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" readOnly value={form.outlet_name ?? ""} placeholder="Outlet name auto-filled" />
           <input type="date" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.business_date} onChange={(event) => setForm((current) => ({ ...current, business_date: event.target.value }))} />
-          <Input value={form.shift_name} placeholder="Shift" onChange={(value) => setForm((current) => ({ ...current, shift_name: value }))} />
+          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.shift_name} onChange={(event) => setForm((current) => ({ ...current, shift_name: event.target.value }))}>
+            {shiftOptions.map((shift) => (
+              <option key={shift} value={shift}>{shift}</option>
+            ))}
+          </select>
           <Input value={form.department} placeholder="Department" onChange={(value) => setForm((current) => ({ ...current, department: value }))} />
           <Input value={form.cashier_name ?? ""} placeholder="Cashier" onChange={(value) => setForm((current) => ({ ...current, cashier_name: value || null }))} />
           <NumberInput value={form.cash_sales} placeholder="Cash sales" onChange={(value) => setForm((current) => ({ ...current, cash_sales: value }))} />

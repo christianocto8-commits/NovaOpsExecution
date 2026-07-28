@@ -62,7 +62,7 @@ def _save_deposits(db: Session, items: list[dict]) -> None:
 def _finance_template_fields() -> list[dict]:
     return [
         {"label": "Business Date", "field_type": "date", "is_required": True},
-        {"label": "Shift Name", "field_type": "select", "is_required": True, "options_json": ["opening", "mid", "closing"]},
+        {"label": "Shift Name", "field_type": "select", "is_required": True, "options_json": ["morning", "evening", "midnight"]},
         {"label": "Department", "field_type": "select", "is_required": True, "options_json": ["bar", "kitchen", "service", "cashier"]},
         {"label": "Cashier Name", "field_type": "text", "is_required": True},
         {"label": "Cash Sales", "field_type": "number", "is_required": True},
@@ -87,7 +87,7 @@ def ensure_finance_shift_template(db: Session, current_user: IdentityUser) -> Fo
     if template is None:
         template = FormTemplate(
             title="Setoran Shift Finance",
-            description="Form closing shift untuk setoran kas, settlement non-cash, evidence, dan review Finance.",
+            description="Form setoran per shift untuk kas, settlement non-cash, evidence, dan review Finance.",
             form_type=FINANCE_TEMPLATE_TYPE,
             outlet_id=None,
             created_by=legacy_user.id,
@@ -96,9 +96,15 @@ def ensure_finance_shift_template(db: Session, current_user: IdentityUser) -> Fo
         db.add(template)
         db.flush()
 
-    existing_fields = db.query(FormField.id).filter(FormField.form_template_id == template.id).first()
+    desired_fields = _finance_template_fields()
+    existing_fields = (
+        db.query(FormField)
+        .filter(FormField.form_template_id == template.id)
+        .order_by(FormField.sort_order.asc())
+        .all()
+    )
     if not existing_fields:
-        for index, field in enumerate(_finance_template_fields()):
+        for index, field in enumerate(desired_fields):
             db.add(
                 FormField(
                     form_template_id=template.id,
@@ -109,6 +115,27 @@ def ensure_finance_shift_template(db: Session, current_user: IdentityUser) -> Fo
                     **field,
                 )
             )
+    else:
+        fields_by_label = {field.label.strip().lower(): field for field in existing_fields}
+        for index, field_payload in enumerate(desired_fields):
+            field = fields_by_label.get(str(field_payload["label"]).lower())
+            if not field:
+                db.add(
+                    FormField(
+                        form_template_id=template.id,
+                        sort_order=index,
+                        placeholder=None,
+                        help_text="Finance Handoff",
+                        validation_json=None,
+                        **field_payload,
+                    )
+                )
+                continue
+            field.field_type = field_payload["field_type"]
+            field.is_required = bool(field_payload["is_required"])
+            field.options_json = field_payload.get("options_json")
+            field.sort_order = index
+            db.add(field)
     template.is_active = True
     template.form_type = FINANCE_TEMPLATE_TYPE
     db.add(template)
@@ -268,7 +295,7 @@ def create_finance_deposit_from_form_submission(
         outlet_id=str(submission.outlet_id),
         outlet_name=None,
         business_date=values.get("business date") or datetime.now(timezone.utc).date().isoformat(),
-        shift_name=values.get("shift name") or "closing",
+        shift_name=values.get("shift name") or "midnight",
         department=values.get("department") or "bar",
         cashier_name=values.get("cashier name"),
         cash_sales=_as_float(values.get("cash sales")),
