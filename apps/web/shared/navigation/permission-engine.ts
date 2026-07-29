@@ -28,7 +28,14 @@ const outletNavigationItemIds = new Set([
   "settings",
 ]);
 
-const outletVisibleNavigationItemIds = new Set(["tasks", "forms", "reports", "notifications"]);
+const outletVisibleNavigationItemIds = new Set([
+  "tasks",
+  "forms",
+  "reports",
+  "drafts",
+  "settings",
+  "notifications",
+]);
 
 const areaManagerNavigationItemIds = new Set([
   "dashboard",

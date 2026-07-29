@@ -34,10 +34,10 @@ export default function manifest(): MetadataRoute.Manifest {
         description: "View submitted outlet reports",
       },
       {
-        name: "Notifications",
-        short_name: "Notif",
-        url: "/dashboard/notifications",
-        description: "View outlet notifications",
+        name: "Drafts",
+        short_name: "Drafts",
+        url: "/dashboard/drafts",
+        description: "Resume saved work drafts",
       },
     ],
     icons: [

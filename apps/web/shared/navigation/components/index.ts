@@ -2,4 +2,3 @@
 export * from "./sidebar-footer";
 export * from "./enterprise-sidebar";
 export * from "./dashboard-header";
-export * from "./operator-bottom-nav";
