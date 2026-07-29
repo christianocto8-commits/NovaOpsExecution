@@ -76,8 +76,15 @@ app.include_router(api_router)
 
 @app.on_event("startup")
 def bootstrap_online_admin() -> None:
-    ensure_online_admin()
-    ensure_operational_templates()
+    import logging
+    logger = logging.getLogger("novaops.startup")
+    try:
+        ensure_online_admin()
+        ensure_operational_templates()
+        logger.info("Successfully executed startup bootstrap tasks.")
+    except Exception as e:
+        logger.warning(f"Startup bootstrap warning (database may still be initializing): {e}")
+
 
 
 @app.get("/", tags=["System"])

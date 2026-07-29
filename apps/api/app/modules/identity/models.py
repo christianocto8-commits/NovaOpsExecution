@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, Text
@@ -23,6 +23,51 @@ user_outlets = Table(
     Column("outlet_id", PG_UUID(as_uuid=True), ForeignKey("identity_outlets.id", ondelete="CASCADE"), primary_key=True),
 )
 
+class Region(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Regional grouping (Regional Manager scope) — top level below Organization."""
+
+    __tablename__ = "identity_regions"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
+
+    organization: Mapped["Organization"] = relationship(back_populates="regions")
+    districts: Mapped[list["District"]] = relationship(back_populates="region")
+
+
+class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """District grouping (District Manager scope) — second level below Region."""
+
+    __tablename__ = "identity_districts"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    region_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_regions.id"),
+        nullable=False,
+        index=True,
+    )
+    code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
+
+    organization: Mapped["Organization"] = relationship()
+    region: Mapped["Region"] = relationship(back_populates="districts")
+    outlets: Mapped[list["Outlet"]] = relationship(back_populates="district")
+
+
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "identity_organizations"
 
@@ -32,6 +77,8 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     currency: Mapped[str] = mapped_column(String(10), default="IDR", nullable=False)
 
     outlets: Mapped[list["Outlet"]] = relationship(back_populates="organization")
+    regions: Mapped[list["Region"]] = relationship(back_populates="organization")
+
 
 
 class Outlet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -43,6 +90,18 @@ class Outlet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    region_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_regions.id"),
+        nullable=True,
+        index=True,
+    )
+    district_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_districts.id"),
+        nullable=True,
+        index=True,
+    )
     code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -52,6 +111,8 @@ class Outlet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
 
     organization: Mapped["Organization"] = relationship(back_populates="outlets")
+    region: Mapped["Region | None"] = relationship(foreign_keys=[region_id])
+    district: Mapped["District | None"] = relationship(foreign_keys=[district_id], back_populates="outlets")
     users: Mapped[list["User"]] = relationship(back_populates="outlet", foreign_keys="User.outlet_id")
 
 
@@ -96,6 +157,19 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+    # 4-Tier Hierarchy Scope: Regional Manager → region_id, District Manager → district_id
+    region_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_regions.id"),
+        nullable=True,
+        index=True,
+    )
+    district_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("identity_districts.id"),
+        nullable=True,
+        index=True,
+    )
 
     phone_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
@@ -107,6 +181,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     role: Mapped[Role] = relationship(lazy="selectin")
     outlet: Mapped[Outlet | None] = relationship(back_populates="users", foreign_keys=[outlet_id])
+    region: Mapped["Region | None"] = relationship(foreign_keys=[region_id])
+    district: Mapped["District | None"] = relationship(foreign_keys=[district_id])
     assigned_outlets: Mapped[list[Outlet]] = relationship(
         secondary=user_outlets,
         lazy="selectin",

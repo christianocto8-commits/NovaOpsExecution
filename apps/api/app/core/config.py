@@ -131,7 +131,10 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    database_url = _normalize_database_url(os.environ["DATABASE_URL"])
+    raw_db_url = os.environ.get("DATABASE_URL")
+    if not raw_db_url:
+        raise ValueError("DATABASE_URL environment variable is missing. Please configure it in your .env file or environment.")
+    database_url = _normalize_database_url(raw_db_url)
     environment = _sanitize_env_value(os.environ.get("ENVIRONMENT", "local") or "local").lower()
     jwt_secret_key = _sanitize_env_value(
         os.environ.get(

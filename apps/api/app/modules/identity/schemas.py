@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -70,6 +70,54 @@ class RolePermissionsUpdate(BaseModel):
     permission_codes: list[str] = Field(default_factory=list)
 
 
+class RegionRead(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    status: str
+    organization_id: UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RegionCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=40)
+    name: str = Field(min_length=2, max_length=160)
+    status: str = "active"
+
+
+class RegionUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=2, max_length=40)
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    status: str | None = None
+
+
+class DistrictRead(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    status: str
+    organization_id: UUID
+    region_id: UUID
+    region: RegionRead | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DistrictCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=40)
+    name: str = Field(min_length=2, max_length=160)
+    region_id: UUID
+    status: str = "active"
+
+
+class DistrictUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=2, max_length=40)
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    region_id: UUID | None = None
+    status: str | None = None
+
+
 class OutletRead(BaseModel):
     id: UUID
     code: str
@@ -79,6 +127,8 @@ class OutletRead(BaseModel):
     phone: str | None = None
     operating_hours_open: str | None = None
     operating_hours_close: str | None = None
+    region_id: UUID | None = None
+    district_id: UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,6 +162,8 @@ class UserRead(BaseModel):
     role: RoleRead
     outlet: OutletRead | None = None
     assigned_outlets: list[OutletRead] = []
+    region_id: UUID | None = None
+    district_id: UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -161,6 +213,8 @@ class UserCreate(BaseModel):
     role_id: UUID
     outlet_id: UUID | None = None
     outlet_ids: list[UUID] = []
+    region_id: UUID | None = None
+    district_id: UUID | None = None
     is_active: bool = True
 
 
@@ -173,6 +227,8 @@ class UserUpdate(BaseModel):
     role_id: UUID | None = None
     outlet_id: UUID | None = None
     outlet_ids: list[UUID] | None = None
+    region_id: UUID | None = None
+    district_id: UUID | None = None
     is_active: bool | None = None
 
 
