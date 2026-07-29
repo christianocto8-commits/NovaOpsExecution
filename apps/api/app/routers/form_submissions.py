@@ -49,7 +49,7 @@ def ensure_form_submission_outlet_access(
     current_user: User,
     outlet_id: int,
 ) -> None:
-    _outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
+    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
 
     if full_access:
         return
