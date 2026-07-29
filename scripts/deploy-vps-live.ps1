@@ -6,6 +6,12 @@ $ApiDir = Join-Path $Root "apps\api"
 . (Join-Path $PSScriptRoot "Deploy-VpsFrontendArchive.ps1")
 $VpsHost = if ($env:NOVAOPS_VPS_HOST) { $env:NOVAOPS_VPS_HOST } else { "root@103.247.10.145" }
 $RemoteRoot = "/opt/NovaOpsExecution"
+$SshKey = if ($env:NOVAOPS_VPS_SSH_KEY) {
+  $env:NOVAOPS_VPS_SSH_KEY
+} else {
+  Join-Path $env:USERPROFILE ".ssh\novaops_vps_ed25519"
+}
+$SshArgs = @("-i", $SshKey, "-o", "IdentitiesOnly=yes")
 
 function Read-EnvValue($file, $key) {
   if (-not (Test-Path $file)) { return $null }
@@ -27,7 +33,12 @@ Write-Host "NovaOps VPS Deploy + Live Activation" -ForegroundColor Cyan
 Write-Host "Target: $VpsHost" -ForegroundColor Gray
 Write-Host ""
 
-ssh -o BatchMode=yes -o ConnectTimeout=10 $VpsHost "echo ok" 2>$null
+if (-not (Test-Path -LiteralPath $SshKey)) {
+  Write-Host "[BLOCKED] SSH private key tidak ditemukan: $SshKey" -ForegroundColor Red
+  exit 1
+}
+
+ssh @SshArgs -o BatchMode=yes -o ConnectTimeout=10 $VpsHost "echo ok" 2>$null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "[BLOCKED] SSH ke VPS gagal." -ForegroundColor Red
   exit 1
@@ -44,12 +55,12 @@ Copy-Item -Recurse -Force .next\static .next\standalone\.next\static
 Pop-Location
 
 Write-Host "[2/6] Upload API + infra scripts..." -ForegroundColor Cyan
-scp -r "$ApiDir\app" "$ApiDir\alembic" "$ApiDir\requirements.txt" "$ApiDir\alembic.ini" "${VpsHost}:${RemoteRoot}/apps/api/"
-scp "$Root\scripts\vps-activate-live.sh" "$Root\scripts\vps-sync-production.sh" "$Root\scripts\vps-harden-production.sh" "$Root\scripts\backup-novaops-vps.sh" "${VpsHost}:${RemoteRoot}/scripts/"
-scp -r "$Root\deploy\systemd" "$Root\deploy\nginx" "$Root\deploy\scripts" "${VpsHost}:${RemoteRoot}/deploy/"
+scp @SshArgs -r "$ApiDir\app" "$ApiDir\alembic" "$ApiDir\requirements.txt" "$ApiDir\alembic.ini" "${VpsHost}:${RemoteRoot}/apps/api/"
+scp @SshArgs "$Root\scripts\vps-activate-live.sh" "$Root\scripts\vps-sync-production.sh" "$Root\scripts\vps-harden-production.sh" "$Root\scripts\backup-novaops-vps.sh" "${VpsHost}:${RemoteRoot}/scripts/"
+scp @SshArgs -r "$Root\deploy\systemd" "$Root\deploy\nginx" "$Root\deploy\scripts" "${VpsHost}:${RemoteRoot}/deploy/"
 
 Write-Host "[3/6] Upload frontend standalone (tar.gz)..." -ForegroundColor Cyan
-Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot
+Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot -SshKey $SshKey
 
 Write-Host "[4/6] Activate live integrations on VPS..." -ForegroundColor Cyan
 $remoteEnv = ""
@@ -58,14 +69,14 @@ if ($vapidPublic) {
   $remoteEnv += "VAPID_PRIVATE_KEY='$vapidPrivate' "
   $remoteEnv += "VAPID_SUBJECT='$vapidSubject' "
 }
-ssh $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-activate-live.sh; $remoteEnv bash ${RemoteRoot}/scripts/vps-activate-live.sh"
+ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-activate-live.sh; $remoteEnv bash ${RemoteRoot}/scripts/vps-activate-live.sh"
 
 Write-Host "[5/6] Production sync (nginx, scheduler, backup, hardening)..." -ForegroundColor Cyan
-ssh $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${RemoteRoot}/scripts/vps-harden-production.sh ${RemoteRoot}/scripts/backup-novaops-vps.sh ${RemoteRoot}/deploy/scripts/novaops-scheduler-run.sh; bash ${RemoteRoot}/scripts/vps-sync-production.sh"
+ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${RemoteRoot}/scripts/vps-harden-production.sh ${RemoteRoot}/scripts/backup-novaops-vps.sh ${RemoteRoot}/deploy/scripts/novaops-scheduler-run.sh; bash ${RemoteRoot}/scripts/vps-sync-production.sh"
 
 Write-Host "[6/6] Public health check..." -ForegroundColor Cyan
 Start-Sleep -Seconds 3
-$health = ssh $VpsHost "curl -sS -m 20 http://127.0.0.1/api/v1/health 2>/dev/null || curl -sS -m 20 https://nova-ops.cloud/api/v1/health"
+$health = ssh @SshArgs $VpsHost "curl -sS -m 20 http://127.0.0.1/api/v1/health 2>/dev/null || curl -sS -m 20 https://nova-ops.cloud/api/v1/health"
 if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ok"')) {
   Write-Host "[WARN] Health check belum OK (deploy frontend/API mungkin tetap sukses). Response: $health" -ForegroundColor Yellow
 } else {

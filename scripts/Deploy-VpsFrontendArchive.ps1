@@ -5,9 +5,11 @@
     [Parameter(Mandatory = $true)]
     [string]$VpsHost,
     [Parameter(Mandatory = $true)]
-    [string]$RemoteRoot
+    [string]$RemoteRoot,
+    [string]$SshKey
   )
 
+  $sshArgs = if ($SshKey) { @("-i", $SshKey, "-o", "IdentitiesOnly=yes") } else { @() }
   $standaloneDir = Join-Path $WebDir ".next\standalone"
   if (-not (Test-Path $standaloneDir)) {
     throw "Standalone build not found at $standaloneDir. Run 'npm run build' first."
@@ -42,10 +44,10 @@
   Write-Host "  Archive size: ${sizeMb} MB" -ForegroundColor Gray
 
   Write-Host "  Uploading archive to VPS ..." -ForegroundColor Gray
-  ssh $VpsHost "mkdir -p '$remoteNext'"
+  ssh @sshArgs $VpsHost "mkdir -p '$remoteNext'"
   if ($LASTEXITCODE -ne 0) { throw "ssh mkdir failed" }
 
-  scp $localArchive "${VpsHost}:${remoteArchive}"
+  scp @sshArgs $localArchive "${VpsHost}:${remoteArchive}"
   if ($LASTEXITCODE -ne 0) { throw "scp upload failed" }
 
   Write-Host "  Extracting on VPS (stop web, replace standalone, cleanup) ..." -ForegroundColor Gray
@@ -68,9 +70,9 @@ echo 'Frontend standalone deployed to $remoteStandalone'
   $utf8NoBom = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllText($localSh, $remoteScript, $utf8NoBom)
   $remoteSh = "/tmp/novaops-frontend-remote-$timestamp.sh"
-  scp $localSh "${VpsHost}:${remoteSh}"
+  scp @sshArgs $localSh "${VpsHost}:${remoteSh}"
   if ($LASTEXITCODE -ne 0) { throw "scp remote script failed" }
-  ssh $VpsHost "bash '$remoteSh'; ec=`$?; rm -f '$remoteSh'; exit `$ec"
+  ssh @sshArgs $VpsHost "bash '$remoteSh'; ec=`$?; rm -f '$remoteSh'; exit `$ec"
   if ($LASTEXITCODE -ne 0) { throw "remote extract failed" }
   Remove-Item -Force $localSh -ErrorAction SilentlyContinue
 
