@@ -13,6 +13,7 @@ from app.core.deps import get_current_user, require_jwt_or_api_key
 from app.core.scheduler import verify_scheduler_secret
 from app.models.outlet import Outlet
 from app.models.app_settings import AppSettings
+from app.models.form_submission import FormSubmission
 from app.models.task import Task
 from app.modules.identity.dependencies import require_permission
 from app.modules.api_keys.models import ApiKey
@@ -65,6 +66,20 @@ def _task_outlet_scope(
     return true()
 
 
+def _form_submission_outlet_scope(
+    outlet_id: int | None,
+    outlet_ids: list[int] | None,
+    full_access: bool,
+) -> ColumnElement[bool]:
+    if outlet_id is not None:
+        return FormSubmission.outlet_id == outlet_id
+    if outlet_ids is not None:
+        return FormSubmission.outlet_id.in_(outlet_ids)
+    if not full_access:
+        return FormSubmission.id == -1
+    return true()
+
+
 def _build_report_summary(
     db: Session,
     *,
@@ -76,14 +91,25 @@ def _build_report_summary(
     pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
     outlet_scope = _task_outlet_scope(outlet_id, outlet_ids, full_access)
+    submission_scope = _form_submission_outlet_scope(
+        outlet_id, outlet_ids, full_access
+    )
 
-    total = db.query(func.count(Task.id)).filter(outlet_scope).scalar() or 0
-    completed = (
+    task_total = db.query(func.count(Task.id)).filter(outlet_scope).scalar() or 0
+    task_completed = (
         db.query(func.count(Task.id))
         .filter(outlet_scope, Task.status == "completed")
         .scalar()
         or 0
     )
+    manual_submissions = (
+        db.query(func.count(FormSubmission.id))
+        .filter(submission_scope, FormSubmission.status != "draft")
+        .scalar()
+        or 0
+    )
+    total = task_total + manual_submissions
+    completed = task_completed + manual_submissions
     open_tasks = (
         db.query(func.count(Task.id))
         .filter(
@@ -109,6 +135,9 @@ def _build_report_summary(
     compliance_rate = compliance_score(completion_rate, pass_threshold)
 
     return ReportSummary(
+        total_items=total,
+        completed_items=completed,
+        manual_submissions=manual_submissions,
         completion_rate=completion_rate,
         open_tasks=open_tasks,
         overdue_tasks=overdue_tasks,
@@ -152,6 +181,11 @@ def get_report_trends(
         None if outlet_id else outlet_ids,
         full_access,
     )
+    submission_scope = _form_submission_outlet_scope(
+        outlet_id,
+        None if outlet_id else outlet_ids,
+        full_access,
+    )
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
@@ -177,6 +211,17 @@ def get_report_trends(
             .scalar()
             or 0
         )
+        manual_submissions = (
+            db.query(func.count(FormSubmission.id))
+            .filter(
+                submission_scope,
+                FormSubmission.status != "draft",
+                FormSubmission.submitted_at >= day_start,
+                FormSubmission.submitted_at < day_end,
+            )
+            .scalar()
+            or 0
+        )
         overdue = (
             db.query(func.count(Task.id))
             .filter(
@@ -189,7 +234,7 @@ def get_report_trends(
             .scalar()
             or 0
         )
-        day_total = (
+        task_day_total = (
             db.query(func.count(Task.id))
             .filter(
                 outlet_scope,
@@ -199,6 +244,8 @@ def get_report_trends(
             .scalar()
             or 0
         )
+        day_total = task_day_total + manual_submissions
+        completed += manual_submissions
 
         day_completion = _completion_rate(completed, day_total)
         trends.append(
@@ -227,13 +274,24 @@ def get_outlet_reports(
     reports: list[OutletReport] = []
 
     for outlet in outlets:
-        total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
-        completed = (
+        task_total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
+        task_completed = (
             db.query(func.count(Task.id))
             .filter(Task.outlet_id == outlet.id, Task.status == "completed")
             .scalar()
             or 0
         )
+        manual_submissions = (
+            db.query(func.count(FormSubmission.id))
+            .filter(
+                FormSubmission.outlet_id == outlet.id,
+                FormSubmission.status != "draft",
+            )
+            .scalar()
+            or 0
+        )
+        total = task_total + manual_submissions
+        completed = task_completed + manual_submissions
         overdue = (
             db.query(func.count(Task.id))
             .filter(
@@ -278,13 +336,24 @@ def get_outlet_benchmarks(
     raw_scores: list[int] = []
 
     for outlet in outlets:
-        total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
-        completed = (
+        task_total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
+        task_completed = (
             db.query(func.count(Task.id))
             .filter(Task.outlet_id == outlet.id, Task.status == "completed")
             .scalar()
             or 0
         )
+        manual_submissions = (
+            db.query(func.count(FormSubmission.id))
+            .filter(
+                FormSubmission.outlet_id == outlet.id,
+                FormSubmission.status != "draft",
+            )
+            .scalar()
+            or 0
+        )
+        total = task_total + manual_submissions
+        completed = task_completed + manual_submissions
         overdue = (
             db.query(func.count(Task.id))
             .filter(

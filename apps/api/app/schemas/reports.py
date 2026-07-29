@@ -2,6 +2,9 @@ from pydantic import BaseModel
 
 
 class ReportSummary(BaseModel):
+    total_items: int
+    completed_items: int
+    manual_submissions: int
     completion_rate: int
     open_tasks: int
     overdue_tasks: int

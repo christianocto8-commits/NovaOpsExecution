@@ -22,6 +22,10 @@ import {
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
 import { formTemplateService } from "@/services/form-template.service";
+import {
+  formSubmissionService,
+  type FormSubmissionResponse,
+} from "@/services/form-submission.service";
 import { taskService } from "@/services/task.service";
 import {
   enrichTasksWithCompletedSessions,
@@ -178,6 +182,27 @@ function toReportRow(task: Task): ReportRow {
       : isTaskWorkedOn(task)
         ? getDateLabel(task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due)
         : "-",
+  };
+}
+
+function toManualSubmissionReportRow(
+  submission: FormSubmissionResponse,
+  templateName: string,
+  outletName: string
+): ReportRow {
+  const score = Math.round(submission.score ?? 100);
+
+  return {
+    id: `manual-form-${submission.id}`,
+    outlet: outletName,
+    task: "Manual My Form submission",
+    form: templateName,
+    status: "completed",
+    progress: 100,
+    score,
+    operator: submission.responsible_person_name ?? "Outlet Team",
+    due: getDateLabel(submission.submitted_at ?? ""),
+    submittedAt: getDateLabel(submission.submitted_at ?? ""),
   };
 }
 
@@ -444,6 +469,11 @@ export function ReportsWorkspace() {
     queryKey: queryKeys.sop.formTemplates(),
     queryFn: formTemplateService.list,
   });
+  const formSubmissionsQuery = useQuery({
+    queryKey: ["form-submissions", "reports", workspace.outletId ?? workspace.mode],
+    queryFn: () => formSubmissionService.list(),
+    retry: false,
+  });
   const executionSessionsQuery = useQuery({
     queryKey: queryKeys.history.executionSessions(),
     queryFn: () => getExecutionSessions({ status: "completed" }),
@@ -452,6 +482,7 @@ export function ReportsWorkspace() {
 
   const tasks = tasksQuery.data ?? [];
   const formTemplates = formTemplatesQuery.data ?? [];
+  const formSubmissions = formSubmissionsQuery.data ?? [];
   const executionSessions = executionSessionsQuery.data ?? [];
   const [periodDays, setPeriodDays] = useState<7 | 30>(7);
   const [periodAnchor] = useState(() => Date.now());
@@ -481,7 +512,44 @@ export function ReportsWorkspace() {
       });
   }, [enrichedScopedTasks, periodAnchor, periodDays]);
 
-  const reportRows = useMemo(() => periodFilteredTasks.map(toReportRow), [periodFilteredTasks]);
+  const manualSubmissionRows = useMemo(() => {
+    const cutoff = periodAnchor - periodDays * 24 * 60 * 60 * 1000;
+    const templateNames = new Map(
+      formTemplates.map((template) => [Number(template.id), template.name])
+    );
+    const outletNames = new Map(
+      tasks
+        .filter((task) => task.outletId)
+        .map((task) => [Number(task.outletId), task.outlet])
+    );
+    const selectedOutletId = workspace.outletId ? Number(workspace.outletId) : null;
+
+    return formSubmissions
+      .filter((submission) => {
+        if (selectedOutletId !== null && submission.outlet_id !== selectedOutletId) return false;
+        if (!submission.submitted_at) return true;
+        return new Date(submission.submitted_at).getTime() >= cutoff;
+      })
+      .map((submission) =>
+        toManualSubmissionReportRow(
+          submission,
+          templateNames.get(submission.form_template_id) ??
+            `Form #${submission.form_template_id}`,
+          outletNames.get(submission.outlet_id) ?? `Outlet #${submission.outlet_id}`
+        )
+      );
+  }, [
+    formSubmissions,
+    formTemplates,
+    periodAnchor,
+    periodDays,
+    tasks,
+    workspace.outletId,
+  ]);
+  const reportRows = useMemo(
+    () => [...periodFilteredTasks.map(toReportRow), ...manualSubmissionRows],
+    [manualSubmissionRows, periodFilteredTasks]
+  );
   const clientSummary = useMemo(() => getSummary(reportRows), [reportRows]);
   const backendSummary = reportSummaryQuery.data;
   const complianceKpiValue =
@@ -489,8 +557,8 @@ export function ReportsWorkspace() {
   const complianceKpiLabel =
     backendSummary?.compliance_rate != null ? "Compliance Rate" : "Audit Score";
   const summary = {
-    total: clientSummary.total,
-    completed: clientSummary.completed,
+    total: backendSummary?.total_items ?? clientSummary.total,
+    completed: backendSummary?.completed_items ?? clientSummary.completed,
     inProgress: backendSummary?.open_tasks ?? clientSummary.inProgress,
     overdue: backendSummary?.overdue_tasks ?? clientSummary.overdue,
     averageProgress: backendSummary?.completion_rate ?? clientSummary.averageProgress,

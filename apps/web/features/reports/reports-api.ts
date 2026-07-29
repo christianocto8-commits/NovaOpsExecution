@@ -1,6 +1,9 @@
 import { api } from "@/services/api";
 
 export type ReportSummary = {
+  total_items: number;
+  completed_items: number;
+  manual_submissions: number;
   completion_rate: number;
   open_tasks: number;
   overdue_tasks: number;
