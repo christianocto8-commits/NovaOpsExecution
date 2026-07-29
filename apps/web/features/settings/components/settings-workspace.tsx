@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
@@ -1569,6 +1570,32 @@ export function SettingsWorkspace() {
             Kelola endpoint webhook di halaman Webhooks. Workflow code harus sesuai definisi yang
             sudah dipublish di workflow engine.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/webhooks"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Webhooks
+            </Link>
+            <Link
+              href="/dashboard/workflows"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Workflows
+            </Link>
+            <Link
+              href="/dashboard/ops-health"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Ops Health
+            </Link>
+            <Link
+              href="/dashboard/mobile-app"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Mobile App
+            </Link>
+          </div>
         </SectionCard>
       </div>
 
@@ -1601,7 +1628,7 @@ export function SettingsWorkspace() {
               <CheckSquare className="mt-0.5 h-4 w-4 text-emerald-700" />
               <div>
                 <p className="font-medium text-slate-900">Outlet</p>
-                <p>Fokus eksekusi task, draft, evidence, dan history outlet sendiri.</p>
+                <p>Fokus eksekusi Task, submit My Form, dan melihat Notifications outlet.</p>
               </div>
             </div>
           </div>

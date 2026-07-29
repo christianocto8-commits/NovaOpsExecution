@@ -28,6 +28,8 @@ const outletNavigationItemIds = new Set([
   "settings",
 ]);
 
+const outletVisibleNavigationItemIds = new Set(["tasks", "forms", "notifications"]);
+
 const areaManagerNavigationItemIds = new Set([
   "dashboard",
   "activity",
@@ -43,7 +45,9 @@ const areaManagerNavigationItemIds = new Set([
   "iot",
   "notifications",
   "outlets",
+  "outlet-profile",
   "reports",
+  "report-automation",
   "schedules",
   "settings",
   "tasks",
@@ -86,7 +90,15 @@ export function getNavigationForPermissions(
   options?: NavigationOptions
 ) {
   return navigationItems.filter((item) => {
+    if (item.sidebar === false) {
+      return false;
+    }
+
     if (options?.capaEnabled === false && isCapaNavigationItem(item)) {
+      return false;
+    }
+
+    if (workspace?.role === "OUTLET" && !outletVisibleNavigationItemIds.has(item.id)) {
       return false;
     }
 

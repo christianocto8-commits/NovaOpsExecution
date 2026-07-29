@@ -66,7 +66,8 @@ function getTimeFromDue(value?: string, fallback = "09:00") {
 function getLocalDateTimeValue(offsetMinutes = 0) {
   const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
   date.setSeconds(0, 0);
-  return date.toISOString().slice(0, 16);
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function isTaskPastDue(task: Task) {

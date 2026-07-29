@@ -172,14 +172,14 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
                 due_date=due_date,
             )
 
-        if due_date and due_date + timedelta(minutes=30) <= now:
+        if due_date and due_date + timedelta(minutes=60) <= now:
             previous_status = task.status
             task.status = "cancelled"
             db.add(
                 TaskComment(
                     task_id=task.id,
                     user_id=task.created_by,
-                    comment="Task expired 30 minutes after overdue and moved to overdue report.",
+                    comment="Task expired 60 minutes after overdue and moved to overdue report.",
                     event_type="overdue_expired",
                     previous_value=previous_status,
                     new_value=task.status,
@@ -198,7 +198,7 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
                         "outlet_id": task.outlet_id,
                         "due_date": task.due_date.isoformat() if task.due_date else None,
                         "status": task.status,
-                        "expired_after_minutes": 30,
+                        "expired_after_minutes": 60,
                     },
                 )
             except Exception:

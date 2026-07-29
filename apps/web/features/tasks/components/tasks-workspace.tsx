@@ -293,7 +293,6 @@ function mapUpcomingSchedule(item: BackendUpcomingTaskSchedule): Task {
 
 function getMobileSections(tasks: Task[]) {
   const now = new Date();
-  const todayStart = getDayStart(now);
   const weekEnd = getWeekEnd(now);
 
   const upcoming = tasks.filter((task) => task.isUpcoming);
@@ -312,7 +311,7 @@ function getMobileSections(tasks: Task[]) {
       return;
     }
 
-    if (dueDate < todayStart) {
+    if (dueDate < now) {
       overdue.push(task);
       return;
     }
@@ -360,7 +359,7 @@ function MobileTaskRow({
   const isOverdue = (() => {
     if (isUpcoming) return false;
     const dueDate = parseTaskDueDate(task);
-    return dueDate ? dueDate < getDayStart(new Date()) && progress < 100 : false;
+    return dueDate ? dueDate < new Date() && progress < 100 : false;
   })();
 
   return (

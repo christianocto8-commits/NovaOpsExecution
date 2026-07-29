@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -27,7 +28,7 @@ import {
   resolveTaskSubmissionSelection,
 } from "@/features/history/utils/execution-session-history";
 import type { Task } from "@/features/tasks/types";
-import { isTaskCompleted } from "@/features/tasks/utils/task-inbox";
+import { isTaskCompleted, isTaskExpiredOverdue } from "@/features/tasks/utils/task-inbox";
 import {
   countWorkedTasksForOutlet,
   exportOutletWorkReportPdf,
@@ -119,6 +120,7 @@ function filterTasksForOutletAndDate(tasks: Task[], outlet: string, dateKey?: st
 }
 
 function isOverdue(task: Task) {
+  if (isTaskExpiredOverdue(task)) return true;
   if (!task.due || task.status === "Completed") return false;
 
   const dueDate = new Date(task.due);
@@ -126,12 +128,14 @@ function isOverdue(task: Task) {
 }
 
 function getTaskProgress(task: Task) {
+  if (isTaskExpiredOverdue(task)) return 0;
   if (isTaskCompleted(task) || task.execution?.completedAt) return 100;
   if (task.status === "In Progress") return 50;
   return 0;
 }
 
 function getReportStatus(task: Task): ReportStatus {
+  if (isTaskExpiredOverdue(task)) return "overdue";
   if (isTaskCompleted(task) || task.execution?.completedAt) return "completed";
   if (isOverdue(task)) return "overdue";
   if (task.status === "In Progress") return "in_progress";
@@ -169,7 +173,9 @@ function toReportRow(task: Task): ReportRow {
     score: progress,
     operator: task.execution?.operatorName ?? task.assignee ?? "Outlet Team",
     due: getDateLabel(task.due),
-    submittedAt: isTaskWorkedOn(task)
+    submittedAt: isTaskExpiredOverdue(task)
+      ? "Not submitted"
+      : isTaskWorkedOn(task)
         ? getDateLabel(task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due)
         : "-",
   };
@@ -256,6 +262,7 @@ function getDueDate(task: Task) {
 }
 
 function getTrackingStatus(task: Task): TrackingStatus {
+  if (isTaskExpiredOverdue(task)) return "overdue";
   if (isTaskWorkedOn(task)) return "done";
   if (isOverdue(task)) return "overdue";
   return "open";
@@ -694,6 +701,18 @@ export function ReportsWorkspace() {
             <Download className="size-4" />
             {isExportingBundle ? "Bundling..." : "Audit Bundle"}
           </button>
+          <Link
+            href="/dashboard/report-automation"
+            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
+            Schedule Reports
+          </Link>
+          <Link
+            href="/dashboard/evidence"
+            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
+            Evidence
+          </Link>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>

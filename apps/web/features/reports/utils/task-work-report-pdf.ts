@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 
 import type { FormField, FormTemplate } from "@/features/forms/types";
 import type { Task, TaskShift } from "@/features/tasks/types";
-import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
+import { isTaskExpiredOverdue, isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
 import { collectSubmissionEvidenceItems } from "@/shared/evidence/submission-evidence";
 import { getOfflineEvidenceBlobUrl, isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 
@@ -88,6 +88,7 @@ export function countWorkedTasksForOutlet(tasks: Task[], outlet: string) {
 }
 
 function formatStatusLabel(task: Task) {
+  if (isTaskExpiredOverdue(task)) return "Overdue - tidak dikerjakan";
   if (isTaskWorkedOn(task)) return "Selesai";
   if (task.executionDraft) return "Draft tersimpan";
   if (task.status === "In Progress") return "Sedang dikerjakan";
@@ -174,10 +175,18 @@ function getEvidenceSummary(task: Task) {
 }
 
 function getCompletedAt(task: Task) {
+  if (isTaskExpiredOverdue(task)) return "Tidak disubmit";
   return task.execution?.completedAt ?? "-";
 }
 
 function buildTaskResultRows(task: Task, template: FormTemplate | null) {
+  if (isTaskExpiredOverdue(task)) {
+    return [
+      ["Status", "Overdue"],
+      ["Hasil", "Task tidak dikerjakan sampai batas waktu berakhir"],
+    ];
+  }
+
   const responses = getExecutionResponses(task);
 
   if (template && template.fields.length > 0) {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from calendar import day_name
 from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from app.modules.notifications.task_notifications import (
     notify_task_schedule_upcoming_recipients,
     resolve_identity_user_id,
 )
+from app.services.workspace_settings import get_workspace_settings
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.modules.tasks.identity_bridge import resolve_legacy_outlet_id
 
@@ -30,6 +32,19 @@ WEEKDAY_TO_NAME = {index: name.lower() for index, name in enumerate(day_name)}
 class TaskSchedulePublisher:
     def __init__(self, db: Session):
         self.db = db
+        self._timezone: ZoneInfo | None = None
+
+    def _workspace_timezone(self) -> ZoneInfo:
+        if self._timezone is not None:
+            return self._timezone
+
+        settings = get_workspace_settings(self.db)
+        try:
+            self._timezone = ZoneInfo(settings.timezone or "Asia/Jakarta")
+        except ZoneInfoNotFoundError:
+            self._timezone = ZoneInfo("Asia/Jakarta")
+
+        return self._timezone
 
     def process_due_schedules(
         self,
@@ -110,28 +125,30 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "once":
             return bool(schedule.next_publish_at and schedule.next_publish_at <= current)
 
+        local_current = current.astimezone(self._workspace_timezone())
+
         if schedule.recurrence == "daily":
-            return self._is_past_due_time(schedule.due_time, current)
+            return self._is_past_due_time(schedule.due_time, local_current)
 
         if schedule.recurrence == "weekly":
             if not schedule.weekly_publish_day:
                 return False
 
-            current_day = WEEKDAY_TO_NAME[current.weekday()]
+            current_day = WEEKDAY_TO_NAME[local_current.weekday()]
             if current_day != schedule.weekly_publish_day.lower():
                 return False
 
-            return self._is_past_due_time(schedule.due_time, current)
+            return self._is_past_due_time(schedule.due_time, local_current)
 
         if schedule.recurrence == "monthly":
             if not schedule.monthly_publish_day:
                 return False
 
             publish_day = min(schedule.monthly_publish_day, 28)
-            if current.day != publish_day:
+            if local_current.day != publish_day:
                 return False
 
-            return self._is_past_due_time(schedule.due_time, current)
+            return self._is_past_due_time(schedule.due_time, local_current)
 
         return False
 
@@ -329,6 +346,8 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "once" and schedule.one_time_due_at:
             return schedule.one_time_due_at
 
+        local_current = current.astimezone(self._workspace_timezone())
+
         if shift == "morning":
             due_time = "07:00"
         elif shift == "evening":
@@ -341,17 +360,22 @@ class TaskSchedulePublisher:
         except (TypeError, ValueError):
             hour, minute = 9, 0
 
-        return datetime(
-            year=current.year,
-            month=current.month,
-            day=current.day,
+        local_due_date = datetime(
+            year=local_current.year,
+            month=local_current.month,
+            day=local_current.day,
             hour=hour,
             minute=minute,
-            tzinfo=timezone.utc,
+            tzinfo=self._workspace_timezone(),
         )
+        return local_due_date.astimezone(timezone.utc)
 
     def _notify_upcoming_schedule(self, schedule: TaskSchedule, current: datetime) -> int:
-        publish_at = schedule.next_publish_at or self.compute_next_publish_at(schedule, current)
+        publish_at = (
+            schedule.next_publish_at
+            if schedule.recurrence == "once" and schedule.next_publish_at
+            else self.compute_next_publish_at(schedule, current)
+        )
         if publish_at <= current:
             return 0
 
@@ -388,6 +412,8 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "once" and schedule.next_publish_at:
             return schedule.next_publish_at
 
+        local_current = current.astimezone(self._workspace_timezone())
+
         try:
             hour, minute = [int(part) for part in schedule.due_time.split(":")]
         except (TypeError, ValueError):
@@ -396,51 +422,56 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "weekly":
             target_day = schedule.weekly_publish_day.lower() if schedule.weekly_publish_day else "monday"
             target_index = {name.lower(): index for index, name in enumerate(day_name)}.get(target_day, 0)
-            days_ahead = (target_index - current.weekday()) % 7
-            candidate_day = current + timedelta(days=days_ahead)
+            days_ahead = (target_index - local_current.weekday()) % 7
+            candidate_day = local_current + timedelta(days=days_ahead)
             candidate = datetime(
                 year=candidate_day.year,
                 month=candidate_day.month,
                 day=candidate_day.day,
                 hour=hour,
                 minute=minute,
-                tzinfo=timezone.utc,
+                tzinfo=self._workspace_timezone(),
             )
-            return candidate if candidate > current else candidate + timedelta(days=7)
+            if candidate <= local_current:
+                candidate += timedelta(days=7)
+            return candidate.astimezone(timezone.utc)
 
         if schedule.recurrence == "monthly":
             publish_day = min(schedule.monthly_publish_day or 1, 28)
             candidate = datetime(
-                year=current.year,
-                month=current.month,
+                year=local_current.year,
+                month=local_current.month,
                 day=publish_day,
                 hour=hour,
                 minute=minute,
-                tzinfo=timezone.utc,
+                tzinfo=self._workspace_timezone(),
             )
-            if candidate > current:
-                return candidate
+            if candidate > local_current:
+                return candidate.astimezone(timezone.utc)
 
-            if current.month == 12:
-                next_day = current.replace(year=current.year + 1, month=1, day=1)
+            if local_current.month == 12:
+                next_day = local_current.replace(year=local_current.year + 1, month=1, day=1)
             else:
-                next_day = current.replace(month=current.month + 1, day=1)
+                next_day = local_current.replace(month=local_current.month + 1, day=1)
 
-            return datetime(
+            next_candidate = datetime(
                 year=next_day.year,
                 month=next_day.month,
                 day=publish_day,
                 hour=hour,
                 minute=minute,
-                tzinfo=timezone.utc,
+                tzinfo=self._workspace_timezone(),
             )
+            return next_candidate.astimezone(timezone.utc)
 
         candidate = datetime(
-            year=current.year,
-            month=current.month,
-            day=current.day,
+            year=local_current.year,
+            month=local_current.month,
+            day=local_current.day,
             hour=hour,
             minute=minute,
-            tzinfo=timezone.utc,
+            tzinfo=self._workspace_timezone(),
         )
-        return candidate if candidate > current else candidate + timedelta(days=1)
+        if candidate <= local_current:
+            candidate += timedelta(days=1)
+        return candidate.astimezone(timezone.utc)

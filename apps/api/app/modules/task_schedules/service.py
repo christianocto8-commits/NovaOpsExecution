@@ -159,7 +159,11 @@ class TaskScheduleService:
         items: list[TaskScheduleUpcomingResponse] = []
 
         for schedule in schedules:
-            publish_at = schedule.next_publish_at or self.publisher.compute_next_publish_at(schedule, now)
+            publish_at = (
+                schedule.next_publish_at
+                if schedule.recurrence == "once" and schedule.next_publish_at
+                else self.publisher.compute_next_publish_at(schedule, now)
+            )
             if publish_at <= now:
                 continue
 

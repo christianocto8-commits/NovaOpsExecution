@@ -21,6 +21,19 @@ export function isTaskCompleted(task: Task) {
   return false;
 }
 
+export function isTaskExpiredOverdue(task: Task) {
+  if (String(task.backendStatus ?? "").toLowerCase() !== "cancelled") {
+    return false;
+  }
+
+  if (!task.due) {
+    return false;
+  }
+
+  const dueDate = new Date(task.due);
+  return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+}
+
 /** Tasks that should stay in the Task inbox (not yet finished). */
 export function isOpenTaskInInbox(task: Task) {
   if (String(task.backendStatus ?? "").toLowerCase() === "cancelled") {
@@ -32,5 +45,5 @@ export function isOpenTaskInInbox(task: Task) {
 
 /** Tasks with a submitted result — shown in Reports / PDF export. */
 export function isTaskWorkedOn(task: Task) {
-  return isTaskCompleted(task) || Boolean(task.execution?.completedAt);
+  return isTaskCompleted(task) || Boolean(task.execution?.completedAt) || isTaskExpiredOverdue(task);
 }

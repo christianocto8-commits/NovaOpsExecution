@@ -42,6 +42,7 @@ const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
 ];
+const recurringRecurrences = recurrences.filter((recurrence) => recurrence.value !== "once");
 const shiftOptions: Array<{ value: TaskShift; label: string; time: string }> = [
   { value: "morning", label: "Morning", time: "07:00" },
   { value: "evening", label: "Evening", time: "15:00" },
@@ -60,7 +61,8 @@ const weeklyPublishDayOptions: Array<{ value: TaskWeeklyPublishDay; label: strin
 function getLocalDateTimeValue(offsetMinutes = 0) {
   const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
   date.setSeconds(0, 0);
-  return date.toISOString().slice(0, 16);
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 export function TaskFormDrawer({
@@ -198,6 +200,34 @@ export function TaskFormDrawer({
     });
   }
 
+  function selectTaskFlow(flow: "once" | "recurring") {
+    if (flow === "once") {
+      onChange({
+        ...form,
+        recurrence: "once",
+        autoPublish: true,
+        publishAt: form.publishAt || getLocalDateTimeValue(),
+        due: form.due || getLocalDateTimeValue(24 * 60),
+        dueTime: form.dueTime || defaultTaskDueTime,
+        shifts: [],
+      });
+      return;
+    }
+
+    const recurrence = form.recurrence === "once" ? "daily" : form.recurrence;
+
+    onChange({
+      ...form,
+      recurrence,
+      autoPublish: true,
+      dueTime: form.dueTime || defaultTaskDueTime,
+      shifts: recurrence === "daily" ? (form.shifts.length > 0 ? form.shifts : ["morning"]) : [],
+      weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
+      monthlyPublishDay:
+        recurrence === "monthly" ? form.monthlyPublishDay || 1 : form.monthlyPublishDay,
+    });
+  }
+
   if (!open) return null;
 
   return (
@@ -219,7 +249,7 @@ export function TaskFormDrawer({
                 {isEditMode ? "Edit Task" : "Create Task"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Assign reusable form templates and evidence requirements to outlet teams.
+                Pilih template, outlet, dan jadwal kerja outlet.
               </p>
             </div>
 
@@ -275,31 +305,35 @@ export function TaskFormDrawer({
             <input
               value={form.title ?? ""}
               onChange={(event) => onChange({ ...form, title: event.target.value })}
-              placeholder="Contoh: Daily opening checklist"
+              placeholder={
+                isRecurringTask ? "Contoh: Daily opening checklist" : "Contoh: Project audit outlet"
+              }
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Status</label>
-              <select
-                value={form.status ?? "Pending"}
-                onChange={(event) =>
-                  onChange({
-                    ...form,
-                    status: event.target.value as TaskStatus,
-                  })
-                }
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600"
-              >
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className={`grid gap-4 ${isEditMode ? "sm:grid-cols-2" : ""}`}>
+            {isEditMode ? (
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Status</label>
+                <select
+                  value={form.status ?? "Pending"}
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      status: event.target.value as TaskStatus,
+                    })
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             <div>
               <label className="text-sm font-semibold text-slate-700">Priority</label>
@@ -355,8 +389,7 @@ export function TaskFormDrawer({
               <div>
                 <p className="text-sm font-bold text-emerald-950">Schedule</p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  One-time project appears once at publish time. Recurring tasks regenerate by
-                  schedule.
+                  Pilih sekali jalan untuk project, atau recurring untuk SOP harian/mingguan.
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
@@ -364,46 +397,73 @@ export function TaskFormDrawer({
               </span>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                  Schedule Type
-                </label>
-                <select
-                  value={form.recurrence}
-                  onChange={(event) => {
-                    const recurrence = event.target.value as TaskRecurrence;
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => selectTaskFlow("once")}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                  !isRecurringTask
+                    ? "border-emerald-600 bg-white text-emerald-900 shadow-sm"
+                    : "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-white"
+                }`}
+              >
+                <span className="block font-bold">One-time project</span>
+                <span className="mt-1 block text-xs">Muncul satu kali sesuai jam publish.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => selectTaskFlow("recurring")}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                  isRecurringTask
+                    ? "border-emerald-600 bg-white text-emerald-900 shadow-sm"
+                    : "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-white"
+                }`}
+              >
+                <span className="block font-bold">Recurring SOP</span>
+                <span className="mt-1 block text-xs">Auto publish untuk rutinitas outlet.</span>
+              </button>
+            </div>
 
-                    onChange({
-                      ...form,
-                      recurrence,
-                      autoPublish: true,
-                      publishAt:
-                        recurrence === "once"
-                          ? form.publishAt || getLocalDateTimeValue()
-                          : form.publishAt,
-                      due:
-                        recurrence === "once"
-                          ? form.due || getLocalDateTimeValue(24 * 60)
-                          : form.due,
-                      dueTime: form.dueTime || defaultTaskDueTime,
-                      shifts: recurrence === "daily" ? form.shifts : [],
-                      weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
-                      monthlyPublishDay:
-                        recurrence === "monthly"
-                          ? form.monthlyPublishDay || 1
-                          : form.monthlyPublishDay,
-                    });
-                  }}
-                  className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
-                >
-                  {recurrences.map((recurrence) => (
-                    <option key={recurrence.value} value={recurrence.value}>
-                      {recurrence.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {isRecurringTask ? (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Frequency
+                  </label>
+                  <select
+                    value={form.recurrence}
+                    onChange={(event) => {
+                      const recurrence = event.target.value as TaskRecurrence;
+
+                      onChange({
+                        ...form,
+                        recurrence,
+                        autoPublish: true,
+                        dueTime: form.dueTime || defaultTaskDueTime,
+                        shifts:
+                          recurrence === "daily"
+                            ? form.shifts.length > 0
+                              ? form.shifts
+                              : ["morning"]
+                            : [],
+                        weeklyPublishDay:
+                          recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
+                        monthlyPublishDay:
+                          recurrence === "monthly"
+                            ? form.monthlyPublishDay || 1
+                            : form.monthlyPublishDay,
+                      });
+                    }}
+                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                  >
+                    {recurringRecurrences.map((recurrence) => (
+                      <option key={recurrence.value} value={recurrence.value}>
+                        {recurrence.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               {form.recurrence === "once" ? (
                 <>
