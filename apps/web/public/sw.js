@@ -1,5 +1,11 @@
-const SHELL_CACHE = "novaops-shell-v2";
-const STATIC_CACHE = "novaops-static-v2";
+// NovaOps Service Worker — v3 (Fase 2: Background Sync + Offline Queue)
+
+const SHELL_CACHE = "novaops-shell-v3";
+const STATIC_CACHE = "novaops-static-v3";
+const SYNC_TAG = "novaops-background-sync";
+const DB_NAME = "novaops-offline-db";
+const STORE_QUEUE = "sync-queue";
+const MAX_RETRY = 5;
 
 const SHELL_ROUTES = [
   "/",
@@ -16,6 +22,8 @@ const SHELL_ROUTES = [
   "/novaops-icon.svg",
 ];
 
+// ─── Install ──────────────────────────────────────────────────────────────────
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
@@ -24,6 +32,8 @@ self.addEventListener("install", (event) => {
   );
   self.skipWaiting();
 });
+
+// ─── Activate ─────────────────────────────────────────────────────────────────
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -38,22 +48,16 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  if (request.method !== "GET") {
-    return;
-  }
+  if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/")) {
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -67,14 +71,10 @@ self.addEventListener("fetch", (event) => {
           const cached = await caches.match(request);
           if (cached) return cached;
 
-          const fallbacks = ["/dashboard/operator", "/offline.html", "/login", "/"];
-          for (const route of fallbacks) {
+          for (const route of ["/dashboard/operator", "/offline.html", "/login", "/"]) {
             const match = await caches.match(route);
             if (match) return match;
           }
-
-          const offlinePage = await caches.match("/offline.html");
-          if (offlinePage) return offlinePage;
 
           return Response.error();
         })
@@ -82,19 +82,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (
-    request.destination === "script" ||
-    request.destination === "style" ||
-    request.destination === "image" ||
-    request.destination === "font"
-  ) {
+  if (["script", "style", "image", "font"].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
 
         return fetch(request).then((response) => {
           if (!response.ok) return response;
-
           const clone = response.clone();
           caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
           return response;
@@ -103,6 +97,86 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+// ─── Background Sync ──────────────────────────────────────────────────────────
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === SYNC_TAG) {
+    event.waitUntil(processOfflineQueueFromSW());
+  }
+});
+
+async function openOfflineDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function processOfflineQueueFromSW() {
+  let db;
+  try {
+    db = await openOfflineDB();
+  } catch {
+    return;
+  }
+
+  const queue = await new Promise((resolve) => {
+    const tx = db.transaction(STORE_QUEUE, "readonly");
+    const req = tx.objectStore(STORE_QUEUE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve([]);
+  });
+
+  let synced = 0;
+  let failed = 0;
+
+  for (const entry of queue) {
+    if (entry.retryCount >= MAX_RETRY) {
+      failed++;
+      continue;
+    }
+
+    try {
+      const response = await fetch(entry.url, {
+        method: entry.method,
+        headers: { "Content-Type": "application/json", ...entry.headers },
+        body: JSON.stringify(entry.payload),
+      });
+
+      if (response.ok) {
+        const tx = db.transaction(STORE_QUEUE, "readwrite");
+        tx.objectStore(STORE_QUEUE).delete(entry.id);
+        synced++;
+      } else {
+        const tx = db.transaction(STORE_QUEUE, "readwrite");
+        tx.objectStore(STORE_QUEUE).put({
+          ...entry,
+          retryCount: entry.retryCount + 1,
+          lastError: `HTTP ${response.status}`,
+        });
+        failed++;
+      }
+    } catch (err) {
+      const tx = db.transaction(STORE_QUEUE, "readwrite");
+      tx.objectStore(STORE_QUEUE).put({
+        ...entry,
+        retryCount: entry.retryCount + 1,
+        lastError: String(err),
+      });
+      failed++;
+    }
+  }
+
+  // Notify open tabs about sync result
+  const clients = await self.clients.matchAll({ type: "window" });
+  for (const client of clients) {
+    client.postMessage({ type: "OFFLINE_SYNC_COMPLETE", synced, failed });
+  }
+}
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
 
 self.addEventListener("push", (event) => {
   let payload = {
@@ -120,18 +194,15 @@ self.addEventListener("push", (event) => {
     }
   }
 
-  const notificationOptions = {
-    body: payload.body,
-    icon: "/novaops-icon-192.png",
-    badge: "/novaops-icon-192.png",
-    tag: payload.data?.event_type ?? "novaops-task",
-    data: {
-      url: payload.url ?? "/dashboard/tasks",
-      ...payload.data,
-    },
-  };
-
-  event.waitUntil(self.registration.showNotification(payload.title, notificationOptions));
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/novaops-icon-192.png",
+      badge: "/novaops-icon-192.png",
+      tag: payload.data?.event_type ?? "novaops-task",
+      data: { url: payload.url ?? "/dashboard/tasks", ...payload.data },
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -143,22 +214,12 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
-        if (!client.url.startsWith(self.location.origin) || !("focus" in client)) {
-          continue;
-        }
-
-        if ("navigate" in client) {
-          return client.navigate(absoluteUrl).then(() => client.focus());
-        }
-
+        if (!client.url.startsWith(self.location.origin) || !("focus" in client)) continue;
+        if ("navigate" in client) return client.navigate(absoluteUrl).then(() => client.focus());
         return client.focus().then(() => clients.openWindow(absoluteUrl));
       }
-
-      if (clients.openWindow) {
-        return clients.openWindow(absoluteUrl);
-      }
-
+      if (clients.openWindow) return clients.openWindow(absoluteUrl);
       return undefined;
-    }),
+    })
   );
 });
