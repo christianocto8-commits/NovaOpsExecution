@@ -149,12 +149,11 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "finance-handoff",
-    label: "Finance Handoff",
+    label: "Finance Reports",
     href: "/dashboard/finance-handoff",
     icon: Banknote,
     requiredPermissions: ["report.read"],
-    section: "enterprise",
-    sidebar: false,
+    section: "analytics",
   },
   {
     id: "activity",
