@@ -9,6 +9,7 @@ import { AuthGuard } from "@/lib/auth/auth-guard";
 import {
   DashboardHeader,
   EnterpriseSidebar,
+  OperatorBottomNav,
   canAccessPath,
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -101,9 +102,10 @@ function DashboardShell({ children }: { children: ReactNode }) {
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
         />
 
-        <div className="min-w-0 overflow-x-hidden">
+        <div className={["min-w-0 overflow-x-hidden", workspace.role === "OUTLET" ? "pb-20 lg:pb-0" : ""].join(" ")}>
           {canAccess ? children : <AccessDenied />}
         </div>
+        {workspace.role === "OUTLET" ? <OperatorBottomNav /> : null}
       </div>
     </div>
   );

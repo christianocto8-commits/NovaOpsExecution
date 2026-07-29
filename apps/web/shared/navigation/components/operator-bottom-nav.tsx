@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, FileText, History, LayoutGrid } from "lucide-react";
+import { BarChart3, Bell, ClipboardCheck, FileText } from "lucide-react";
 
 const operatorNavItems = [
-  { href: "/dashboard/tasks", label: "Tasks", icon: ClipboardCheck },
-  { href: "/dashboard/drafts", label: "Drafts", icon: FileText },
-  { href: "/dashboard/history", label: "History", icon: History },
-  { href: "/dashboard/operator", label: "Home", icon: LayoutGrid },
+  { href: "/dashboard/tasks", label: "Task", icon: ClipboardCheck },
+  { href: "/dashboard/forms", label: "My Form", icon: FileText },
+  { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
+  { href: "/dashboard/notifications", label: "Notif", icon: Bell },
 ] as const;
 
 export function OperatorBottomNav() {
@@ -18,9 +18,7 @@ export function OperatorBottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DDE8E1] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden">
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
         {operatorNavItems.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href === "/dashboard/tasks" && pathname.startsWith("/dashboard/tasks"));
+                  const active = pathname === item.href || pathname.startsWith(item.href);
 
           const Icon = item.icon;
 
