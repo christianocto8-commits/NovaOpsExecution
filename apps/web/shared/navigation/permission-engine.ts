@@ -37,6 +37,19 @@ const outletVisibleNavigationItemIds = new Set([
   "notifications",
 ]);
 
+const areaManagerVisibleNavigationItemIds = new Set([
+  "dashboard",
+  "tasks",
+  "schedules",
+  "forms",
+  "reports",
+  "drafts",
+  "settings",
+  "exceptions",
+  "finance-handoff",
+  "corrective-actions",
+]);
+
 const areaManagerNavigationItemIds = new Set([
   "dashboard",
   "activity",
@@ -98,15 +111,19 @@ export function getNavigationForPermissions(
   options?: NavigationOptions
 ) {
   return navigationItems.filter((item) => {
-    if (item.sidebar === false) {
-      return false;
-    }
-
     if (options?.capaEnabled === false && isCapaNavigationItem(item)) {
       return false;
     }
 
-    if (workspace?.role === "OUTLET" && !outletVisibleNavigationItemIds.has(item.id)) {
+    if (workspace?.role === "OUTLET") {
+      return outletVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
+    }
+
+    if (workspace?.role === "AREA_MANAGER") {
+      return areaManagerVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
+    }
+
+    if (item.sidebar === false) {
       return false;
     }
 
