@@ -13,7 +13,16 @@
  *   });
  */
 
-import { v4 as uuidv4 } from "uuid";
+function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 import { enqueueOfflineRequest } from "./indexeddb";
 import { registerBackgroundSync } from "./sync-manager";
@@ -63,7 +72,7 @@ export async function offlineAwareFetch(
   }
 
   const entry = {
-    id: uuidv4(),
+    id: generateUUID(),
     type: queueType,
     url: url.startsWith("http") ? url : `${window.location.origin}${url}`,
     method: (fetchOptions.method ?? "POST") as "POST" | "PUT" | "PATCH",
