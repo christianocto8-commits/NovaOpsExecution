@@ -47,6 +47,7 @@ type OfflineSyncContextValue = {
 const OfflineSyncContext = createContext<OfflineSyncContextValue | null>(null);
 
 const EXECUTION_DRAFT_QUERY_KEY = ["execution-sessions", "drafts"] as const;
+const OFFLINE_QUEUE_CHANGE_EVENT = "novaops-offline-queue-change";
 
 export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -147,6 +148,17 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+    };
+  }, [refreshPendingCount]);
+
+  useEffect(() => {
+    const handleQueueChange = () => {
+      void refreshPendingCount();
+    };
+
+    window.addEventListener(OFFLINE_QUEUE_CHANGE_EVENT, handleQueueChange);
+    return () => {
+      window.removeEventListener(OFFLINE_QUEUE_CHANGE_EVENT, handleQueueChange);
     };
   }, [refreshPendingCount]);
 

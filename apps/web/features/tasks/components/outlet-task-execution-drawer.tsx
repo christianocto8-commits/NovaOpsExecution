@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ import { listMyTraining } from "@/services/lms.service";
 import { formTemplateService } from "@/services/form-template.service";
 import { hasResolvableBackendFormTemplate, isLocalFormTemplateSource } from "@/services/task.service";
 import { outletService } from "@/services/outlet.service";
+import { ExecutionHeader } from "@/features/tasks/components/execution-header";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { GeofenceStatusBanner, getCurrentPosition, getDistanceToOutletMeters } from "@/shared/evidence";
 import { SaveIndicator } from "@/shared/status";
@@ -356,7 +357,7 @@ export function OutletTaskExecutionDrawer({
           <div className="mx-auto w-full max-w-6xl">
             <div className="flex items-center gap-2 sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0 flex-1">
-                <p className="hidden text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700 sm:block">
+                <p className="hidden text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700 md:block">
                   {t("execution.eyebrow")}
                 </p>
                 <div className="flex min-w-0 items-center gap-2">
@@ -367,7 +368,7 @@ export function OutletTaskExecutionDrawer({
                     <SaveIndicator state={saveState} lastSavedAt={lastSavedAt} />
                   </div>
                 </div>
-                <p className="mt-0.5 hidden truncate text-sm text-slate-500 sm:block">
+                <p className="mt-0.5 hidden truncate text-sm text-slate-500 md:block">
                   {template
                     ? `${template.name} · ${progress.completed}/${progress.total} required`
                     : task.formTemplateName
@@ -378,7 +379,17 @@ export function OutletTaskExecutionDrawer({
                 </p>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
+                {!isOnline && (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">
+                    <WifiOff className="h-3 w-3" /> Offline
+                  </span>
+                )}
+                {isPendingSync && (
+                  <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-800">
+                    <Wifi className="h-3 w-3" /> Antrean Sync
+                  </span>
+                )}
                 <div className="sm:hidden">
                   <SaveIndicator state={saveState} lastSavedAt={lastSavedAt} compact />
                 </div>
@@ -403,36 +414,21 @@ export function OutletTaskExecutionDrawer({
               />
             ) : null}
 
-            {showAlertStrip ? (
-              <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-3">
-                <GeofenceStatusBanner
-                  enabled={geofenceEnabled}
-                  hasOutletCoords={
-                    outletQuery.data?.outlet.latitude != null &&
-                    outletQuery.data?.outlet.longitude != null
-                  }
-                  outletLat={outletQuery.data?.outlet.latitude}
-                  outletLon={outletQuery.data?.outlet.longitude}
-                  isLoadingLocation={isLoadingLocation || outletQuery.isLoading}
-                  locationError={locationError}
-                  distanceMeters={geofenceDistanceMeters}
-                  radiusMeters={geofenceRadius}
-                />
-                {incompleteTrainingCount > 0 ? (
-                  <div
-                    className={`rounded-xl border px-3 py-2 text-xs sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm ${
-                      trainingBlocked
-                        ? "border-red-200 bg-red-50 text-red-800"
-                        : "border-amber-200 bg-amber-50 text-amber-900"
-                    }`}
-                  >
-                    {trainingBlocked
-                      ? t("training.executionBlocked")
-                      : t("training.executionWarning")}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+            <ExecutionHeader
+              trainingBlocked={trainingBlocked}
+              incompleteTrainingCount={incompleteTrainingCount}
+              geofenceEnabled={geofenceEnabled}
+              hasOutletCoords={
+                outletQuery.data?.outlet.latitude != null &&
+                outletQuery.data?.outlet.longitude != null
+              }
+              outletLat={outletQuery.data?.outlet.latitude}
+              outletLon={outletQuery.data?.outlet.longitude}
+              isLoadingLocation={isLoadingLocation || outletQuery.isLoading}
+              locationError={locationError}
+              geofenceDistanceMeters={geofenceDistanceMeters}
+              geofenceRadius={geofenceRadius}
+            />
 
             <div className="mt-3 hidden sm:block">
               <FormProgressBar
@@ -451,11 +447,10 @@ export function OutletTaskExecutionDrawer({
         >
           <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_360px] lg:px-8">
             <div className="min-w-0 space-y-3 sm:space-y-6">
-              <section className="hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:block sm:rounded-3xl">
-                <p className="text-sm font-semibold text-emerald-900">{t("execution.guideTitle")}</p>
-                <p className="mt-1 text-sm leading-6 text-emerald-800">{t("execution.guideBody")}</p>
-              </section>
-
+            <section className="hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 md:block sm:rounded-3xl">
+              <p className="text-sm font-semibold text-emerald-900">{t("execution.guideTitle")}</p>
+              <p className="mt-1 text-sm leading-6 text-emerald-800">{t("execution.guideBody")}</p>
+            </section>
               {templateQuery.isLoading ? (
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
                   {t("execution.loadingTemplate")}

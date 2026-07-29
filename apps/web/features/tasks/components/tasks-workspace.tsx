@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Lock, Search } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
+import { FieldTaskCard } from "@/features/tasks/components/FieldTaskCard";
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
@@ -363,97 +364,38 @@ function MobileTaskRow({
     return dueDate ? dueDate < new Date() && progress < 100 : false;
   })();
 
+  const status = (() => {
+    if (isTaskCompleted(task)) return 'completed';
+    if (task.executionDraft) return 'in_progress';
+    if (isUpcoming) return 'blocked';
+    return 'open';
+  })();
+
+  const priority = (task.priority?.toLowerCase() === 'high' ? 'high' : 'medium') as 'low' | 'medium' | 'high';
+
   return (
-    <button
-      type="button"
-      data-task-row-id={task.id}
-      onClick={onOpen}
-      className={[
-        "grid w-full grid-cols-[56px_minmax(0,1fr)] gap-3 border-b border-slate-200 px-3 py-5 text-left transition last:border-b-0 hover:bg-slate-50 active:bg-slate-100",
-        highlighted ? "bg-emerald-50" : "bg-white",
-      ].join(" ")}
-    >
-      <div className="text-center">
-        <p className={`text-xs font-semibold ${isOverdue ? "text-red-500" : "text-slate-400"}`}>
-          {formatMobileDay(task)}
-        </p>
-        <p className="mt-2 text-[11px] text-slate-400">{formatMobileTime(task)}</p>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-slate-800">{task.title}</p>
-            {task.description?.trim() ? (
-              <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-slate-500">
-                {task.description.trim()}
-              </p>
-            ) : null}
-            {task.formTemplateName || (task.checklistFieldCount ?? 0) > 0 ? (
-              <p className="mt-1 text-[12px] font-medium text-emerald-700">
-                {task.formTemplateName ?? "Checklist"}
-                {(task.checklistFieldCount ?? 0) > 0
-                  ? ` · ${task.checklistFieldCount} item`
-                  : ""}
-              </p>
-            ) : null}
-            {(task.checklistPreview?.length ?? 0) > 0 ? (
-              <ul className="mt-1 space-y-0.5">
-                {task.checklistPreview!.slice(0, 3).map((label) => (
-                  <li key={label} className="truncate text-[11px] text-slate-400">
-                    • {label}
-                  </li>
-                ))}
-                {(task.checklistFieldCount ?? 0) > 3 ? (
-                  <li className="text-[11px] text-slate-400">
-                    +{(task.checklistFieldCount ?? 0) - 3} item lainnya
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              {task.executionDraft ? (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                  Draft Saved
-                </span>
-              ) : null}
-              {isUpcoming ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                  <Lock className="h-3 w-3" />
-                  Locked until publish
-                </span>
-              ) : null}
-              {isPendingSync ? (
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                  Menunggu sync
-                </span>
-              ) : null}
-              {isFailedSync ? (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-                  Sync gagal
-                </span>
-              ) : null}
-              {task.priority === "High" ? (
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-                  Follow-up Task
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <span className="text-xs font-semibold text-slate-400">
-            {isUpcoming ? "Soon" : `${progress}%`}
-          </span>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
-          <span className={isOverdue ? "text-red-500" : isUpcoming ? "text-slate-500" : "text-sky-500"}>
-            {isUpcoming ? task.lockedReason : isOverdue ? "Overdue" : task.executionDraft ? "Draft" : "Open"}
-          </span>
-          {draftProgress ? <ProgressChip percentage={draftProgress.percentage} /> : null}
-        </div>
-      </div>
-    </button>
+    <div className={`px-3 py-2 ${highlighted ? "bg-emerald-50" : "bg-white"}`}>
+      <FieldTaskCard
+        taskId={task.id}
+        title={task.title}
+        description={task.description?.trim()}
+        status={status}
+        dueTime={formatMobileTime(task)}
+        priority={priority}
+        onClick={onOpen}
+        progress={progress}
+        draftProgress={draftProgress?.percentage}
+        isUpcoming={isUpcoming}
+        isOverdue={isOverdue}
+        isPendingSync={isPendingSync}
+        isFailedSync={isFailedSync}
+        formTemplateName={task.formTemplateName}
+        checklistCount={task.checklistFieldCount}
+        checklistPreview={task.checklistPreview}
+        lockedReason={task.lockedReason}
+        isFollowUp={task.priority?.toLowerCase() === "high"}
+      />
+    </div>
   );
 }
 
@@ -505,7 +447,7 @@ function CollapsibleTaskSection({
             <MobileTaskRow
               key={task.id}
               task={task}
-              highlighted={highlightedTaskId === task.id}
+              highlighted={task.id === highlightedTaskId}
               onOpen={() => onOpenTask(task)}
               formTemplates={formTemplates}
               isPendingSync={pendingTaskIds.has(task.id)}

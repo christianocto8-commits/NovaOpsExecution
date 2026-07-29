@@ -7,6 +7,8 @@ from app.models.execution_session import ExecutionSession
 from app.models.form_field import FormField
 from app.models.form_template import FormTemplate
 from app.models.task import Task
+from app.schemas.settings import SettingsUpdate
+from app.services.workspace_settings import get_workspace_settings, update_workspace_settings
 
 
 @pytest.fixture
@@ -16,6 +18,26 @@ def db() -> Session:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def disable_external_execution_gates(db: Session):
+    previous = get_workspace_settings(db)
+    update_workspace_settings(
+        db,
+        SettingsUpdate(
+            geofence_enabled=False,
+            lms_training_gate_enabled=False,
+        ),
+    )
+    yield
+    update_workspace_settings(
+        db,
+        SettingsUpdate(
+            geofence_enabled=previous.geofence_enabled,
+            lms_training_gate_enabled=previous.lms_training_gate_enabled,
+        ),
+    )
 
 
 def _create_checklist_template(db: Session) -> tuple[int, list[FormField]]:

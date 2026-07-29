@@ -65,12 +65,11 @@ def test_dispatch_webhook_event_respects_enabled_flag(db: Session, monkeypatch):
     from app.models.app_settings import AppSettings
     import json as json_module
 
-    db.add(
-        AppSettings(
-            key="workspace",
-            payload=json_module.dumps({"webhook_enabled": False}),
-        )
-    )
+    setting = db.query(AppSettings).filter(AppSettings.key == "workspace").first()
+    if setting is None:
+        setting = AppSettings(key="workspace", payload="{}")
+    setting.payload = json_module.dumps({"webhook_enabled": False})
+    db.add(setting)
     db.commit()
 
     called = {"value": False}

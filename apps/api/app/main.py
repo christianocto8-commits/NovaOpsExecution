@@ -7,6 +7,7 @@ from app.api.v1.router import api_router
 from app.bootstrap.ensure_online_admin import ensure_online_admin
 from app.bootstrap.ensure_operational_templates import ensure_operational_templates
 from app.core.config import get_settings
+from app.core.http_security import HttpSecurityMiddleware
 from app.routers.evidence_uploads import legacy_router as legacy_evidence_router
 
 settings = get_settings()
@@ -69,6 +70,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(HttpSecurityMiddleware)
 
 app.include_router(legacy_evidence_router)
 app.include_router(api_router)

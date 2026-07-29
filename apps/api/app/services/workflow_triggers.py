@@ -62,6 +62,32 @@ def maybe_trigger_checklist_fail_workflow(
     if not settings.auto_workflow_on_checklist_fail:
         return
 
+    failed_items = checklist.get("failed_items", [])
+    if not isinstance(failed_items, list):
+        logger.warning("Invalid failed_items format for task %s, resetting to empty list", task.id)
+        failed_items = []
+
+    raw_score = checklist.get("score", 100)
+    try:
+        score = max(0.0, min(100.0, float(raw_score)))
+    except (TypeError, ValueError):
+        logger.warning("Invalid checklist score for task %s: %r", task.id, raw_score)
+        score = 0.0
+
+    critical_failures = checklist.get("critical_failures", [])
+    if not isinstance(critical_failures, list):
+        critical_failures = []
+
+    logger.info(
+        "Triggering checklist fail workflow for task %s (score: %s, items: %d)",
+        task.id,
+        score,
+        len(failed_items)
+    )
+
+    priority = "critical" if critical_failures else "high" if score < 50 else "medium"
+    sla_hours = 4 if priority == "critical" else 24 if priority == "high" else 48
+
     _start_workflow(
         db,
         workflow_code=settings.checklist_fail_workflow_code,
@@ -73,9 +99,12 @@ def maybe_trigger_checklist_fail_workflow(
             "task_title": task.title,
             "outlet_id": task.outlet_id,
             "checklist_status": checklist.get("status"),
-            "checklist_score": checklist.get("score"),
-            "failed_items": checklist.get("failed_items", []),
+            "checklist_score": score,
+            "failed_items": failed_items,
+            "critical_failures": critical_failures,
             "trigger": "checklist_fail",
+            "priority": priority,
+            "sla_hours": sla_hours,
         },
         submitted_by_id=submitted_by_identity_id,
     )

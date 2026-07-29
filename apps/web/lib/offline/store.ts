@@ -165,6 +165,9 @@ export async function enqueueMutation(mutation: QueuedMutation) {
   }
 
   await withStore(OFFLINE_STORES.MUTATION_QUEUE, "readwrite", (store) => store.put(mutation));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("novaops-offline-queue-change"));
+  }
 }
 
 export async function updateMutation(mutation: QueuedMutation) {

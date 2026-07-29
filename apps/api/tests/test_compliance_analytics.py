@@ -6,6 +6,24 @@ from app.services.compliance_analytics import get_top_failed_checklist_items
 
 
 def test_get_top_failed_checklist_items_aggregates_by_label(db: Session):
+    stale_task_ids = [
+        task_id
+        for (task_id,) in db.query(Task.id)
+        .filter(Task.title == "Failed item trend task")
+        .all()
+    ]
+    if stale_task_ids:
+        db.query(ExecutionSession).filter(
+            ExecutionSession.task_id.in_(stale_task_ids)
+        ).delete(synchronize_session=False)
+        db.query(Task).filter(Task.id.in_(stale_task_ids)).delete(
+            synchronize_session=False
+        )
+        db.commit()
+
+    suffix = uuid4().hex[:8]
+    temperature_label = f"Temperature log {suffix}"
+    sanitizer_label = f"Sanitizer level {suffix}"
     task = Task(
         title="Failed item trend task",
         description="Used for failed item analytics test",
@@ -31,13 +49,13 @@ def test_get_top_failed_checklist_items_aggregates_by_label(db: Session):
                         "failed_items": [
                             {
                                 "field_id": 10,
-                                "label": "Temperature log",
+                                "label": temperature_label,
                                 "value": "12",
                                 "reason": "Out of range",
                             },
                             {
                                 "field_id": 11,
-                                "label": "Sanitizer level",
+                                "label": sanitizer_label,
                                 "value": "Low",
                                 "reason": "Below minimum",
                             },
@@ -53,5 +71,6 @@ def test_get_top_failed_checklist_items_aggregates_by_label(db: Session):
     rows = get_top_failed_checklist_items(db, limit=5, days=30, all_outlets=True)
     labels = {row["label"]: row["failure_count"] for row in rows}
 
-    assert labels["Temperature log"] == 2
-    assert labels["Sanitizer level"] == 2
+    assert labels[temperature_label] == 2
+    assert labels[sanitizer_label] == 2
+from uuid import uuid4

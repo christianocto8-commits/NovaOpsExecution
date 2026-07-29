@@ -89,22 +89,25 @@ test.describe("Offline sync (Fase F)", () => {
     const taskId = await fetchOpenTaskId(page);
     test.skip(!taskId, "No backend tasks available for offline UAT");
 
-    await seedOfflineDraftMutation(page, taskId!);
-    await page.reload();
-    await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
-
-    await expect(page.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 20_000 });
-
     await context.setOffline(true);
-    await page.waitForTimeout(800);
-    await expect(page.getByRole("button", { name: /offline/i })).toBeVisible({ timeout: 10_000 });
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("offline"));
+    });
+    await seedOfflineDraftMutation(page, taskId!);
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("novaops-offline-queue-change"));
+    });
+
+    await expect(
+      page.locator('button[title="Offline — changes queued locally"]'),
+    ).toBeVisible({ timeout: 20_000 });
 
     await context.setOffline(false);
     await page.evaluate(() => {
       window.dispatchEvent(new Event("online"));
     });
 
-    const syncBadge = page.getByRole("button", { name: /pending|failed|offline|sync/i });
+    const syncBadge = page.locator('button[title="Tap to sync pending changes"]');
     await page.waitForTimeout(1500);
 
     if (await syncBadge.isVisible()) {

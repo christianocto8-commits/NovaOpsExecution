@@ -30,6 +30,48 @@ export type SyncQueueResult = {
   errors: string[];
 };
 
+const RECONNECT_RETRY_DELAY_MS = 1500;
+const BACKEND_READY_ATTEMPTS = 8;
+
+function isRetryableConnectionError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("koneksi ke backend") ||
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("load failed")
+  );
+}
+
+function waitForReconnectRetry() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, RECONNECT_RETRY_DELAY_MS);
+  });
+}
+
+async function waitForBackendReady() {
+  for (let attempt = 0; attempt < BACKEND_READY_ATTEMPTS; attempt += 1) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(buildApiUrl("/api/v1/health"), {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (response.ok) return true;
+    } catch {
+      // Browser network state can lag briefly after the online event.
+    }
+
+    await waitForReconnectRetry();
+  }
+
+  return false;
+}
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("novaops_token");
@@ -279,6 +321,18 @@ export async function processMutationQueue(): Promise<SyncQueueResult> {
   }
 
   const mutations = await getPendingMutations();
+  if (mutations.length === 0) {
+    return { processed: 0, failed: 0, errors: [] };
+  }
+
+  if (!(await waitForBackendReady())) {
+    return {
+      processed: 0,
+      failed: 0,
+      errors: ["Backend belum siap setelah koneksi kembali. Sinkronisasi akan dicoba ulang."],
+    };
+  }
+
   let processed = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -288,6 +342,21 @@ export async function processMutationQueue(): Promise<SyncQueueResult> {
       await processMutation(mutation);
       processed += 1;
     } catch (error) {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.onLine &&
+        isRetryableConnectionError(error)
+      ) {
+        await waitForReconnectRetry();
+        try {
+          await processMutation(mutation);
+          processed += 1;
+          continue;
+        } catch (retryError) {
+          error = retryError;
+        }
+      }
+
       failed += 1;
       const message =
         error instanceof Error

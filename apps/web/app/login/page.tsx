@@ -67,7 +67,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#F7FAF8] px-6">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-6">
           <div className="text-sm text-slate-500">{t("login.loading")}</div>
         </main>
       }
@@ -109,6 +109,11 @@ function LoginPageContent() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBgUrl(localStorage.getItem("novaops_login_bg_url"));
+  }, []);
 
   useEffect(() => {
     if (!rememberedIdentifier) return;
@@ -227,11 +232,12 @@ function LoginPageContent() {
 
   return (
     <main
-      className="min-h-screen bg-[#F7FAF8]"
+      className="min-h-screen overflow-hidden"
       suppressHydrationWarning
+      style={bgUrl ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : { backgroundColor: "var(--background)" }}
     >
-      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="hidden flex-col justify-between bg-[#274733] p-10 text-white lg:flex">
+      <div className="grid min-h-screen w-full lg:grid-cols-[minmax(420px,0.9fr)_minmax(520px,1.35fr)] xl:grid-cols-[minmax(520px,0.85fr)_minmax(620px,1.45fr)]">
+        <section className="hidden min-h-screen flex-col justify-between bg-[#274733] px-10 py-12 text-white lg:flex xl:px-16">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">
               {t("login.brand")}

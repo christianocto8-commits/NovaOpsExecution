@@ -130,7 +130,7 @@ export function DynamicFormRenderer({
                           disabled={readOnly}
                           aria-pressed={selected}
                           onClick={() => updateResponse(field.id, option)}
-                          className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${getYesNoOptionClass(
+                          className={`rounded-xl border px-6 py-4 text-base font-bold transition-all ${getYesNoOptionClass(
                             option,
                             selected
                           )} disabled:cursor-default`}
@@ -148,7 +148,7 @@ export function DynamicFormRenderer({
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   rows={4}
                   placeholder="Tulis catatan atau jawaban di sini..."
-                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               ) : field.type === "number" ? (
                 <input
@@ -158,7 +158,7 @@ export function DynamicFormRenderer({
                   min={field.validation?.min}
                   max={field.validation?.max}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               ) : field.type === "select" ? (
                 <select
@@ -180,7 +180,7 @@ export function DynamicFormRenderer({
                   value={value}
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               ) : field.type === "time" ? (
                 <input
@@ -188,7 +188,7 @@ export function DynamicFormRenderer({
                   value={value}
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               ) : field.type === "money_denomination" ? (
                 <MoneyDenominationField
@@ -237,7 +237,7 @@ export function DynamicFormRenderer({
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   placeholder="Masukkan nama yang mengerjakan tugas ini..."
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               ) : (
                 <input
@@ -245,7 +245,7 @@ export function DynamicFormRenderer({
                   disabled={readOnly}
                   onChange={(event) => updateResponse(field.id, event.target.value)}
                   placeholder="Tulis jawaban singkat..."
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
                 />
               )}
             </div>

@@ -1329,6 +1329,42 @@ export function SettingsWorkspace() {
                 placeholder="https://cdn.example.com/logo.png"
               />
             </EnterpriseField>
+            <EnterpriseField label="Login Background Image">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      localStorage.setItem("novaops_login_bg_url", reader.result as string);
+                      setNotice("Latar belakang berhasil diperbarui.");
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+              />
+            </EnterpriseField>
+            <EnterpriseField label="Brand primary color">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      localStorage.setItem("novaops_login_bg_url", reader.result as string);
+                      setNotice("Latar belakang berhasil diperbarui.");
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+              />
+            </EnterpriseField>
             <EnterpriseField label="Brand primary color">
               <div className="flex items-center gap-3">
                 <input

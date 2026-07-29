@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { OperationalExceptionPanel } from "@/features/compliance/components/OperationalExceptionPanel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
@@ -495,6 +496,7 @@ export default function ComplianceCenterPage() {
 
   return (
     <main className="space-y-6 p-6">
+      <OperationalExceptionPanel tasks={tasksQuery.data ?? []} />
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-medium text-emerald-700">Compliance Center</p>

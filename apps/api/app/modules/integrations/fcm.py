@@ -79,7 +79,11 @@ def send_fcm_to_tokens(
         return result
 
     if not firebase_admin._apps:
-        firebase_admin.initialize_app(credentials.Certificate(_load_firebase_credentials()))
+        try:
+            firebase_admin.initialize_app(credentials.Certificate(_load_firebase_credentials()))
+        except Exception:
+            result["failed"] = len(tokens)
+            return result
 
     payload_data = {"url": url or "/dashboard/tasks", **(data or {})}
 

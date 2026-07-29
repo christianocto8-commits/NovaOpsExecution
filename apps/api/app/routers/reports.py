@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_jwt_or_api_key
 from app.core.scheduler import verify_scheduler_secret
 from app.models.outlet import Outlet
 from app.models.app_settings import AppSettings
 from app.models.task import Task
 from app.modules.identity.dependencies import require_permission
+from app.modules.api_keys.models import ApiKey
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
@@ -120,8 +121,11 @@ def _build_report_summary(
 def get_report_summary(
     x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_jwt_or_api_key("read:reports")),
 ):
+    if isinstance(current_user, ApiKey):
+        return _build_report_summary(db)
+
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )

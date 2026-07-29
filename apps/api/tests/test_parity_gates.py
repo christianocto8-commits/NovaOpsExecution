@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.task import Task
+from app.modules.lms.models import TrainingCompletion, TrainingModule
 from app.schemas.settings import SettingsUpdate
-from app.services.workspace_settings import update_workspace_settings
+from app.services.workspace_settings import get_workspace_settings, update_workspace_settings
 
 
 @pytest.fixture
@@ -30,6 +33,19 @@ def test_lms_gate_blocks_submit_when_incomplete(
     auth_headers: dict[str, str],
     db: Session,
 ):
+    previous_settings = get_workspace_settings(db)
+    stale_modules = (
+        db.query(TrainingModule)
+        .filter(TrainingModule.title.like("Parity Gate Module%"))
+        .all()
+    )
+    for stale in stale_modules:
+        db.query(TrainingCompletion).filter(
+            TrainingCompletion.module_id == stale.id
+        ).delete(synchronize_session=False)
+        db.delete(stale)
+    db.commit()
+
     update_workspace_settings(
         db,
         SettingsUpdate(lms_training_gate_enabled=True, geofence_enabled=False),
@@ -65,5 +81,22 @@ def test_lms_gate_blocks_submit_when_incomplete(
         },
     )
 
-    assert submit.status_code == 400
-    assert "training" in submit.json().get("detail", "").lower()
+    try:
+        assert submit.status_code == 400
+        assert "training" in submit.json().get("detail", "").lower()
+    finally:
+        module_id = UUID(module.json()["id"])
+        db.query(TrainingCompletion).filter(
+            TrainingCompletion.module_id == module_id
+        ).delete(synchronize_session=False)
+        db.query(TrainingModule).filter(
+            TrainingModule.id == module_id
+        ).delete(synchronize_session=False)
+        db.commit()
+        update_workspace_settings(
+            db,
+            SettingsUpdate(
+                lms_training_gate_enabled=previous_settings.lms_training_gate_enabled,
+                geofence_enabled=previous_settings.geofence_enabled,
+            ),
+        )

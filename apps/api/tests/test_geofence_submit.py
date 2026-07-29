@@ -7,7 +7,7 @@ from app.models.form_field import FormField
 from app.models.form_template import FormTemplate
 from app.models.outlet import Outlet
 from app.models.task import Task
-from app.services.workspace_settings import update_workspace_settings
+from app.services.workspace_settings import get_workspace_settings, update_workspace_settings
 from app.schemas.settings import SettingsUpdate
 
 
@@ -18,6 +18,28 @@ def db() -> Session:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def restore_geofence_settings(db: Session):
+    previous = get_workspace_settings(db)
+    outlet = db.query(Outlet).filter(Outlet.id == 1).first()
+    previous_location = (
+        (outlet.latitude, outlet.longitude) if outlet is not None else (None, None)
+    )
+    yield
+    update_workspace_settings(
+        db,
+        SettingsUpdate(
+            geofence_enabled=previous.geofence_enabled,
+            geofence_radius_meters=previous.geofence_radius_meters,
+            lms_training_gate_enabled=previous.lms_training_gate_enabled,
+        ),
+    )
+    if outlet is not None:
+        outlet.latitude, outlet.longitude = previous_location
+        db.add(outlet)
+        db.commit()
 
 
 def _create_template_and_task(db: Session, *, outlet_id: int = 1) -> tuple[int, int, Task]:

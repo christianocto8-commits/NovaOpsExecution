@@ -1,7 +1,7 @@
 // NovaOps Service Worker — v3 (Fase 2: Background Sync + Offline Queue)
 
-const SHELL_CACHE = "novaops-shell-v3";
-const STATIC_CACHE = "novaops-static-v3";
+const SHELL_CACHE = "novaops-shell-v4";
+const STATIC_CACHE = "novaops-static-v4";
 const SYNC_TAG = "novaops-background-sync";
 const DB_NAME = "novaops-offline-db";
 const STORE_QUEUE = "sync-queue";
@@ -82,18 +82,32 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["script", "style", "image", "font"].includes(request.destination)) {
+  if (["script", "style"].includes(request.destination)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-
-        return fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
           if (!response.ok) return response;
           const clone = response.clone();
           caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  if (["image", "font"].includes(request.destination)) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ??
+          fetch(request).then((response) => {
+            if (!response.ok) return response;
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
+            return response;
+          })
+      )
     );
   }
 });
