@@ -75,12 +75,27 @@ Write-Host "[5/6] Production sync (nginx, scheduler, backup, hardening)..." -For
 ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${RemoteRoot}/scripts/vps-harden-production.sh ${RemoteRoot}/scripts/backup-novaops-vps.sh ${RemoteRoot}/deploy/scripts/novaops-scheduler-run.sh; bash ${RemoteRoot}/scripts/vps-sync-production.sh"
 
 Write-Host "[6/6] Public health check..." -ForegroundColor Cyan
-Start-Sleep -Seconds 3
-$health = ssh @SshArgs $VpsHost "curl -sS -m 20 http://127.0.0.1/api/v1/health 2>/dev/null || curl -sS -m 20 https://nova-ops.cloud/api/v1/health"
-if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ok"')) {
-  Write-Host "[WARN] Health check belum OK (deploy frontend/API mungkin tetap sukses). Response: $health" -ForegroundColor Yellow
-} else {
-  Write-Host "  $health" -ForegroundColor Gray
+$health = $null
+for ($attempt = 1; $attempt -le 12; $attempt++) {
+  $health = ssh @SshArgs $VpsHost "curl -sS -m 10 http://127.0.0.1:8000/api/v1/health 2>/dev/null"
+  if ($LASTEXITCODE -eq 0 -and $health -match '"status"\s*:\s*"ok"') {
+    break
+  }
+  Write-Host "  API belum siap (attempt $attempt/12), retry 5 detik..." -ForegroundColor Yellow
+  Start-Sleep -Seconds 5
 }
+
+if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ok"')) {
+  Write-Host "[FAILED] API tidak sehat setelah 60 detik. Response: $health" -ForegroundColor Red
+  exit 1
+}
+Write-Host "  $health" -ForegroundColor Gray
+
+$publicHealth = Invoke-WebRequest -Uri "https://nova-ops.cloud/api/v1/health" -UseBasicParsing -TimeoutSec 20
+if ($publicHealth.StatusCode -ne 200 -or $publicHealth.Content -notmatch '"status"\s*:\s*"ok"') {
+  Write-Host "[FAILED] Public health check gagal: $($publicHealth.StatusCode) $($publicHealth.Content)" -ForegroundColor Red
+  exit 1
+}
+Write-Host "  Public health: $($publicHealth.StatusCode)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "[DONE] https://nova-ops.cloud" -ForegroundColor Green
