@@ -53,6 +53,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Gauge,
     requiredPermissions: ["report.read"],
     section: "analytics",
+    sidebar: false,
   },
   {
     id: "exceptions",
@@ -119,6 +120,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Building2,
     requiredPermissions: ["outlet.read"],
     section: "operations",
+    sidebar: false,
   },
   {
     id: "outlet-profile",
@@ -180,6 +182,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Bell,
     requiredPermissions: ["notification.read"],
     section: "operations",
+    sidebar: false,
   },
   {
     id: "reports",
@@ -232,6 +235,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Users,
     requiredPermissions: ["user.read"],
     section: "administration",
+    sidebar: false,
   },
   {
     id: "workflows",
@@ -240,6 +244,7 @@ export const navigationItems: NavigationItem[] = [
     icon: GitBranch,
     requiredPermissions: ["user.edit"],
     section: "administration",
+    sidebar: false,
   },
   {
     id: "webhooks",

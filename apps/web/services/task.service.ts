@@ -292,6 +292,17 @@ export const taskService = {
   },
 
   async create(form: TaskFormState) {
+    if (form.recurrence === "once") {
+      const payload = toBackendPayload(form);
+      const task = await api<BackendTask>("/api/v1/tasks", {
+        method: "POST",
+        headers: form.outletId ? { "X-Outlet-Id": form.outletId } : undefined,
+        body: JSON.stringify(payload),
+      });
+
+      return mapBackendTask(task);
+    }
+
     const schedule = await taskScheduleService.create(form);
 
     return {
@@ -303,7 +314,7 @@ export const taskService = {
       priority: form.priority,
       assignee: form.assignee || "Outlet Team",
       assignedToId: form.assignedToId ?? null,
-      due: form.recurrence === "once" ? form.due : form.dueTime,
+      due: form.dueTime,
       description: form.description,
       formTemplateId: form.formTemplateId,
       recurrence: schedule.recurrence,

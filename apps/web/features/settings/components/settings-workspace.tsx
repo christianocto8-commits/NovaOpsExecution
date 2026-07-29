@@ -1607,7 +1607,7 @@ export function SettingsWorkspace() {
 
       <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-4">
         <SectionCard title="Role Guide">
           <div className="space-y-3 text-sm text-slate-600">
             <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
@@ -1648,6 +1648,23 @@ export function SettingsWorkspace() {
               <Bell className="mt-0.5 h-4 w-4 text-emerald-700" />
               <span>Notifikasi, security, dan policy akses seluruh workspace.</span>
             </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Admin Shortcuts">
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <Link
+              href="/dashboard/users"
+              className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Accounts
+            </Link>
+            <Link
+              href="/dashboard/notifications"
+              className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Notifications
+            </Link>
           </div>
         </SectionCard>
 

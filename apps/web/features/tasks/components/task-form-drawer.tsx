@@ -37,7 +37,7 @@ type TaskFormDrawerProps = {
 const statuses: TaskStatus[] = ["Pending", "In Progress", "Completed"];
 const priorities: TaskPriority[] = ["Low", "Medium", "High", "Critical"];
 const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
-  { value: "once", label: "One-time project" },
+  { value: "once", label: "One-time task" },
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
@@ -161,7 +161,7 @@ export function TaskFormDrawer({
     Boolean(form.title?.trim()) &&
     Boolean((form.assignee ?? "Outlet Team").trim()) &&
     (form.recurrence === "once"
-      ? Boolean(form.publishAt?.trim()) && Boolean(form.due?.trim())
+      ? Boolean(form.due?.trim())
       : Boolean(form.dueTime?.trim()) &&
         (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay)) &&
         (form.recurrence !== "monthly" || Boolean(form.monthlyPublishDay))) &&
@@ -407,8 +407,8 @@ export function TaskFormDrawer({
                     : "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-white"
                 }`}
               >
-                <span className="block font-bold">One-time project</span>
-                <span className="mt-1 block text-xs">Muncul satu kali sesuai jam publish.</span>
+                <span className="block font-bold">One-time task</span>
+                <span className="mt-1 block text-xs">Langsung masuk ke outlet yang dipilih.</span>
               </button>
               <button
                 type="button"
@@ -466,31 +466,17 @@ export function TaskFormDrawer({
               ) : null}
 
               {form.recurrence === "once" ? (
-                <>
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                      Publish Date & Time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={form.publishAt ?? ""}
-                      onChange={(event) => onChange({ ...form, publishAt: event.target.value })}
-                      className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                      Due Date & Time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={form.due ?? ""}
-                      onChange={(event) => onChange({ ...form, due: event.target.value })}
-                      className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
-                    />
-                  </div>
-                </>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Due Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.due ?? ""}
+                    onChange={(event) => onChange({ ...form, due: event.target.value })}
+                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                  />
+                </div>
               ) : (
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">

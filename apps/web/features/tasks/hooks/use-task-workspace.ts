@@ -725,7 +725,7 @@ export function useTaskWorkspace() {
         await createTaskMutation.mutateAsync(resolvedForm);
         toast.success(
           resolvedForm.recurrence === "once"
-            ? "One-time project berhasil dijadwalkan."
+            ? "One-time project berhasil dibuat dan masuk ke outlet."
             : "Schedule recurring berhasil dibuat."
         );
       }
