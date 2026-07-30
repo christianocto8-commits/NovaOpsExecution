@@ -126,7 +126,13 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return _parse_cors_origins(self.cors_origins_raw)
+        origins = _parse_cors_origins(self.cors_origins_raw)
+        # Always allow the native Android (Capacitor) webview origins so the
+        # outlet-only APK can authenticate against the production API.
+        for extra in ("http://localhost", "capacitor://localhost", "https://nova-ops.cloud"):
+            if extra not in origins:
+                origins.append(extra)
+        return origins
 
 
 @lru_cache

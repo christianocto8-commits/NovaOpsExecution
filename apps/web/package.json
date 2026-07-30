@@ -16,6 +16,7 @@
     "cap:ios": "npx cap open ios",
     "build:mobile": "next build",
     "release:android": "set CAPACITOR_ENV=production&& npm run prepare:capacitor && npx cap sync android",
+    "release:android:offline": "node scripts/release-offline-android.mjs",
     "release:android:apk": "npm run release:android && cd android && gradlew assembleRelease",
     "release:android:aab": "npm run release:android && cd android && gradlew bundleRelease",
     "release:mobile:check": "node scripts/check-mobile-release.mjs",

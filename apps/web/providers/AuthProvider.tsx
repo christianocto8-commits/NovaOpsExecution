@@ -6,6 +6,7 @@ import { getSettings } from "@/features/settings/settings-api";
 import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
+import { OUTLET_ONLY_MODE, shouldDenyRole } from "@/shared/outlet-only";
 
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
 const LAST_ACTIVITY_KEY = "novaops_last_activity_at";
@@ -18,6 +19,7 @@ type AuthContextValue = {
   status: AuthStatus;
   loading: boolean;
   isAuthenticated: boolean;
+  deniedUser: AuthUser | null;
   restoreSession: () => Promise<AuthUser | null>;
   logout: () => void;
   can: (permission: string) => boolean;
@@ -105,6 +107,7 @@ function storeOutletApiContext(currentUser: AuthUser) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [deniedUser, setDeniedUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("idle");
 
   const restoreSession = useCallback(async () => {
@@ -112,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!token) {
       setUser(null);
+      setDeniedUser(null);
       setStatus("unauthenticated");
       return null;
     }
@@ -126,26 +130,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getWorkspaceRoleFromSlug(currentUser.role.slug),
         getWorkspaceOutletContext(currentUser)
       );
+
+      if (shouldDenyRole(currentUser.role.slug)) {
+        // Outlet-only app: block non-outlet accounts.
+        logoutService();
+        setUser(null);
+        setDeniedUser(currentUser);
+        setStatus("unauthenticated");
+        return null;
+      }
+
+      setDeniedUser(null);
       setStatus("authenticated");
       return currentUser;
     } catch {
       logoutService();
       setUser(null);
+      setDeniedUser(null);
       setStatus("unauthenticated");
       return null;
     }
   }, []);
 
-  useEffect(() => {
-    if (status === "idle") {
-      void restoreSession();
-    }
-  }, [status, restoreSession]);
-
   const logout = useCallback(() => {
     logoutService();
     localStorage.removeItem(LAST_ACTIVITY_KEY);
     setUser(null);
+    setDeniedUser(null);
     setStatus("unauthenticated");
     window.location.href = "/login";
   }, []);
@@ -214,12 +225,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       loading: status === "idle" || status === "loading",
       isAuthenticated: status === "authenticated",
+      deniedUser,
       restoreSession,
       logout,
       can,
       hasRole,
     }),
-    [user, status, restoreSession, logout, can, hasRole]
+    [user, status, deniedUser, restoreSession, logout, can, hasRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

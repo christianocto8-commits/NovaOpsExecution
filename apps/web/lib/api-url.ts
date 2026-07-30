@@ -67,14 +67,16 @@ function isSameHostApi() {
 }
 
 export function resolveApiUrl() {
-  if (shouldUseRelativeApi()) {
-    return "";
+  // Explicit API URL (set at build time for the Android APK) always wins.
+  // In a Capacitor webview the hostname is "localhost", which would otherwise
+  // be misdetected as local dev and point at http://localhost:8000.
+  const explicitlyConfigured = configuredApiUrl();
+  if (explicitlyConfigured) {
+    return explicitlyConfigured;
   }
 
-  const configured = configuredApiUrl();
-
-  if (configured) {
-    return configured;
+  if (shouldUseRelativeApi()) {
+    return "";
   }
 
   if (isBrowserProduction()) {
