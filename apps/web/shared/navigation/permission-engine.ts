@@ -33,8 +33,8 @@ const outletVisibleNavigationItemIds = new Set([
   "forms",
   "reports",
   "drafts",
-  "settings",
   "notifications",
+  "settings",
 ]);
 
 const areaManagerVisibleNavigationItemIds = new Set([
@@ -76,10 +76,13 @@ const areaManagerNavigationItemIds = new Set([
   "workflows",
 ]);
 
+const financeNavigationItemIds = new Set(["finance-handoff", "notifications"]);
+
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!workspace) return true;
   if (workspace.role === "OWNER_ADMIN") return true;
   if (workspace.role === "AREA_MANAGER") return areaManagerNavigationItemIds.has(item.id);
+  if (workspace.role === "FINANCE") return financeNavigationItemIds.has(item.id);
 
   return outletNavigationItemIds.has(item.id);
 }
@@ -89,6 +92,7 @@ function canAccessItem(can: PermissionChecker, item: NavigationItem, workspace?:
   if (workspace?.role === "OWNER_ADMIN") return true;
   if (workspace?.role === "AREA_MANAGER") return true;
   if (workspace?.role === "OUTLET") return true;
+  if (workspace?.role === "FINANCE") return true;
 
   if (item.requiredPermissions.length === 0) return true;
   return item.requiredPermissions.every((permission) => can(permission));
@@ -110,7 +114,7 @@ export function getNavigationForPermissions(
   workspace?: CurrentWorkspace,
   options?: NavigationOptions
 ) {
-  return navigationItems.filter((item) => {
+  const visibleItems = navigationItems.filter((item) => {
     if (options?.capaEnabled === false && isCapaNavigationItem(item)) {
       return false;
     }
@@ -123,12 +127,25 @@ export function getNavigationForPermissions(
       return areaManagerVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
     }
 
+    if (workspace?.role === "FINANCE") {
+      return financeNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
+    }
+
     if (item.sidebar === false) {
       return false;
     }
 
     return canAccessItem(can, item, workspace);
   });
+
+  if (workspace?.role === "OUTLET") {
+    const outletOrder = ["tasks", "forms", "reports", "drafts", "notifications", "settings"];
+    return [...visibleItems].sort(
+      (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)
+    );
+  }
+
+  return visibleItems;
 }
 
 export function canAccessPath(

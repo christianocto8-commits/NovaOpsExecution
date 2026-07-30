@@ -48,6 +48,30 @@ def _load_deposits(db: Session) -> list[dict]:
     return payload if isinstance(payload, list) else []
 
 
+def _accessible_legacy_outlet_ids(
+    db: Session,
+    current_user: IdentityUser,
+) -> tuple[set[str] | None, bool]:
+    _legacy_user, outlet_ids, full_access = sync_identity_access(db, current_user)
+    db.commit()
+    if full_access:
+        return None, True
+    return {str(outlet_id) for outlet_id in outlet_ids}, False
+
+
+def _filter_deposits_for_user(
+    db: Session,
+    current_user: IdentityUser,
+    items: list[dict],
+) -> list[dict]:
+    outlet_ids, full_access = _accessible_legacy_outlet_ids(db, current_user)
+    if full_access:
+        return items
+    if not outlet_ids:
+        return []
+    return [item for item in items if str(item.get("outlet_id")) in outlet_ids]
+
+
 def _save_deposits(db: Session, items: list[dict]) -> None:
     row = db.query(AppSettings).filter(AppSettings.key == FINANCE_DEPOSITS_KEY).first()
     payload = json.dumps(items, default=str)
@@ -343,8 +367,8 @@ def list_deposits(
     db: Session = Depends(get_db),
     current_user: IdentityUser = Depends(require_permission("report.read")),
 ):
-    del current_user
-    return [FinanceShiftDeposit(**item) for item in _load_deposits(db)]
+    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
+    return [FinanceShiftDeposit(**item) for item in items]
 
 
 @router.post("/ensure-shift-template")
@@ -415,8 +439,14 @@ def review_deposit(
         raise HTTPException(status_code=400, detail="Invalid finance review status")
 
     items = _load_deposits(db)
+    accessible_outlet_ids, full_access = _accessible_legacy_outlet_ids(db, current_user)
     for index, item in enumerate(items):
         if item.get("id") == deposit_id:
+            if not full_access and str(item.get("outlet_id")) not in (accessible_outlet_ids or set()):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User has no access to this finance deposit outlet",
+                )
             deposit = FinanceShiftDeposit(**item)
             deposit.status = status_value
             deposit.finance_note = payload.finance_note
@@ -433,8 +463,8 @@ def get_summary(
     db: Session = Depends(get_db),
     current_user: IdentityUser = Depends(require_permission("report.read")),
 ):
-    del current_user
-    deposits = [FinanceShiftDeposit(**item) for item in _load_deposits(db)]
+    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
+    deposits = [FinanceShiftDeposit(**item) for item in items]
     return FinanceSummary(
         pending_review=sum(1 for item in deposits if item.status == "pending_review"),
         approved=sum(1 for item in deposits if item.status == "approved"),

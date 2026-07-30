@@ -33,7 +33,7 @@ export type NavigationItem = {
   href: string;
   icon: typeof LayoutDashboard;
   requiredPermissions: string[];
-  section: "enterprise" | "sop" | "operations" | "analytics" | "administration" | "configuration";
+  section: "sop" | "analytics" | "administration" | "configuration";
   sidebar?: boolean;
 };
 
@@ -48,7 +48,7 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "compliance",
-    label: "Compliance Center",
+    label: "Compliance",
     href: "/dashboard/compliance",
     icon: Gauge,
     requiredPermissions: ["report.read"],
@@ -106,7 +106,7 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "drafts",
-    label: "Draft Center",
+    label: "Draft",
     href: "/dashboard/drafts",
     icon: FileText,
     requiredPermissions: ["task.execute"],
@@ -119,7 +119,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/outlets",
     icon: Building2,
     requiredPermissions: ["outlet.read"],
-    section: "operations",
+    section: "administration",
   },
   {
     id: "outlet-profile",
@@ -127,7 +127,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/outlet-profile",
     icon: Store,
     requiredPermissions: ["outlet.read"],
-    section: "operations",
+    section: "administration",
     sidebar: false,
   },
   {
@@ -136,7 +136,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/ops-suite",
     icon: PackageCheck,
     requiredPermissions: ["report.read"],
-    section: "operations",
+    section: "configuration",
     sidebar: false,
   },
   {
@@ -145,7 +145,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/enterprise-suite",
     icon: ShoppingCart,
     requiredPermissions: ["report.read"],
-    section: "enterprise",
+    section: "configuration",
     sidebar: false,
   },
   {
@@ -162,7 +162,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/activity",
     icon: Radio,
     requiredPermissions: ["task.read"],
-    section: "operations",
+    section: "analytics",
     sidebar: false,
   },
   {
@@ -171,7 +171,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/announcements",
     icon: Megaphone,
     requiredPermissions: ["notification.read"],
-    section: "operations",
+    section: "configuration",
     sidebar: false,
   },
   {
@@ -180,8 +180,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/notifications",
     icon: Bell,
     requiredPermissions: ["notification.read"],
-    section: "operations",
-    sidebar: false,
+    section: "analytics",
   },
   {
     id: "reports",
@@ -190,7 +189,6 @@ export const navigationItems: NavigationItem[] = [
     icon: BarChart3,
     requiredPermissions: ["report.read"],
     section: "analytics",
-    sidebar: false,
   },
   {
     id: "benchmarks",
@@ -300,9 +298,7 @@ export const navigationItems: NavigationItem[] = [
 ];
 
 export const navigationSectionLabels: Record<NavigationItem["section"], string> = {
-  enterprise: "Suite",
   sop: "Execution",
-  operations: "Operations",
   analytics: "Review",
   administration: "Administration",
   configuration: "Configuration",

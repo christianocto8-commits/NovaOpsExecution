@@ -66,6 +66,7 @@ function hasPermission(permissions: string[], permission: string) {
 function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
   if (roleSlug === "area_manager") return "AREA_MANAGER";
   if (roleSlug === "outlet") return "OUTLET";
+  if (roleSlug === "finance") return "FINANCE";
   return "OWNER_ADMIN";
 }
 

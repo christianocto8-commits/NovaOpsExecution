@@ -58,7 +58,14 @@ function getWorkspaceOutletContext(
 function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
   if (roleSlug === "area_manager") return "AREA_MANAGER";
   if (roleSlug === "outlet") return "OUTLET";
+  if (roleSlug === "finance") return "FINANCE";
   return "OWNER_ADMIN";
+}
+
+function getPostLoginDestination(roleSlug: string, fallbackUrl: string) {
+  return roleSlug === "finance" && fallbackUrl === "/dashboard"
+    ? "/dashboard/finance-handoff"
+    : fallbackUrl;
 }
 
 export default function LoginPage() {
@@ -181,7 +188,7 @@ function LoginPageContent() {
     );
 
     setMessage(t("login.success"));
-    window.location.assign(returnUrl);
+    window.location.assign(getPostLoginDestination(currentUser.role.slug, returnUrl));
   }
 
   async function handleLogin() {

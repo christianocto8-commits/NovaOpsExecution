@@ -17,6 +17,8 @@ from app.models.form_submission import FormSubmission
 from app.models.task import Task
 from app.modules.identity.dependencies import require_permission
 from app.modules.api_keys.models import ApiKey
+from app.modules.identity.models import User as IdentityUser
+from app.modules.identity.permissions import FINANCE_ROLE
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
@@ -44,6 +46,16 @@ from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 SCHEDULED_REPORT_KEY = "scheduled_report_config"
+
+
+def _ensure_operational_report_access(db: Session, current_user) -> None:
+    identity_user = db.query(IdentityUser).filter(IdentityUser.email == current_user.email).first()
+    role_slug = identity_user.role.slug if identity_user and identity_user.role else ""
+    if role_slug == FINANCE_ROLE:
+        raise HTTPException(
+            status_code=403,
+            detail="Finance accounts can access Finance Reports only",
+        )
 
 
 def _completion_rate(completed: int, total: int) -> int:
@@ -155,6 +167,7 @@ def get_report_summary(
     if isinstance(current_user, ApiKey):
         return _build_report_summary(db)
 
+    _ensure_operational_report_access(db, current_user)
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
@@ -173,6 +186,7 @@ def get_report_trends(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _ensure_operational_report_access(db, current_user)
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
@@ -265,7 +279,7 @@ def get_outlet_reports(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
@@ -326,7 +340,7 @@ def get_outlet_benchmarks(
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("report.read")),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
@@ -423,7 +437,7 @@ def get_scheduled_report_config(
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("report.read")),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
     return _load_scheduled_report_config(db)
 
 
@@ -433,7 +447,7 @@ def update_scheduled_report_config(
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("report.export")),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
     row = db.query(AppSettings).filter(AppSettings.key == SCHEDULED_REPORT_KEY).first()
     serialized = json.dumps(payload.model_dump(), default=str)
     if row:
@@ -450,7 +464,7 @@ def get_compliance_reports(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
 
     pass_threshold = get_workspace_settings(db).pass_threshold
     summary = _build_report_summary(db)
@@ -482,6 +496,7 @@ def get_failed_checklist_items(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _ensure_operational_report_access(db, current_user)
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
@@ -509,7 +524,7 @@ def get_template_compliance_trends_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
 
     points = get_template_compliance_trends(
         db,
@@ -541,7 +556,7 @@ def send_compliance_digest_now(
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("report.export")),
 ):
-    del current_user
+    _ensure_operational_report_access(db, current_user)
 
     result = send_compliance_digest(db, force=True)
     return DigestSendResult(**result)
@@ -554,6 +569,7 @@ def export_compliance_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _ensure_operational_report_access(db, current_user)
     export_format = format.lower()
 
     outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(

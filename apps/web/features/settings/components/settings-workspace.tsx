@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
@@ -1602,36 +1601,6 @@ export function SettingsWorkspace() {
               />
             </EnterpriseField>
           </div>
-          <p className="mt-4 text-sm text-slate-500">
-            Kelola endpoint webhook di halaman Webhooks. Workflow code harus sesuai definisi yang
-            sudah dipublish di workflow engine.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/webhooks"
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Webhooks
-            </Link>
-            <Link
-              href="/dashboard/workflows"
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Workflows
-            </Link>
-            <Link
-              href="/dashboard/ops-health"
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Ops Health
-            </Link>
-            <Link
-              href="/dashboard/mobile-app"
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Mobile App
-            </Link>
-          </div>
         </SectionCard>
       </div>
 
@@ -1684,23 +1653,6 @@ export function SettingsWorkspace() {
               <Bell className="mt-0.5 h-4 w-4 text-emerald-700" />
               <span>Notifikasi, security, dan policy akses seluruh workspace.</span>
             </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Admin Shortcuts">
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
-            <Link
-              href="/dashboard/users"
-              className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Accounts
-            </Link>
-            <Link
-              href="/dashboard/notifications"
-              className="rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Notifications
-            </Link>
           </div>
         </SectionCard>
 

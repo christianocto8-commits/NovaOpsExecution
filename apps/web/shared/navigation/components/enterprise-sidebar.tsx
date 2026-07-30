@@ -29,11 +29,9 @@ function groupNavigation(items: NavigationItem[]) {
     },
     {
       sop: [],
-      operations: [],
       analytics: [],
       administration: [],
       configuration: [],
-      enterprise: [],
     }
   );
 }

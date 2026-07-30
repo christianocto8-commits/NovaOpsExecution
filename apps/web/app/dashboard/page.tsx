@@ -276,12 +276,6 @@ export default function DashboardPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/dashboard/compliance"
-            className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
-          >
-            Open Compliance Center
-          </Link>
-          <Link
             href="/dashboard/tasks"
             className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"
           >

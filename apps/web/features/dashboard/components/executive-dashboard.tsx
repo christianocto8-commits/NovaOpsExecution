@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { LineChartCard } from "@/shared/analytics/charts";
-import { StatCard, SectionCard, ActionCard } from "@/shared/ui/cards";
+import { StatCard, SectionCard } from "@/shared/ui/cards";
 import { Badge, Button } from "@/shared/ui/primitives";
 import { EmptyState } from "@/shared/ui/feedback";
 
@@ -143,41 +143,6 @@ export function ExecutiveDashboard() {
           )}
         </SectionCard>
 
-        <SectionCard title="Quick Actions" description="Common operation shortcuts.">
-          <div className="space-y-4">
-            <ActionCard
-              title="Create Task"
-              description="Assign new operational task."
-              action={
-                <Link href="/dashboard/tasks">
-                  <Button size="sm">New Task</Button>
-                </Link>
-              }
-            />
-            <ActionCard
-              title="Review Drafts"
-              description="Continue Draft Center workflow."
-              action={
-                <Link href="/dashboard/drafts">
-                  <Button size="sm" variant="secondary">
-                    Open
-                  </Button>
-                </Link>
-              }
-            />
-            <ActionCard
-              title="Open Reports"
-              description="Analyze operation performance."
-              action={
-                <Link href="/dashboard/reports">
-                  <Button size="sm" variant="outline">
-                    View
-                  </Button>
-                </Link>
-              }
-            />
-          </div>
-        </SectionCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

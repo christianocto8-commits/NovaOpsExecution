@@ -31,6 +31,11 @@ const workspaceMap: Record<NovaRole, CurrentWorkspace> = {
     roleLabel: "Outlet",
     mode: "outlet",
   },
+  FINANCE: {
+    role: "FINANCE",
+    roleLabel: "Finance",
+    mode: "finance",
+  },
 };
 
 function getStoredWorkspaceContext(): StoredWorkspaceContext {
@@ -78,7 +83,7 @@ export function getStoredWorkspace(): CurrentWorkspace {
 export function setStoredWorkspaceRole(role: NovaRole, context: StoredWorkspaceContext = {}) {
   localStorage.setItem(WORKSPACE_STORAGE_KEY, role);
 
-  if (role === "OUTLET" || role === "AREA_MANAGER") {
+  if (role === "OUTLET" || role === "AREA_MANAGER" || role === "FINANCE") {
     localStorage.setItem(WORKSPACE_CONTEXT_KEY, JSON.stringify(context));
   } else {
     localStorage.removeItem(WORKSPACE_CONTEXT_KEY);

@@ -336,7 +336,7 @@ export function DraftCenterWorkspace() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-sm font-medium text-emerald-700">Draft</p>
-            <h1 className="text-2xl font-semibold text-slate-950">Draft Center</h1>
+            <h1 className="text-2xl font-semibold text-slate-950">Draft</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
               Continue saved task drafts and manage form drafts from one place.
             </p>

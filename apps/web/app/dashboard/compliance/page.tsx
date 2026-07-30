@@ -499,7 +499,7 @@ export default function ComplianceCenterPage() {
       <OperationalExceptionPanel tasks={tasksQuery.data ?? []} />
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Compliance Center</p>
+          <p className="text-sm font-medium text-emerald-700">Review Queue</p>
           <h1 className="text-2xl font-semibold text-slate-950">Task Compliance Workspace</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             {isAreaWorkspace

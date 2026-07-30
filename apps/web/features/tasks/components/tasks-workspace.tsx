@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Lock, Search } from "lucide-react";
@@ -944,12 +943,6 @@ export function TasksWorkspace() {
                 {t("tasks.createTask")}
               </button>
             ) : null}
-            <Link
-              href="/dashboard/outlets"
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Outlets
-            </Link>
           </div>
         ) : null}
       </div>

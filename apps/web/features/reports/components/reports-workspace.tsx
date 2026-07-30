@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -769,19 +768,6 @@ export function ReportsWorkspace() {
             <Download className="size-4" />
             {isExportingBundle ? "Bundling..." : "Audit Bundle"}
           </button>
-          <Link
-            href="/dashboard/report-automation"
-            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-          >
-            Schedule Reports
-          </Link>
-          <Link
-            href="/dashboard/evidence"
-            className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-          >
-            Evidence
-          </Link>
-
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Realtime</p>
             <RealtimeClock />

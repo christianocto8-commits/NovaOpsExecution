@@ -81,7 +81,7 @@ const LEGACY_CATEGORY_MAP: Record<string, FormCategoryId> = {
   Checklist: "audit",
   Audit: "audit",
   Finance: "finance",
-  "Finance Handoff": "finance",
+  "Finance Reports": "finance",
   "Audit Finance": "finance",
   Cleaning: "cleaning",
   "Cleaning Audit": "audit",

@@ -423,7 +423,7 @@ export function NotificationsWorkspace() {
         </div>
       )}
 
-      <AnnouncementsPanel />
+      {isOwnerAdminWorkspace ? <AnnouncementsPanel /> : null}
     </main>
   );
 }
