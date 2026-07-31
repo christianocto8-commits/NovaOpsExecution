@@ -97,5 +97,16 @@ if ($publicHealth.StatusCode -ne 200 -or $publicHealth.Content -notmatch '"statu
   exit 1
 }
 Write-Host "  Public health: $($publicHealth.StatusCode)" -ForegroundColor Gray
+
+$browserSessionProbe = Invoke-WebRequest `
+  -Uri "https://nova-ops.cloud/api/v1/auth/browser-session" `
+  -Method Delete `
+  -UseBasicParsing `
+  -TimeoutSec 20
+if ($browserSessionProbe.StatusCode -ne 200) {
+  Write-Host "[FAILED] Browser session BFF tidak aktif: $($browserSessionProbe.StatusCode)" -ForegroundColor Red
+  exit 1
+}
+Write-Host "  Browser session BFF: $($browserSessionProbe.StatusCode)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "[DONE] https://nova-ops.cloud" -ForegroundColor Green
