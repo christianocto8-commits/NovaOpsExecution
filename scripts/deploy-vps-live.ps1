@@ -108,5 +108,27 @@ if ($browserSessionProbe.StatusCode -ne 200) {
   exit 1
 }
 Write-Host "  Browser session BFF: $($browserSessionProbe.StatusCode)" -ForegroundColor Gray
+
+$reloginProbeStatus = $null
+try {
+  Invoke-WebRequest `
+    -Uri "https://nova-ops.cloud/api/v1/auth/login" `
+    -Method Post `
+    -Headers @{
+      Origin = "https://nova-ops.cloud"
+      Cookie = "novaops_access=stale-session-probe"
+    } `
+    -ContentType "application/json" `
+    -Body "{}" `
+    -UseBasicParsing `
+    -TimeoutSec 20 | Out-Null
+} catch {
+  $reloginProbeStatus = $_.Exception.Response.StatusCode.value__
+}
+if ($reloginProbeStatus -ne 422) {
+  Write-Host "[FAILED] Relogin dengan stale cookie gagal melewati BFF: $reloginProbeStatus" -ForegroundColor Red
+  exit 1
+}
+Write-Host "  Relogin stale-cookie guard: 422 (expected validation response)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "[DONE] https://nova-ops.cloud" -ForegroundColor Green

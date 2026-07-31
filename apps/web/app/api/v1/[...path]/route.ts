@@ -30,6 +30,9 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   if (relativePath === "auth/browser-session") {
     return handleBrowserSession(request);
   }
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ detail: "Cross-origin request rejected" }, { status: 403 });
+  }
 
   const targetPath = `/api/v1/${pathSegments.join("/")}`;
   const targetUrl = new URL(targetPath, API_BASE);
@@ -41,12 +44,9 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
       headers.set(key, value);
     }
   });
-  if (!headers.has("authorization")) {
+  if (!headers.has("authorization") && !AUTH_RESPONSE_PATHS.has(relativePath)) {
     const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
     if (accessToken) {
-      if (!isSameOriginRequest(request)) {
-        return NextResponse.json({ detail: "Cross-origin request rejected" }, { status: 403 });
-      }
       headers.set("authorization", `Bearer ${accessToken}`);
     }
   }
@@ -111,7 +111,15 @@ function isSameOriginRequest(request: NextRequest) {
     return true;
   }
   const origin = request.headers.get("origin");
-  return !origin || origin === request.nextUrl.origin;
+  if (!origin) return true;
+
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol = forwardedProto || request.nextUrl.protocol.replace(":", "");
+  const publicOrigin = host ? `${protocol}://${host}` : null;
+
+  return origin === request.nextUrl.origin || origin === publicOrigin;
 }
 
 function setAuthCookies(
