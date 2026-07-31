@@ -9,6 +9,7 @@ import {
   FileText,
   Gauge,
   GitBranch,
+  Grid2X2,
   History,
   Siren,
   LayoutDashboard,
@@ -85,7 +86,7 @@ export const navigationItems: NavigationItem[] = [
     label: "My Form",
     href: "/dashboard/forms",
     icon: FileText,
-    requiredPermissions: ["task.read"],
+    requiredPermissions: ["form.read"],
     section: "sop",
   },
   {
@@ -162,7 +163,7 @@ export const navigationItems: NavigationItem[] = [
     label: "Finance Reports",
     href: "/dashboard/finance-handoff",
     icon: Banknote,
-    requiredPermissions: ["report.read"],
+    requiredPermissions: ["finance.read"],
     section: "analytics",
   },
   {
@@ -301,7 +302,15 @@ export const navigationItems: NavigationItem[] = [
     label: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
-    requiredPermissions: ["user.edit"],
+    requiredPermissions: [],
+    section: "configuration",
+  },
+  {
+    id: "modules",
+    label: "More",
+    href: "/dashboard/modules",
+    icon: Grid2X2,
+    requiredPermissions: [],
     section: "configuration",
   },
 ];

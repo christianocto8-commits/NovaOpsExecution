@@ -6,8 +6,11 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.announcements.schemas import (
     AnnouncementAcknowledgeResponse,
+    AnnouncementAnalytics,
     AnnouncementCreate,
     AnnouncementRead,
+    AnnouncementRecipientPreview,
+    AnnouncementRecipientPreviewRequest,
     AnnouncementUpdate,
     UnreadCountResponse,
 )
@@ -27,6 +30,7 @@ def _to_read(item: dict) -> AnnouncementRead:
         target_scope=announcement.target_scope,
         target_ids=announcement.target_ids or [],
         requires_acknowledgment=announcement.requires_acknowledgment,
+        scheduled_at=announcement.scheduled_at,
         published_at=announcement.published_at,
         expires_at=announcement.expires_at,
         created_by_id=announcement.created_by_id,
@@ -56,6 +60,7 @@ def list_announcements(db: Session = Depends(get_db)):
             target_scope=item.target_scope,
             target_ids=item.target_ids or [],
             requires_acknowledgment=item.requires_acknowledgment,
+            scheduled_at=item.scheduled_at,
             published_at=item.published_at,
             expires_at=item.expires_at,
             created_by_id=item.created_by_id,
@@ -85,11 +90,26 @@ def create_announcement(
         target_scope=announcement.target_scope,
         target_ids=announcement.target_ids or [],
         requires_acknowledgment=announcement.requires_acknowledgment,
+        scheduled_at=announcement.scheduled_at,
         published_at=announcement.published_at,
         expires_at=announcement.expires_at,
         created_by_id=announcement.created_by_id,
         created_at=announcement.created_at,
         updated_at=announcement.updated_at,
+    )
+
+
+@router.post("/preview", response_model=AnnouncementRecipientPreview)
+def preview_announcement_recipients(
+    payload: AnnouncementRecipientPreviewRequest,
+    db: Session = Depends(get_db),
+    _: IdentityUser = Depends(require_permission("notification.manage")),
+):
+    return AnnouncementRecipientPreview(
+        **AnnouncementService(db).preview_recipients(
+            payload.target_scope,
+            payload.target_ids,
+        )
     )
 
 
@@ -112,6 +132,7 @@ def update_announcement(
         target_scope=announcement.target_scope,
         target_ids=announcement.target_ids or [],
         requires_acknowledgment=announcement.requires_acknowledgment,
+        scheduled_at=announcement.scheduled_at,
         published_at=announcement.published_at,
         expires_at=announcement.expires_at,
         created_by_id=announcement.created_by_id,
@@ -153,12 +174,22 @@ def publish_announcement(
         target_scope=announcement.target_scope,
         target_ids=announcement.target_ids or [],
         requires_acknowledgment=announcement.requires_acknowledgment,
+        scheduled_at=announcement.scheduled_at,
         published_at=announcement.published_at,
         expires_at=announcement.expires_at,
         created_by_id=announcement.created_by_id,
         created_at=announcement.created_at,
         updated_at=announcement.updated_at,
     )
+
+
+@router.get("/{announcement_id}/analytics", response_model=AnnouncementAnalytics)
+def get_announcement_analytics(
+    announcement_id: UUID,
+    db: Session = Depends(get_db),
+    _: IdentityUser = Depends(require_permission("notification.manage")),
+):
+    return AnnouncementAnalytics(**AnnouncementService(db).analytics(announcement_id))
 
 
 @router.get("/active", response_model=list[AnnouncementRead])

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class FinanceShiftDeposit(BaseModel):
     id: str
+    form_submission_id: int | None = None
     outlet_id: str | None = None
     outlet_name: str | None = None
     business_date: str

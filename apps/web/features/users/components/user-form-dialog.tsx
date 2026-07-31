@@ -20,12 +20,26 @@ type UserFormDialogProps = {
   onSave: () => void;
 };
 
-const roles: UserRole[] = ["Owner/Admin", "Area Manager", "Finance", "Outlet"];
+const roles: UserRole[] = [
+  "Owner/Admin",
+  "Regional Manager",
+  "District Manager",
+  "Area Manager",
+  "Finance",
+  "Outlet",
+];
 const statuses: UserStatus[] = ["Active", "Pending", "Suspended"];
 
 function getScopeLabel(role: UserRole) {
   if (role === "Owner/Admin") return "All Outlets";
-  if (role === "Area Manager" || role === "Finance") return "Multiple Outlets";
+  if (
+    role === "Regional Manager" ||
+    role === "District Manager" ||
+    role === "Area Manager" ||
+    role === "Finance"
+  ) {
+    return "Multiple Outlets";
+  }
   return "Single Outlet";
 }
 
@@ -113,14 +127,14 @@ export function UserFormDialog({
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-          <p className="text-sm font-medium text-emerald-700">Account Management</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-950">
-            {editingUserId ? "Edit Account" : "Create Account"}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Owner/Admin gets all outlets, Area Manager and Finance can manage selected outlets, and Outlet
-            account is restricted to one outlet.
-          </p>
+              <p className="text-sm font-medium text-emerald-700">Account Management</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">
+                {editingUserId ? "Edit Account" : "Create Account"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Owner/Admin gets all outlets. Regional, District, Area, and Finance accounts manage
+                selected outlets. Outlet accounts stay restricted to one outlet.
+              </p>
             </div>
           </div>
         </div>
@@ -161,7 +175,9 @@ export function UserFormDialog({
               value={form.password}
               onChange={(event) => onFormChange({ ...form, password: event.target.value })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              placeholder={editingUserId ? "Leave blank to keep current password" : "Minimum 8 characters"}
+              placeholder={
+                editingUserId ? "Leave blank to keep current password" : "Minimum 8 characters"
+              }
             />
           </Field>
 
@@ -180,7 +196,10 @@ export function UserFormDialog({
                     outlet:
                       role === "Owner/Admin"
                         ? "All Outlets"
-                        : role === "Area Manager" || role === "Finance"
+                        : role === "Regional Manager" ||
+                            role === "District Manager" ||
+                            role === "Area Manager" ||
+                            role === "Finance"
                           ? "Multiple Outlets"
                           : (firstOutlet?.id ?? ""),
                     outletIds: [],
@@ -252,7 +271,10 @@ export function UserFormDialog({
             </Field>
           ) : null}
 
-          {form.role === "Area Manager" || form.role === "Finance" ? (
+          {form.role === "Regional Manager" ||
+          form.role === "District Manager" ||
+          form.role === "Area Manager" ||
+          form.role === "Finance" ? (
             <div className="grid gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Managed Outlets

@@ -153,8 +153,32 @@ def get_accessible_identity_outlets(db: Session, identity_user: IdentityUser) ->
     if role_slug in {"owner", "admin"}:
         return db.query(IdentityOutlet).order_by(IdentityOutlet.code.asc()).all(), True
 
-    if role_slug == "area_manager":
+    if role_slug in {"regional_manager", "district_manager", "area_manager"}:
+        if identity_user.assigned_outlets:
+            return list(identity_user.assigned_outlets), False
+        if role_slug == "regional_manager" and identity_user.region_id:
+            return (
+                db.query(IdentityOutlet)
+                .filter(IdentityOutlet.region_id == identity_user.region_id)
+                .order_by(IdentityOutlet.code.asc())
+                .all(),
+                False,
+            )
+        if role_slug == "district_manager" and identity_user.district_id:
+            return (
+                db.query(IdentityOutlet)
+                .filter(IdentityOutlet.district_id == identity_user.district_id)
+                .order_by(IdentityOutlet.code.asc())
+                .all(),
+                False,
+            )
         return list(identity_user.assigned_outlets), False
+
+    if role_slug == "finance":
+        if identity_user.assigned_outlets:
+            return list(identity_user.assigned_outlets), False
+        outlet = get_default_identity_outlet(identity_user)
+        return ([outlet] if outlet else []), False
 
     outlet = get_default_identity_outlet(identity_user)
     return ([outlet] if outlet else []), False

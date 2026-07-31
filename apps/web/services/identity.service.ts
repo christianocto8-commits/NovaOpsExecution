@@ -24,6 +24,25 @@ export type IdentityOutlet = {
   phone: string | null;
   operating_hours_open?: string | null;
   operating_hours_close?: string | null;
+  region_id?: string | null;
+  district_id?: string | null;
+};
+
+export type IdentityRegion = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  organization_id: string;
+};
+
+export type IdentityDistrict = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  organization_id: string;
+  region_id: string;
 };
 
 export type IdentityUser = {
@@ -36,6 +55,8 @@ export type IdentityUser = {
   role: IdentityRole;
   outlet: IdentityOutlet | null;
   assigned_outlets: IdentityOutlet[];
+  region_id?: string | null;
+  district_id?: string | null;
 };
 
 export type CreateIdentityUserPayload = {
@@ -46,6 +67,8 @@ export type CreateIdentityUserPayload = {
   role_id: string;
   outlet_id?: string | null;
   outlet_ids?: string[];
+  region_id?: string | null;
+  district_id?: string | null;
   is_active?: boolean;
 };
 
@@ -89,6 +112,14 @@ export async function getIdentityOutlets() {
   return api<IdentityOutlet[]>("/api/v1/identity/outlets");
 }
 
+export async function getIdentityRegions() {
+  return api<IdentityRegion[]>("/api/v1/identity/regions");
+}
+
+export async function getIdentityDistricts() {
+  return api<IdentityDistrict[]>("/api/v1/identity/districts");
+}
+
 export async function createIdentityUser(payload: CreateIdentityUserPayload) {
   return api<IdentityUser>("/api/v1/identity/users", {
     method: "POST",
@@ -122,10 +153,7 @@ export async function createIdentityOutlet(payload: CreateIdentityOutletPayload)
   });
 }
 
-export async function updateIdentityOutlet(
-  outletId: string,
-  payload: UpdateIdentityOutletPayload
-) {
+export async function updateIdentityOutlet(outletId: string, payload: UpdateIdentityOutletPayload) {
   return api<IdentityOutlet>(`/api/v1/identity/outlets/${outletId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -137,7 +165,6 @@ export async function deactivateIdentityOutlet(outletId: string) {
     method: "DELETE",
   });
 }
-
 
 export type IdentityOutletOperator = {
   id: string;
@@ -156,8 +183,7 @@ export type CreateIdentityOutletOperatorPayload = {
   is_active?: boolean;
 };
 
-export type UpdateIdentityOutletOperatorPayload =
-  Partial<CreateIdentityOutletOperatorPayload>;
+export type UpdateIdentityOutletOperatorPayload = Partial<CreateIdentityOutletOperatorPayload>;
 
 export async function getIdentityOutletOperators(outletId?: string) {
   const query = outletId ? `?outlet_id=${outletId}` : "";
@@ -165,9 +191,7 @@ export async function getIdentityOutletOperators(outletId?: string) {
   return api<IdentityOutletOperator[]>(`/api/v1/identity/operators${query}`);
 }
 
-export async function createIdentityOutletOperator(
-  payload: CreateIdentityOutletOperatorPayload
-) {
+export async function createIdentityOutletOperator(payload: CreateIdentityOutletOperatorPayload) {
   return api<IdentityOutletOperator>("/api/v1/identity/operators", {
     method: "POST",
     body: JSON.stringify(payload),

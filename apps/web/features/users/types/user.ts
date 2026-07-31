@@ -1,6 +1,7 @@
 export type UserStatus = "Active" | "Pending" | "Suspended";
 
-export type UserRole = "Owner/Admin" | "Area Manager" | "Finance" | "Outlet";
+export type UserRole =
+  "Owner/Admin" | "Regional Manager" | "District Manager" | "Area Manager" | "Finance" | "Outlet";
 
 export type OutletScope = "All Outlets" | "Multiple Outlets" | "Single Outlet";
 

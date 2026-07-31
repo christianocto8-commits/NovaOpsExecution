@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardCheck,
   FileText,
+  Grid2X2,
   Home,
   Settings,
   Bell,
@@ -23,7 +24,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Home,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-tasks",
@@ -33,7 +34,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: ClipboardCheck,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER", "OUTLET"],
   },
   {
     id: "go-forms",
@@ -43,7 +44,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: FileText,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER", "OUTLET"],
   },
   {
     id: "go-reports",
@@ -53,7 +54,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: BarChart3,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER", "OUTLET"],
   },
   {
     id: "go-review-queue",
@@ -63,7 +64,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: ShieldAlert,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-schedules",
@@ -73,7 +74,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: CalendarClock,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-corrective-actions",
@@ -83,7 +84,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Wrench,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-notifications",
@@ -93,7 +94,14 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Bell,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET", "FINANCE"],
+    allowedRoles: [
+      "OWNER_ADMIN",
+      "REGIONAL_MANAGER",
+      "DISTRICT_MANAGER",
+      "AREA_MANAGER",
+      "OUTLET",
+      "FINANCE",
+    ],
   },
   {
     id: "go-outlets",
@@ -103,7 +111,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Building2,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-finance-handoff",
@@ -113,7 +121,13 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Banknote,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "FINANCE"],
+    allowedRoles: [
+      "OWNER_ADMIN",
+      "REGIONAL_MANAGER",
+      "DISTRICT_MANAGER",
+      "AREA_MANAGER",
+      "FINANCE",
+    ],
   },
   {
     id: "go-users",
@@ -123,7 +137,7 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Users,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
   {
     id: "go-settings",
@@ -133,6 +147,16 @@ export const commandItems: CommandItem[] = [
     group: "Navigation",
     type: "navigation",
     icon: Settings,
-    allowedRoles: ["OWNER_ADMIN", "AREA_MANAGER", "OUTLET"],
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER", "OUTLET"],
+  },
+  {
+    id: "go-modules",
+    title: "Go to More",
+    description: "Open advanced NovaOps modules",
+    href: "/dashboard/modules",
+    group: "Navigation",
+    type: "navigation",
+    icon: Grid2X2,
+    allowedRoles: ["OWNER_ADMIN", "REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"],
   },
 ];

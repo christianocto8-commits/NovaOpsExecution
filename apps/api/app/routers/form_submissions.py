@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,7 +15,10 @@ from app.models.user import User
 from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
-from app.modules.finance_handoff.api import create_finance_deposit_from_form_submission
+from app.modules.finance_handoff.api import (
+    create_finance_deposit_from_form_submission,
+    notify_finance_deposit_submitted,
+)
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
@@ -25,6 +29,7 @@ from app.services.field_visibility import validate_conditional_required_fields
 from app.services.webhook_dispatcher import dispatch_webhook_event
 
 router = APIRouter(prefix="/form-submissions", tags=["Form Submissions"])
+logger = logging.getLogger(__name__)
 
 
 def resolve_form_submission_scope(
@@ -171,7 +176,7 @@ def create_form_submission(
             )
         )
 
-    db.commit()
+    db.flush()
 
     stored_submission = (
         db.query(FormSubmission)
@@ -185,16 +190,42 @@ def create_form_submission(
 
     template = db.get(FormTemplate, stored_submission.form_template_id)
     outlet = db.get(Outlet, stored_submission.outlet_id)
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    finance_deposit = None
 
     try:
-        create_finance_deposit_from_form_submission(
+        finance_deposit = create_finance_deposit_from_form_submission(
             db,
             submission=stored_submission,
             template=template,
             submitted_by_legacy_user_id=current_user.id,
+            submitted_by_identity_user=identity_user,
         )
-    except Exception:
-        pass
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception(
+            "Failed to save finance report for form submission %s",
+            stored_submission.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Submission could not be saved to Finance Reports. Please try again.",
+        ) from exc
+
+    if finance_deposit:
+        try:
+            notify_finance_deposit_submitted(
+                db,
+                deposit=finance_deposit,
+                legacy_outlet_id=stored_submission.outlet_id,
+            )
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "Finance report %s was saved but notification delivery failed",
+                finance_deposit.id,
+            )
 
     try:
         notify_owner_admin_form_submitted(
@@ -206,6 +237,10 @@ def create_form_submission(
         )
     except Exception:
         db.rollback()
+        logger.exception(
+            "Form submission %s was saved but owner/admin notification delivery failed",
+            stored_submission.id,
+        )
 
     try:
         dispatch_webhook_event(
@@ -222,7 +257,11 @@ def create_form_submission(
             },
         )
     except Exception:
-        pass
+        db.rollback()
+        logger.exception(
+            "Form submission %s was saved but webhook dispatch failed",
+            stored_submission.id,
+        )
 
     return stored_submission
 

@@ -24,12 +24,21 @@ import { OutletScope, User, UserFormState, UserRole, UserStatus } from "../types
 
 function getScopeByRole(role: UserRole): OutletScope {
   if (role === "Owner/Admin") return "All Outlets";
-  if (role === "Area Manager" || role === "Finance") return "Multiple Outlets";
+  if (
+    role === "Regional Manager" ||
+    role === "District Manager" ||
+    role === "Area Manager" ||
+    role === "Finance"
+  ) {
+    return "Multiple Outlets";
+  }
   return "Single Outlet";
 }
 
 function getRoleLabel(slug: string): UserRole {
   if (slug === "owner" || slug === "admin") return "Owner/Admin";
+  if (slug === "regional_manager") return "Regional Manager";
+  if (slug === "district_manager") return "District Manager";
   if (slug === "area_manager") return "Area Manager";
   if (slug === "finance") return "Finance";
   return "Outlet";
@@ -54,7 +63,10 @@ function mapIdentityUser(user: IdentityUser): User {
     outlet:
       role === "Owner/Admin"
         ? "All Outlets"
-        : role === "Area Manager" || role === "Finance"
+        : role === "Regional Manager" ||
+            role === "District Manager" ||
+            role === "Area Manager" ||
+            role === "Finance"
           ? assignedOutletNames.length
             ? assignedOutletNames.join(", ")
             : "No outlets assigned"
@@ -70,11 +82,15 @@ function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
   const slug =
     role === "Owner/Admin"
       ? "owner"
-      : role === "Area Manager"
-        ? "area_manager"
-        : role === "Finance"
-          ? "finance"
-          : "outlet";
+      : role === "Regional Manager"
+        ? "regional_manager"
+        : role === "District Manager"
+          ? "district_manager"
+          : role === "Area Manager"
+            ? "area_manager"
+            : role === "Finance"
+              ? "finance"
+              : "outlet";
 
   return roles.find((item) => item.slug === slug)?.id ?? "";
 }
@@ -98,7 +114,15 @@ export function useUsersWorkspace() {
     queryKey: queryKeys.identity.roles,
     queryFn: async () => {
       const nextRoles = await getIdentityRoles();
-      if (nextRoles.some((role) => role.slug === "finance")) {
+      const requiredRoles = [
+        "owner",
+        "regional_manager",
+        "district_manager",
+        "area_manager",
+        "finance",
+        "outlet",
+      ];
+      if (requiredRoles.every((slug) => nextRoles.some((role) => role.slug === slug))) {
         return nextRoles;
       }
       try {
@@ -200,7 +224,10 @@ export function useUsersWorkspace() {
       outlet:
         user.role === "Outlet"
           ? (user.outletIds[0] ?? "")
-          : user.role === "Area Manager" || user.role === "Finance"
+          : user.role === "Regional Manager" ||
+              user.role === "District Manager" ||
+              user.role === "Area Manager" ||
+              user.role === "Finance"
             ? "Multiple Outlets"
             : "All Outlets",
       outletIds: user.outletIds,
@@ -219,7 +246,12 @@ export function useUsersWorkspace() {
       };
     }
 
-    if (normalizedForm.role === "Area Manager" || normalizedForm.role === "Finance") {
+    if (
+      normalizedForm.role === "Regional Manager" ||
+      normalizedForm.role === "District Manager" ||
+      normalizedForm.role === "Area Manager" ||
+      normalizedForm.role === "Finance"
+    ) {
       if (normalizedForm.outletIds.length === 0) {
         throw new Error(`${normalizedForm.role} must manage at least one outlet`);
       }

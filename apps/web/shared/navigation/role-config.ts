@@ -1,6 +1,7 @@
-export type NovaRole = "OWNER_ADMIN" | "AREA_MANAGER" | "OUTLET" | "FINANCE";
+export type NovaRole =
+  "OWNER_ADMIN" | "REGIONAL_MANAGER" | "DISTRICT_MANAGER" | "AREA_MANAGER" | "OUTLET" | "FINANCE";
 
-export type NavigationMode = "enterprise" | "area" | "outlet" | "finance";
+export type NavigationMode = "enterprise" | "regional" | "district" | "area" | "outlet" | "finance";
 
 export type CurrentWorkspace = {
   role: NovaRole;

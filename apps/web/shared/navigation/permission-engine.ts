@@ -50,6 +50,7 @@ const areaManagerVisibleNavigationItemIds = new Set([
   "finance-handoff",
   "corrective-actions",
   "incidents",
+  "modules",
 ]);
 
 const areaManagerNavigationItemIds = new Set([
@@ -77,14 +78,16 @@ const areaManagerNavigationItemIds = new Set([
   "tasks",
   "training",
   "workflows",
+  "modules",
 ]);
 
 const financeNavigationItemIds = new Set(["finance-handoff", "notifications"]);
+const managerRoles = new Set(["REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"]);
 
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!workspace) return true;
   if (workspace.role === "OWNER_ADMIN") return true;
-  if (workspace.role === "AREA_MANAGER") return areaManagerNavigationItemIds.has(item.id);
+  if (managerRoles.has(workspace.role)) return areaManagerNavigationItemIds.has(item.id);
   if (workspace.role === "FINANCE") return financeNavigationItemIds.has(item.id);
 
   return outletNavigationItemIds.has(item.id);
@@ -92,10 +95,6 @@ function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWork
 
 function canAccessItem(can: PermissionChecker, item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!canAccessItemForWorkspace(item, workspace)) return false;
-  if (workspace?.role === "OWNER_ADMIN") return true;
-  if (workspace?.role === "AREA_MANAGER") return true;
-  if (workspace?.role === "OUTLET") return true;
-  if (workspace?.role === "FINANCE") return true;
 
   if (item.requiredPermissions.length === 0) return true;
   return item.requiredPermissions.every((permission) => can(permission));
@@ -126,8 +125,10 @@ export function getNavigationForPermissions(
       return outletVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
     }
 
-    if (workspace?.role === "AREA_MANAGER") {
-      return areaManagerVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace);
+    if (workspace && managerRoles.has(workspace.role)) {
+      return (
+        areaManagerVisibleNavigationItemIds.has(item.id) && canAccessItem(can, item, workspace)
+      );
     }
 
     if (workspace?.role === "FINANCE") {
@@ -142,14 +143,7 @@ export function getNavigationForPermissions(
   });
 
   if (workspace?.role === "OUTLET") {
-    const outletOrder = [
-      "tasks",
-      "forms",
-      "reports",
-      "drafts",
-      "notifications",
-      "settings",
-    ];
+    const outletOrder = ["tasks", "forms", "reports", "drafts", "notifications", "settings"];
     return [...visibleItems].sort(
       (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)
     );

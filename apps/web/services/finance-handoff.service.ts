@@ -2,6 +2,7 @@ import { api } from "@/services/api";
 
 export type FinanceShiftDeposit = {
   id: string;
+  form_submission_id?: number | null;
   outlet_id: string | null;
   outlet_name: string | null;
   business_date: string;

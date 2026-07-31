@@ -34,6 +34,7 @@ class Announcement(Base):
     target_scope: Mapped[str] = mapped_column(String(20), default=AnnouncementTargetScope.all.value, nullable=False)
     target_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     requires_acknowledgment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(

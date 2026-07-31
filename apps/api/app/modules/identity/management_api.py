@@ -7,7 +7,17 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.identity.dependencies import get_current_active_user, require_permission
-from app.modules.identity.models import AuditLog, Outlet, OutletOperator, Permission, RefreshToken, Role, User
+from app.modules.identity.models import (
+    AuditLog,
+    District,
+    Outlet,
+    OutletOperator,
+    Permission,
+    RefreshToken,
+    Region,
+    Role,
+    User,
+)
 from app.modules.identity.permissions import ROLE_PERMISSION_MAP, SYSTEM_ROLES
 from app.modules.identity.repository import (
     OrganizationRepository,
@@ -20,6 +30,7 @@ from app.modules.identity.repository import (
 )
 from app.modules.identity.schemas import (
     MessageResponse,
+    DistrictRead,
     OutletCreate,
     OutletRead,
     OutletUpdate,
@@ -34,6 +45,7 @@ from app.modules.identity.schemas import (
     UserCreate,
     UserRead,
     UserUpdate,
+    RegionRead,
 )
 from app.modules.identity.security import hash_password, verify_password
 from app.modules.identity.service import validate_password_policy
@@ -64,7 +76,12 @@ def resolve_user_outlet_access(
 
         return outlet.id, []
 
-    if role_slug in {"area_manager", "finance"}:
+    if role_slug in {
+        "regional_manager",
+        "district_manager",
+        "area_manager",
+        "finance",
+    }:
         selected_ids = outlet_ids or []
 
         if not selected_ids:
@@ -194,6 +211,22 @@ def list_outlets(
     current_user: User = Depends(require_permission("outlet.read")),
 ):
     return OutletRepository(db).list()
+
+
+@router.get("/regions", response_model=list[RegionRead])
+def list_regions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.read")),
+):
+    return db.scalars(select(Region).order_by(Region.name.asc())).all()
+
+
+@router.get("/districts", response_model=list[DistrictRead])
+def list_districts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outlet.read")),
+):
+    return db.scalars(select(District).order_by(District.name.asc())).all()
 
 
 @router.post("/outlets", response_model=OutletRead, status_code=status.HTTP_201_CREATED)
@@ -350,6 +383,8 @@ def create_user(
         phone_number=payload.phone_number.strip() if payload.phone_number else None,
         role_id=payload.role_id,
         outlet_id=resolved_outlet_id,
+        region_id=payload.region_id,
+        district_id=payload.district_id,
         is_active=payload.is_active,
     )
 
@@ -417,6 +452,8 @@ def update_user(
         "role_id" in update_data
         or "outlet_id" in update_data
         or "outlet_ids" in update_data
+        or "region_id" in update_data
+        or "district_id" in update_data
     )
 
     if should_resolve_access:
@@ -433,6 +470,8 @@ def update_user(
         user.role_id = next_role.id
         user.outlet_id = resolved_outlet_id
         user.assigned_outlets = assigned_outlets
+        user.region_id = update_data.get("region_id", user.region_id)
+        user.district_id = update_data.get("district_id", user.district_id)
         RefreshTokenRepository(db).revoke_all_for_user(user.id)
 
     if "is_active" in update_data:

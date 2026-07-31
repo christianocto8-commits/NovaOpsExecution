@@ -38,6 +38,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.accounts": "Accounts",
     "navigation.users": "Users",
     "navigation.settings": "Settings",
+    "navigation.modules": "More",
     "section.enterprise": "Suite",
     "section.sop": "Execution",
     "section.operations": "Operations",
@@ -195,7 +196,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.library.items": "{count} items",
     "forms.manual.eyebrow": "Manual Form",
     "forms.manual.title": "My Form",
-    "forms.manual.subtitle": "Submit outlet forms anytime for incidents, maintenance, or other events.",
+    "forms.manual.subtitle":
+      "Submit outlet forms anytime for incidents, maintenance, or other events.",
     "forms.manual.offlineHint": "Offline mode — submit will be queued for sync.",
     "forms.manual.loading": "Loading active form templates...",
     "forms.manual.loadError": "Failed to load form templates.",
@@ -260,7 +262,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.versionHistory": "Version History",
     "forms.admin.versionHistoryTitle": "Template Version History",
     "forms.admin.versionHistoryDescription": "Restore a previous snapshot of this template.",
-    "forms.admin.versionEmpty": "No saved versions yet. Versions are created when you save changes.",
+    "forms.admin.versionEmpty":
+      "No saved versions yet. Versions are created when you save changes.",
     "forms.admin.versionRestore": "Restore",
     "forms.admin.versionRestoring": "Restoring...",
     "forms.admin.versionRestored": "Template restored from version {version}.",
@@ -287,13 +290,15 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.allTasks": "All tasks",
     "execution.eyebrow": "Task Execution",
     "execution.noTemplate": "No form template assigned",
-    "execution.noTemplateAssigned": "This task has no checklist form linked. Contact admin to assign a form template.",
+    "execution.noTemplateAssigned":
+      "This task has no checklist form linked. Contact admin to assign a form template.",
     "execution.localTemplateOnly":
       "This task uses a draft form that was never published to the server. Ask admin to re-assign a published checklist template.",
     "execution.checklistPreviewFallback":
       "Checklist form could not be loaded, but the server reports {count} items: {preview}. Contact admin if this persists.",
     "execution.loadingTemplate": "Loading checklist…",
-    "execution.templateLoadFailed": "Failed to load checklist form. Check connection and try again.",
+    "execution.templateLoadFailed":
+      "Failed to load checklist form. Check connection and try again.",
     "execution.offlineSuffix": " · Offline mode",
     "execution.pendingSyncSuffix": " · Pending sync",
     "execution.guideTitle": "Complete this task like a field checklist",
@@ -430,7 +435,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "pwa.installed": "NovaOps installed on your device.",
     "pwa.iosHint": "On iPhone/iPad: tap Share → Add to Home Screen.",
     "login.heroTitle": "Run every outlet from one command center",
-    "login.heroBody": "Checklists, evidence, compliance, and corrective actions — built for multi-outlet crews.",
+    "login.heroBody":
+      "Checklists, evidence, compliance, and corrective actions — built for multi-outlet crews.",
     "login.heroBullet1": "Mobile-first task execution with offline cache",
     "login.heroBullet2": "Manager dashboards for compliance and CAPA",
     "login.heroBullet3": "Enterprise SSO and webhook integrations",
@@ -478,7 +484,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "mobileApp.title": "Mobile App Hub",
     "mobileApp.subtitle": "Capacitor Android/iOS shell, FCM push, deep links, and PWA install.",
     "mobileApp.androidTitle": "Android build",
-    "mobileApp.androidStep1": "Set CAPACITOR_ENV=production and run node scripts/prepare-capacitor.mjs",
+    "mobileApp.androidStep1":
+      "Set CAPACITOR_ENV=production and run node scripts/prepare-capacitor.mjs",
     "mobileApp.androidStep2": "Run npx cap sync android && npx cap open android",
     "mobileApp.androidStep3": "Add google-services.json from Firebase console",
     "mobileApp.iosTitle": "iOS build",
@@ -505,7 +512,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "iot.colRecorded": "Recorded",
     "iot.loading": "Loading readings...",
     "iot.empty": "No sensor readings yet.",
-    "iot.evaluateHint": "POST /api/v1/iot/evaluate checks temperature thresholds from workspace settings.",
+    "iot.evaluateHint":
+      "POST /api/v1/iot/evaluate checks temperature thresholds from workspace settings.",
     "training.eyebrow": "LMS",
     "training.title": "My Training",
     "training.subtitle": "Required modules for your role with completion tracking.",
@@ -530,7 +538,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "training.modulesList": "Published modules",
     "training.allRoles": "All roles",
     "training.delete": "Delete",
-    "training.executionWarning": "You have incomplete required training. Complete modules in Training before your next shift.",
+    "training.executionWarning":
+      "You have incomplete required training. Complete modules in Training before your next shift.",
     "training.executionBlocked": "Submit blocked — complete required training modules first.",
     "settings.ownerEyebrow": "Owner & Admin Control",
     "settings.ownerTitle": "Workspace Settings",
@@ -582,6 +591,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.accounts": "Akun",
     "navigation.users": "Pengguna",
     "navigation.settings": "Pengaturan",
+    "navigation.modules": "Lainnya",
     "section.enterprise": "Suite",
     "section.sop": "Eksekusi",
     "section.operations": "Operasional",
@@ -739,7 +749,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.library.items": "{count} item",
     "forms.manual.eyebrow": "Form Manual",
     "forms.manual.title": "My Form",
-    "forms.manual.subtitle": "Submit form outlet kapan saja untuk insiden, maintenance, atau kejadian lain.",
+    "forms.manual.subtitle":
+      "Submit form outlet kapan saja untuk insiden, maintenance, atau kejadian lain.",
     "forms.manual.offlineHint": "Mode offline — submit akan diantrekan untuk sinkronisasi.",
     "forms.manual.loading": "Memuat template form aktif...",
     "forms.manual.loadError": "Gagal memuat template form.",
@@ -804,7 +815,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.versionHistory": "Riwayat Versi",
     "forms.admin.versionHistoryTitle": "Riwayat Versi Template",
     "forms.admin.versionHistoryDescription": "Pulihkan snapshot template sebelumnya.",
-    "forms.admin.versionEmpty": "Belum ada versi tersimpan. Versi dibuat saat Anda menyimpan perubahan.",
+    "forms.admin.versionEmpty":
+      "Belum ada versi tersimpan. Versi dibuat saat Anda menyimpan perubahan.",
     "forms.admin.versionRestore": "Pulihkan",
     "forms.admin.versionRestoring": "Memulihkan...",
     "forms.admin.versionRestored": "Template dipulihkan dari versi {version}.",
@@ -831,7 +843,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.allTasks": "Semua task",
     "execution.eyebrow": "Eksekusi Task",
     "execution.noTemplate": "Belum ada template form",
-    "execution.noTemplateAssigned": "Task ini belum punya form checklist. Hubungi admin untuk tautkan template form.",
+    "execution.noTemplateAssigned":
+      "Task ini belum punya form checklist. Hubungi admin untuk tautkan template form.",
     "execution.localTemplateOnly":
       "Task ini memakai form draf yang belum dipublish ke server. Minta admin menautkan ulang template checklist yang sudah dipublish.",
     "execution.checklistPreviewFallback":
@@ -1022,7 +1035,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "mobileApp.title": "Mobile App Hub",
     "mobileApp.subtitle": "Shell Capacitor Android/iOS, FCM push, deep link, dan install PWA.",
     "mobileApp.androidTitle": "Build Android",
-    "mobileApp.androidStep1": "Set CAPACITOR_ENV=production lalu jalankan node scripts/prepare-capacitor.mjs",
+    "mobileApp.androidStep1":
+      "Set CAPACITOR_ENV=production lalu jalankan node scripts/prepare-capacitor.mjs",
     "mobileApp.androidStep2": "Jalankan npx cap sync android && npx cap open android",
     "mobileApp.androidStep3": "Tambahkan google-services.json dari Firebase console",
     "mobileApp.iosTitle": "Build iOS",
@@ -1049,7 +1063,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "iot.colRecorded": "Waktu",
     "iot.loading": "Memuat pembacaan...",
     "iot.empty": "Belum ada pembacaan sensor.",
-    "iot.evaluateHint": "POST /api/v1/iot/evaluate memeriksa ambang suhu dari pengaturan workspace.",
+    "iot.evaluateHint":
+      "POST /api/v1/iot/evaluate memeriksa ambang suhu dari pengaturan workspace.",
     "training.eyebrow": "LMS",
     "training.title": "Pelatihan Saya",
     "training.subtitle": "Modul wajib untuk role Anda dengan pelacakan penyelesaian.",
@@ -1074,8 +1089,10 @@ export const translations: Record<Language, Record<string, string>> = {
     "training.modulesList": "Modul aktif",
     "training.allRoles": "Semua role",
     "training.delete": "Hapus",
-    "training.executionWarning": "Anda punya pelatihan wajib yang belum selesai. Selesaikan di menu Training sebelum shift berikutnya.",
-    "training.executionBlocked": "Submit diblokir — selesaikan modul pelatihan wajib terlebih dahulu.",
+    "training.executionWarning":
+      "Anda punya pelatihan wajib yang belum selesai. Selesaikan di menu Training sebelum shift berikutnya.",
+    "training.executionBlocked":
+      "Submit diblokir — selesaikan modul pelatihan wajib terlebih dahulu.",
     "settings.ownerEyebrow": "Kontrol Owner & Admin",
     "settings.ownerTitle": "Pengaturan Workspace",
     "settings.ownerDescription":

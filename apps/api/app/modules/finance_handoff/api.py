@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from app.models.app_settings import AppSettings
 from app.models.form_field import FormField
 from app.models.form_submission import FormSubmission
 from app.models.form_template import FormTemplate
+from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.finance_handoff.schemas import (
     FinanceShiftDeposit,
@@ -21,6 +23,7 @@ from app.modules.finance_handoff.schemas import (
     FinanceSummary,
 )
 from app.modules.identity.dependencies import require_permission
+from app.modules.identity.models import Outlet as IdentityOutlet
 from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, FINANCE_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationChannel
@@ -35,6 +38,7 @@ FINANCE_DEPOSITS_KEY = "finance_shift_deposits"
 DISCREPANCY_THRESHOLD = 50000.0
 VALID_REVIEW_STATUS = {"approved", "rejected", "correction_requested", "pending_review"}
 FINANCE_TEMPLATE_TYPE = "finance_shift_deposit"
+logger = logging.getLogger(__name__)
 
 
 def _load_deposits(db: Session) -> list[dict]:
@@ -80,7 +84,7 @@ def _save_deposits(db: Session, items: list[dict]) -> None:
     else:
         row = AppSettings(key=FINANCE_DEPOSITS_KEY, payload=payload)
     db.add(row)
-    db.commit()
+    db.flush()
 
 
 def _finance_template_fields() -> list[dict]:
@@ -168,6 +172,17 @@ def ensure_finance_shift_template(db: Session, current_user: IdentityUser) -> Fo
     return template
 
 
+def _user_has_outlet_access(
+    user: IdentityUser,
+    identity_outlet: IdentityOutlet | None,
+) -> bool:
+    if identity_outlet is None:
+        return False
+    if user.outlet_id == identity_outlet.id:
+        return True
+    return any(outlet.id == identity_outlet.id for outlet in user.assigned_outlets)
+
+
 def _finance_recipients(db: Session, outlet_id: int | None) -> list[IdentityUser]:
     roles = db.scalars(
         select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE, FINANCE_ROLE, AREA_MANAGER_ROLE]))
@@ -184,6 +199,8 @@ def _finance_recipients(db: Session, outlet_id: int | None) -> list[IdentityUser
     for user in recipients:
         role_slug = user.role.slug if user.role else ""
         if role_slug == AREA_MANAGER_ROLE and not _area_manager_has_outlet_access(user, identity_outlet):
+            continue
+        if role_slug == FINANCE_ROLE and not _user_has_outlet_access(user, identity_outlet):
             continue
         scoped.append(user)
     return scoped
@@ -291,9 +308,22 @@ def create_finance_deposit_from_form_submission(
     submission: FormSubmission,
     template: FormTemplate | None,
     submitted_by_legacy_user_id: int,
+    submitted_by_identity_user: IdentityUser | None = None,
 ) -> FinanceShiftDeposit | None:
     if not template or template.form_type != FINANCE_TEMPLATE_TYPE:
         return None
+
+    items = _load_deposits(db)
+    existing = next(
+        (
+            FinanceShiftDeposit(**item)
+            for item in items
+            if item.get("form_submission_id") == submission.id
+        ),
+        None,
+    )
+    if existing:
+        return existing
 
     fields = {
         field.id: field.label.strip().lower()
@@ -314,10 +344,12 @@ def create_finance_deposit_from_form_submission(
     expected_cash = _as_float(values.get("expected cash"))
     actual_cash = _as_float(values.get("actual cash"))
     variance = round(actual_cash - expected_cash, 2)
+    outlet = db.get(Outlet, submission.outlet_id)
     deposit = FinanceShiftDeposit(
         id=uuid4().hex,
+        form_submission_id=submission.id,
         outlet_id=str(submission.outlet_id),
-        outlet_name=None,
+        outlet_name=outlet.name if outlet else None,
         business_date=values.get("business date") or datetime.now(timezone.utc).date().isoformat(),
         shift_name=values.get("shift name") or "midnight",
         department=values.get("department") or "bar",
@@ -335,31 +367,37 @@ def create_finance_deposit_from_form_submission(
         submitted_at=datetime.now(timezone.utc),
     )
 
-    identity_user = db.scalars(select(IdentityUser).where(IdentityUser.is_active.is_(True))).first()
-    if identity_user:
+    if submitted_by_identity_user:
         corrective_task_id = _create_corrective_task_if_needed(
             db,
             deposit=deposit,
-            current_user=identity_user,
+            current_user=submitted_by_identity_user,
             legacy_outlet_id=submission.outlet_id,
         )
         deposit.corrective_task_id = corrective_task_id
 
-    items = _load_deposits(db)
     items.append(deposit.model_dump(mode="json"))
     _save_deposits(db, items)
+    return deposit
+
+
+def notify_finance_deposit_submitted(
+    db: Session,
+    *,
+    deposit: FinanceShiftDeposit,
+    legacy_outlet_id: int | None,
+) -> None:
     _notify_finance(
         db,
         deposit=deposit,
-        legacy_outlet_id=submission.outlet_id,
+        legacy_outlet_id=legacy_outlet_id,
         event_type="finance_shift_deposit_submitted",
         subject=f"Setoran shift masuk: {deposit.department} {deposit.shift_name}",
         body=(
-            f"Setoran MyForm {deposit.business_date} masuk ke Finance. "
+            f"Setoran {deposit.business_date} masuk ke Finance. "
             f"Deposit {deposit.deposit_amount:,.0f}, variance {deposit.variance_amount:,.0f}."
         ),
     )
-    return deposit
 
 
 @router.get("/deposits", response_model=list[FinanceShiftDeposit])
@@ -411,19 +449,16 @@ def create_deposit(
     items = _load_deposits(db)
     items.append(deposit.model_dump(mode="json"))
     _save_deposits(db, items)
-
-    _notify_finance(
-        db,
-        deposit=deposit,
-        legacy_outlet_id=legacy_outlet_id,
-        event_type="finance_shift_deposit_submitted",
-        subject=f"Setoran shift masuk: {deposit.department} {deposit.shift_name}",
-        body=(
-            f"Setoran {deposit.business_date} masuk ke Finance. "
-            f"Deposit {deposit.deposit_amount:,.0f}, variance {deposit.variance_amount:,.0f}."
-        ),
-    )
     db.commit()
+
+    try:
+        notify_finance_deposit_submitted(
+            db,
+            deposit=deposit,
+            legacy_outlet_id=legacy_outlet_id,
+        )
+    except Exception:
+        logger.exception("Finance deposit %s was saved but notification delivery failed", deposit.id)
     return deposit
 
 
@@ -454,6 +489,7 @@ def review_deposit(
             deposit.reviewed_at = datetime.now(timezone.utc)
             items[index] = deposit.model_dump(mode="json")
             _save_deposits(db, items)
+            db.commit()
             return deposit
     raise HTTPException(status_code=404, detail="Finance deposit not found")
 

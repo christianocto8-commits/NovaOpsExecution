@@ -5,6 +5,7 @@ from time import perf_counter
 from sqlalchemy.orm import Session
 
 from app.models.scheduler_job_run import SchedulerJobRun
+from app.modules.announcements.service import AnnouncementService
 from app.modules.assets.api import process_registered_battery_alerts
 from app.modules.task_schedules.service import TaskScheduleService
 from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
@@ -34,6 +35,12 @@ class SchedulerJobService:
             "sensor_battery_alerts": self._run_and_record(
                 "sensor_battery_alerts",
                 lambda: process_registered_battery_alerts(self.db),
+            ),
+            "scheduled_announcements": self._run_and_record(
+                "scheduled_announcements",
+                lambda: {
+                    "published": AnnouncementService(self.db).publish_due(),
+                },
             ),
             "compliance_digest": self._run_and_record(
                 "compliance_digest",

@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.modules.identity.models import User as IdentityUser
 from app.modules.notifications.models import (
     NotificationChannel,
     NotificationDelivery,
@@ -129,17 +131,34 @@ class NotificationService:
         now = datetime.now(timezone.utc)
         is_in_app = payload.channel == NotificationChannel.in_app
 
-        delivery = NotificationDelivery(
-            event_id=event.id,
-            recipient_user_id=payload.recipient_user_id,
-            recipient_role_id=payload.recipient_role_id,
-            channel=payload.channel,
-            status=NotificationStatus.sent if is_in_app else NotificationStatus.pending,
-            subject=subject,
-            body=body,
-            sent_at=now if is_in_app else None,
-        )
-        self.delivery_repository.create(delivery)
+        recipient_user_ids = [payload.recipient_user_id] if payload.recipient_user_id else []
+        if payload.recipient_role_id and not recipient_user_ids:
+            recipient_user_ids = list(
+                self.db.scalars(
+                    select(IdentityUser.id).where(
+                        IdentityUser.role_id == payload.recipient_role_id,
+                        IdentityUser.is_active.is_(True),
+                    )
+                ).all()
+            )
+        if not recipient_user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Notification recipient is required",
+            )
+
+        for recipient_user_id in recipient_user_ids:
+            delivery = NotificationDelivery(
+                event_id=event.id,
+                recipient_user_id=recipient_user_id,
+                recipient_role_id=payload.recipient_role_id,
+                channel=payload.channel,
+                status=NotificationStatus.sent if is_in_app else NotificationStatus.pending,
+                subject=subject,
+                body=body,
+                sent_at=now if is_in_app else None,
+            )
+            self.delivery_repository.create(delivery)
 
         self.db.commit()
         self.db.refresh(event)
@@ -222,7 +241,6 @@ class NotificationService:
                     if not delivery.recipient_user_id:
                         raise ValueError("Email delivery missing recipient_user_id")
 
-                    from app.modules.identity.models import User as IdentityUser
                     from app.services.email_service import EmailService
 
                     recipient = self.db.get(IdentityUser, delivery.recipient_user_id)

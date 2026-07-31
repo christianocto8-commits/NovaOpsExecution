@@ -11,6 +11,7 @@ export type Announcement = {
   target_scope: AnnouncementTargetScope;
   target_ids: string[];
   requires_acknowledgment: boolean;
+  scheduled_at: string | null;
   published_at: string | null;
   expires_at: string | null;
   created_by_id: string | null;
@@ -29,10 +30,26 @@ export type AnnouncementCreatePayload = {
   target_scope?: AnnouncementTargetScope;
   target_ids?: string[];
   requires_acknowledgment?: boolean;
+  scheduled_at?: string | null;
   expires_at?: string | null;
 };
 
 export type AnnouncementUpdatePayload = Partial<AnnouncementCreatePayload>;
+
+export type AnnouncementRecipientPreview = {
+  recipient_count: number;
+  outlet_count: number;
+  recipients: string[];
+};
+
+export type AnnouncementAnalytics = {
+  announcement_id: string;
+  recipient_count: number;
+  notification_count: number;
+  read_count: number;
+  acknowledged_count: number;
+  pending_acknowledgment_count: number;
+};
 
 export const announcementService = {
   listAll() {
@@ -54,6 +71,13 @@ export const announcementService = {
     });
   },
 
+  previewRecipients(payload: Pick<AnnouncementCreatePayload, "target_scope" | "target_ids">) {
+    return api<AnnouncementRecipientPreview>("/api/v1/announcements/preview", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   update(id: string, payload: AnnouncementUpdatePayload) {
     return api<Announcement>(`/api/v1/announcements/${id}`, {
       method: "PUT",
@@ -67,6 +91,10 @@ export const announcementService = {
 
   publish(id: string) {
     return api<Announcement>(`/api/v1/announcements/${id}/publish`, { method: "POST" });
+  },
+
+  getAnalytics(id: string) {
+    return api<AnnouncementAnalytics>(`/api/v1/announcements/${id}/analytics`);
   },
 
   markRead(id: string) {
