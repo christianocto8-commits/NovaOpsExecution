@@ -125,22 +125,3 @@ export function logout() {
   localStorage.removeItem("outlet_id");
   localStorage.removeItem("novaops_workspace_context");
 }
-
-export function switchCrewLogout(returnUrl: string) {
-  if (typeof window === "undefined") return;
-
-  const workspaceContext = localStorage.getItem("novaops_workspace_context");
-  if (workspaceContext) {
-    localStorage.setItem("novaops_remember_outlet_context", workspaceContext);
-  }
-
-  clearAuthenticatedSession();
-  clearBrowserSessionCookie();
-  localStorage.removeItem("novaops_outlet_id");
-  localStorage.removeItem("current_outlet_id");
-  localStorage.removeItem("outlet_id");
-
-  const safeReturnUrl =
-    returnUrl.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : "/dashboard/operator";
-  window.location.href = `/login?returnUrl=${encodeURIComponent(safeReturnUrl)}&rememberOutlet=1`;
-}

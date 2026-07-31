@@ -12,7 +12,6 @@ import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
 import { CommandTrigger } from "@/shared/command-center/components/command-trigger";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
-import { QuickCrewSwitch } from "@/shared/navigation/components/quick-crew-switch";
 
 type DashboardHeaderProps = {
   workspace: CurrentWorkspace;
@@ -92,11 +91,6 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
             </>
           ) : null}
           <OfflineSyncBadge />
-          {workspace.mode === "outlet" ? (
-            <div className="hidden md:block">
-              <QuickCrewSwitch outletName={workspace.outletName} compact />
-            </div>
-          ) : null}
           <AnnouncementHeaderButton />
           <NotificationHeaderButton />
 

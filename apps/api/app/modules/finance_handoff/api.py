@@ -403,7 +403,7 @@ def notify_finance_deposit_submitted(
 @router.get("/deposits", response_model=list[FinanceShiftDeposit])
 def list_deposits(
     db: Session = Depends(get_db),
-    current_user: IdentityUser = Depends(require_permission("report.read")),
+    current_user: IdentityUser = Depends(require_permission("finance.read")),
 ):
     items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
     return [FinanceShiftDeposit(**item) for item in items]
@@ -422,7 +422,7 @@ def ensure_shift_template_endpoint(
 def create_deposit(
     payload: FinanceShiftDepositCreate,
     db: Session = Depends(get_db),
-    current_user: IdentityUser = Depends(require_permission("form.submit")),
+    current_user: IdentityUser = Depends(require_permission("finance.submit")),
 ):
     variance = round(payload.actual_cash - payload.expected_cash, 2)
     legacy_outlet_id: int | None = None
@@ -467,7 +467,7 @@ def review_deposit(
     deposit_id: str,
     payload: FinanceShiftDepositReview,
     db: Session = Depends(get_db),
-    current_user: IdentityUser = Depends(require_permission("report.export")),
+    current_user: IdentityUser = Depends(require_permission("finance.review")),
 ):
     status_value = payload.status.strip().lower()
     if status_value not in VALID_REVIEW_STATUS:
@@ -497,7 +497,7 @@ def review_deposit(
 @router.get("/summary", response_model=FinanceSummary)
 def get_summary(
     db: Session = Depends(get_db),
-    current_user: IdentityUser = Depends(require_permission("report.read")),
+    current_user: IdentityUser = Depends(require_permission("finance.read")),
 ):
     items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
     deposits = [FinanceShiftDeposit(**item) for item in items]

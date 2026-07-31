@@ -62,7 +62,7 @@ export default function OpsSuitePage() {
 
   async function saveItem() {
     if (!form.title.trim()) {
-      setError("Title wajib diisi.");
+      setError("Judul wajib diisi.");
       return;
     }
 
@@ -90,10 +90,10 @@ export default function OpsSuitePage() {
   return (
     <main className={mobileDashboardMainClass}>
       <div>
-        <p className="text-sm font-medium text-emerald-700">Crunchtime Suite</p>
-        <h1 className="text-2xl font-semibold text-slate-950">Ops Suite</h1>
+        <p className="text-sm font-medium text-emerald-700">Operasional Terpadu</p>
+        <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Ops Suite</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Inventory costing, labor, food labeling, procurement, onboarding, benchmarking, and integrations.
+          Kelola inventori, tenaga kerja, label makanan, pengadaan, onboarding, dan integrasi.
         </p>
       </div>
 
@@ -117,34 +117,201 @@ export default function OpsSuitePage() {
         ))}
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Create ops item</h2>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-semibold text-slate-950">Tambah Item Operasional</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.module} onChange={(event) => setForm((current) => ({ ...current, module: event.target.value as OpsSuiteModule }))}>
-            {modules.map((module) => <option key={module.id} value={module.id}>{module.label}</option>)}
+          <select
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            value={form.module}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, module: event.target.value as OpsSuiteModule }))
+            }
+          >
+            {modules.map((module) => (
+              <option key={module.id} value={module.id}>
+                {module.label}
+              </option>
+            ))}
           </select>
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2" placeholder="Title" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Outlet ID" value={form.outlet_id ?? ""} onChange={(event) => setForm((current) => ({ ...current, outlet_id: event.target.value || null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Qty" value={form.quantity ?? ""} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value ? Number(event.target.value) : null }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Unit" value={form.unit ?? ""} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value || null }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Supplier / partner" value={form.supplier ?? ""} onChange={(event) => setForm((current) => ({ ...current, supplier: event.target.value || null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Cost per unit" value={form.cost_per_unit ?? ""} onChange={(event) => setForm((current) => ({ ...current, cost_per_unit: event.target.value ? Number(event.target.value) : null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Actual cost" value={form.actual_cost ?? ""} onChange={(event) => setForm((current) => ({ ...current, actual_cost: event.target.value ? Number(event.target.value) : null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Forecast qty" value={form.forecast_quantity ?? ""} onChange={(event) => setForm((current) => ({ ...current, forecast_quantity: event.target.value ? Number(event.target.value) : null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Labor hours" value={form.labor_hours ?? ""} onChange={(event) => setForm((current) => ({ ...current, labor_hours: event.target.value ? Number(event.target.value) : null }))} />
-          <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Attendance" value={form.attendance_count ?? ""} onChange={(event) => setForm((current) => ({ ...current, attendance_count: event.target.value ? Number(event.target.value) : null }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Compliance rule" value={form.compliance_rule ?? ""} onChange={(event) => setForm((current) => ({ ...current, compliance_rule: event.target.value || null }))} />
-          <input type="datetime-local" className="rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2" value={form.due_at ?? ""} onChange={(event) => setForm((current) => ({ ...current, due_at: event.target.value || null }))} />
-          <button type="button" onClick={() => void saveItem()} disabled={isSaving} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">
-            {isSaving ? "Saving..." : "Save item"}
+          <input
+            className="min-h-11 rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2"
+            placeholder="Judul"
+            value={form.title}
+            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+          />
+          <input
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Outlet ID"
+            value={form.outlet_id ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, outlet_id: event.target.value || null }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Qty"
+            value={form.quantity ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                quantity: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Unit"
+            value={form.unit ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, unit: event.target.value || null }))
+            }
+          />
+          <input
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Supplier / partner"
+            value={form.supplier ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, supplier: event.target.value || null }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Cost per unit"
+            value={form.cost_per_unit ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                cost_per_unit: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Actual cost"
+            value={form.actual_cost ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                actual_cost: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Forecast qty"
+            value={form.forecast_quantity ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                forecast_quantity: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Labor hours"
+            value={form.labor_hours ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                labor_hours: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Attendance"
+            value={form.attendance_count ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                attendance_count: event.target.value ? Number(event.target.value) : null,
+              }))
+            }
+          />
+          <input
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Compliance rule"
+            value={form.compliance_rule ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, compliance_rule: event.target.value || null }))
+            }
+          />
+          <input
+            type="datetime-local"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2"
+            value={form.due_at ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, due_at: event.target.value || null }))
+            }
+          />
+          <button
+            type="button"
+            onClick={() => void saveItem()}
+            disabled={isSaving}
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+          >
+            {isSaving ? "Menyimpan..." : "Simpan Item"}
           </button>
         </div>
         {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Open controls</h2>
-        <div className="mt-4 overflow-x-auto">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-semibold text-slate-950">Item Operasional</h2>
+        <div className="mt-4 space-y-3 lg:hidden">
+          {items.length ? (
+            items.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-950">{item.title}</p>
+                    <p className="mt-1 text-xs uppercase text-slate-500">{item.module}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    {item.status}
+                  </span>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-500">Jumlah</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      {item.quantity ?? "-"} {item.unit ?? ""}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Biaya</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      {item.actual_cost ??
+                        (item.quantity && item.cost_per_unit
+                          ? item.quantity * item.cost_per_unit
+                          : "-")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Pemasok</dt>
+                    <dd className="mt-1 text-slate-700">{item.supplier ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Batas waktu</dt>
+                    <dd className="mt-1 text-slate-700">
+                      {item.due_at ? new Date(item.due_at).toLocaleString() : "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          ) : (
+            <p className="py-6 text-sm text-slate-500">Belum ada item operasional.</p>
+          )}
+        </div>
+        <div className="mt-4 hidden overflow-x-auto lg:block">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -164,12 +331,21 @@ export default function OpsSuitePage() {
                 <tr key={item.id} className="border-b border-slate-100">
                   <td className="px-3 py-3 font-semibold text-slate-900">{item.module}</td>
                   <td className="px-3 py-3 text-slate-700">{item.title}</td>
-                  <td className="px-3 py-3 text-slate-600">{item.quantity ?? "-"} {item.unit ?? ""}</td>
-                  <td className="px-3 py-3 text-slate-600">{item.actual_cost ?? (item.quantity && item.cost_per_unit ? item.quantity * item.cost_per_unit : "-")}</td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {item.quantity ?? "-"} {item.unit ?? ""}
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {item.actual_cost ??
+                      (item.quantity && item.cost_per_unit
+                        ? item.quantity * item.cost_per_unit
+                        : "-")}
+                  </td>
                   <td className="px-3 py-3 text-slate-600">{item.supplier ?? "-"}</td>
                   <td className="px-3 py-3 text-slate-600">{item.forecast_quantity ?? "-"}</td>
                   <td className="px-3 py-3 text-slate-600">{item.labor_hours ?? "-"}</td>
-                  <td className="px-3 py-3 text-slate-600">{item.due_at ? new Date(item.due_at).toLocaleString() : "-"}</td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {item.due_at ? new Date(item.due_at).toLocaleString() : "-"}
+                  </td>
                   <td className="px-3 py-3 text-slate-600">{item.status}</td>
                 </tr>
               ))}

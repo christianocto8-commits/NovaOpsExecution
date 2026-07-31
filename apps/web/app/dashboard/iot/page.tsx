@@ -4,15 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Edit2, Plus, Radio, Thermometer, WifiOff } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { listIotReadings, listIotSensorHealth } from "@/services/iot.service";
 import {
@@ -27,6 +19,7 @@ import {
 } from "@/services/asset.service";
 import { buildApiUrl } from "@/lib/api-url";
 import { useLanguage } from "@/shared/i18n";
+import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 
 function buildLast24hChart(readings: Awaited<ReturnType<typeof listIotReadings>>) {
   const now = Date.now();
@@ -224,7 +217,7 @@ export default function IotDashboardPage() {
   }
 
   return (
-    <main className="space-y-6 p-6">
+    <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">{t("iot.eyebrow")}</p>
         <h1 className="text-2xl font-semibold text-slate-950">{t("iot.title")}</h1>
@@ -239,57 +232,73 @@ export default function IotDashboardPage() {
           </div>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{readings.length}</p>
         </div>
-        <div className={`rounded-2xl border p-5 shadow-sm ${
-          alertSensors > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"
-        }`}>
+        <div
+          className={`rounded-2xl border p-5 shadow-sm ${
+            alertSensors > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"
+          }`}
+        >
           <div className="flex items-center gap-2 text-slate-600">
             <AlertTriangle className="size-4" />
-            <p className="text-sm">Sensor alerts</p>
+            <p className="text-sm">Peringatan sensor</p>
           </div>
-          <p className={`mt-2 text-3xl font-semibold ${alertSensors > 0 ? "text-red-700" : "text-emerald-700"}`}>
+          <p
+            className={`mt-2 text-3xl font-semibold ${alertSensors > 0 ? "text-red-700" : "text-emerald-700"}`}
+          >
             {alertSensors}
           </p>
         </div>
-        <div className={`rounded-2xl border p-5 shadow-sm ${
-          offlineSensors > 0 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"
-        }`}>
+        <div
+          className={`rounded-2xl border p-5 shadow-sm ${
+            offlineSensors > 0 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"
+          }`}
+        >
           <div className="flex items-center gap-2 text-slate-600">
             <WifiOff className="size-4" />
-            <p className="text-sm">Offline sensors</p>
+            <p className="text-sm">Sensor offline</p>
           </div>
-          <p className={`mt-2 text-3xl font-semibold ${offlineSensors > 0 ? "text-amber-700" : "text-slate-950"}`}>
+          <p
+            className={`mt-2 text-3xl font-semibold ${offlineSensors > 0 ? "text-amber-700" : "text-slate-950"}`}
+          >
             {offlineSensors}
           </p>
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Sensor health</h2>
+        <h2 className="text-lg font-semibold text-slate-950">Kondisi sensor</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {healthQuery.isLoading ? (
-            <p className="text-sm text-slate-500">Loading sensor health...</p>
+            <p className="text-sm text-slate-500">Memuat kondisi sensor...</p>
           ) : healthRows.length ? (
             healthRows.slice(0, 9).map((sensor) => (
-              <div key={`${sensor.outlet_id}-${sensor.sensor_type}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div
+                key={`${sensor.outlet_id}-${sensor.sensor_type}`}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-slate-950">{sensor.sensor_type}</p>
-                    <p className="mt-1 text-xs text-slate-500">Outlet {sensor.outlet_id.slice(0, 8)}...</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Outlet {sensor.outlet_id.slice(0, 8)}...
+                    </p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
-                    sensor.status === "alert"
-                      ? "bg-red-100 text-red-700"
-                      : sensor.status === "offline"
-                        ? "bg-amber-100 text-amber-700"
-                        : sensor.status === "stale"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-emerald-100 text-emerald-700"
-                  }`}>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
+                      sensor.status === "alert"
+                        ? "bg-red-100 text-red-700"
+                        : sensor.status === "offline"
+                          ? "bg-amber-100 text-amber-700"
+                          : sensor.status === "stale"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
                     {sensor.status}
                   </span>
                 </div>
                 <p className="mt-3 text-2xl font-bold text-slate-950">
-                  {sensor.latest_value ?? "-"}{sensor.unit ?? ""}
+                  {sensor.latest_value ?? "-"}
+                  {sensor.unit ?? ""}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">{sensor.message}</p>
                 {sensor.gateway_id ? (
@@ -297,7 +306,7 @@ export default function IotDashboardPage() {
                 ) : null}
                 {sensor.calibration_due_at ? (
                   <p className="mt-1 text-xs text-slate-500">
-                    Calibration due: {new Date(sensor.calibration_due_at).toLocaleDateString()}
+                    Kalibrasi: {new Date(sensor.calibration_due_at).toLocaleDateString()}
                   </p>
                 ) : null}
               </div>
@@ -311,9 +320,9 @@ export default function IotDashboardPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Equipment health</h2>
+            <h2 className="text-lg font-semibold text-slate-950">Kondisi peralatan</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {registerRows.length} registered assets, {equipmentRows.length} health rows.
+              {registerRows.length} aset terdaftar, {equipmentRows.length} data kondisi.
             </p>
           </div>
         </div>
@@ -340,23 +349,28 @@ export default function IotDashboardPage() {
                   <tr key={equipment.id} className="border-b border-slate-100">
                     <td className="px-3 py-3">
                       <p className="font-bold text-slate-950">{equipment.name}</p>
-                      <p className="text-xs text-slate-500">Outlet {equipment.outlet_id.slice(0, 8)}...</p>
+                      <p className="text-xs text-slate-500">
+                        Outlet {equipment.outlet_id.slice(0, 8)}...
+                      </p>
                     </td>
                     <td className="px-3 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
-                        equipment.status === "alert"
-                          ? "bg-red-100 text-red-700"
-                          : equipment.status === "offline"
-                            ? "bg-amber-100 text-amber-700"
-                            : equipment.status === "stale"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-emerald-100 text-emerald-700"
-                      }`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
+                          equipment.status === "alert"
+                            ? "bg-red-100 text-red-700"
+                            : equipment.status === "offline"
+                              ? "bg-amber-100 text-amber-700"
+                              : equipment.status === "stale"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
                         {equipment.status}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-slate-700">
-                      {equipment.latest_value ?? "-"}{equipment.unit ?? ""}
+                      {equipment.latest_value ?? "-"}
+                      {equipment.unit ?? ""}
                     </td>
                     <td className="px-3 py-3 text-slate-600">
                       {equipment.calibration_due_at
@@ -371,7 +385,9 @@ export default function IotDashboardPage() {
                         </span>
                       ) : null}
                       {equipment.battery_level != null ? (
-                        <p className="mt-1 text-xs text-slate-500">Battery {equipment.battery_level}%</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Battery {equipment.battery_level}%
+                        </p>
                       ) : null}
                     </td>
                   </tr>
@@ -408,62 +424,234 @@ export default function IotDashboardPage() {
         {assetFormOpen ? (
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Asset name" value={assetForm.name} onChange={(event) => setAssetForm((form) => ({ ...form, name: event.target.value }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Category" value={assetForm.category} onChange={(event) => setAssetForm((form) => ({ ...form, category: event.target.value }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Outlet ID" value={assetForm.outlet_id ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, outlet_id: event.target.value || null }))} />
-              <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.status} onChange={(event) => setAssetForm((form) => ({ ...form, status: event.target.value }))}>
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Asset name"
+                value={assetForm.name}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, name: event.target.value }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Category"
+                value={assetForm.category}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, category: event.target.value }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Outlet ID"
+                value={assetForm.outlet_id ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, outlet_id: event.target.value || null }))
+                }
+              />
+              <select
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={assetForm.status}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, status: event.target.value }))
+                }
+              >
                 <option value="active">Active</option>
                 <option value="maintenance">Maintenance</option>
                 <option value="disabled">Disabled</option>
               </select>
-              <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.lifecycle_status} onChange={(event) => setAssetForm((form) => ({ ...form, lifecycle_status: event.target.value }))}>
+              <select
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={assetForm.lifecycle_status}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, lifecycle_status: event.target.value }))
+                }
+              >
                 <option value="in_service">In service</option>
                 <option value="replacement_due">Replacement due</option>
                 <option value="replaced">Replaced</option>
                 <option value="retired">Retired</option>
               </select>
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Serial number" value={assetForm.serial_number ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, serial_number: event.target.value || null }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Vendor" value={assetForm.vendor ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, vendor: event.target.value || null }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Location" value={assetForm.location ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, location: event.target.value || null }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Gateway ID" value={assetForm.gateway_id ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, gateway_id: event.target.value || null }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Pairing code" value={assetForm.pairing_code ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, pairing_code: event.target.value || null }))} />
-              <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Battery %" value={assetForm.battery_level ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, battery_level: event.target.value ? Number(event.target.value) : null }))} />
-              <input type="number" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Battery alert threshold" value={assetForm.battery_alert_threshold ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, battery_alert_threshold: event.target.value ? Number(event.target.value) : null }))} />
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Replacement for asset ID" value={assetForm.replacement_for_id ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, replacement_for_id: event.target.value || null }))} />
-              <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.replacement_approval_status} onChange={(event) => setAssetForm((form) => ({ ...form, replacement_approval_status: event.target.value }))}>
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Serial number"
+                value={assetForm.serial_number ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, serial_number: event.target.value || null }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Vendor"
+                value={assetForm.vendor ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, vendor: event.target.value || null }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Location"
+                value={assetForm.location ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, location: event.target.value || null }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Gateway ID"
+                value={assetForm.gateway_id ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, gateway_id: event.target.value || null }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Pairing code"
+                value={assetForm.pairing_code ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, pairing_code: event.target.value || null }))
+                }
+              />
+              <input
+                type="number"
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Battery %"
+                value={assetForm.battery_level ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({
+                    ...form,
+                    battery_level: event.target.value ? Number(event.target.value) : null,
+                  }))
+                }
+              />
+              <input
+                type="number"
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Battery alert threshold"
+                value={assetForm.battery_alert_threshold ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({
+                    ...form,
+                    battery_alert_threshold: event.target.value ? Number(event.target.value) : null,
+                  }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Replacement for asset ID"
+                value={assetForm.replacement_for_id ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({
+                    ...form,
+                    replacement_for_id: event.target.value || null,
+                  }))
+                }
+              />
+              <select
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={assetForm.replacement_approval_status}
+                onChange={(event) =>
+                  setAssetForm((form) => ({
+                    ...form,
+                    replacement_approval_status: event.target.value,
+                  }))
+                }
+              >
                 <option value="not_requested">Replacement not requested</option>
                 <option value="pending">Replacement pending</option>
                 <option value="approved">Replacement approved</option>
                 <option value="rejected">Replacement rejected</option>
               </select>
-              <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={assetForm.calibration_status} onChange={(event) => setAssetForm((form) => ({ ...form, calibration_status: event.target.value }))}>
+              <select
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={assetForm.calibration_status}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, calibration_status: event.target.value }))
+                }
+              >
                 <option value="not_required">Calibration not required</option>
                 <option value="due">Calibration due</option>
                 <option value="pending_approval">Pending approval</option>
                 <option value="approved">Calibration approved</option>
               </select>
               <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                <input type="checkbox" checked={assetForm.sensor_enabled} onChange={(event) => setAssetForm((form) => ({ ...form, sensor_enabled: event.target.checked }))} />
+                <input
+                  type="checkbox"
+                  checked={assetForm.sensor_enabled}
+                  onChange={(event) =>
+                    setAssetForm((form) => ({ ...form, sensor_enabled: event.target.checked }))
+                  }
+                />
                 Sensor enabled
               </label>
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="QR code" value={assetForm.qr_code ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, qr_code: event.target.value || null }))} />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="QR code"
+                value={assetForm.qr_code ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, qr_code: event.target.value || null }))
+                }
+              />
               <label className="text-xs font-bold text-slate-500">
                 Gateway provisioned
-                <input type="date" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900" value={assetForm.gateway_provisioned_at ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, gateway_provisioned_at: event.target.value || null }))} />
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900"
+                  value={assetForm.gateway_provisioned_at ?? ""}
+                  onChange={(event) =>
+                    setAssetForm((form) => ({
+                      ...form,
+                      gateway_provisioned_at: event.target.value || null,
+                    }))
+                  }
+                />
               </label>
               <label className="text-xs font-bold text-slate-500">
                 Maintenance due
-                <input type="date" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900" value={assetForm.maintenance_due_at ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, maintenance_due_at: event.target.value || null }))} />
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900"
+                  value={assetForm.maintenance_due_at ?? ""}
+                  onChange={(event) =>
+                    setAssetForm((form) => ({
+                      ...form,
+                      maintenance_due_at: event.target.value || null,
+                    }))
+                  }
+                />
               </label>
               <label className="text-xs font-bold text-slate-500">
                 Calibration due
-                <input type="date" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900" value={assetForm.calibration_due_at ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, calibration_due_at: event.target.value || null }))} />
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-900"
+                  value={assetForm.calibration_due_at ?? ""}
+                  onChange={(event) =>
+                    setAssetForm((form) => ({
+                      ...form,
+                      calibration_due_at: event.target.value || null,
+                    }))
+                  }
+                />
               </label>
-              <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2" placeholder="Notes" value={assetForm.notes ?? ""} onChange={(event) => setAssetForm((form) => ({ ...form, notes: event.target.value || null }))} />
+              <input
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm xl:col-span-2"
+                placeholder="Notes"
+                value={assetForm.notes ?? ""}
+                onChange={(event) =>
+                  setAssetForm((form) => ({ ...form, notes: event.target.value || null }))
+                }
+              />
             </div>
-            {assetError ? <p className="mt-3 text-sm font-semibold text-red-600">{assetError}</p> : null}
+            {assetError ? (
+              <p className="mt-3 text-sm font-semibold text-red-600">{assetError}</p>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={() => void saveAsset()} disabled={isSavingAsset} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">
+              <button
+                type="button"
+                onClick={() => void saveAsset()}
+                disabled={isSavingAsset}
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+              >
                 {isSavingAsset ? "Saving..." : editingAssetId ? "Update asset" : "Create asset"}
               </button>
               {editingAssetId && assetForm.pairing_code ? (
@@ -476,7 +664,11 @@ export default function IotDashboardPage() {
                   Pair sensor
                 </button>
               ) : null}
-              <button type="button" onClick={resetAssetForm} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700">
+              <button
+                type="button"
+                onClick={resetAssetForm}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700"
+              >
                 Cancel
               </button>
             </div>
@@ -593,9 +785,13 @@ export default function IotDashboardPage() {
                       {row.unit ? ` ${row.unit}` : ""}
                     </td>
                     <td className="px-3 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
-                        row.status === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                      }`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
+                          row.status === "pass"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
                         {row.status}
                       </span>
                     </td>
@@ -604,8 +800,12 @@ export default function IotDashboardPage() {
                     </td>
                     <td className="px-3 py-3 text-slate-600">
                       {row.gateway_id ?? "-"}
-                      {row.gateway_status ? <p className="text-xs text-slate-500">{row.gateway_status}</p> : null}
-                      {row.battery_level != null ? <p className="text-xs text-slate-500">Battery {row.battery_level}%</p> : null}
+                      {row.gateway_status ? (
+                        <p className="text-xs text-slate-500">{row.gateway_status}</p>
+                      ) : null}
+                      {row.battery_level != null ? (
+                        <p className="text-xs text-slate-500">Battery {row.battery_level}%</p>
+                      ) : null}
                     </td>
                   </tr>
                 ))

@@ -15,6 +15,7 @@ import {
   type ExecutionSessionResponse,
 } from "@/services/execution-session.service";
 import { taskService } from "@/services/task.service";
+import { useAuth } from "@/hooks/useAuth";
 
 type DraftCenterMode = "operational" | "content";
 
@@ -41,11 +42,11 @@ type ContentDraft = {
 };
 
 function formatUpdatedAt(value: string | null | undefined) {
-  if (!value) return "Recently updated";
+  if (!value) return "Baru diperbarui";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "Recently updated";
+  if (Number.isNaN(date.getTime())) return "Baru diperbarui";
 
   return date.toLocaleString();
 }
@@ -113,10 +114,10 @@ function OperationalDraftCard({
           <span className="font-semibold text-slate-800">Form:</span> {draft.formName}
         </p>
         <p>
-          <span className="font-semibold text-slate-800">Operator:</span> {draft.operatorName}
+          <span className="font-semibold text-slate-800">Pelaksana:</span> {draft.operatorName}
         </p>
         <p>
-          <span className="font-semibold text-slate-800">Updated:</span> {draft.updatedAt}
+          <span className="font-semibold text-slate-800">Diperbarui:</span> {draft.updatedAt}
         </p>
       </div>
 
@@ -125,7 +126,7 @@ function OperationalDraftCard({
           href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
           className="flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
         >
-          Continue
+          Lanjutkan
         </Link>
 
         <button
@@ -133,7 +134,7 @@ function OperationalDraftCard({
           onClick={() => onDelete(draft)}
           className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
         >
-          Delete
+          Hapus
         </button>
       </div>
     </article>
@@ -192,7 +193,9 @@ function ContentDraftCard({
 export function DraftCenterWorkspace() {
   const confirm = useConfirmation();
   const toast = useToast();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
+  const canManageFormDrafts = can("form.create") || can("form.edit");
 
   const [mode, setMode] = useState<DraftCenterMode>("operational");
   const [search, setSearch] = useState("");
@@ -338,7 +341,7 @@ export function DraftCenterWorkspace() {
             <p className="text-sm font-medium text-emerald-700">Draft</p>
             <h1 className="text-2xl font-semibold text-slate-950">Draft</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              Continue saved task drafts and manage form drafts from one place.
+              Lanjutkan pengerjaan task yang belum selesai.
             </p>
           </div>
 
@@ -352,20 +355,22 @@ export function DraftCenterWorkspace() {
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              Task Drafts
+              Draft Task
             </button>
 
-            <button
-              type="button"
-              onClick={() => setMode("content")}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-                mode === "content"
-                  ? "bg-emerald-700 text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Form Drafts
-            </button>
+            {canManageFormDrafts ? (
+              <button
+                type="button"
+                onClick={() => setMode("content")}
+                className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                  mode === "content"
+                    ? "bg-emerald-700 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Draft Template
+              </button>
+            ) : null}
           </div>
         </div>
       </section>
@@ -376,8 +381,8 @@ export function DraftCenterWorkspace() {
           onChange={(event) => setSearch(event.target.value)}
           placeholder={
             mode === "operational"
-              ? "Search task drafts, outlets, operators, forms..."
-              : "Search form drafts..."
+              ? "Cari task, outlet, pelaksana, atau form..."
+              : "Cari draft template..."
           }
           className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-emerald-600 lg:max-w-xl"
         />
@@ -386,7 +391,7 @@ export function DraftCenterWorkspace() {
       {mode === "operational" ? (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl">
           <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
-            <h2 className="text-base font-bold text-slate-950">Task Drafts</h2>
+            <h2 className="text-base font-bold text-slate-950">Draft Task</h2>
             <p className="mt-1 text-sm text-slate-500">
               Draft pengerjaan task yang disimpan outlet saat belum sempat menyelesaikan semua item.
             </p>
@@ -395,7 +400,7 @@ export function DraftCenterWorkspace() {
           <div className="space-y-3 p-3 lg:hidden">
             {filteredOperationalDrafts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
-                No task drafts found yet.
+                Belum ada draft task.
               </div>
             ) : (
               filteredOperationalDrafts.map((draft) => (
@@ -444,14 +449,14 @@ export function DraftCenterWorkspace() {
                           href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
                           className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
                         >
-                          Continue
+                          Lanjutkan
                         </Link>
                         <button
                           type="button"
                           onClick={() => void handleDeleteOperationalDraft(draft)}
                           className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
                         >
-                          Delete
+                          Hapus
                         </button>
                       </div>
                     </td>
@@ -461,7 +466,7 @@ export function DraftCenterWorkspace() {
                 {filteredOperationalDrafts.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                      No task drafts found yet.
+                      Belum ada draft task.
                     </td>
                   </tr>
                 ) : null}
@@ -470,7 +475,7 @@ export function DraftCenterWorkspace() {
           </div>
 
           <div className="border-t border-slate-200 px-4 py-4 text-sm text-slate-500 sm:px-5">
-            Showing {filteredOperationalDrafts.length} task drafts
+            Menampilkan {filteredOperationalDrafts.length} draft task
           </div>
         </section>
       ) : (

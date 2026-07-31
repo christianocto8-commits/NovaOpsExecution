@@ -28,9 +28,18 @@ import { NotificationPreferencesPanel } from "@/features/settings/components/not
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { clearOfflineClientData } from "@/lib/offline/store";
 import { useConfirmation } from "@/shared/confirmation";
-import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput, EnterpriseSelect } from "@/shared/form";
+import {
+  EnterpriseCheckbox,
+  EnterpriseField,
+  EnterpriseInput,
+  EnterpriseSelect,
+} from "@/shared/form";
 import { Language, useLanguage } from "@/shared/i18n";
-import { getServerWorkspaceSnapshot, getWorkspaceSnapshot, subscribeWorkspace } from "@/shared/navigation";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { outletService } from "@/services/outlet.service";
 import { sendComplianceDigestNow } from "@/services/reports.service";
@@ -147,22 +156,30 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     workspace_name: settings?.workspace_name ?? defaults.workspace_name,
     timezone: settings?.timezone ?? defaults.timezone,
     default_language: settings?.default_language ?? defaults.default_language,
-    task_auto_archive_days: Number(settings?.task_auto_archive_days ?? defaults.task_auto_archive_days),
+    task_auto_archive_days: Number(
+      settings?.task_auto_archive_days ?? defaults.task_auto_archive_days
+    ),
     evidence_required: Boolean(settings?.evidence_required ?? defaults.evidence_required),
     approval_required: Boolean(settings?.approval_required ?? defaults.approval_required),
     email_notifications: Boolean(settings?.email_notifications ?? defaults.email_notifications),
     sms_notifications: Boolean(settings?.sms_notifications ?? defaults.sms_notifications),
     dashboard_alerts: Boolean(settings?.dashboard_alerts ?? defaults.dashboard_alerts),
     overdue_alerts: Boolean(settings?.overdue_alerts ?? defaults.overdue_alerts),
-    session_timeout_minutes: Number(settings?.session_timeout_minutes ?? defaults.session_timeout_minutes),
-    enforce_role_permissions: Boolean(settings?.enforce_role_permissions ?? defaults.enforce_role_permissions),
+    session_timeout_minutes: Number(
+      settings?.session_timeout_minutes ?? defaults.session_timeout_minutes
+    ),
+    enforce_role_permissions: Boolean(
+      settings?.enforce_role_permissions ?? defaults.enforce_role_permissions
+    ),
     default_task_due_time: settings?.default_task_due_time ?? defaults.default_task_due_time,
     daily_reminder_window: settings?.daily_reminder_window ?? defaults.daily_reminder_window,
     pass_threshold: Number(settings?.pass_threshold ?? defaults.pass_threshold),
     auto_corrective_action: Boolean(
       settings?.auto_corrective_action ?? defaults.auto_corrective_action
     ),
-    corrective_action_sla_hours: Number(settings?.corrective_action_sla_hours ?? defaults.corrective_action_sla_hours),
+    corrective_action_sla_hours: Number(
+      settings?.corrective_action_sla_hours ?? defaults.corrective_action_sla_hours
+    ),
     photo_required_by_default: Boolean(
       settings?.photo_required_by_default ?? defaults.photo_required_by_default
     ),
@@ -179,7 +196,9 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     scheduled_report_audience:
       settings?.scheduled_report_audience ?? defaults.scheduled_report_audience,
     two_factor_required: Boolean(settings?.two_factor_required ?? defaults.two_factor_required),
-    password_rotation_days: Number(settings?.password_rotation_days ?? defaults.password_rotation_days),
+    password_rotation_days: Number(
+      settings?.password_rotation_days ?? defaults.password_rotation_days
+    ),
     webhook_enabled: Boolean(settings?.webhook_enabled ?? defaults.webhook_enabled),
     auto_workflow_on_checklist_fail: Boolean(
       settings?.auto_workflow_on_checklist_fail ?? defaults.auto_workflow_on_checklist_fail
@@ -287,12 +306,17 @@ function BulkImportPanel({ onNotice }: { onNotice: (message: string) => void }) 
   );
 }
 
-function OutletLocationPanel({
-  onNotice,
-}: {
-  onNotice: (message: string) => void;
-}) {
-  const [outlets, setOutlets] = useState<Array<{ id: number; name: string; region: string | null; district: string | null; latitude: number | null; longitude: number | null }>>([]);
+function OutletLocationPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const [outlets, setOutlets] = useState<
+    Array<{
+      id: number;
+      name: string;
+      region: string | null;
+      district: string | null;
+      latitude: number | null;
+      longitude: number | null;
+    }>
+  >([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | "">("");
   const [region, setRegion] = useState("");
   const [district, setDistrict] = useState("");
@@ -376,8 +400,8 @@ function OutletLocationPanel({
   return (
     <SectionCard title="Outlet Geolocation & Hierarchy">
       <p className="mb-4 text-sm text-slate-500">
-        Atur region dan district outlet untuk filter compliance, serta koordinat pusat untuk validasi
-        geofence saat submit task.
+        Atur region dan district outlet untuk filter compliance, serta koordinat pusat untuk
+        validasi geofence saat submit task.
       </p>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <EnterpriseField label="Outlet">
@@ -410,7 +434,10 @@ function OutletLocationPanel({
           <EnterpriseInput value={latitude} onChange={(event) => setLatitude(event.target.value)} />
         </EnterpriseField>
         <EnterpriseField label="Longitude">
-          <EnterpriseInput value={longitude} onChange={(event) => setLongitude(event.target.value)} />
+          <EnterpriseInput
+            value={longitude}
+            onChange={(event) => setLongitude(event.target.value)}
+          />
         </EnterpriseField>
       </div>
       <button
@@ -505,9 +532,12 @@ function LoginDevicesPanel({ onNotice }: { onNotice: (message: string) => void }
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  IP {device.ip_address ?? "-"} • Terakhir aktif {formatSessionDate(device.last_seen_at)}
+                  IP {device.ip_address ?? "-"} • Terakhir aktif{" "}
+                  {formatSessionDate(device.last_seen_at)}
                 </p>
-                <p className="mt-1 truncate text-xs text-slate-400">{device.user_agent ?? "Unknown user agent"}</p>
+                <p className="mt-1 truncate text-xs text-slate-400">
+                  {device.user_agent ?? "Unknown user agent"}
+                </p>
               </div>
               <button
                 type="button"
@@ -574,9 +604,7 @@ function AdminLoginDevicesPanel({ onNotice }: { onNotice: (message: string) => v
       setRevokingId(device.id);
       await revokeAnyLoginDevice(device.id);
       setDevices((current) => current.filter((item) => item.id !== device.id));
-      onNotice(
-        `${device.device_label} milik ${device.user_email ?? "user"} berhasil dieliminasi.`
-      );
+      onNotice(`${device.device_label} milik ${device.user_email ?? "user"} berhasil dieliminasi.`);
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Gagal mengeliminasi perangkat user.");
     } finally {
@@ -631,9 +659,12 @@ function AdminLoginDevicesPanel({ onNotice }: { onNotice: (message: string) => v
                   {device.device_label} • {device.user_email ?? "-"}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  IP {device.ip_address ?? "-"} • Terakhir aktif {formatSessionDate(device.last_seen_at)}
+                  IP {device.ip_address ?? "-"} • Terakhir aktif{" "}
+                  {formatSessionDate(device.last_seen_at)}
                 </p>
-                <p className="mt-1 truncate text-xs text-slate-400">{device.user_agent ?? "Unknown user agent"}</p>
+                <p className="mt-1 truncate text-xs text-slate-400">
+                  {device.user_agent ?? "Unknown user agent"}
+                </p>
               </div>
               <button
                 type="button"
@@ -709,7 +740,10 @@ function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => vo
   }
 
   function isRoleDirty(role: IdentityRole) {
-    const original = role.permissions.map((permission) => permission.code).sort().join("|");
+    const original = role.permissions
+      .map((permission) => permission.code)
+      .sort()
+      .join("|");
     const draft = (draftPermissions[role.id] ?? []).slice().sort().join("|");
 
     return original !== draft;
@@ -758,7 +792,9 @@ function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => vo
                 <tr>
                   <th className="sticky left-0 bg-slate-50 px-4 py-3">Permission</th>
                   {roles.map((role) => (
-                    <th key={role.id} className="px-4 py-3">{role.name}</th>
+                    <th key={role.id} className="px-4 py-3">
+                      {role.name}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -831,13 +867,7 @@ function PermissionMatrixPanel({ onNotice }: { onNotice: (message: string) => vo
   );
 }
 
-function RoleAccessSection({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
+function RoleAccessSection({ title, items }: { title: string; items: string[] }) {
   return (
     <SectionCard title={title}>
       <div className="space-y-2 text-sm text-slate-600">
@@ -1013,21 +1043,32 @@ function OutletSettingsWorkspace({
   return (
     <main className={mobileDashboardMainClass}>
       <div>
-        <p className="text-sm font-medium text-emerald-700">{t("settings.outletWorkspaceEyebrow")}</p>
-        <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">{t("settings.outletWorkspaceTitle")}</h1>
+        <p className="text-sm font-medium text-emerald-700">
+          {t("settings.outletWorkspaceEyebrow")}
+        </p>
+        <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">
+          {t("settings.outletWorkspaceTitle")}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          {t("settings.outletWorkspaceDescription").replace(
-            "{outlet}",
-            outletName ?? "outlet ini"
-          )}
+          {t("settings.outletWorkspaceDescription").replace("{outlet}", outletName ?? "outlet ini")}
         </p>
       </div>
-      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {notice}
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <MetricCard label="Role" value="Outlet" />
         <MetricCard label="Submit" value="Auto complete" />
-        <MetricCard label="Evidence" value={settings?.evidence_required ? "Required" : "Optional"} />
-        <MetricCard label="Upload" value={`${settings?.max_upload_mb ?? defaults.max_upload_mb} MB`} />
+        <MetricCard
+          label="Evidence"
+          value={settings?.evidence_required ? "Required" : "Optional"}
+        />
+        <MetricCard
+          label="Upload"
+          value={`${settings?.max_upload_mb ?? defaults.max_upload_mb} MB`}
+        />
       </div>
       <RoleAccessSection
         title="Akses Outlet"
@@ -1049,9 +1090,33 @@ function OutletSettingsWorkspace({
       />
       <SectionCard title="Ringkasan Kebijakan Kerja">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <ActionCard title="Bukti foto" description="Ketentuan bukti pada task outlet." action={<span className="text-sm font-semibold text-slate-900">{settings?.photo_required_by_default ? "Wajib" : "Opsional"}</span>} />
-          <ActionCard title="Reminder task" description="Alarm keterlambatan untuk outlet." action={<span className="text-sm font-semibold text-slate-900">{settings?.overdue_alerts ? "Aktif" : "Mati"}</span>} />
-          <ActionCard title="Bahasa workspace" description="Bahasa default workspace saat ini." action={<span className="text-sm font-semibold text-slate-900">{settings?.default_language === "en" ? "English" : "Indonesia"}</span>} />
+          <ActionCard
+            title="Bukti foto"
+            description="Ketentuan bukti pada task outlet."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.photo_required_by_default ? "Wajib" : "Opsional"}
+              </span>
+            }
+          />
+          <ActionCard
+            title="Reminder task"
+            description="Alarm keterlambatan untuk outlet."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.overdue_alerts ? "Aktif" : "Mati"}
+              </span>
+            }
+          />
+          <ActionCard
+            title="Bahasa workspace"
+            description="Bahasa default workspace saat ini."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.default_language === "en" ? "English" : "Indonesia"}
+              </span>
+            }
+          />
         </div>
       </SectionCard>
       <PasswordPanel
@@ -1081,12 +1146,25 @@ function AreaManagerSettingsWorkspace({
         <h1 className="text-2xl font-semibold text-slate-950">{t("settings.areaTitle")}</h1>
         <p className="mt-1 text-sm text-slate-500">{t("settings.areaDescription")}</p>
       </div>
-      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {notice}
+        </div>
+      ) : null}
       <div className="grid gap-4 xl:grid-cols-4">
         <MetricCard label="Role" value="Area Manager" />
-        <MetricCard label="Digest" value={settings?.digest_frequency ?? defaults.digest_frequency} />
-        <MetricCard label="SLA temuan" value={`${settings?.corrective_action_sla_hours ?? defaults.corrective_action_sla_hours} jam`} />
-        <MetricCard label="Pass score" value={`${settings?.pass_threshold ?? defaults.pass_threshold}%`} />
+        <MetricCard
+          label="Digest"
+          value={settings?.digest_frequency ?? defaults.digest_frequency}
+        />
+        <MetricCard
+          label="SLA temuan"
+          value={`${settings?.corrective_action_sla_hours ?? defaults.corrective_action_sla_hours} jam`}
+        />
+        <MetricCard
+          label="Pass score"
+          value={`${settings?.pass_threshold ?? defaults.pass_threshold}%`}
+        />
       </div>
       <RoleAccessSection
         title="Akses Area Manager"
@@ -1108,9 +1186,33 @@ function AreaManagerSettingsWorkspace({
       />
       <SectionCard title="Ringkasan Operasional Area">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <ActionCard title="Alert dashboard" description="Status alert untuk area manager." action={<span className="text-sm font-semibold text-slate-900">{settings?.dashboard_alerts ? "Aktif" : "Mati"}</span>} />
-          <ActionCard title="Overdue alerts" description="Peringatan keterlambatan task di area." action={<span className="text-sm font-semibold text-slate-900">{settings?.overdue_alerts ? "Aktif" : "Mati"}</span>} />
-          <ActionCard title="Grouping outlet" description="Pengelompokan outlet di dashboard." action={<span className="text-sm font-semibold text-slate-900">{settings?.outlet_grouping ?? defaults.outlet_grouping}</span>} />
+          <ActionCard
+            title="Alert dashboard"
+            description="Status alert untuk area manager."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.dashboard_alerts ? "Aktif" : "Mati"}
+              </span>
+            }
+          />
+          <ActionCard
+            title="Overdue alerts"
+            description="Peringatan keterlambatan task di area."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.overdue_alerts ? "Aktif" : "Mati"}
+              </span>
+            }
+          />
+          <ActionCard
+            title="Grouping outlet"
+            description="Pengelompokan outlet di dashboard."
+            action={
+              <span className="text-sm font-semibold text-slate-900">
+                {settings?.outlet_grouping ?? defaults.outlet_grouping}
+              </span>
+            }
+          />
         </div>
       </SectionCard>
       <PasswordPanel
@@ -1124,7 +1226,11 @@ function AreaManagerSettingsWorkspace({
 
 export function SettingsWorkspace() {
   const { setLanguage, t } = useLanguage();
-  const workspace = useSyncExternalStore(subscribeWorkspace, getWorkspaceSnapshot, getServerWorkspaceSnapshot);
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
   const { settings, isLoading, error, reload, saveSettings, saveError, isSaving } = useSettings();
   const [state, setState] = useState<OwnerAdminState>(defaults);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1159,9 +1265,7 @@ export function SettingsWorkspace() {
       await reload();
       setNotice("Pengaturan admin berhasil disimpan.");
     } catch (saveFailure) {
-      setNotice(
-        saveFailure instanceof Error ? saveFailure.message : "Gagal menyimpan pengaturan."
-      );
+      setNotice(saveFailure instanceof Error ? saveFailure.message : "Gagal menyimpan pengaturan.");
     }
   }
 
@@ -1175,7 +1279,9 @@ export function SettingsWorkspace() {
           : `Compliance digest tidak terkirim: ${result.reason}.`
       );
     } catch (sendFailure) {
-      setNotice(sendFailure instanceof Error ? sendFailure.message : "Gagal mengirim compliance digest.");
+      setNotice(
+        sendFailure instanceof Error ? sendFailure.message : "Gagal mengirim compliance digest."
+      );
     } finally {
       setIsSendingDigest(false);
     }
@@ -1231,9 +1337,21 @@ export function SettingsWorkspace() {
         </button>
       </div>
 
-      {error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
-      {saveError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{saveError}</div> : null}
-      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div> : null}
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+      {saveError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {saveError}
+        </div>
+      ) : null}
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {notice}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-4">
         {summaryCards.map((card) => (
@@ -1265,404 +1383,503 @@ export function SettingsWorkspace() {
       </div>
 
       {settingsTab === "org" ? (
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="General Workspace">
-          <div className="grid gap-5 md:grid-cols-2">
-            <EnterpriseField label="Organization">
-              <EnterpriseInput
-                value={state.organization_name}
-                onChange={(event) => update("organization_name", event.target.value)}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Workspace">
-              <EnterpriseInput
-                value={state.workspace_name}
-                onChange={(event) => update("workspace_name", event.target.value)}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Timezone">
-              <EnterpriseSelect
-                value={state.timezone}
-                onChange={(event) => update("timezone", event.target.value)}
-              >
-                <option value="Asia/Jakarta">Asia/Jakarta</option>
-                <option value="Asia/Makassar">Asia/Makassar</option>
-                <option value="Asia/Jayapura">Asia/Jayapura</option>
-                <option value="UTC">UTC</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Language">
-              <EnterpriseSelect
-                value={state.default_language}
-                onChange={(event) => update("default_language", event.target.value)}
-              >
-                <option value="id">Indonesia</option>
-                <option value="en">English</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Outlet grouping">
-              <EnterpriseSelect
-                value={state.outlet_grouping}
-                onChange={(event) => update("outlet_grouping", event.target.value)}
-              >
-                <option value="region">Region</option>
-                <option value="city">City</option>
-                <option value="brand">Brand</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Default user role">
-              <EnterpriseSelect
-                value={state.default_user_role}
-                onChange={(event) => update("default_user_role", event.target.value)}
-              >
-                <option value="outlet_manager">Outlet Manager</option>
-                <option value="staff">Staff</option>
-                <option value="area_manager">Area Manager</option>
-                <option value="admin">Admin</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Brand logo URL">
-              <EnterpriseInput
-                value={state.brand_logo_url}
-                onChange={(event) => update("brand_logo_url", event.target.value)}
-                placeholder="https://cdn.example.com/logo.png"
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Login Background Image">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      localStorage.setItem("novaops_login_bg_url", reader.result as string);
-                      setNotice("Latar belakang berhasil diperbarui.");
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Brand primary color">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      localStorage.setItem("novaops_login_bg_url", reader.result as string);
-                      setNotice("Latar belakang berhasil diperbarui.");
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Brand primary color">
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={state.brand_primary_color}
-                  onChange={(event) => update("brand_primary_color", event.target.value)}
-                  className="h-11 w-16 cursor-pointer rounded-xl border border-slate-200 bg-white"
-                />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionCard title="General Workspace">
+            <div className="grid gap-5 md:grid-cols-2">
+              <EnterpriseField label="Organization">
                 <EnterpriseInput
-                  value={state.brand_primary_color}
-                  onChange={(event) => update("brand_primary_color", event.target.value)}
-                  placeholder="#047857"
+                  value={state.organization_name}
+                  onChange={(event) => update("organization_name", event.target.value)}
                 />
-              </div>
-            </EnterpriseField>
-          </div>
-        </SectionCard>
+              </EnterpriseField>
+              <EnterpriseField label="Workspace">
+                <EnterpriseInput
+                  value={state.workspace_name}
+                  onChange={(event) => update("workspace_name", event.target.value)}
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Timezone">
+                <EnterpriseSelect
+                  value={state.timezone}
+                  onChange={(event) => update("timezone", event.target.value)}
+                >
+                  <option value="Asia/Jakarta">Asia/Jakarta</option>
+                  <option value="Asia/Makassar">Asia/Makassar</option>
+                  <option value="Asia/Jayapura">Asia/Jayapura</option>
+                  <option value="UTC">UTC</option>
+                </EnterpriseSelect>
+              </EnterpriseField>
+              <EnterpriseField label="Bahasa">
+                <EnterpriseSelect
+                  value={state.default_language}
+                  onChange={(event) => update("default_language", event.target.value)}
+                >
+                  <option value="id">Indonesia</option>
+                  <option value="en">English</option>
+                </EnterpriseSelect>
+              </EnterpriseField>
+              <EnterpriseField label="Pengelompokan outlet">
+                <EnterpriseSelect
+                  value={state.outlet_grouping}
+                  onChange={(event) => update("outlet_grouping", event.target.value)}
+                >
+                  <option value="region">Region</option>
+                  <option value="city">City</option>
+                  <option value="brand">Brand</option>
+                </EnterpriseSelect>
+              </EnterpriseField>
+              <EnterpriseField label="Role pengguna default">
+                <EnterpriseSelect
+                  value={state.default_user_role}
+                  onChange={(event) => update("default_user_role", event.target.value)}
+                >
+                  <option value="outlet_manager">Outlet Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="area_manager">Area Manager</option>
+                  <option value="admin">Admin</option>
+                </EnterpriseSelect>
+              </EnterpriseField>
+              <EnterpriseField label="URL logo brand">
+                <EnterpriseInput
+                  value={state.brand_logo_url}
+                  onChange={(event) => update("brand_logo_url", event.target.value)}
+                  placeholder="https://cdn.example.com/logo.png"
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Gambar latar login">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        localStorage.setItem("novaops_login_bg_url", reader.result as string);
+                        setNotice("Latar belakang berhasil diperbarui.");
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Brand primary color">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={state.brand_primary_color}
+                    onChange={(event) => update("brand_primary_color", event.target.value)}
+                    className="h-11 w-16 cursor-pointer rounded-xl border border-slate-200 bg-white"
+                  />
+                  <EnterpriseInput
+                    value={state.brand_primary_color}
+                    onChange={(event) => update("brand_primary_color", event.target.value)}
+                    placeholder="#047857"
+                  />
+                </div>
+              </EnterpriseField>
+            </div>
+          </SectionCard>
 
-        <SectionCard title="Task & SOP Policy">
-          <div className="grid gap-5 md:grid-cols-2">
-            <EnterpriseField label="Auto archive days">
-              <EnterpriseInput
-                type="number"
-                value={state.task_auto_archive_days}
-                onChange={(event) => update("task_auto_archive_days", Number(event.target.value || 0))}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Default due time">
-              <EnterpriseInput
-                type="time"
-                value={state.default_task_due_time}
-                onChange={(event) => update("default_task_due_time", event.target.value)}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Reminder window">
-              <EnterpriseInput
-                type="time"
-                value={state.daily_reminder_window}
-                onChange={(event) => update("daily_reminder_window", event.target.value)}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Pass threshold">
-              <EnterpriseInput
-                type="number"
-                value={state.pass_threshold}
-                onChange={(event) => update("pass_threshold", Number(event.target.value || 0))}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Corrective action SLA (hours)">
-              <EnterpriseInput
-                type="number"
-                value={state.corrective_action_sla_hours}
-                onChange={(event) =>
-                  update("corrective_action_sla_hours", Number(event.target.value || 0))
+          <SectionCard title="Kebijakan Task & SOP">
+            <div className="grid gap-5 md:grid-cols-2">
+              <EnterpriseField label="Auto archive days">
+                <EnterpriseInput
+                  type="number"
+                  value={state.task_auto_archive_days}
+                  onChange={(event) =>
+                    update("task_auto_archive_days", Number(event.target.value || 0))
+                  }
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Default due time">
+                <EnterpriseInput
+                  type="time"
+                  value={state.default_task_due_time}
+                  onChange={(event) => update("default_task_due_time", event.target.value)}
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Reminder window">
+                <EnterpriseInput
+                  type="time"
+                  value={state.daily_reminder_window}
+                  onChange={(event) => update("daily_reminder_window", event.target.value)}
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Pass threshold">
+                <EnterpriseInput
+                  type="number"
+                  value={state.pass_threshold}
+                  onChange={(event) => update("pass_threshold", Number(event.target.value || 0))}
+                />
+              </EnterpriseField>
+              <EnterpriseField label="Corrective action SLA (hours)">
+                <EnterpriseInput
+                  type="number"
+                  value={state.corrective_action_sla_hours}
+                  onChange={(event) =>
+                    update("corrective_action_sla_hours", Number(event.target.value || 0))
+                  }
+                />
+              </EnterpriseField>
+              <ActionCard
+                title="Auto corrective action (CAPA)"
+                description="ON: task perbaikan otomatis saat checklist gagal. OFF: menu CAPA disembunyikan dan tidak ada CAPA baru."
+                action={
+                  <EnterpriseCheckbox
+                    checked={state.auto_corrective_action}
+                    onChange={(event) => update("auto_corrective_action", event.target.checked)}
+                  />
                 }
               />
-            </EnterpriseField>
-            <ActionCard
-              title="Auto corrective action (CAPA)"
-              description="ON: task perbaikan otomatis saat checklist gagal. OFF: menu CAPA disembunyikan dan tidak ada CAPA baru."
-              action={
-                <EnterpriseCheckbox
-                  checked={state.auto_corrective_action}
-                  onChange={(event) => update("auto_corrective_action", event.target.checked)}
+              <EnterpriseField label="Max upload (MB)">
+                <EnterpriseInput
+                  type="number"
+                  value={state.max_upload_mb}
+                  onChange={(event) => update("max_upload_mb", Number(event.target.value || 0))}
                 />
-              }
-            />
-            <EnterpriseField label="Max upload (MB)">
-              <EnterpriseInput
-                type="number"
-                value={state.max_upload_mb}
-                onChange={(event) => update("max_upload_mb", Number(event.target.value || 0))}
-              />
-            </EnterpriseField>
-          </div>
-        </SectionCard>
-      </div>
+              </EnterpriseField>
+            </div>
+          </SectionCard>
+        </div>
       ) : null}
 
       {settingsTab === "operations" ? (
-      <>
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Execution Controls">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ActionCard title="Evidence required" description="Task wajib membawa evidence." action={<EnterpriseCheckbox checked={state.evidence_required} onChange={(event) => update("evidence_required", event.target.checked)} />} />
-            <ActionCard title="Photo required by default" description="Submit task outlet wajib sertakan bukti foto." action={<EnterpriseCheckbox checked={state.photo_required_by_default} onChange={(event) => update("photo_required_by_default", event.target.checked)} />} />
-            <ActionCard title="Timestamp watermark" description="Tambahkan cap waktu pada foto evidence sebelum upload." action={<EnterpriseCheckbox checked={state.timestamp_watermark} onChange={(event) => update("timestamp_watermark", event.target.checked)} />} />
-            <ActionCard title="GPS on evidence" description="Simpan koordinat GPS pada metadata evidence (permission browser diperlukan)." action={<EnterpriseCheckbox checked={state.gps_watermark} onChange={(event) => update("gps_watermark", event.target.checked)} />} />
-            <ActionCard title="Geofence enforcement" description="Wajibkan crew berada di radius outlet saat submit checklist." action={<EnterpriseCheckbox checked={state.geofence_enabled} onChange={(event) => update("geofence_enabled", event.target.checked)} />} />
-            <ActionCard title="IoT auto-fail checklist" description="Gagalkan checklist jika probe suhu terakhir di luar ambang cold chain." action={<EnterpriseCheckbox checked={state.iot_auto_fail_enabled} onChange={(event) => update("iot_auto_fail_enabled", event.target.checked)} />} />
-            <EnterpriseField label="IoT temp min (°C)">
-              <EnterpriseInput
-                type="number"
-                value={state.iot_temp_min_c}
-                onChange={(event) => update("iot_temp_min_c", Number(event.target.value || 0))}
-                disabled={!state.iot_auto_fail_enabled}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="IoT temp max (°C)">
-              <EnterpriseInput
-                type="number"
-                value={state.iot_temp_max_c}
-                onChange={(event) => update("iot_temp_max_c", Number(event.target.value || 0))}
-                disabled={!state.iot_auto_fail_enabled}
-              />
-            </EnterpriseField>
-            <ActionCard title="LMS training gate" description="Blokir submit task sampai modul pelatihan wajib selesai." action={<EnterpriseCheckbox checked={state.lms_training_gate_enabled} onChange={(event) => update("lms_training_gate_enabled", event.target.checked)} />} />
-            <EnterpriseField label="Geofence radius (meters)">
-              <EnterpriseInput
-                type="number"
-                value={state.geofence_radius_meters}
-                onChange={(event) =>
-                  update("geofence_radius_meters", Number(event.target.value || 0))
-                }
-                disabled={!state.geofence_enabled}
-              />
-            </EnterpriseField>
-            <EnterpriseField label="Session timeout">
-              <EnterpriseSelect
-                value={String(state.session_timeout_minutes)}
-                onChange={(event) => update("session_timeout_minutes", Number(event.target.value))}
-              >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <ActionCard title="Enforce role permissions" description="Beda akses owner, area manager, dan outlet tetap dijaga." action={<EnterpriseCheckbox checked={state.enforce_role_permissions} onChange={(event) => update("enforce_role_permissions", event.target.checked)} />} />
+        <>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <SectionCard title="Kontrol Pengerjaan">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ActionCard
+                  title="Evidence required"
+                  description="Task wajib membawa evidence."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.evidence_required}
+                      onChange={(event) => update("evidence_required", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="Photo required by default"
+                  description="Submit task outlet wajib sertakan bukti foto."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.photo_required_by_default}
+                      onChange={(event) =>
+                        update("photo_required_by_default", event.target.checked)
+                      }
+                    />
+                  }
+                />
+                <ActionCard
+                  title="Timestamp watermark"
+                  description="Tambahkan cap waktu pada foto evidence sebelum upload."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.timestamp_watermark}
+                      onChange={(event) => update("timestamp_watermark", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="GPS on evidence"
+                  description="Simpan koordinat GPS pada metadata evidence (permission browser diperlukan)."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.gps_watermark}
+                      onChange={(event) => update("gps_watermark", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="Geofence enforcement"
+                  description="Wajibkan crew berada di radius outlet saat submit checklist."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.geofence_enabled}
+                      onChange={(event) => update("geofence_enabled", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="IoT auto-fail checklist"
+                  description="Gagalkan checklist jika probe suhu terakhir di luar ambang cold chain."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.iot_auto_fail_enabled}
+                      onChange={(event) => update("iot_auto_fail_enabled", event.target.checked)}
+                    />
+                  }
+                />
+                <EnterpriseField label="Suhu minimum IoT (°C)">
+                  <EnterpriseInput
+                    type="number"
+                    value={state.iot_temp_min_c}
+                    onChange={(event) => update("iot_temp_min_c", Number(event.target.value || 0))}
+                    disabled={!state.iot_auto_fail_enabled}
+                  />
+                </EnterpriseField>
+                <EnterpriseField label="Suhu maksimum IoT (°C)">
+                  <EnterpriseInput
+                    type="number"
+                    value={state.iot_temp_max_c}
+                    onChange={(event) => update("iot_temp_max_c", Number(event.target.value || 0))}
+                    disabled={!state.iot_auto_fail_enabled}
+                  />
+                </EnterpriseField>
+                <ActionCard
+                  title="LMS training gate"
+                  description="Blokir submit task sampai modul pelatihan wajib selesai."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.lms_training_gate_enabled}
+                      onChange={(event) =>
+                        update("lms_training_gate_enabled", event.target.checked)
+                      }
+                    />
+                  }
+                />
+                <EnterpriseField label="Geofence radius (meters)">
+                  <EnterpriseInput
+                    type="number"
+                    value={state.geofence_radius_meters}
+                    onChange={(event) =>
+                      update("geofence_radius_meters", Number(event.target.value || 0))
+                    }
+                    disabled={!state.geofence_enabled}
+                  />
+                </EnterpriseField>
+                <EnterpriseField label="Batas waktu sesi">
+                  <EnterpriseSelect
+                    value={String(state.session_timeout_minutes)}
+                    onChange={(event) =>
+                      update("session_timeout_minutes", Number(event.target.value))
+                    }
+                  >
+                    <option value="15">15 menit</option>
+                    <option value="30">30 menit</option>
+                  </EnterpriseSelect>
+                </EnterpriseField>
+                <ActionCard
+                  title="Enforce role permissions"
+                  description="Beda akses owner, area manager, dan outlet tetap dijaga."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.enforce_role_permissions}
+                      onChange={(event) => update("enforce_role_permissions", event.target.checked)}
+                    />
+                  }
+                />
+              </div>
+            </SectionCard>
+
+            <LoginDevicesPanel onNotice={(message) => setNotice(message)} />
+
+            <AdminLoginDevicesPanel onNotice={(message) => setNotice(message)} />
+
+            <PermissionMatrixPanel onNotice={(message) => setNotice(message)} />
+
+            <SectionCard title="Notifikasi">
+              <div className="space-y-4">
+                <ActionCard
+                  title="Dashboard alerts"
+                  description="Tampilkan alert operasional di dashboard."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.dashboard_alerts}
+                      onChange={(event) => update("dashboard_alerts", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="Overdue alerts"
+                  description="Peringatan untuk task yang melewati due time."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.overdue_alerts}
+                      onChange={(event) => update("overdue_alerts", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="Email notifications"
+                  description="Kirim email operasional untuk checklist gagal, overdue, dan due soon."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.email_notifications}
+                      onChange={(event) => update("email_notifications", event.target.checked)}
+                    />
+                  }
+                />
+                <ActionCard
+                  title="SMS notifications"
+                  description="Kirim SMS ke nomor telepon user (Twilio) untuk alert task overdue dan assign."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.sms_notifications}
+                      onChange={(event) => update("sms_notifications", event.target.checked)}
+                    />
+                  }
+                />
+                <EnterpriseField label="Scheduled report frequency">
+                  <EnterpriseSelect
+                    value={state.digest_frequency}
+                    onChange={(event) => update("digest_frequency", event.target.value)}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </EnterpriseSelect>
+                </EnterpriseField>
+                <EnterpriseField label="Scheduled report audience">
+                  <EnterpriseSelect
+                    value={state.scheduled_report_audience}
+                    onChange={(event) => update("scheduled_report_audience", event.target.value)}
+                  >
+                    <option value="owner-and-admin">Owner & Admin</option>
+                    <option value="owner-only">Owner only</option>
+                    <option value="admin-only">Admin only</option>
+                  </EnterpriseSelect>
+                </EnterpriseField>
+                <button
+                  type="button"
+                  onClick={() => void handleSendDigestNow()}
+                  disabled={isSendingDigest || !state.email_notifications}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
+                >
+                  {isSendingDigest ? "Sending digest..." : "Send compliance digest now"}
+                </button>
+              </div>
+              <p className="mt-4 text-sm text-slate-500">
+                Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+                `SMTP_PASSWORD`, `SMTP_FROM`). SMS membutuhkan `TWILIO_ACCOUNT_SID`,
+                `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` dan nomor telepon user terisi.
+              </p>
+            </SectionCard>
           </div>
-        </SectionCard>
 
-        <LoginDevicesPanel onNotice={(message) => setNotice(message)} />
-
-        <AdminLoginDevicesPanel onNotice={(message) => setNotice(message)} />
-
-        <PermissionMatrixPanel onNotice={(message) => setNotice(message)} />
-
-        <SectionCard title="Notifications">
-          <div className="space-y-4">
-            <ActionCard title="Dashboard alerts" description="Tampilkan alert operasional di dashboard." action={<EnterpriseCheckbox checked={state.dashboard_alerts} onChange={(event) => update("dashboard_alerts", event.target.checked)} />} />
-            <ActionCard title="Overdue alerts" description="Peringatan untuk task yang melewati due time." action={<EnterpriseCheckbox checked={state.overdue_alerts} onChange={(event) => update("overdue_alerts", event.target.checked)} />} />
-            <ActionCard title="Email notifications" description="Kirim email operasional untuk checklist gagal, overdue, dan due soon." action={<EnterpriseCheckbox checked={state.email_notifications} onChange={(event) => update("email_notifications", event.target.checked)} />} />
-            <ActionCard title="SMS notifications" description="Kirim SMS ke nomor telepon user (Twilio) untuk alert task overdue dan assign." action={<EnterpriseCheckbox checked={state.sms_notifications} onChange={(event) => update("sms_notifications", event.target.checked)} />} />
-            <EnterpriseField label="Scheduled report frequency">
-              <EnterpriseSelect
-                value={state.digest_frequency}
-                onChange={(event) => update("digest_frequency", event.target.value)}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <EnterpriseField label="Scheduled report audience">
-              <EnterpriseSelect
-                value={state.scheduled_report_audience}
-                onChange={(event) => update("scheduled_report_audience", event.target.value)}
-              >
-                <option value="owner-and-admin">Owner & Admin</option>
-                <option value="owner-only">Owner only</option>
-                <option value="admin-only">Admin only</option>
-              </EnterpriseSelect>
-            </EnterpriseField>
-            <button
-              type="button"
-              onClick={() => void handleSendDigestNow()}
-              disabled={isSendingDigest || !state.email_notifications}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
-            >
-              {isSendingDigest ? "Sending digest..." : "Send compliance digest now"}
-            </button>
-          </div>
-          <p className="mt-4 text-sm text-slate-500">
-            Email membutuhkan konfigurasi SMTP di server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).
-            SMS membutuhkan `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` dan nomor telepon user terisi.
-          </p>
-        </SectionCard>
-      </div>
-
-      <NotificationPreferencesPanel />
-      </>
+          <NotificationPreferencesPanel />
+        </>
       ) : null}
 
       {settingsTab === "integrations" ? (
-      <>
-      <IntegrationsStatusPanel />
+        <>
+          <IntegrationsStatusPanel />
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Integrations & Automation">
-          <div className="space-y-4">
-            <ActionCard
-              title="Webhook delivery"
-              description="Kirim event task/checklist ke endpoint HTTP eksternal."
-              action={
-                <EnterpriseCheckbox
-                  checked={state.webhook_enabled}
-                  onChange={(event) => update("webhook_enabled", event.target.checked)}
-                />
-              }
-            />
-            <ActionCard
-              title="Auto workflow on checklist fail"
-              description="Mulai workflow instance otomatis saat checklist gagal."
-              action={
-                <EnterpriseCheckbox
-                  checked={state.auto_workflow_on_checklist_fail}
-                  onChange={(event) =>
-                    update("auto_workflow_on_checklist_fail", event.target.checked)
+          <div className="grid gap-6 xl:grid-cols-2">
+            <SectionCard title="Integrations & Automation">
+              <div className="space-y-4">
+                <ActionCard
+                  title="Webhook delivery"
+                  description="Kirim event task/checklist ke endpoint HTTP eksternal."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.webhook_enabled}
+                      onChange={(event) => update("webhook_enabled", event.target.checked)}
+                    />
                   }
                 />
-              }
-            />
-            <EnterpriseField label="Checklist fail workflow code">
-              <EnterpriseInput
-                value={state.checklist_fail_workflow_code}
-                onChange={(event) => update("checklist_fail_workflow_code", event.target.value)}
-                placeholder="checklist-fail-review"
-              />
-            </EnterpriseField>
-            <ActionCard
-              title="Auto workflow on task completed"
-              description="Mulai workflow instance otomatis saat task selesai."
-              action={
-                <EnterpriseCheckbox
-                  checked={state.auto_workflow_on_task_completed}
-                  onChange={(event) =>
-                    update("auto_workflow_on_task_completed", event.target.checked)
+                <ActionCard
+                  title="Auto workflow on checklist fail"
+                  description="Mulai workflow instance otomatis saat checklist gagal."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.auto_workflow_on_checklist_fail}
+                      onChange={(event) =>
+                        update("auto_workflow_on_checklist_fail", event.target.checked)
+                      }
+                    />
                   }
                 />
-              }
+                <EnterpriseField label="Checklist fail workflow code">
+                  <EnterpriseInput
+                    value={state.checklist_fail_workflow_code}
+                    onChange={(event) => update("checklist_fail_workflow_code", event.target.value)}
+                    placeholder="checklist-fail-review"
+                  />
+                </EnterpriseField>
+                <ActionCard
+                  title="Auto workflow on task completed"
+                  description="Mulai workflow instance otomatis saat task selesai."
+                  action={
+                    <EnterpriseCheckbox
+                      checked={state.auto_workflow_on_task_completed}
+                      onChange={(event) =>
+                        update("auto_workflow_on_task_completed", event.target.checked)
+                      }
+                    />
+                  }
+                />
+                <EnterpriseField label="Task completed workflow code">
+                  <EnterpriseInput
+                    value={state.task_completed_workflow_code}
+                    onChange={(event) => update("task_completed_workflow_code", event.target.value)}
+                    placeholder="task-completion-review"
+                  />
+                </EnterpriseField>
+              </div>
+            </SectionCard>
+          </div>
+
+          <OutletLocationPanel onNotice={(message) => setNotice(message)} />
+
+          <ApiKeysPanel />
+
+          <BulkImportPanel onNotice={(message) => setNotice(message)} />
+
+          <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
+
+          <div className="grid gap-6 xl:grid-cols-4">
+            <SectionCard title="Role Guide">
+              <div className="space-y-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <Shield className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <div>
+                    <p className="font-medium text-slate-900">Owner/Admin</p>
+                    <p>Full akses untuk outlet, user, task publishing, settings, dan governance.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <Users className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <div>
+                    <p className="font-medium text-slate-900">Area Manager</p>
+                    <p>Fokus monitoring area, outlet, draft, compliance, dan report area.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <CheckSquare className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <div>
+                    <p className="font-medium text-slate-900">Outlet</p>
+                    <p>Fokus eksekusi Task, submit My Form, dan melihat Notifications outlet.</p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="What Owner/Admin Can Change">
+              <div className="space-y-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <Building2 className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <span>Pengaturan organisasi, outlet grouping, dan workspace default.</span>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <FileText className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <span>Aturan task, SOP, evidence, approval, dan standar compliance.</span>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <Bell className="mt-0.5 h-4 w-4 text-emerald-700" />
+                  <span>Notifikasi, security, dan policy akses seluruh workspace.</span>
+                </div>
+              </div>
+            </SectionCard>
+
+            <PasswordPanel
+              title="Security Password"
+              description="Owner/admin tetap bisa mengganti password dari halaman ini."
+              onNotice={(message) => setNotice(message)}
             />
-            <EnterpriseField label="Task completed workflow code">
-              <EnterpriseInput
-                value={state.task_completed_workflow_code}
-                onChange={(event) => update("task_completed_workflow_code", event.target.value)}
-                placeholder="task-completion-review"
-              />
-            </EnterpriseField>
           </div>
-        </SectionCard>
-      </div>
-
-      <OutletLocationPanel onNotice={(message) => setNotice(message)} />
-
-      <ApiKeysPanel />
-
-      <BulkImportPanel onNotice={(message) => setNotice(message)} />
-
-      <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
-
-      <div className="grid gap-6 xl:grid-cols-4">
-        <SectionCard title="Role Guide">
-          <div className="space-y-3 text-sm text-slate-600">
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <Shield className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <div>
-                <p className="font-medium text-slate-900">Owner/Admin</p>
-                <p>Full akses untuk outlet, user, task publishing, settings, dan governance.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <Users className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <div>
-                <p className="font-medium text-slate-900">Area Manager</p>
-                <p>Fokus monitoring area, outlet, draft, compliance, dan report area.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <CheckSquare className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <div>
-                <p className="font-medium text-slate-900">Outlet</p>
-                <p>Fokus eksekusi Task, submit My Form, dan melihat Notifications outlet.</p>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="What Owner/Admin Can Change">
-          <div className="space-y-3 text-sm text-slate-600">
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <Building2 className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <span>Pengaturan organisasi, outlet grouping, dan workspace default.</span>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <FileText className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <span>Aturan task, SOP, evidence, approval, dan standar compliance.</span>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3">
-              <Bell className="mt-0.5 h-4 w-4 text-emerald-700" />
-              <span>Notifikasi, security, dan policy akses seluruh workspace.</span>
-            </div>
-          </div>
-        </SectionCard>
-
-        <PasswordPanel
-          title="Security Password"
-          description="Owner/admin tetap bisa mengganti password dari halaman ini."
-          onNotice={(message) => setNotice(message)}
-        />
-      </div>
-      </>
+        </>
       ) : null}
     </main>
   );

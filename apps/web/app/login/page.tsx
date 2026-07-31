@@ -11,7 +11,6 @@ import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
 const REMEMBER_KEY = "novaops_remember_identifier";
-const REMEMBER_OUTLET_CONTEXT_KEY = "novaops_remember_outlet_context";
 const GOOGLE_OAUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
 const OIDC_SSO_ENABLED = process.env.NEXT_PUBLIC_OIDC_SSO_ENABLED === "true";
 const SAML_SSO_ENABLED = process.env.NEXT_PUBLIC_SAML_SSO_ENABLED === "true";
@@ -104,13 +103,11 @@ function LoginPageContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
-  const rememberOutlet = searchParams.get("rememberOutlet") === "1";
   const rememberedIdentifier = useSyncExternalStore(
     subscribeRememberStorage,
     getRememberedIdentifierSnapshot,
     getServerRememberedIdentifierSnapshot
   );
-  const [rememberedOutletName, setRememberedOutletName] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -132,20 +129,6 @@ function LoginPageContent() {
     setRememberMe(true);
   }, [rememberedIdentifier]);
 
-  useEffect(() => {
-    if (!rememberOutlet) return;
-
-    try {
-      const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
-      if (savedContext) {
-        const parsed = JSON.parse(savedContext) as { outletName?: string };
-        setRememberedOutletName(parsed.outletName ?? null);
-      }
-    } catch {
-      setRememberedOutletName(null);
-    }
-  }, [rememberOutlet]);
-
   async function completeLogin(data: LoginResponse) {
     if (!data.access_token || !data.refresh_token) {
       throw new Error("Login token tidak tersedia.");
@@ -162,27 +145,7 @@ function LoginPageContent() {
     const currentUser = await getMe();
     storeOutletContext(currentUser.outlet_access);
 
-    let outletContext = getWorkspaceOutletContext(currentUser.outlet_access);
-
-    if (rememberOutlet) {
-      try {
-        const savedContext = localStorage.getItem(REMEMBER_OUTLET_CONTEXT_KEY);
-        if (savedContext) {
-          const parsed = JSON.parse(savedContext) as {
-            outletName?: string;
-            outletCode?: string;
-          };
-
-          outletContext = {
-            ...outletContext,
-            outletName: parsed.outletName ?? outletContext.outletName,
-            outletCode: parsed.outletCode ?? outletContext.outletCode,
-          };
-        }
-      } catch {
-        // Fall back to user outlet context.
-      }
-    }
+    const outletContext = getWorkspaceOutletContext(currentUser.outlet_access);
 
     setStoredWorkspaceRole(getWorkspaceRoleFromSlug(currentUser.role.slug), outletContext);
 
@@ -278,11 +241,6 @@ function LoginPageContent() {
               <h1 className="mt-3 text-5xl font-bold text-[#1E1E1E]">{t("login.title")}</h1>
 
               <p className="mt-3 text-sm text-slate-500">{t("login.subtitle")}</p>
-              {rememberedOutletName ? (
-                <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-                  {t("login.rememberOutlet", { outlet: rememberedOutletName })}
-                </p>
-              ) : null}
             </div>
 
             <div className="space-y-5">
