@@ -39,14 +39,15 @@ class LoginRateLimiter:
 
 
 login_rate_limiter = LoginRateLimiter(
-    limit=int(os.environ.get("LOGIN_RATE_LIMIT_PER_MINUTE", "60")),
+    limit=int(os.environ.get("LOGIN_RATE_LIMIT_PER_MINUTE", "10")),
 )
 
 
 def _client_key(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
-        return forwarded.split(",", 1)[0].strip()
+        # nginx appends the real remote address at the end.
+        return forwarded.rsplit(",", 1)[-1].strip()
     return request.client.host if request.client else "unknown"
 
 

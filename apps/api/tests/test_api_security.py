@@ -64,6 +64,10 @@ def test_protected_routes_require_auth(client):
         "/api/v1/form-templates",
         "/api/v1/runtime-templates",
         "/api/v1/builder-documents",
+        (
+            "/api/v1/workflow-notifications/templates"
+            "?workflow_id=00000000-0000-0000-0000-000000000000"
+        ),
     ]
 
     for path in protected_gets:

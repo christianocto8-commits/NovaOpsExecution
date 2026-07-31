@@ -6,11 +6,18 @@ import { getSettings } from "@/features/settings/settings-api";
 import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
-import { OUTLET_ONLY_MODE, shouldDenyRole } from "@/shared/outlet-only";
+import { shouldDenyRole } from "@/shared/outlet-only";
 
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
 const LAST_ACTIVITY_KEY = "novaops_last_activity_at";
-const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"] as const;
+const ACTIVITY_EVENTS = [
+  "mousedown",
+  "mousemove",
+  "keydown",
+  "scroll",
+  "touchstart",
+  "click",
+] as const;
 
 type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
 
@@ -27,11 +34,6 @@ type AuthContextValue = {
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
-
-function getStoredToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("novaops_token");
-}
 
 function readLastActivity() {
   if (typeof window === "undefined") return Date.now();
@@ -96,9 +98,9 @@ function storeOutletApiContext(currentUser: AuthUser) {
   const outletId =
     currentUser.outlet_access.legacy_outlet_id != null
       ? String(currentUser.outlet_access.legacy_outlet_id)
-      : currentUser.outlet_access.outlet_id ??
+      : (currentUser.outlet_access.outlet_id ??
         currentUser.outlet_access.outlet_ids?.[0] ??
-        currentUser.outlet_access.outlets?.[0]?.id;
+        currentUser.outlet_access.outlets?.[0]?.id);
 
   if (outletId) {
     localStorage.setItem("novaops_outlet_id", outletId);
@@ -111,15 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("idle");
 
   const restoreSession = useCallback(async () => {
-    const token = getStoredToken();
-
-    if (!token) {
-      setUser(null);
-      setDeniedUser(null);
-      setStatus("unauthenticated");
-      return null;
-    }
-
     setStatus("loading");
 
     try {
@@ -151,6 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    if (status === "idle") {
+      void restoreSession();
+    }
+  }, [status, restoreSession]);
 
   const logout = useCallback(() => {
     logoutService();

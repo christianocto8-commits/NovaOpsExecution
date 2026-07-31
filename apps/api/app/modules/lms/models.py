@@ -20,6 +20,8 @@ class TrainingModule(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
     required_for_roles: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     expires_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quiz_questions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    passing_score: Mapped[int] = mapped_column(Integer, default=80, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -48,4 +50,7 @@ class TrainingCompletion(Base):
     )
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    certificate_code: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)

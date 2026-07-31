@@ -65,6 +65,11 @@ if (-not $SkipNextBuild) {
 Write-Host "`n[2/4] Syncing Capacitor Native Web Assets..." -ForegroundColor Green
 Push-Location $WebDir
 try {
+    if ($BuildType -eq "Release") {
+        node scripts/check-mobile-release.mjs --require-signing
+    } else {
+        node scripts/check-mobile-release.mjs
+    }
     npx cap sync android
 }
 finally {

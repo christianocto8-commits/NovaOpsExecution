@@ -1,94 +1,52 @@
 # NovaOps Mobile (Capacitor)
 
-Native shell for outlet crew — wraps the Next.js web app in Android/iOS WebView.
+Native shell for outlet operations. Production builds load `https://nova-ops.cloud`
+over HTTPS; development builds use `CAPACITOR_DEV_URL`.
 
-## Prerequisites
+## Requirements
 
 - Node.js 20+
-- Android Studio (Android)
-- Xcode 15+ (iOS — **macOS only**)
-- Local stack: `.\novaops.ps1 dev`
+- Android Studio and JDK 17 for Android
+- Xcode 15+ on macOS for iOS
+- A real signing keystore for store artifacts
 
-## Setup
+## Development
 
 ```powershell
 cd apps\web
 npm install
-npx cap add android   # already scaffolded in repo
-# iOS (macOS only):
-# npx cap add ios
-```
-
-`capacitor.config.ts` is in `apps/web/`.
-
-## Dev workflow (recommended)
-
-Capacitor loads the **live dev server** instead of static export:
-
-1. Start stack: `.\novaops.ps1 dev`
-2. Edit `apps/web/capacitor.config.ts` — set `server.url`:
-   - Android emulator: `http://10.0.2.2:3000`
-   - iOS simulator: `http://localhost:3000`
-   - Physical device: `http://<LAN-IP>:3000`
-3. Sync and open IDE:
-
-```powershell
+$env:CAPACITOR_ENV="development"
+$env:CAPACITOR_DEV_URL="http://10.0.2.2:3000"
 npm run cap:sync
-npm run cap:android   # Windows / Linux / macOS
-npm run cap:ios       # macOS + Xcode only
+npm run cap:android
 ```
 
-## What works in WebView
+Use `http://localhost:3000` for the iOS simulator and a LAN URL for a physical device.
 
-| Feature | Status |
-|---------|--------|
-| IndexedDB offline queue | Yes |
-| Service worker shell cache | Yes (registered on app boot) |
-| Geofence + photo evidence | Yes (browser APIs) |
-| Capacitor Network status | Yes (`@capacitor/network`) |
-| Web Push (VAPID) | Limited in WebView |
-| Native FCM/APNs | Scaffold (`@capacitor/push-notifications` + `NativePushBootstrap`) |
+## Android Release
 
-## Firebase Cloud Messaging (Android)
-
-1. Create Firebase project → Android app `com.novaops.execution`
-2. Download `google-services.json` → `apps/web/android/app/`
-   - Copy from `google-services.json.example` as a template; **do not commit real keys**
-3. Gradle auto-applies Google Services plugin when the file exists (see `android/app/build.gradle`)
-4. `npm run cap:sync` → rebuild in Android Studio
-5. Verify: Settings → Integration Readiness → **Native FCM** pill = Configured
-
-### Push bridge (client)
-
-`NativePushBootstrap` registers on native boot via `lib/capacitor/push-bridge.ts`:
-
-- Requests permission → `PushNotifications.register()`
-- Stores FCM token in `localStorage` key `novaops_native_push_token`
-- Shows foreground notifications when permission granted
-
-Backend token registration endpoint is a future item (web push VAPID covers browser today).
-
-## Apple Push Notifications (iOS)
-
-Requires macOS + Xcode:
-
-1. `npx cap add ios` (generates `apps/web/ios/`)
-2. Enable Push Notifications capability in Xcode
-3. Upload APNs key to Firebase (if using FCM) or configure directly in Apple Developer
-4. `npm run cap:sync` → run on simulator/device
-
-iOS folder is **not committed** until generated on a Mac; follow the same `server.url` dev pattern as Android.
-
-## Production / Store release
-
-See [docs/NATIVE_STORE_RELEASE.md](../../docs/NATIVE_STORE_RELEASE.md).
+Keep the keystore and passwords outside the repository:
 
 ```powershell
-npm run release:android
+$env:NOVAOPS_ANDROID_KEYSTORE="C:\secure\novaops-upload.keystore"
+$env:NOVAOPS_ANDROID_STORE_PASSWORD="<secret>"
+$env:NOVAOPS_ANDROID_KEY_ALIAS="novaops"
+$env:NOVAOPS_ANDROID_KEY_PASSWORD="<secret>"
+$env:NOVAOPS_VERSION_CODE="2"
+$env:NOVAOPS_VERSION_NAME="1.0.1"
+.\scripts\build-mobile.ps1 -Environment production -BuildType Release
 ```
 
-## Notes
+The build script validates HTTPS production configuration, permissions, signing
+variables, and keystore existence before producing APK/AAB artifacts in `dist/mobile`.
 
-- Do **not** publish to Play Store / App Store until signing pipeline is configured.
-- Real `google-services.json` and APNs certs stay **local only** — use `.example` files in repo.
-- Enterprise SAML SSO: see [docs/SAML_SSO_ROADMAP.md](../../docs/SAML_SSO_ROADMAP.md) (OIDC available now).
+## Native Capabilities
+
+- IndexedDB offline queue and conflict-aware sync
+- Camera and location evidence
+- Network status bridge
+- FCM/APNs token registration through `/api/v1/notifications`
+- Push notification bootstrap via `@capacitor/push-notifications`
+
+Real `google-services.json`, APNs credentials, keystores, and passwords must never be
+committed. iOS archive/signing still requires macOS, Xcode, and an Apple Developer team.

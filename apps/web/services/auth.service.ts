@@ -1,5 +1,7 @@
 ﻿import { api } from "@/services/api";
 
+import { clearAuthenticatedSession, clearBrowserSessionCookie } from "@/lib/auth/browser-session";
+
 export type AuthOutletAccessScope = "all" | "multiple" | "single";
 
 export type AuthUser = {
@@ -116,8 +118,8 @@ export async function revokeAnyLoginDevice(sessionId: string) {
 export function logout() {
   if (typeof window === "undefined") return;
 
-  localStorage.removeItem("novaops_token");
-  localStorage.removeItem("novaops_refresh_token");
+  clearAuthenticatedSession();
+  clearBrowserSessionCookie();
   localStorage.removeItem("novaops_outlet_id");
   localStorage.removeItem("current_outlet_id");
   localStorage.removeItem("outlet_id");
@@ -132,12 +134,13 @@ export function switchCrewLogout(returnUrl: string) {
     localStorage.setItem("novaops_remember_outlet_context", workspaceContext);
   }
 
-  localStorage.removeItem("novaops_token");
-  localStorage.removeItem("novaops_refresh_token");
+  clearAuthenticatedSession();
+  clearBrowserSessionCookie();
   localStorage.removeItem("novaops_outlet_id");
   localStorage.removeItem("current_outlet_id");
   localStorage.removeItem("outlet_id");
 
-  const safeReturnUrl = returnUrl.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : "/dashboard/operator";
+  const safeReturnUrl =
+    returnUrl.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : "/dashboard/operator";
   window.location.href = `/login?returnUrl=${encodeURIComponent(safeReturnUrl)}&rememberOutlet=1`;
 }

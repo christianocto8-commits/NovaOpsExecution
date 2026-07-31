@@ -5,7 +5,6 @@
 *.env.backup
 **/novaops-vps.env
 !**/novaops-vps-local.env.example
-!deploy/novaops-vps.env
 
 # Python
 .venv/

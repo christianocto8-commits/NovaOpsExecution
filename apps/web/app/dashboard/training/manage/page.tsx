@@ -18,6 +18,12 @@ export default function TrainingManagePage() {
   const [description, setDescription] = useState("");
   const [contentUrl, setContentUrl] = useState("");
   const [roles, setRoles] = useState("outlet,area_manager");
+  const [question, setQuestion] = useState("");
+  const [choices, setChoices] = useState("");
+  const [correctAnswer, setCorrectAnswer] = useState("");
+  const [quizQuestions, setQuizQuestions] = useState<
+    Array<{ id: string; prompt: string; choices: string[]; correct_answer: string }>
+  >([]);
 
   const modulesQuery = useQuery({
     queryKey: ["training-modules"],
@@ -32,6 +38,7 @@ export default function TrainingManagePage() {
       setTitle("");
       setDescription("");
       setContentUrl("");
+      setQuizQuestions([]);
     },
   });
 
@@ -58,6 +65,8 @@ export default function TrainingManagePage() {
             required_for_roles: roles.split(",").map((role) => role.trim()).filter(Boolean),
             duration_minutes: 20,
             expires_days: 365,
+            quiz_questions: quizQuestions,
+            passing_score: 80,
           });
         }}
         className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
@@ -76,6 +85,53 @@ export default function TrainingManagePage() {
           <EnterpriseField label={t("training.fieldContentUrl")}>
             <EnterpriseInput value={contentUrl} onChange={(e) => setContentUrl(e.target.value)} />
           </EnterpriseField>
+        </div>
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <p className="text-sm font-semibold text-slate-900">Assessment (opsional)</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <EnterpriseField label="Pertanyaan">
+              <EnterpriseInput value={question} onChange={(e) => setQuestion(e.target.value)} />
+            </EnterpriseField>
+            <EnterpriseField label="Pilihan (pisahkan koma)">
+              <EnterpriseInput value={choices} onChange={(e) => setChoices(e.target.value)} />
+            </EnterpriseField>
+            <EnterpriseField label="Jawaban benar">
+              <EnterpriseInput
+                value={correctAnswer}
+                onChange={(e) => setCorrectAnswer(e.target.value)}
+              />
+            </EnterpriseField>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const parsedChoices = choices
+                .split(",")
+                .map((choice) => choice.trim())
+                .filter(Boolean);
+              if (!question.trim() || parsedChoices.length < 2 || !correctAnswer.trim()) return;
+              setQuizQuestions((current) => [
+                ...current,
+                {
+                  id: `q-${Date.now()}`,
+                  prompt: question.trim(),
+                  choices: parsedChoices,
+                  correct_answer: correctAnswer.trim(),
+                },
+              ]);
+              setQuestion("");
+              setChoices("");
+              setCorrectAnswer("");
+            }}
+            className="mt-3 rounded-lg border border-emerald-700 px-3 py-2 text-sm font-semibold text-emerald-700"
+          >
+            Tambah pertanyaan
+          </button>
+          {quizQuestions.length ? (
+            <p className="mt-2 text-xs text-slate-500">
+              {quizQuestions.length} pertanyaan, nilai lulus 80%.
+            </p>
+          ) : null}
         </div>
         <button
           type="submit"

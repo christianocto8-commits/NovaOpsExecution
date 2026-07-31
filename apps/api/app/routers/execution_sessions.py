@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.execution_session import ExecutionSession
+from app.models.task import Task
 from app.models.user import User
+from app.modules.identity.models import User as IdentityUser
+from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
+from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.execution_session import (
     ExecutionSessionCreate,
     ExecutionSessionResponse,
@@ -14,15 +19,44 @@ from app.schemas.execution_session import (
 router = APIRouter(prefix="/execution-sessions", tags=["Execution Sessions"])
 
 
+def _is_admin(db: Session, current_user: User) -> bool:
+    identity_user = (
+        db.query(IdentityUser)
+        .filter(IdentityUser.email == current_user.email)
+        .first()
+    )
+    role_slug = identity_user.role.slug if identity_user and identity_user.role else ""
+    return role_slug in {OWNER_ROLE, ADMIN_ROLE}
+
+
+def _ensure_session_access(
+    db: Session,
+    current_user: User,
+    execution_session: ExecutionSession,
+    *,
+    allow_admin: bool = True,
+) -> None:
+    if allow_admin and _is_admin(db, current_user):
+        return
+    if execution_session.submitted_by == current_user.id:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Execution session is outside your access scope",
+    )
+
+
 @router.post("", response_model=ExecutionSessionResponse)
 def create_execution_session(
     payload: ExecutionSessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-
-    execution_session = ExecutionSession(**payload.model_dump())
+    values = payload.model_dump()
+    values["submitted_by"] = current_user.id
+    if payload.task_id is not None:
+        resolve_task_outlet_access(db, current_user, None, task_id=payload.task_id)
+    execution_session = ExecutionSession(**values)
 
     db.add(execution_session)
     db.commit()
@@ -39,9 +73,18 @@ def get_execution_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-
     query = db.query(ExecutionSession)
+
+    if not _is_admin(db, current_user):
+        _outlet_id, _actor_id, outlet_ids, _full_access = resolve_task_outlet_access(
+            db, current_user, None
+        )
+        query = query.outerjoin(Task, ExecutionSession.task_id == Task.id).filter(
+            or_(
+                ExecutionSession.submitted_by == current_user.id,
+                Task.outlet_id.in_(outlet_ids) if outlet_ids else Task.id == -1,
+            )
+        )
 
     if task_id is not None:
         query = query.filter(ExecutionSession.task_id == task_id)
@@ -62,14 +105,17 @@ def update_execution_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-
     execution_session = db.query(ExecutionSession).filter(ExecutionSession.id == session_id).first()
 
     if execution_session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution session not found")
 
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    _ensure_session_access(db, current_user, execution_session)
+    updates = payload.model_dump(exclude_unset=True)
+    updates.pop("submitted_by", None)
+    if "task_id" in updates and updates["task_id"] is not None:
+        resolve_task_outlet_access(db, current_user, None, task_id=updates["task_id"])
+    for key, value in updates.items():
         setattr(execution_session, key, value)
 
     db.commit()
@@ -84,13 +130,12 @@ def delete_execution_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-
     execution_session = db.query(ExecutionSession).filter(ExecutionSession.id == session_id).first()
 
     if execution_session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution session not found")
 
+    _ensure_session_access(db, current_user, execution_session)
     db.delete(execution_session)
     db.commit()
 

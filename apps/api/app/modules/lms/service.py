@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -56,15 +56,34 @@ class LmsService:
     def record_completion(self, user_id: UUID, payload: TrainingCompletionCreate) -> TrainingCompletion:
         module = self.get_module(payload.module_id)
         now = datetime.now(UTC)
+        questions = module.quiz_questions or []
+        score = 100
+        if questions:
+            correct = sum(
+                1
+                for question in questions
+                if payload.answers.get(str(question.get("id"))) == question.get("correct_answer")
+            )
+            score = round((correct / len(questions)) * 100)
+        passed = score >= module.passing_score
         expires_at = None
-        if module.expires_days:
+        if passed and module.expires_days:
             expires_at = now + timedelta(days=module.expires_days)
 
-        completion = TrainingCompletion(
-            user_id=user_id,
-            module_id=module.id,
-            completed_at=now,
-            expires_at=expires_at,
+        completion = self.db.scalar(
+            select(TrainingCompletion).where(
+                TrainingCompletion.user_id == user_id,
+                TrainingCompletion.module_id == module.id,
+            ).order_by(TrainingCompletion.completed_at.desc()).limit(1)
+        )
+        if completion is None:
+            completion = TrainingCompletion(user_id=user_id, module_id=module.id, completed_at=now)
+        completion.completed_at = now
+        completion.expires_at = expires_at
+        completion.score = score
+        completion.passed = passed
+        completion.certificate_code = (
+            f"NOVA-{now:%Y%m%d}-{uuid4().hex[:10].upper()}" if passed else None
         )
         self.db.add(completion)
         self.db.commit()
@@ -95,7 +114,7 @@ class LmsService:
 
             if completion:
                 expired = completion.expires_at and completion.expires_at <= now
-                completed = not expired
+                completed = completion.passed and not expired
                 completed_at = completion.completed_at
                 expires_at = completion.expires_at
 
@@ -105,6 +124,9 @@ class LmsService:
                     completed=completed,
                     completed_at=completed_at,
                     expires_at=expires_at,
+                    score=completion.score if completion else None,
+                    passed=completion.passed if completion else None,
+                    certificate_code=completion.certificate_code if completion else None,
                     required=required,
                 )
             )

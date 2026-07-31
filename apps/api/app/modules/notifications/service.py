@@ -256,6 +256,9 @@ class NotificationService:
         payload = self._delivery_payload(delivery)
 
         if isinstance(payload, dict):
+            action_url = payload.get("action_url")
+            if isinstance(action_url, str) and action_url.startswith("/dashboard/"):
+                return action_url
             event_type = str(payload.get("event_type") or "").lower()
             task_id = payload.get("task_id")
 

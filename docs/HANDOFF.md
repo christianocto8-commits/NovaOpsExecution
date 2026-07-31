@@ -20,7 +20,7 @@ Platform operasi multi-outlet (Zenput-like) untuk:
 - Schedules, Workflows, Announcements, Notifications
 - Area manager + owner admin RBAC
 
-**Target parity Zenput:** ~**91%** web-first (Jul 2026). Detail: `docs/UAT_RESULTS_LOCAL_20260722.md`.
+**Target parity Zenput:** ~**96-97%** untuk Ops Execution core berbasis web (Jul 2026).
 
 ---
 
@@ -69,7 +69,8 @@ cd NovaOpsExecution
 |-----|---------|
 | http://localhost:3000 | Web |
 | http://localhost:8000/docs | API Swagger |
-| http://localhost:8000/api/v1/health | Health |
+| http://localhost:8000/api/v1/health | Liveness |
+| http://localhost:8000/api/v1/ready | Database readiness |
 
 **Login default:** `admin@novaops.com` / `admin123` (dari `BOOTSTRAP_*` di `apps/api/.env`).
 
@@ -86,6 +87,7 @@ PostgreSQL local: Docker port **5433**. Reset DB: `.\novaops.ps1 reset-db` (keti
 - Target: `root@103.247.10.145` → `/opt/NovaOpsExecution`
 - Build Next standalone, upload API, `alembic upgrade head`, restart systemd
 - Health: `https://nova-ops.cloud/api/v1/health`
+- Deploy menunggu `/api/v1/ready` agar database ikut tervalidasi
 - Setelah deploy API restart ~5–10 detik bisa 502 — normal, tunggu lalu cek lagi
 
 **Jangan commit:** `.env`, `apps/api/uploads/`, `**/novaops-vps.env` (secrets).
@@ -130,6 +132,14 @@ Logic: `apps/web/features/tasks/utils/task-inbox.ts` (`isOpenTaskInInbox`, `isTa
 - Board: `/dashboard/corrective-actions`
 - Backend: `source_type = "corrective_action"` di `apps/api/app/modules/tasks/service.py`
 
+### Incident & Follow-Up
+
+- Workspace: `/dashboard/incidents`
+- Backend: `apps/api/app/modules/incidents/`
+- Review Queue dapat membuat Follow-Up Action langsung dari exception
+- Outlet menerima follow-up lewat Notifications dan dapat mulai/menyelesaikannya
+- Incident baru serta assignment/completion membuat in-app dan push notification
+
 ### Notifications
 
 - Unread count + mark read on open: `read_at` on `notification_deliveries`
@@ -169,9 +179,8 @@ Outlet scope filter: `apps/web/shared/navigation/outlet-scope.ts`
 ## 8. Migrasi DB terbaru (Jul 2026)
 
 ```
-20260723_0001_add_outlet_operating_hours.py
-20260723_0002_gap_closure_phone_iot_lms.py
-20260723_0003_add_notification_delivery_read_at.py
+20260731_0001_add_incident_followup_lifecycle.py
+20260731_0002_add_training_assessments.py
 ```
 
 Selalu jalankan `alembic upgrade head` saat deploy.

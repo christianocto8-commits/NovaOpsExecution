@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
 
 import { completeTrainingModule, listMyTraining } from "@/services/lms.service";
@@ -10,6 +11,8 @@ import { useLanguage } from "@/shared/i18n";
 export default function TrainingPage() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<{ message: string; passed: boolean } | null>(null);
 
   const trainingQuery = useQuery({
     queryKey: ["my-training"],
@@ -18,8 +21,17 @@ export default function TrainingPage() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: completeTrainingModule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-training"] }),
+    mutationFn: ({ moduleId, values }: { moduleId: string; values: Record<string, string> }) =>
+      completeTrainingModule(moduleId, values),
+    onSuccess: async (completion) => {
+      setResult({
+        passed: completion.passed,
+        message: completion.passed
+          ? `Lulus dengan nilai ${completion.score ?? 100}%.`
+          : `Nilai ${completion.score ?? 0}%. Belum mencapai batas lulus.`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["my-training"] });
+    },
   });
 
   const items = trainingQuery.data ?? [];
@@ -45,6 +57,17 @@ export default function TrainingPage() {
       {incomplete.length ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {t("training.incompleteBanner", { count: String(incomplete.length) })}
+        </div>
+      ) : null}
+      {result ? (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            result.passed
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          {result.message}
         </div>
       ) : null}
 
@@ -78,6 +101,43 @@ export default function TrainingPage() {
                   <p className="mt-2 text-xs text-slate-500">
                     {t("training.duration", { minutes: String(item.module.duration_minutes) })}
                   </p>
+                  {item.completed && item.certificate_code ? (
+                    <p className="mt-1 text-xs font-medium text-emerald-700">
+                      Certificate {item.certificate_code}
+                    </p>
+                  ) : null}
+                  {!item.completed && item.module.quiz_questions.length ? (
+                    <div className="mt-4 space-y-4">
+                      {item.module.quiz_questions.map((question, index) => (
+                        <fieldset key={question.id}>
+                          <legend className="text-sm font-semibold text-slate-800">
+                            {index + 1}. {question.prompt}
+                          </legend>
+                          <div className="mt-2 grid gap-2">
+                            {question.choices.map((choice) => (
+                              <label
+                                key={choice}
+                                className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm"
+                              >
+                                <input
+                                  type="radio"
+                                  name={`${item.module.id}-${question.id}`}
+                                  checked={answers[question.id] === choice}
+                                  onChange={() =>
+                                    setAnswers((current) => ({
+                                      ...current,
+                                      [question.id]: choice,
+                                    }))
+                                  }
+                                />
+                                {choice}
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {item.module.content_url ? (
@@ -94,8 +154,16 @@ export default function TrainingPage() {
                   {!item.completed ? (
                     <button
                       type="button"
-                      onClick={() => completeMutation.mutate(item.module.id)}
-                      disabled={completeMutation.isPending}
+                      onClick={() =>
+                        completeMutation.mutate({
+                          moduleId: item.module.id,
+                          values: answers,
+                        })
+                      }
+                      disabled={
+                        completeMutation.isPending ||
+                        item.module.quiz_questions.some((question) => !answers[question.id])
+                      }
                       className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                     >
                       {t("training.markComplete")}

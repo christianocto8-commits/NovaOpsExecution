@@ -16,5 +16,6 @@ from app.modules.workflows.models import WorkflowActionType, WorkflowApprovalHis
 
 
 from app.modules.workflow_notifications.models import NotificationTemplate
+from app.modules.incidents.models import FollowUpAction, Incident
 from app.modules.iot.models import IotSensorReading  # noqa: F401
 from app.modules.lms.models import TrainingCompletion, TrainingModule  # noqa: F401

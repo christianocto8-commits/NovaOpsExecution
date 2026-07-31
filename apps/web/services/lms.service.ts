@@ -8,6 +8,8 @@ export type TrainingModule = {
   duration_minutes: number;
   required_for_roles?: string[] | null;
   expires_days?: number | null;
+  quiz_questions: Array<{ id: string; prompt: string; choices: string[] }>;
+  passing_score: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -18,6 +20,9 @@ export type MyTrainingItem = {
   completed: boolean;
   completed_at?: string | null;
   expires_at?: string | null;
+  score?: number | null;
+  passed?: boolean | null;
+  certificate_code?: string | null;
   required: boolean;
 };
 
@@ -32,6 +37,13 @@ export async function createTrainingModule(payload: {
   duration_minutes?: number;
   required_for_roles?: string[];
   expires_days?: number;
+  quiz_questions?: Array<{
+    id: string;
+    prompt: string;
+    choices: string[];
+    correct_answer: string;
+  }>;
+  passing_score?: number;
 }) {
   return api<TrainingModule>("/api/v1/lms/modules", {
     method: "POST",
@@ -65,10 +77,15 @@ export async function listMyTraining() {
   return api<MyTrainingItem[]>("/api/v1/lms/my-training");
 }
 
-export async function completeTrainingModule(moduleId: string) {
-  return api<{ id: string }>("/api/v1/lms/completions", {
+export async function completeTrainingModule(moduleId: string, answers: Record<string, string> = {}) {
+  return api<{
+    id: string;
+    score: number | null;
+    passed: boolean;
+    certificate_code: string | null;
+  }>("/api/v1/lms/completions", {
     method: "POST",
-    body: JSON.stringify({ module_id: moduleId }),
+    body: JSON.stringify({ module_id: moduleId, answers }),
   });
 }
 

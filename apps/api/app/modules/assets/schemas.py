@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EquipmentHealthRead(BaseModel):
@@ -35,6 +35,8 @@ class EquipmentRegisterItem(BaseModel):
     replacement_for_id: str | None = None
     gateway_id: str | None = None
     pairing_code: str | None = None
+    paired_sensor_id: str | None = None
+    paired_at: datetime | None = None
     gateway_provisioned_at: datetime | None = None
     battery_level: float | None = None
     battery_alert_threshold: float | None = 20
@@ -73,6 +75,12 @@ class EquipmentRegisterUpsert(BaseModel):
     maintenance_due_at: datetime | None = None
     calibration_due_at: datetime | None = None
     notes: str | None = None
+
+
+class EquipmentPairRequest(BaseModel):
+    pairing_code: str = Field(min_length=4, max_length=120)
+    sensor_id: str = Field(min_length=2, max_length=160)
+    gateway_id: str = Field(min_length=2, max_length=160)
 
 
 class TemperatureLogRead(BaseModel):

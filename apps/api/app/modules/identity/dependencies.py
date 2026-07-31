@@ -110,9 +110,9 @@ def get_auth_context(
 
     return AuthContext(
         user=current_user,
-        role=str(payload.get("role", current_user.role.slug)),
-        permissions=set(payload.get("permissions", [])),
-        outlet_id=payload.get("outlet_id"),
+        role=current_user.role.slug,
+        permissions={permission.code for permission in current_user.role.permissions},
+        outlet_id=str(current_user.outlet_id) if current_user.outlet_id else None,
         token_version=int(payload.get("token_version", 1)),
     )
 

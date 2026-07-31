@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CameraOff,
   CheckCircle2,
   ClipboardList,
+  ClipboardPlus,
   Search,
   ShieldAlert,
+  X,
   XCircle,
 } from "lucide-react";
 
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
+import { incidentService, type IncidentSeverity } from "@/services/incident.service";
 import { taskService } from "@/services/task.service";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import {
@@ -23,6 +26,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { useToast } from "@/shared/toast";
 
 type ExceptionType =
   | "overdue"
@@ -36,6 +40,7 @@ type ExceptionItem = {
   type: ExceptionType;
   title: string;
   outlet: string;
+  outletId: string;
   severity: "critical" | "high" | "medium";
   summary: string;
   due?: string;
@@ -88,12 +93,16 @@ function formatDate(value?: string) {
 
 function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
   const items: ExceptionItem[] = [];
-  const outletStats = new Map<string, { outlet: string; total: number; completed: number; failed: number }>();
+  const outletStats = new Map<
+    string,
+    { outlet: string; outletId: string; total: number; completed: number; failed: number }
+  >();
 
   tasks.forEach((task) => {
     const outletKey = task.outletId ?? task.outlet;
     const current = outletStats.get(outletKey) ?? {
       outlet: task.outlet,
+      outletId: task.outletId ?? "",
       total: 0,
       completed: 0,
       failed: 0,
@@ -110,6 +119,7 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
         type: "overdue",
         title: task.title,
         outlet: task.outlet,
+        outletId: task.outletId ?? "",
         severity: "critical",
         summary: "Task melewati due time dan belum selesai.",
         due: task.due,
@@ -124,6 +134,7 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
         type: "checklist_failed",
         title: task.title,
         outlet: task.outlet,
+        outletId: task.outletId ?? "",
         severity: failedCount >= 3 ? "critical" : "high",
         summary: `${failedCount} item checklist gagal.`,
         due: task.due,
@@ -138,6 +149,7 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
         type: "missing_evidence",
         title: task.title,
         outlet: task.outlet,
+        outletId: task.outletId ?? "",
         severity: "high",
         summary: "Task selesai tanpa evidence atau catatan eksekusi.",
         due: task.due,
@@ -151,6 +163,7 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
         type: "rejected",
         title: task.title,
         outlet: task.outlet,
+        outletId: task.outletId ?? "",
         severity: "high",
         summary: task.execution.reviewNote || "Evidence/report ditolak dan perlu tindak lanjut.",
         due: task.due,
@@ -169,6 +182,7 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
       type: "low_compliance",
       title: stats.outlet,
       outlet: stats.outlet,
+      outletId: stats.outletId,
       severity: compliance < 50 ? "critical" : "medium",
       summary: `Compliance outlet ${Math.max(0, compliance)}% dari ${stats.total} task.`,
       score: Math.max(0, compliance),
@@ -182,6 +196,8 @@ function buildExceptionItems(tasks: Task[]): ExceptionItem[] {
 }
 
 export default function ExceptionDashboardPage() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
     getWorkspaceSnapshot,
@@ -189,6 +205,13 @@ export default function ExceptionDashboardPage() {
   );
   const [typeFilter, setTypeFilter] = useState<ExceptionType | "all">("all");
   const [search, setSearch] = useState("");
+  const [followUpItem, setFollowUpItem] = useState<ExceptionItem | null>(null);
+  const [followUp, setFollowUp] = useState({
+    title: "",
+    instructions: "",
+    priority: "high" as IncidentSeverity,
+    dueAt: "",
+  });
 
   const tasksQuery = useQuery({
     queryKey: [...queryKeys.sop.tasks(), "exceptions"],
@@ -225,6 +248,28 @@ export default function ExceptionDashboardPage() {
       }
     );
   }, [allItems]);
+
+  const followUpMutation = useMutation({
+    mutationFn: incidentService.createFollowUp,
+    onSuccess: async () => {
+      toast.success("Follow-up action dibuat.");
+      setFollowUpItem(null);
+      setFollowUp({ title: "", instructions: "", priority: "high", dueAt: "" });
+      await queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Follow-up gagal dibuat."),
+  });
+
+  const openFollowUp = (item: ExceptionItem) => {
+    setFollowUpItem(item);
+    setFollowUp({
+      title: `Tindak lanjut: ${item.title}`,
+      instructions: item.summary,
+      priority: item.severity,
+      dueAt: "",
+    });
+  };
 
   return (
     <main className={`${mobileDashboardMainClass} space-y-6`}>
@@ -341,26 +386,118 @@ export default function ExceptionDashboardPage() {
                   </p>
                   <p className="mt-1 text-sm text-slate-600">{item.summary}</p>
                 </div>
-                {item.taskId ? (
-                  <Link
-                    href="/dashboard/tasks"
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openFollowUp(item)}
+                    disabled={!item.outletId}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    Buka Task
-                  </Link>
-                ) : (
+                    <ClipboardPlus className="size-4" />
+                    Buat Follow-Up
+                  </button>
                   <Link
-                    href="/dashboard/compliance"
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    href={item.taskId ? "/dashboard/tasks" : "/dashboard/compliance"}
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    Buka Compliance
+                    {item.taskId ? "Buka Task" : "Buka Compliance"}
                   </Link>
-                )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {followUpItem ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4">
+          <section className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-lg sm:rounded-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase text-emerald-700">Follow-Up Action</p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-950">{followUpItem.outlet}</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup"
+                onClick={() => setFollowUpItem(null)}
+                className="grid size-10 shrink-0 place-items-center rounded-lg border border-slate-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="mt-5 grid gap-3">
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Judul
+                <input
+                  value={followUp.title}
+                  onChange={(event) => setFollowUp({ ...followUp, title: event.target.value })}
+                  className="min-h-11 rounded-lg border border-slate-300 px-3"
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Instruksi
+                <textarea
+                  rows={4}
+                  value={followUp.instructions}
+                  onChange={(event) =>
+                    setFollowUp({ ...followUp, instructions: event.target.value })
+                  }
+                  className="rounded-lg border border-slate-300 p-3"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Prioritas
+                  <select
+                    value={followUp.priority}
+                    onChange={(event) =>
+                      setFollowUp({
+                        ...followUp,
+                        priority: event.target.value as IncidentSeverity,
+                      })
+                    }
+                    className="min-h-11 rounded-lg border border-slate-300 px-3"
+                  >
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Due
+                  <input
+                    type="datetime-local"
+                    value={followUp.dueAt}
+                    onChange={(event) => setFollowUp({ ...followUp, dueAt: event.target.value })}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                disabled={!followUp.title.trim() || followUpMutation.isPending}
+                onClick={() =>
+                  followUpMutation.mutate({
+                    incident_id: null,
+                    outlet_id: followUpItem.outletId,
+                    assignee_id: null,
+                    title: followUp.title.trim(),
+                    instructions: followUp.instructions.trim() || null,
+                    priority: followUp.priority,
+                    due_at: followUp.dueAt ? new Date(followUp.dueAt).toISOString() : null,
+                    source_type: followUpItem.type,
+                    source_id: followUpItem.taskId ?? followUpItem.id,
+                  })
+                }
+                className="mt-2 min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Simpan Follow-Up
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

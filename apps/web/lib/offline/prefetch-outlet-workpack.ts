@@ -1,4 +1,5 @@
 import { formTemplateService } from "@/services/form-template.service";
+import { hasBrowserSessionMarker } from "@/lib/auth/browser-session";
 import { taskService } from "@/services/task.service";
 
 export type OutletWorkpackPrefetchResult = {
@@ -9,7 +10,7 @@ export type OutletWorkpackPrefetchResult = {
 
 function getAuthToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("novaops_token");
+  return localStorage.getItem("novaops_token") ?? (hasBrowserSessionMarker() ? "cookie" : null);
 }
 
 /**
@@ -38,9 +39,7 @@ export async function prefetchOutletWorkpack(): Promise<OutletWorkpackPrefetchRe
   );
 
   await Promise.all(
-    missingTemplateIds.map((templateId) =>
-      formTemplateService.get(templateId).catch(() => null)
-    )
+    missingTemplateIds.map((templateId) => formTemplateService.get(templateId).catch(() => null))
   );
 
   return {

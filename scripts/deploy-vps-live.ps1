@@ -77,15 +77,15 @@ ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${R
 Write-Host "[6/6] Public health check..." -ForegroundColor Cyan
 $health = $null
 for ($attempt = 1; $attempt -le 12; $attempt++) {
-  $health = ssh @SshArgs $VpsHost "curl -sS -m 10 http://127.0.0.1:8000/api/v1/health 2>/dev/null"
-  if ($LASTEXITCODE -eq 0 -and $health -match '"status"\s*:\s*"ok"') {
+  $health = ssh @SshArgs $VpsHost "curl -sS -m 10 http://127.0.0.1:8000/api/v1/ready 2>/dev/null"
+  if ($LASTEXITCODE -eq 0 -and $health -match '"status"\s*:\s*"ready"') {
     break
   }
   Write-Host "  API belum siap (attempt $attempt/12), retry 5 detik..." -ForegroundColor Yellow
   Start-Sleep -Seconds 5
 }
 
-if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ok"')) {
+if ($LASTEXITCODE -ne 0 -or -not ($health -match '"status"\s*:\s*"ready"')) {
   Write-Host "[FAILED] API tidak sehat setelah 60 detik. Response: $health" -ForegroundColor Red
   exit 1
 }

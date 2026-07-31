@@ -29,6 +29,8 @@ export type EquipmentRegisterItem = {
   replacement_for_id: string | null;
   gateway_id: string | null;
   pairing_code: string | null;
+  paired_sensor_id: string | null;
+  paired_at: string | null;
   gateway_provisioned_at: string | null;
   battery_level: number | null;
   battery_alert_threshold: number | null;
@@ -43,7 +45,10 @@ export type EquipmentRegisterItem = {
   notes: string | null;
 };
 
-export type EquipmentRegisterPayload = Omit<EquipmentRegisterItem, "id">;
+export type EquipmentRegisterPayload = Omit<
+  EquipmentRegisterItem,
+  "id" | "paired_sensor_id" | "paired_at"
+>;
 
 export type TemperatureLog = {
   id: string;
@@ -90,6 +95,22 @@ export async function requestEquipmentReplacement(id: string) {
 
 export async function approveEquipmentReplacement(id: string) {
   return api<EquipmentRegisterItem>(`/api/v1/assets/equipment/${id}/approve-replacement`, {
+    method: "POST",
+  });
+}
+
+export async function pairEquipmentSensor(
+  id: string,
+  payload: { pairing_code: string; sensor_id: string; gateway_id: string },
+) {
+  return api<EquipmentRegisterItem>(`/api/v1/assets/equipment/${id}/pair`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function unpairEquipmentSensor(id: string) {
+  return api<EquipmentRegisterItem>(`/api/v1/assets/equipment/${id}/unpair`, {
     method: "POST",
   });
 }

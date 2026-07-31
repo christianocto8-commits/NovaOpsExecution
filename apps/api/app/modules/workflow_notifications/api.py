@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.identity.dependencies import require_permission
+from app.modules.identity.models import User
 from app.modules.workflow_notifications.schemas import (
     NotificationTemplateCreate,
     NotificationTemplateRead,
@@ -21,6 +23,7 @@ router = APIRouter(prefix="/workflow-notifications", tags=["workflow-notificatio
 def list_notification_templates(
     workflow_id: UUID,
     db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("workflow.read")),
 ):
     service = NotificationTemplateService(db)
     return service.list_by_workflow(workflow_id)
@@ -34,6 +37,7 @@ def list_notification_templates(
 def create_notification_template(
     payload: NotificationTemplateCreate,
     db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("workflow.edit")),
 ):
     service = NotificationTemplateService(db)
     return service.create(payload)
@@ -47,6 +51,7 @@ def update_notification_template(
     template_id: UUID,
     payload: NotificationTemplateUpdate,
     db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("workflow.edit")),
 ):
     service = NotificationTemplateService(db)
     return service.update(template_id, payload)
@@ -59,6 +64,7 @@ def update_notification_template(
 def delete_notification_template(
     template_id: UUID,
     db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("workflow.edit")),
 ):
     service = NotificationTemplateService(db)
     service.delete(template_id)

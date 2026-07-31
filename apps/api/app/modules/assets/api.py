@@ -13,6 +13,7 @@ from app.models.app_settings import AppSettings
 from app.models.task import Task
 from app.modules.assets.schemas import (
     EquipmentHealthRead,
+    EquipmentPairRequest,
     EquipmentRegisterItem,
     EquipmentRegisterUpsert,
     TemperatureLogRead,
@@ -232,7 +233,13 @@ def update_equipment_register_item(
     items = _load_register(db)
     for index, item in enumerate(items):
         if item.get("id") == equipment_id:
-            next_item = EquipmentRegisterItem(id=equipment_id, **payload.model_dump())
+            next_item = EquipmentRegisterItem(
+                **{
+                    **item,
+                    **payload.model_dump(),
+                    "id": equipment_id,
+                }
+            )
             items[index] = next_item.model_dump(mode="json")
             _save_register(db, items)
             return next_item
@@ -274,6 +281,57 @@ def approve_equipment_replacement(
             items[index] = next_item.model_dump(mode="json")
             _save_register(db, items)
             return next_item
+    raise HTTPException(status_code=404, detail="Equipment not found")
+
+
+@router.post("/equipment/{equipment_id}/pair", response_model=EquipmentRegisterItem)
+def pair_equipment_sensor(
+    equipment_id: str,
+    payload: EquipmentPairRequest,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("settings.manage")),
+):
+    del current_user
+    items = _load_register(db)
+    for index, item in enumerate(items):
+        if item.get("id") != equipment_id:
+            continue
+        next_item = EquipmentRegisterItem(**item)
+        if not next_item.pairing_code or next_item.pairing_code != payload.pairing_code:
+            raise HTTPException(status_code=400, detail="Pairing code is invalid or already used")
+        next_item.paired_sensor_id = payload.sensor_id.strip()
+        next_item.gateway_id = payload.gateway_id.strip()
+        next_item.gateway_provisioned_at = datetime.now(timezone.utc)
+        next_item.paired_at = datetime.now(timezone.utc)
+        next_item.pairing_code = None
+        next_item.sensor_enabled = True
+        next_item.status = "active"
+        items[index] = next_item.model_dump(mode="json")
+        _save_register(db, items)
+        return next_item
+    raise HTTPException(status_code=404, detail="Equipment not found")
+
+
+@router.post("/equipment/{equipment_id}/unpair", response_model=EquipmentRegisterItem)
+def unpair_equipment_sensor(
+    equipment_id: str,
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("settings.manage")),
+):
+    del current_user
+    items = _load_register(db)
+    for index, item in enumerate(items):
+        if item.get("id") != equipment_id:
+            continue
+        next_item = EquipmentRegisterItem(**item)
+        next_item.paired_sensor_id = None
+        next_item.paired_at = None
+        next_item.gateway_id = None
+        next_item.gateway_provisioned_at = None
+        next_item.sensor_enabled = False
+        items[index] = next_item.model_dump(mode="json")
+        _save_register(db, items)
+        return next_item
     raise HTTPException(status_code=404, detail="Equipment not found")
 
 

@@ -3,6 +3,7 @@
 import { useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/providers/AuthProvider";
+import { hasBrowserSessionMarker } from "@/lib/auth/browser-session";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -10,7 +11,7 @@ type AuthGuardProps = {
 
 function hasStoredToken() {
   if (typeof window === "undefined") return false;
-  return Boolean(localStorage.getItem("novaops_token"));
+  return Boolean(localStorage.getItem("novaops_token")) || hasBrowserSessionMarker();
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {

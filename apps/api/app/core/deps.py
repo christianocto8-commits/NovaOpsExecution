@@ -12,6 +12,7 @@ from app.models.user import User
 from app.modules.api_keys.models import ApiKey
 from app.modules.api_keys.service import ApiKeyService
 from app.modules.identity.models import User as IdentityUser
+from app.modules.identity.repository import RefreshTokenRepository
 from app.modules.tasks.identity_bridge import (
     get_default_identity_outlet,
     get_or_create_legacy_outlet,
@@ -23,12 +24,7 @@ bearer_scheme = HTTPBearer(auto_error=True)
 optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _resolve_legacy_user(db: Session, subject: str) -> User | None:
-    try:
-        return db.query(User).filter(User.id == int(subject)).first()
-    except (TypeError, ValueError):
-        pass
-
+def _resolve_legacy_user(db: Session, subject: str, payload: dict | None = None) -> User | None:
     try:
         identity_user_id = UUID(subject)
     except (TypeError, ValueError):
@@ -36,7 +32,22 @@ def _resolve_legacy_user(db: Session, subject: str) -> User | None:
 
     identity_user = db.query(IdentityUser).filter(IdentityUser.id == identity_user_id).first()
 
-    if not identity_user:
+    if not identity_user or not identity_user.is_active:
+        return None
+
+    session_id = (payload or {}).get("sid")
+    if not session_id:
+        return None
+
+    try:
+        active_session = RefreshTokenRepository(db).find_active_by_id_for_user(
+            session_id=UUID(str(session_id)),
+            user_id=identity_user.id,
+        )
+    except (TypeError, ValueError):
+        return None
+
+    if not active_session:
         return None
 
     identity_outlet = get_default_identity_outlet(identity_user)
@@ -73,7 +84,7 @@ def get_current_user(
                 detail="Invalid authentication credentials",
             )
 
-        user = _resolve_legacy_user(db, str(user_id))
+        user = _resolve_legacy_user(db, str(user_id), payload)
 
         if user is None:
             raise HTTPException(

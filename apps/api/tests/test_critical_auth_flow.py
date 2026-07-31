@@ -43,6 +43,7 @@ def test_login_devices_list_and_revoke(client):
         headers={"user-agent": "Mozilla/5.0 Windows Chrome/120"},
     )
     assert first_login.status_code == 200, first_login.text
+    first_token = first_login.json()["access_token"]
 
     second_login = client.post(
         "/api/v1/auth/login",
@@ -67,6 +68,12 @@ def test_login_devices_list_and_revoke(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert revoke_response.status_code == 204, revoke_response.text
+
+    revoked_session_response = client.get(
+        "/api/v1/reports/trends",
+        headers={"Authorization": f"Bearer {first_token}"},
+    )
+    assert revoked_session_response.status_code == 401, revoked_session_response.text
 
     devices_after_revoke = client.get(
         "/api/v1/auth/devices",

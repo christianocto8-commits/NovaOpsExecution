@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { hasBrowserSessionMarker } from "@/lib/auth/browser-session";
 import { prefetchOutletWorkpack } from "@/lib/offline/prefetch-outlet-workpack";
 import {
   getFailedMutations,
@@ -65,7 +66,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 
   const refreshWorkpack = useCallback(async () => {
     if (!isOnline || typeof window === "undefined") return;
-    if (!localStorage.getItem("novaops_token")) return;
+    if (!localStorage.getItem("novaops_token") && !hasBrowserSessionMarker()) return;
 
     setIsPrefetching(true);
 

@@ -86,6 +86,23 @@ def verify_otp(
     )
 
 
+@router.delete("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    current_user: User = Depends(get_current_active_user),
+    current_session_id: UUID | None = Depends(get_current_session_id),
+    db: Session = Depends(get_db),
+) -> Response:
+    if current_session_id:
+        refresh_token = RefreshTokenRepository(db).find_active_by_id_for_user(
+            session_id=current_session_id,
+            user_id=current_user.id,
+        )
+        if refresh_token:
+            RefreshTokenRepository(db).revoke(refresh_token)
+            db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/google/login")
 def google_login() -> RedirectResponse:
     if not is_google_oauth_configured():

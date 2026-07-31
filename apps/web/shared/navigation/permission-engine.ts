@@ -23,6 +23,7 @@ const outletNavigationItemIds = new Set([
   "drafts",
   "history",
   "corrective-actions",
+  "incidents",
   "evidence",
   "training",
   "settings",
@@ -48,6 +49,7 @@ const areaManagerVisibleNavigationItemIds = new Set([
   "exceptions",
   "finance-handoff",
   "corrective-actions",
+  "incidents",
 ]);
 
 const areaManagerNavigationItemIds = new Set([
@@ -63,6 +65,7 @@ const areaManagerNavigationItemIds = new Set([
   "finance-handoff",
   "forms",
   "history",
+  "incidents",
   "iot",
   "notifications",
   "outlets",
@@ -139,7 +142,14 @@ export function getNavigationForPermissions(
   });
 
   if (workspace?.role === "OUTLET") {
-    const outletOrder = ["tasks", "forms", "reports", "drafts", "notifications", "settings"];
+    const outletOrder = [
+      "tasks",
+      "forms",
+      "reports",
+      "drafts",
+      "notifications",
+      "settings",
+    ];
     return [...visibleItems].sort(
       (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)
     );

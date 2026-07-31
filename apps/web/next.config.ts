@@ -9,11 +9,43 @@ const API_PROXY_TARGET = (
 ).replace(/\/+$/, "");
 
 const isLocalApiTarget =
-  API_PROXY_TARGET.includes("localhost") ||
-  API_PROXY_TARGET.includes("127.0.0.1");
+  API_PROXY_TARGET.includes("localhost") || API_PROXY_TARGET.includes("127.0.0.1");
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https: http: ws: wss:",
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), geolocation=(self), microphone=()",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     if (useRelativeApi) {
       return [];

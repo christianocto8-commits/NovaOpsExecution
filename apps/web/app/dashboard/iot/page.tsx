@@ -20,6 +20,7 @@ import {
   listEquipmentRegister,
   listTemperatureLog,
   createEquipmentRegisterItem,
+  pairEquipmentSensor,
   updateEquipmentRegisterItem,
   type EquipmentRegisterItem,
   type EquipmentRegisterPayload,
@@ -191,6 +192,32 @@ export default function IotDashboardPage() {
       resetAssetForm();
     } catch (error) {
       setAssetError(error instanceof Error ? error.message : "Gagal menyimpan asset.");
+    } finally {
+      setIsSavingAsset(false);
+    }
+  }
+
+  async function pairAsset() {
+    if (
+      !editingAssetId ||
+      !assetForm.pairing_code?.trim() ||
+      !assetForm.serial_number?.trim() ||
+      !assetForm.gateway_id?.trim()
+    ) {
+      setAssetError("Pairing code, serial sensor, dan gateway wajib diisi.");
+      return;
+    }
+    try {
+      setIsSavingAsset(true);
+      await pairEquipmentSensor(editingAssetId, {
+        pairing_code: assetForm.pairing_code.trim(),
+        sensor_id: assetForm.serial_number.trim(),
+        gateway_id: assetForm.gateway_id.trim(),
+      });
+      await Promise.all([registerQuery.refetch(), equipmentQuery.refetch()]);
+      resetAssetForm();
+    } catch (error) {
+      setAssetError(error instanceof Error ? error.message : "Pairing sensor gagal.");
     } finally {
       setIsSavingAsset(false);
     }
@@ -439,6 +466,16 @@ export default function IotDashboardPage() {
               <button type="button" onClick={() => void saveAsset()} disabled={isSavingAsset} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">
                 {isSavingAsset ? "Saving..." : editingAssetId ? "Update asset" : "Create asset"}
               </button>
+              {editingAssetId && assetForm.pairing_code ? (
+                <button
+                  type="button"
+                  onClick={() => void pairAsset()}
+                  disabled={isSavingAsset}
+                  className="rounded-xl border border-emerald-700 bg-white px-4 py-2 text-sm font-bold text-emerald-700 disabled:opacity-50"
+                >
+                  Pair sensor
+                </button>
+              ) : null}
               <button type="button" onClick={resetAssetForm} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700">
                 Cancel
               </button>

@@ -58,6 +58,16 @@ def _ensure_operational_report_access(db: Session, current_user) -> None:
         )
 
 
+def _resolve_report_scope(db: Session, current_user, x_outlet_id: str | None):
+    if isinstance(current_user, ApiKey):
+        return None, None, True
+    _ensure_operational_report_access(db, current_user)
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    return outlet_id, outlet_ids, full_access
+
+
 def _completion_rate(completed: int, total: int) -> int:
     if total == 0:
         return 0
@@ -184,12 +194,9 @@ def get_report_summary(
 def get_report_trends(
     x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_jwt_or_api_key("read:reports")),
 ):
-    _ensure_operational_report_access(db, current_user)
-    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
-        db, current_user, x_outlet_id
-    )
+    outlet_id, outlet_ids, full_access = _resolve_report_scope(db, current_user, x_outlet_id)
     outlet_scope = _task_outlet_scope(
         outlet_id,
         None if outlet_id else outlet_ids,
@@ -276,15 +283,23 @@ def get_report_trends(
 
 @router.get("/outlets", response_model=list[OutletReport])
 def get_outlet_reports(
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_jwt_or_api_key("read:reports")),
 ):
-    _ensure_operational_report_access(db, current_user)
+    outlet_id, outlet_ids, full_access = _resolve_report_scope(db, current_user, x_outlet_id)
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
-    outlets = db.query(Outlet).order_by(Outlet.id.asc()).all()
+    outlet_query = db.query(Outlet)
+    if outlet_id is not None:
+        outlet_query = outlet_query.filter(Outlet.id == outlet_id)
+    elif not full_access:
+        outlet_query = outlet_query.filter(
+            Outlet.id.in_(outlet_ids) if outlet_ids else Outlet.id == -1
+        )
+    outlets = outlet_query.order_by(Outlet.id.asc()).all()
     reports: list[OutletReport] = []
 
     for outlet in outlets:
@@ -337,15 +352,23 @@ def get_outlet_reports(
 
 @router.get("/benchmarks", response_model=BenchmarkSummary)
 def get_outlet_benchmarks(
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
-    current_user=Depends(require_permission("report.read")),
+    current_user=Depends(require_jwt_or_api_key("read:reports")),
 ):
-    _ensure_operational_report_access(db, current_user)
+    outlet_id, outlet_ids, full_access = _resolve_report_scope(db, current_user, x_outlet_id)
 
     workspace_settings = get_workspace_settings(db)
     pass_threshold = workspace_settings.pass_threshold
     now = datetime.now(timezone.utc)
-    outlets = db.query(Outlet).order_by(Outlet.name.asc()).all()
+    outlet_query = db.query(Outlet)
+    if outlet_id is not None:
+        outlet_query = outlet_query.filter(Outlet.id == outlet_id)
+    elif not full_access:
+        outlet_query = outlet_query.filter(
+            Outlet.id.in_(outlet_ids) if outlet_ids else Outlet.id == -1
+        )
+    outlets = outlet_query.order_by(Outlet.name.asc()).all()
     rows: list[OutletBenchmarkReport] = []
     raw_scores: list[int] = []
 
@@ -461,13 +484,22 @@ def update_scheduled_report_config(
 
 @router.get("/compliance", response_model=list[ComplianceReport])
 def get_compliance_reports(
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     _ensure_operational_report_access(db, current_user)
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
 
     pass_threshold = get_workspace_settings(db).pass_threshold
-    summary = _build_report_summary(db)
+    summary = _build_report_summary(
+        db,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        full_access=full_access,
+    )
 
     return [
         ComplianceReport(
@@ -521,15 +553,22 @@ def get_failed_checklist_items(
 def get_template_compliance_trends_report(
     template_id: int = Query(..., ge=1),
     days: int = Query(default=30, ge=1, le=365),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     _ensure_operational_report_access(db, current_user)
+    outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
 
     points = get_template_compliance_trends(
         db,
         template_id=template_id,
         days=days,
+        outlet_id=outlet_id,
+        outlet_ids=None if outlet_id else outlet_ids,
+        all_outlets=full_access and outlet_id is None,
     )
 
     return TemplateTrendsReport(

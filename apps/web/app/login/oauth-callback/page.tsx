@@ -4,6 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { getMe } from "@/services/auth.service";
+import {
+  establishBrowserSession,
+  storeAuthenticatedSession,
+  usesNativeTokenStorage,
+} from "@/lib/auth/browser-session";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
@@ -64,8 +69,10 @@ function OAuthCallbackContent() {
 
     async function completeLogin(token: string, refresh: string) {
       try {
-        localStorage.setItem("novaops_token", token);
-        localStorage.setItem("novaops_refresh_token", refresh);
+        if (!usesNativeTokenStorage()) {
+          await establishBrowserSession(token, refresh);
+        }
+        storeAuthenticatedSession(token, refresh);
 
         const currentUser = await getMe();
         storeOutletContext(currentUser.outlet_access);

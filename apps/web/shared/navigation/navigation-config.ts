@@ -10,6 +10,7 @@ import {
   Gauge,
   GitBranch,
   History,
+  Siren,
   LayoutDashboard,
   MailCheck,
   Megaphone,
@@ -93,6 +94,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/corrective-actions",
     icon: Wrench,
     requiredPermissions: ["task.read"],
+    section: "sop",
+  },
+  {
+    id: "incidents",
+    label: "Incidents",
+    href: "/dashboard/incidents",
+    icon: Siren,
+    requiredPermissions: ["incident.read"],
     section: "sop",
   },
   {

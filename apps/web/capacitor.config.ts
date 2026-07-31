@@ -1,5 +1,7 @@
 const isProduction = process.env.CAPACITOR_ENV === "production";
 const isOffline = process.env.CAPACITOR_OFFLINE === "1";
+const productionUrl = process.env.CAPACITOR_PRODUCTION_URL ?? "https://nova-ops.cloud";
+const productionHost = new URL(productionUrl).hostname;
 
 /** @type {import('@capacitor/cli').CapacitorConfig} */
 const config = {
@@ -36,7 +38,9 @@ const config = {
           // app (AuthProvider) once the web build is redeployed.
           server: {
             androidScheme: "https",
-            url: "https://nova-ops.cloud",
+            url: productionUrl,
+            cleartext: false,
+            allowNavigation: [productionHost],
           },
         }
     : {

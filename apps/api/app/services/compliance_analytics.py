@@ -98,11 +98,14 @@ def get_template_compliance_trends(
     *,
     template_id: int,
     days: int = 30,
+    outlet_id: int | None = None,
+    outlet_ids: list[int] | None = None,
+    all_outlets: bool = False,
 ) -> list[dict]:
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=days)
 
-    sessions = (
+    query = (
         db.query(ExecutionSession)
         .outerjoin(Task, ExecutionSession.task_id == Task.id)
         .filter(
@@ -114,8 +117,15 @@ def get_template_compliance_trends(
                 and_(Task.source_type == "form_template", Task.source_id == template_id),
             ),
         )
-        .all()
     )
+    if outlet_id is not None:
+        query = query.filter(Task.outlet_id == outlet_id)
+    elif outlet_ids is not None:
+        query = query.filter(Task.outlet_id.in_(outlet_ids) if outlet_ids else Task.id == -1)
+    elif not all_outlets:
+        query = query.filter(Task.id == -1)
+
+    sessions = query.all()
 
     day_buckets: dict[str, list[dict]] = {}
 

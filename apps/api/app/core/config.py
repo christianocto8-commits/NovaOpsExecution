@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     database_url: str
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 1440
+    access_token_expire_minutes: int = 30
     cors_origins_raw: str = "http://localhost:3000,http://127.0.0.1:3000"
     bootstrap_admin_enabled: bool = False
     bootstrap_admin_email: str | None = None
@@ -165,7 +165,7 @@ def get_settings() -> Settings:
             os.environ.get("ALGORITHM", "HS256"),
         ),
         access_token_expire_minutes=int(
-            os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
+            os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
         ),
         cors_origins_raw=_sanitize_env_value(
             os.environ.get(
