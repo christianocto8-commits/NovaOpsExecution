@@ -65,10 +65,14 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
 }
 
 function getPostLoginDestination(roleSlug: string, fallbackUrl: string) {
-  return (roleSlug === "finance" || roleSlug === "finance_head_office") &&
-    fallbackUrl === "/dashboard"
-    ? "/dashboard/finance"
-    : fallbackUrl;
+  if (fallbackUrl !== "/dashboard") return fallbackUrl;
+  if (roleSlug === "finance" || roleSlug === "finance_head_office") {
+    return "/dashboard/finance";
+  }
+  if (roleSlug === "outlet") {
+    return "/dashboard/operator";
+  }
+  return fallbackUrl;
 }
 
 export default function LoginPage() {

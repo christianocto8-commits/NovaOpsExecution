@@ -12,10 +12,12 @@ function isCapaNavigationItem(item: NavigationItem) {
 }
 
 const outletNavigationItemIds = new Set([
+  "operator",
   "dashboard",
   "tasks",
   "forms",
   "reports",
+  "compliance",
   "exceptions",
   "announcements",
   "notifications",
@@ -30,6 +32,7 @@ const outletNavigationItemIds = new Set([
 ]);
 
 const outletVisibleNavigationItemIds = new Set([
+  "operator",
   "tasks",
   "forms",
   "reports",
@@ -141,7 +144,15 @@ export function getNavigationForPermissions(
   });
 
   if (workspace?.role === "OUTLET") {
-    const outletOrder = ["tasks", "forms", "reports", "drafts", "notifications", "settings"];
+    const outletOrder = [
+      "operator",
+      "tasks",
+      "forms",
+      "reports",
+      "drafts",
+      "notifications",
+      "settings",
+    ];
     return [...visibleItems].sort(
       (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)
     );

@@ -41,6 +41,14 @@ export type NavigationItem = {
 
 export const navigationItems: NavigationItem[] = [
   {
+    id: "operator",
+    label: "Beranda Outlet",
+    href: "/dashboard/operator",
+    icon: Store,
+    requiredPermissions: ["task.read"],
+    section: "sop",
+  },
+  {
     id: "dashboard",
     label: "Dashboard",
     href: "/dashboard",

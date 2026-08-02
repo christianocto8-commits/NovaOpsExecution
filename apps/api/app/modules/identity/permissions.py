@@ -170,6 +170,7 @@ ROLE_PERMISSION_MAP = {
         "followup.update",
         "finance.submit",
         "finance.read",
+        "report.read",
     ],
     FINANCE_ROLE: FINANCE_PERMISSIONS,
     FINANCE_HEAD_OFFICE_ROLE: list(FINANCE_PERMISSIONS),
