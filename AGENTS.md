@@ -27,6 +27,7 @@ MinIO (S3), SSO, Twilio, FCM/VAPID are all optional; without them evidence uploa
 
 - `apps/api/.env` and `apps/web/.env.local` are gitignored and already created in this environment (copied from the `.env.example` files). Recreate them from the examples if missing.
 - `apps/api/app/core/config.py` calls `load_dotenv(override=True)`, so values in `apps/api/.env` **override** shell environment variables. To change a backend setting for a run, edit `apps/api/.env` (setting a shell env var will not take effect).
+- **Browser login gotcha (important):** `apps/web/.env.local` must set `NEXT_PUBLIC_USE_RELATIVE_API=true` for local dev, in addition to `NEXT_PUBLIC_API_URL=http://localhost:8000`. Without it, `next.config.ts` adds an `afterFiles` rewrite that sends `/api/v1/*` straight to the FastAPI backend, which takes precedence over the Next.js proxy route (`app/api/v1/[...path]/route.ts`) that sets the httpOnly auth cookies (`novaops_access`/`novaops_refresh`). In that broken state the login POST returns a token but no session cookie, so `getMe()` (`/api/v1/authorization/context`) 401s and the UI bounces back to `/login`. With `NEXT_PUBLIC_USE_RELATIVE_API=true` the proxy route handles auth and the cookie-based browser session works. Restart `npm run dev` after changing any `NEXT_PUBLIC_*` var.
 
 ### Lint / test / build
 
