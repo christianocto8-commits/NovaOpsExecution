@@ -48,8 +48,36 @@ jobs:
           fi
           mkdir -p "$HOME/.ssh"
           KEY_PATH="$HOME/.ssh/novaops_vps_ed25519"
-          printf '%s' "$NOVAOPS_VPS_SSH_KEY_VALUE" > "$KEY_PATH"
+          export KEY_PATH
+          python - <<'PY'
+          import base64
+          import os
+          import pathlib
+          import sys
+
+          key_value = os.environ["NOVAOPS_VPS_SSH_KEY_VALUE"].strip()
+          key_path = pathlib.Path(os.environ["KEY_PATH"])
+
+          def write_key(text: str) -> None:
+              normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip() + "\n"
+              key_path.write_text(normalized, encoding="utf-8")
+
+          if "BEGIN OPENSSH PRIVATE KEY" in key_value:
+              write_key(key_value)
+          else:
+              try:
+                  decoded = base64.b64decode(key_value).decode("utf-8")
+              except Exception as exc:  # pragma: no cover - workflow runtime path
+                  print(
+                      "::error::Secret NOVAOPS_VPS_SSH_KEY harus berupa private key OpenSSH utuh atau base64 dari file key.",
+                      file=sys.stderr,
+                  )
+                  print(f"decode error: {exc}", file=sys.stderr)
+                  sys.exit(1)
+              write_key(decoded)
+          PY
           chmod 600 "$KEY_PATH"
+          ssh-keygen -y -f "$KEY_PATH" >/dev/null
           echo "NOVAOPS_VPS_SSH_KEY=$KEY_PATH" >> "$GITHUB_ENV"
           if [ -n "${NOVAOPS_VPS_HOST:-}" ]; then
             ssh-keyscan -H "${NOVAOPS_VPS_HOST#*@}" >> "$HOME/.ssh/known_hosts"
