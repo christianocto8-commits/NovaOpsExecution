@@ -36,7 +36,13 @@ from app.modules.identity.saml_sso import (
 )
 from app.modules.identity.models import User
 from app.modules.identity.repository import RefreshTokenRepository
-from app.modules.identity.schemas import LoginDeviceSessionResponse, LoginRequest, OtpVerifyRequest, TokenResponse
+from app.modules.identity.schemas import (
+    LoginDeviceSessionResponse,
+    LoginRequest,
+    OtpVerifyRequest,
+    RefreshRequest,
+    TokenResponse,
+)
 from app.modules.identity.security import decode_access_token
 from app.modules.identity.service import AuthService
 from app.services.webhook_dispatcher import dispatch_webhook_event
@@ -81,6 +87,19 @@ def verify_otp(
     return AuthService(db).verify_otp_challenge(
         challenge_id=payload.challenge_id,
         code=payload.code,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_session(
+    payload: RefreshRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    return AuthService(db).refresh_tokens(
+        raw_refresh_token=payload.refresh_token,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )

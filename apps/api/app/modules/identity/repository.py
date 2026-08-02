@@ -147,6 +147,10 @@ class RefreshTokenRepository:
         )
         return self.db.scalar(statement)
 
+    def find_by_hash_including_revoked(self, token_hash: str) -> RefreshToken | None:
+        statement = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        return self.db.scalar(statement)
+
     def find_active_by_id_for_user(self, *, session_id: UUID, user_id: UUID) -> RefreshToken | None:
         statement = select(RefreshToken).where(
             RefreshToken.id == session_id,

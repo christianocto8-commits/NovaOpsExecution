@@ -36,11 +36,16 @@ class IotService:
         outlet_id: UUID | None = None,
         sensor_type: str | None = None,
         limit: int = 100,
+        accessible_outlet_ids: list[UUID] | None = None,
     ) -> list[IotSensorReading]:
         statement = select(IotSensorReading).order_by(IotSensorReading.recorded_at.desc())
 
         if outlet_id:
             statement = statement.where(IotSensorReading.outlet_id == outlet_id)
+        elif accessible_outlet_ids is not None:
+            if not accessible_outlet_ids:
+                return []
+            statement = statement.where(IotSensorReading.outlet_id.in_(accessible_outlet_ids))
 
         if sensor_type:
             statement = statement.where(IotSensorReading.sensor_type == sensor_type.strip().lower())
@@ -86,11 +91,18 @@ class IotService:
             ),
         )
 
-    def list_sensor_health(self) -> list[IotSensorHealthRead]:
+    def list_sensor_health(
+        self,
+        *,
+        accessible_outlet_ids: list[UUID] | None = None,
+    ) -> list[IotSensorHealthRead]:
         settings = get_workspace_settings(self.db)
         threshold_min = float(getattr(settings, "iot_temp_min_c", 2))
         threshold_max = float(getattr(settings, "iot_temp_max_c", 8))
-        readings = self.list_readings(limit=500)
+        readings = self.list_readings(
+            limit=500,
+            accessible_outlet_ids=accessible_outlet_ids,
+        )
         latest_by_sensor: dict[tuple[UUID, str], IotSensorReading] = {}
 
         for reading in readings:

@@ -817,12 +817,21 @@ class TaskService:
                 detail="Only corrective action tasks can store CAPA evidence",
             )
 
+        if payload.root_cause is not None:
+            task.capa_root_cause = payload.root_cause
+        if payload.before_evidence_url is not None:
+            task.capa_before_evidence_url = payload.before_evidence_url
+        if payload.after_evidence_url is not None:
+            task.capa_after_evidence_url = payload.after_evidence_url
+        if payload.note is not None:
+            task.capa_evidence_note = payload.note
+
         evidence_lines = [
             "[CAPA Evidence]",
-            f"Root cause: {payload.root_cause or '-'}",
-            f"Before evidence: {payload.before_evidence_url or '-'}",
-            f"After evidence: {payload.after_evidence_url or '-'}",
-            f"Note: {payload.note or '-'}",
+            f"Root cause: {task.capa_root_cause or '-'}",
+            f"Before evidence: {task.capa_before_evidence_url or '-'}",
+            f"After evidence: {task.capa_after_evidence_url or '-'}",
+            f"Note: {task.capa_evidence_note or '-'}",
         ]
 
         self.repo.create_comment(
@@ -830,7 +839,7 @@ class TaskService:
                 task_id=task.id,
                 user_id=actor_id,
                 comment="\n".join(evidence_lines),
-                evidence_url=payload.after_evidence_url or payload.before_evidence_url,
+                evidence_url=task.capa_after_evidence_url or task.capa_before_evidence_url,
                 event_type="capa_evidence",
                 previous_value=task.status,
                 new_value=task.status,

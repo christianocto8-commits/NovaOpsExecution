@@ -18,6 +18,7 @@ from app.modules.iot.schemas import (
     IotSensorHealthRead,
 )
 from app.modules.iot.service import IotService
+from app.modules.tasks.identity_bridge import get_accessible_identity_outlets
 
 router = APIRouter(prefix="/iot", tags=["IoT"])
 
@@ -49,6 +50,16 @@ def ingest_iot_reading(
     return IotService(db).ingest(payload)
 
 
+def _accessible_outlet_ids_for_user(
+    db: Session,
+    current_user: IdentityUser,
+) -> tuple[set[UUID] | None, bool]:
+    outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    if full_access:
+        return None, True
+    return {outlet.id for outlet in outlets}, False
+
+
 @router.get("/readings", response_model=list[IotReadingRead])
 def list_iot_readings(
     outlet_id: UUID | None = None,
@@ -57,11 +68,18 @@ def list_iot_readings(
     db: Session = Depends(get_db),
     current_user: IdentityUser = Depends(require_permission("report.read")),
 ):
-    del current_user
+    accessible_ids, full_access = _accessible_outlet_ids_for_user(db, current_user)
+    if outlet_id is not None and not full_access and outlet_id not in (accessible_ids or set()):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no access to this outlet",
+        )
+
     return IotService(db).list_readings(
         outlet_id=outlet_id,
         sensor_type=sensor_type,
         limit=limit,
+        accessible_outlet_ids=None if full_access else list(accessible_ids or set()),
     )
 
 
@@ -70,8 +88,10 @@ def list_iot_sensor_health(
     db: Session = Depends(get_db),
     current_user: IdentityUser = Depends(require_permission("report.read")),
 ):
-    del current_user
-    return IotService(db).list_sensor_health()
+    accessible_ids, full_access = _accessible_outlet_ids_for_user(db, current_user)
+    return IotService(db).list_sensor_health(
+        accessible_outlet_ids=None if full_access else list(accessible_ids or set()),
+    )
 
 
 @router.post("/evaluate", response_model=IotEvaluateResult)

@@ -18,6 +18,7 @@ from app.modules.identity.models import (
     Role,
     User,
 )
+from app.modules.tasks.identity_bridge import get_accessible_identity_outlets
 from app.modules.identity.permissions import ROLE_PERMISSION_MAP, SYSTEM_ROLES
 from app.modules.identity.repository import (
     OrganizationRepository,
@@ -210,7 +211,10 @@ def list_outlets(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("outlet.read")),
 ):
-    return OutletRepository(db).list()
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    if full_access:
+        return OutletRepository(db).list()
+    return sorted(accessible_outlets, key=lambda outlet: outlet.name.lower())
 
 
 @router.get("/regions", response_model=list[RegionRead])
@@ -341,7 +345,20 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("user.read")),
 ):
-    return UserRepository(db).list()
+    users = UserRepository(db).list()
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    if full_access:
+        return users
+
+    accessible_ids = {outlet.id for outlet in accessible_outlets}
+    scoped: list[User] = []
+    for user in users:
+        if user.outlet_id and user.outlet_id in accessible_ids:
+            scoped.append(user)
+            continue
+        if any(outlet.id in accessible_ids for outlet in user.assigned_outlets):
+            scoped.append(user)
+    return scoped
 
 
 @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)

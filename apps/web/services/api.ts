@@ -1,7 +1,16 @@
 import { buildApiUrl, isLocalDevEnvironment, resolveApiDisplayUrl } from "@/lib/api-url";
+import {
+  clearAuthenticatedSession,
+  clearBrowserSessionCookie,
+  storeAuthenticatedSession,
+  usesNativeTokenStorage,
+} from "@/lib/auth/browser-session";
 
 const DEFAULT_TIMEOUT_MS = 70000;
 const RETRY_DELAY_MS = 5000;
+const REFRESH_TOKEN_KEY = "novaops_refresh_token";
+
+let refreshInFlight: Promise<boolean> | null = null;
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -89,6 +98,15 @@ function shouldRetryRequest(endpoint: string, options?: RequestInit) {
   return false;
 }
 
+function isAuthEndpoint(endpoint: string) {
+  return (
+    endpoint.includes("/auth/login") ||
+    endpoint.includes("/auth/verify-otp") ||
+    endpoint.includes("/auth/refresh") ||
+    endpoint.includes("/auth/browser-session")
+  );
+}
+
 function buildHeaders(options?: RequestInit) {
   const token = getToken();
   const outletId = getOutletId();
@@ -118,7 +136,65 @@ function buildConnectionError() {
   return `Koneksi ke backend gagal. Pastikan VPS API aktif di ${target}, lalu refresh halaman (Ctrl+Shift+R).`;
 }
 
-async function executeRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    try {
+      if (usesNativeTokenStorage()) {
+        const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (!refreshToken) return false;
+
+        const response = await fetch(buildApiUrl("/api/v1/auth/refresh"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (!response.ok) {
+          clearAuthenticatedSession();
+          return false;
+        }
+
+        const payload = (await response.json()) as {
+          access_token?: string | null;
+          refresh_token?: string | null;
+        };
+        if (!payload.access_token || !payload.refresh_token) {
+          clearAuthenticatedSession();
+          return false;
+        }
+
+        storeAuthenticatedSession(payload.access_token, payload.refresh_token);
+        return true;
+      }
+
+      const response = await fetch("/api/v1/auth/browser-session/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        clearAuthenticatedSession();
+        clearBrowserSessionCookie();
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+async function executeRequest<T>(
+  endpoint: string,
+  options?: RequestInit,
+  allowRefresh = true
+): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
@@ -128,6 +204,13 @@ async function executeRequest<T>(endpoint: string, options?: RequestInit): Promi
       signal: options?.signal ?? controller.signal,
       headers: buildHeaders(options),
     });
+
+    if (response.status === 401 && allowRefresh && !isAuthEndpoint(endpoint)) {
+      const refreshed = await refreshSession();
+      if (refreshed) {
+        return executeRequest<T>(endpoint, options, false);
+      }
+    }
 
     if (!response.ok) {
       let errorBody: unknown = null;
@@ -157,8 +240,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
   } catch (error) {
     const canRetry = shouldRetryRequest(endpoint, options);
     const networkLikeFailure =
-      error instanceof TypeError ||
-      (error instanceof DOMException && error.name === "AbortError");
+      error instanceof TypeError || (error instanceof DOMException && error.name === "AbortError");
 
     if (canRetry && networkLikeFailure) {
       await sleep(RETRY_DELAY_MS);
@@ -181,9 +263,7 @@ export async function api<T>(endpoint: string, options?: RequestInit): Promise<T
     }
 
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "API tidak merespons dalam 70 detik. Cek status VPS backend lalu ulangi."
-      );
+      throw new Error("API tidak merespons dalam 70 detik. Cek status VPS backend lalu ulangi.");
     }
 
     if (error instanceof TypeError) {

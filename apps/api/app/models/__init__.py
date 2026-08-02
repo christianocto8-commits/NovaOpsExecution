@@ -19,3 +19,4 @@ from app.models.form_answer import FormAnswer
 from app.models.builder_document import BuilderDocument
 from app.models.runtime_template import RuntimeTemplate
 from app.models.execution_session import ExecutionSession
+from app.models.finance_shift_deposit import FinanceShiftDepositRecord

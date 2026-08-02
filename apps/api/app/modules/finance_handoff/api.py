@@ -11,10 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.app_settings import AppSettings
 from app.models.form_field import FormField
 from app.models.form_submission import FormSubmission
 from app.models.form_template import FormTemplate
+from app.models.finance_shift_deposit import FinanceShiftDepositRecord
 from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.finance_handoff.schemas import (
@@ -38,22 +38,91 @@ from app.modules.notifications.task_notifications import _area_manager_has_outle
 from app.modules.tasks.identity_bridge import resolve_legacy_outlet_id, sync_identity_access
 
 router = APIRouter(prefix="/finance-handoff", tags=["Finance Handoff"])
-FINANCE_DEPOSITS_KEY = "finance_shift_deposits"
 DISCREPANCY_THRESHOLD = 50000.0
 VALID_REVIEW_STATUS = {"approved", "rejected", "correction_requested", "pending_review"}
 FINANCE_TEMPLATE_TYPE = "finance_shift_deposit"
 logger = logging.getLogger(__name__)
 
 
-def _load_deposits(db: Session) -> list[dict]:
-    row = db.query(AppSettings).filter(AppSettings.key == FINANCE_DEPOSITS_KEY).first()
-    if not row:
-        return []
+def _parse_datetime(value: datetime | str | None) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
     try:
-        payload = json.loads(row.payload)
-    except json.JSONDecodeError:
-        return []
-    return payload if isinstance(payload, list) else []
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _deposit_to_dict(row: FinanceShiftDepositRecord) -> dict:
+    evidence = row.evidence_urls if isinstance(row.evidence_urls, list) else []
+    return {
+        "id": row.id,
+        "form_submission_id": row.form_submission_id,
+        "outlet_id": row.outlet_id,
+        "outlet_name": row.outlet_name,
+        "business_date": row.business_date,
+        "shift_name": row.shift_name,
+        "department": row.department,
+        "cashier_name": row.cashier_name,
+        "cash_sales": float(row.cash_sales or 0),
+        "qris_sales": float(row.qris_sales or 0),
+        "edc_sales": float(row.edc_sales or 0),
+        "expected_cash": float(row.expected_cash or 0),
+        "actual_cash": float(row.actual_cash or 0),
+        "deposit_amount": float(row.deposit_amount or 0),
+        "variance_amount": float(row.variance_amount or 0),
+        "variance_reason": row.variance_reason,
+        "evidence_urls": evidence,
+        "status": row.status,
+        "finance_note": row.finance_note,
+        "reviewed_by": row.reviewed_by,
+        "reviewed_at": row.reviewed_at,
+        "corrective_task_id": row.corrective_task_id,
+        "submitted_by": row.submitted_by,
+        "submitted_at": row.submitted_at,
+    }
+
+
+def _apply_deposit_dict(row: FinanceShiftDepositRecord, item: dict) -> None:
+    evidence = item.get("evidence_urls") or []
+    if not isinstance(evidence, list):
+        evidence = []
+    submitted_at = _parse_datetime(item.get("submitted_at")) or datetime.now(timezone.utc)
+    row.form_submission_id = item.get("form_submission_id")
+    row.outlet_id = item.get("outlet_id")
+    row.outlet_name = item.get("outlet_name")
+    row.business_date = item.get("business_date") or datetime.now(timezone.utc).date().isoformat()
+    row.shift_name = item.get("shift_name") or "morning"
+    row.department = item.get("department") or "bar"
+    row.cashier_name = item.get("cashier_name")
+    row.cash_sales = float(item.get("cash_sales") or 0)
+    row.qris_sales = float(item.get("qris_sales") or 0)
+    row.edc_sales = float(item.get("edc_sales") or 0)
+    row.expected_cash = float(item.get("expected_cash") or 0)
+    row.actual_cash = float(item.get("actual_cash") or 0)
+    row.deposit_amount = float(item.get("deposit_amount") or 0)
+    row.variance_amount = float(item.get("variance_amount") or 0)
+    row.variance_reason = item.get("variance_reason")
+    row.evidence_urls = evidence
+    row.status = item.get("status") or "pending_review"
+    row.finance_note = item.get("finance_note")
+    row.reviewed_by = item.get("reviewed_by")
+    row.reviewed_at = _parse_datetime(item.get("reviewed_at"))
+    row.corrective_task_id = item.get("corrective_task_id")
+    row.submitted_by = item.get("submitted_by")
+    row.submitted_at = submitted_at
+
+
+def _load_deposits(db: Session) -> list[dict]:
+    rows = (
+        db.query(FinanceShiftDepositRecord)
+        .order_by(FinanceShiftDepositRecord.submitted_at.desc())
+        .all()
+    )
+    return [_deposit_to_dict(row) for row in rows]
 
 
 def _accessible_legacy_outlet_ids(
@@ -81,13 +150,24 @@ def _filter_deposits_for_user(
 
 
 def _save_deposits(db: Session, items: list[dict]) -> None:
-    row = db.query(AppSettings).filter(AppSettings.key == FINANCE_DEPOSITS_KEY).first()
-    payload = json.dumps(items, default=str)
-    if row:
-        row.payload = payload
-    else:
-        row = AppSettings(key=FINANCE_DEPOSITS_KEY, payload=payload)
-    db.add(row)
+    existing = {
+        row.id: row for row in db.query(FinanceShiftDepositRecord).all()
+    }
+    seen: set[str] = set()
+    for item in items:
+        deposit_id = str(item.get("id") or "")
+        if not deposit_id:
+            continue
+        seen.add(deposit_id)
+        row = existing.get(deposit_id)
+        if row is None:
+            row = FinanceShiftDepositRecord(id=deposit_id)
+            db.add(row)
+        _apply_deposit_dict(row, item)
+
+    for deposit_id, row in existing.items():
+        if deposit_id not in seen:
+            db.delete(row)
     db.flush()
 
 
@@ -499,15 +579,7 @@ def review_deposit(
 
 
 def _parse_submitted_at(value: datetime | str | None) -> datetime | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return _parse_datetime(value)
 
 
 def _build_finance_summary(deposits: list[FinanceShiftDeposit]) -> FinanceSummary:

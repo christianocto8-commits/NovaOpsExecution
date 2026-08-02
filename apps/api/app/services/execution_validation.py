@@ -106,6 +106,34 @@ def validate_task_execution_answers(
                 detail="Bukti foto wajib diunggah.",
             )
 
+    if getattr(settings, "signature_required_by_default", False):
+        has_signature = _has_signature_evidence(answers_json, evidence_urls)
+        if not has_signature:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tanda tangan wajib diisi.",
+            )
+
+
+def _has_signature_evidence(answers_json: dict, evidence_urls: list[str]) -> bool:
+    for url in evidence_urls:
+        lowered = str(url).lower()
+        if "signature" in lowered or lowered.startswith("data:image"):
+            return True
+
+    for key, value in answers_json.items():
+        key_lower = str(key).lower()
+        if "signature" in key_lower and value not in (None, "", [], {}):
+            return True
+        if isinstance(value, str) and value.startswith("data:image"):
+            return True
+        if isinstance(value, dict):
+            nested = value.get("signature") or value.get("dataUrl") or value.get("url")
+            if nested not in (None, "", [], {}):
+                return True
+
+    return False
+
 
 def compliance_score(completion_rate: int, pass_threshold: int) -> int:
     threshold = max(1, min(100, pass_threshold))

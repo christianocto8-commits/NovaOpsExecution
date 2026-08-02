@@ -6,6 +6,7 @@ from app.models.activity_event import ActivityEvent
 from app.models.announcement import Announcement, AnnouncementRead
 from app.models.builder_document import BuilderDocument
 from app.models.execution_session import ExecutionSession
+from app.models.finance_shift_deposit import FinanceShiftDepositRecord
 from app.models.form_answer import FormAnswer
 from app.models.form_field import FormField
 from app.models.form_schedule import FormSchedule
@@ -49,6 +50,7 @@ def reset_workspace_for_smoke_test(db: Session) -> dict:
         row.payload = json.dumps(SettingsResponse().model_dump())
         db.add(row)
 
+        _delete_count(db, FinanceShiftDepositRecord, "finance_shift_deposits", deleted)
         _delete_count(db, FormAnswer, "form_answers", deleted)
         _delete_count(db, FormSubmission, "form_submissions", deleted)
         _delete_count(db, TaskComment, "task_comments", deleted)

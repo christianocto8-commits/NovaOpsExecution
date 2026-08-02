@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const ACCESS_COOKIE = "novaops_access";
 const REFRESH_COOKIE = "novaops_refresh";
-const AUTH_RESPONSE_PATHS = new Set(["auth/login", "auth/verify-otp"]);
+const AUTH_RESPONSE_PATHS = new Set(["auth/login", "auth/verify-otp", "auth/refresh"]);
 
 function resolveApiBase() {
   const raw =
@@ -29,6 +29,9 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const relativePath = pathSegments.join("/");
   if (relativePath === "auth/browser-session") {
     return handleBrowserSession(request);
+  }
+  if (relativePath === "auth/browser-session/refresh") {
+    return handleBrowserSessionRefresh(request);
   }
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ detail: "Cross-origin request rejected" }, { status: 403 });
@@ -57,12 +60,43 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     redirect: "manual",
   };
 
+  let body: ArrayBuffer | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
-    init.body = await request.arrayBuffer();
+    body = await request.arrayBuffer();
+    init.body = body;
   }
 
   try {
-    const upstream = await fetch(targetUrl, init);
+    let upstream = await fetch(targetUrl, init);
+    let rotatedCookies:
+      | {
+          access_token: string;
+          refresh_token: string;
+          expires_in_minutes?: number;
+        }
+      | undefined;
+
+    if (
+      upstream.status === 401 &&
+      !relativePath.startsWith("auth/") &&
+      request.cookies.get(REFRESH_COOKIE)?.value
+    ) {
+      const refreshed = await refreshUpstreamTokens(request);
+      if (refreshed) {
+        rotatedCookies = refreshed;
+        headers.set("authorization", `Bearer ${refreshed.access_token}`);
+        const retryInit: RequestInit = {
+          method: request.method,
+          headers,
+          redirect: "manual",
+        };
+        if (body) {
+          retryInit.body = body;
+        }
+        upstream = await fetch(targetUrl, retryInit);
+      }
+    }
+
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, key) => {
       if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
@@ -91,6 +125,13 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         authPayload.access_token,
         authPayload.refresh_token,
         authPayload.expires_in_minutes
+      );
+    } else if (rotatedCookies) {
+      setAuthCookies(
+        response,
+        rotatedCookies.access_token,
+        rotatedCookies.refresh_token,
+        rotatedCookies.expires_in_minutes
       );
     }
     return response;
@@ -143,6 +184,58 @@ function setAuthCookies(
     ...common,
     maxAge: 30 * 24 * 60 * 60,
   });
+}
+
+async function refreshUpstreamTokens(request: NextRequest) {
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+  if (!refreshToken) return null;
+
+  const upstream = await fetch(new URL("/api/v1/auth/refresh", API_BASE), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }).catch(() => null);
+
+  if (!upstream?.ok) return null;
+
+  const payload = (await upstream.json()) as {
+    access_token?: string | null;
+    refresh_token?: string | null;
+    expires_in_minutes?: number;
+  };
+  if (!payload.access_token || !payload.refresh_token) return null;
+
+  return {
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+    expires_in_minutes: payload.expires_in_minutes,
+  };
+}
+
+async function handleBrowserSessionRefresh(request: NextRequest) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ detail: "Cross-origin request rejected" }, { status: 403 });
+  }
+  if (request.method !== "POST") {
+    return NextResponse.json({ detail: "Method not allowed" }, { status: 405 });
+  }
+
+  const refreshed = await refreshUpstreamTokens(request);
+  if (!refreshed) {
+    const response = NextResponse.json({ detail: "Refresh session expired" }, { status: 401 });
+    response.cookies.delete(ACCESS_COOKIE);
+    response.cookies.delete(REFRESH_COOKIE);
+    return response;
+  }
+
+  const response = NextResponse.json({ ok: true });
+  setAuthCookies(
+    response,
+    refreshed.access_token,
+    refreshed.refresh_token,
+    refreshed.expires_in_minutes
+  );
+  return response;
 }
 
 async function handleBrowserSession(request: NextRequest) {

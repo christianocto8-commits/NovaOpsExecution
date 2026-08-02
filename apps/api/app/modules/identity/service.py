@@ -227,6 +227,54 @@ class AuthService:
             expires_in_minutes=self.settings.access_token_expire_minutes,
         )
 
+    def refresh_tokens(
+        self,
+        *,
+        raw_refresh_token: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> TokenResponse:
+        token_hash = hash_token(raw_refresh_token)
+        existing = self.refresh_tokens.find_active_by_hash(token_hash)
+        if existing is None:
+            # Reuse of a revoked/rotated token invalidates the whole family for that user
+            # when we can still resolve the user from any matching hash row.
+            reused = self.refresh_tokens.find_by_hash_including_revoked(token_hash)
+            if reused is not None:
+                self.refresh_tokens.revoke_all_for_user(reused.user_id)
+                self.db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+            )
+
+        user = self.users.find_by_id(existing.user_id)
+        if user is None or not user.is_active:
+            self.refresh_tokens.revoke(existing)
+            self.db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is inactive",
+            )
+
+        self.refresh_tokens.revoke(existing)
+        record_identity_audit_event(
+            self.db,
+            action="refresh_token_rotated",
+            resource_type="auth_session",
+            actor_user_id=user.id,
+            organization_id=user.outlet.organization_id if user.outlet else None,
+            outlet_id=user.outlet_id,
+            resource_id=str(existing.id),
+            metadata={"ip_address": ip_address, "user_agent": user_agent},
+        )
+
+        return self.issue_tokens_for_user(
+            user,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
     def create_otp_challenge(
         self,
         user: User,

@@ -85,6 +85,13 @@ export async function verifyOtp(payload: { challengeId: string; code: string }) 
   });
 }
 
+export async function refreshSession(refreshToken: string) {
+  return api<LoginResponse>("/api/v1/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+}
+
 export async function getMe() {
   return api<AuthUser>("/api/v1/authorization/context", {
     method: "GET",

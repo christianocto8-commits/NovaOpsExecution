@@ -26,6 +26,7 @@ from app.modules.tasks.schemas import (
     TaskUpdate,
 )
 from app.modules.tasks.identity_bridge import (
+    get_accessible_identity_outlets,
     get_identity_user_by_email,
     get_identity_outlet,
     get_or_create_legacy_outlet,
@@ -116,18 +117,32 @@ def resolve_task_outlet_access(
         identity_user = db.query(IdentityUser).filter(IdentityUser.email == current_user.email).first()
         identity_outlet = get_identity_outlet(db, identity_outlet_id)
 
-        if identity_user and identity_outlet:
-            legacy_outlet = get_or_create_legacy_outlet(db, identity_outlet)
-            legacy_user = sync_legacy_user(db, identity_user, legacy_outlet)
-            db.commit()
-            actor_id = legacy_user.id
-            outlet_id = legacy_outlet.id
-        else:
+        if not identity_user or not identity_outlet:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Outlet is not connected to task engine",
             )
-    else:
+
+        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+        accessible_ids = {outlet.id for outlet in accessible_outlets}
+        if not full_access and identity_outlet.id not in accessible_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no access to this outlet",
+            )
+
+        legacy_outlet = get_or_create_legacy_outlet(db, identity_outlet)
+        legacy_user = sync_legacy_user(db, identity_user, legacy_outlet)
+        db.commit()
+        actor_id = legacy_user.id
+        outlet_id = legacy_outlet.id
+        return outlet_id, actor_id, [outlet_id], False
+
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if identity_user:
+        legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        db.commit()
+        actor_id = legacy_user.id
         try:
             outlet_id = resolve_legacy_outlet_id(db, x_outlet_id)
         except (TypeError, ValueError):
@@ -135,6 +150,21 @@ def resolve_task_outlet_access(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Outlet is not connected to task engine",
             )
+        if not full_access and outlet_id not in outlet_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no access to this outlet",
+            )
+        ensure_outlet_access(db, actor_id, outlet_id)
+        return outlet_id, actor_id, [outlet_id], False
+
+    try:
+        outlet_id = resolve_legacy_outlet_id(db, x_outlet_id)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Outlet is not connected to task engine",
+        )
 
     ensure_outlet_access(db, actor_id, outlet_id)
     return outlet_id, actor_id, [outlet_id], False

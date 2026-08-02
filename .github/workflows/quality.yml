@@ -12,7 +12,7 @@ jobs:
 
   quality:
 
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
 
@@ -27,9 +27,21 @@ jobs:
           python-version: "3.12"
 
       - name: Bootstrap
-        shell: pwsh
-        run: .\bootstrap.ps1
+        shell: bash
+        run: |
+          if [ -f ./bootstrap.ps1 ]; then
+            pwsh ./bootstrap.ps1
+          else
+            docker compose up -d postgres
+            python3 -m pip install -r apps/api/requirements.txt -r apps/api/requirements-dev.txt
+            cp -n apps/api/.env.example apps/api/.env || true
+          fi
 
       - name: Enterprise CI
-        shell: pwsh
-        run: .\novaops.ps1 ci
+        shell: bash
+        run: |
+          if [ -f ./novaops.ps1 ]; then
+            pwsh ./novaops.ps1 ci
+          else
+            cd apps/api && DATABASE_URL="${DATABASE_URL:-postgresql://novaops_user:novaops_password@localhost:5433/novaops_db}" python3 -m pytest -q
+          fi

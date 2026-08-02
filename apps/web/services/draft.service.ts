@@ -48,8 +48,14 @@ export async function deleteTaskDraft(draftId: number) {
   });
 }
 
+export type PublishTaskDraftResponse = {
+  draft_id: number;
+  task_id: number;
+  message: string;
+};
+
 export async function publishTaskDraft(draftId: number) {
-  return api<TaskDraft>(`/api/v1/task-drafts/${draftId}/publish`, {
+  return api<PublishTaskDraftResponse>(`/api/v1/task-drafts/${draftId}/publish`, {
     method: "POST",
   });
 }

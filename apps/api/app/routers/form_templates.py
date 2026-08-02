@@ -373,7 +373,7 @@ def duplicate_form_template(
     db.add(duplicate)
     db.flush()
 
-    for index, field in sorted(source.fields, key=lambda item: item.sort_order):
+    for index, field in enumerate(sorted(source.fields, key=lambda item: item.sort_order)):
         db.add(
             FormField(
                 form_template_id=duplicate.id,

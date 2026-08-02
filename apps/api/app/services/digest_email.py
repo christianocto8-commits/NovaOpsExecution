@@ -14,9 +14,15 @@ from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNER_ROLE
 from app.services.compliance_analytics import get_top_failed_checklist_items
 from app.services.email_service import EmailService
+from app.services.user_settings_store import get_user_settings
 from app.services.workspace_settings import get_workspace_settings
 
 DIGEST_LAST_SENT_KEY = "digest_last_sent"
+NOTIFICATION_PREFS_NAMESPACE = "notification_prefs"
+DEFAULT_NOTIFICATION_PREFS = {
+    "email_enabled": True,
+    "digest_enabled": False,
+}
 
 
 def _get_last_digest_sent_at(db: Session) -> datetime | None:
@@ -107,6 +113,18 @@ def _resolve_digest_recipients(db: Session) -> list[str]:
         email = (user.email or "").strip().lower()
         if not email or email in seen:
             continue
+
+        prefs = get_user_settings(
+            db,
+            user.id,
+            NOTIFICATION_PREFS_NAMESPACE,
+            DEFAULT_NOTIFICATION_PREFS,
+        )
+        if not bool(prefs.get("email_enabled", True)):
+            continue
+        if not bool(prefs.get("digest_enabled", False)):
+            continue
+
         seen.add(email)
         emails.append(user.email.strip())
 
