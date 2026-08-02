@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from calendar import day_name
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func
