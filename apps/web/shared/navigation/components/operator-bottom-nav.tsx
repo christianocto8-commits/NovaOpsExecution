@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import { BarChart3, ClipboardCheck, FileText, Home, MoreHorizontal } from "lucide-react";
 
 import { useLanguage } from "@/shared/i18n";
+import {
+  getOutletOverlaySnapshot,
+  getServerOutletOverlaySnapshot,
+  subscribeOutletOverlay,
+} from "@/shared/navigation/outlet-overlay";
 
 const operatorNavItems = [
   { href: "/dashboard/operator", labelKey: "operator.tab.home", icon: Home, match: "exact" as const },
@@ -27,6 +33,15 @@ const morePaths = [
 export function OperatorBottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const overlayOpen = useSyncExternalStore(
+    subscribeOutletOverlay,
+    getOutletOverlaySnapshot,
+    getServerOutletOverlaySnapshot
+  );
+
+  if (overlayOpen) {
+    return null;
+  }
 
   return (
     <nav

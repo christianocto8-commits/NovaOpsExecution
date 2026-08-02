@@ -27,6 +27,7 @@ import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
 import { GeofenceStatusBanner, getCurrentPosition, getDistanceToOutletMeters } from "@/shared/evidence";
 import { SaveIndicator } from "@/shared/status";
 import { useLanguage } from "@/shared/i18n";
+import { setOutletOverlayOpen } from "@/shared/navigation/outlet-overlay";
 import { useToast } from "@/shared/toast";
 
 type OutletTaskExecutionDrawerProps = {
@@ -340,9 +341,11 @@ export function OutletTaskExecutionDrawer({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    setOutletOverlayOpen(true);
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      setOutletOverlayOpen(false);
     };
   }, [open]);
 
@@ -443,7 +446,7 @@ export function OutletTaskExecutionDrawer({
 
         <div
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-          style={{ paddingBottom: `calc(4.25rem + ${keyboardInset}px + env(safe-area-inset-bottom))` }}
+          style={{ paddingBottom: keyboardInset > 0 ? `${keyboardInset}px` : undefined }}
         >
           <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_280px] lg:px-8">
             <div className="min-w-0 space-y-3 sm:space-y-6">
@@ -589,8 +592,12 @@ export function OutletTaskExecutionDrawer({
         </div>
 
         <div
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 lg:px-8"
-          style={{ transform: keyboardInset > 0 ? `translateY(-${keyboardInset}px)` : undefined }}
+          className="shrink-0 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 lg:px-8"
+          style={
+            keyboardInset > 0
+              ? { paddingBottom: `calc(${keyboardInset}px + max(0.5rem, env(safe-area-inset-bottom)))` }
+              : undefined
+          }
         >
           <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:gap-3">
             <button
