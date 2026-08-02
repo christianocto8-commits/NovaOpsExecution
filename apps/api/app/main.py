@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.bootstrap.ensure_online_admin import ensure_online_admin
 from app.bootstrap.ensure_operational_templates import ensure_operational_templates
+from app.db.session import SessionLocal
+from app.modules.identity.management_api import ensure_system_roles_and_permissions
 from app.core.config import get_settings
 from app.core.http_security import HttpSecurityMiddleware
 from app.routers.evidence_uploads import legacy_router as legacy_evidence_router
@@ -81,6 +83,17 @@ def bootstrap_online_admin() -> None:
     import logging
     logger = logging.getLogger("novaops.startup")
     try:
+        db = SessionLocal()
+        try:
+            ensure_system_roles_and_permissions(db)
+            db.commit()
+            logger.info("Synced system roles and permissions.")
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
         ensure_online_admin()
         ensure_operational_templates()
         logger.info("Successfully executed startup bootstrap tasks.")
