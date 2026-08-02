@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, FileText, MoreHorizontal, Wrench } from "lucide-react";
+import { ClipboardCheck, FileText, Home, Wrench } from "lucide-react";
 
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
 import { useLanguage } from "@/shared/i18n";
 
 const allTabs = [
+  { id: "home", href: "/dashboard/operator", icon: Home, labelKey: "operator.tab.home" },
   { id: "tasks", href: "/dashboard/tasks", icon: ClipboardCheck, labelKey: "operator.tab.tasks" },
   { id: "forms", href: "/dashboard/forms", icon: FileText, labelKey: "operator.tab.forms" },
   { id: "capa", href: "/dashboard/corrective-actions", icon: Wrench, labelKey: "operator.tab.capa" },
-  { id: "more", href: "/dashboard/operator", icon: MoreHorizontal, labelKey: "operator.tab.more" },
 ] as const;
 
 type OperatorSectionTabsProps = {
@@ -27,8 +27,8 @@ export function OperatorSectionTabs({ sticky = true }: OperatorSectionTabsProps)
   const tabs = capaEnabled ? allTabs : allTabs.filter((tab) => tab.id !== "capa");
 
   function isActive(href: string, id: string) {
-    if (id === "more") {
-      return pathname === "/dashboard/operator" || pathname === "/dashboard";
+    if (id === "home") {
+      return pathname === "/dashboard/operator";
     }
     return pathname.startsWith(href);
   }

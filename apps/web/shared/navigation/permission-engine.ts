@@ -87,7 +87,10 @@ const managerRoles = new Set(["REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANA
 
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
   if (!workspace) return true;
-  if (workspace.role === "OWNER_ADMIN") return true;
+  // Outlet Home is crew-facing; owner/admin keep the enterprise Dashboard instead.
+  if (workspace.role === "OWNER_ADMIN") {
+    return item.id !== "operator";
+  }
   if (managerRoles.has(workspace.role)) return areaManagerNavigationItemIds.has(item.id);
   if (workspace.role === "FINANCE") return financeNavigationItemIds.has(item.id);
 
