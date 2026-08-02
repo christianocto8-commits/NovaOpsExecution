@@ -169,3 +169,15 @@ export async function resetWorkspace(confirmPhrase: string) {
     body: JSON.stringify({ confirm_phrase: confirmPhrase }),
   });
 }
+
+export type ReportWipeResponse = {
+  deleted: Record<string, number>;
+  message: string;
+};
+
+export async function wipeReports(confirmPhrase: string) {
+  return api<ReportWipeResponse>("/api/v1/settings/wipe-reports", {
+    method: "POST",
+    body: JSON.stringify({ confirm_phrase: confirmPhrase }),
+  });
+}

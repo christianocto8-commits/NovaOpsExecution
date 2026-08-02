@@ -18,6 +18,7 @@ import {
 import {
   changePassword,
   resetWorkspace,
+  wipeReports,
   WORKSPACE_SETTINGS_DEFAULTS,
   type SettingsResponse,
 } from "@/features/settings/settings-api";
@@ -26,6 +27,7 @@ import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
 import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
 import { NotificationPreferencesPanel } from "@/features/settings/components/notification-preferences-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
+import { useAuth } from "@/hooks/useAuth";
 import { clearOfflineClientData } from "@/lib/offline/store";
 import { useConfirmation } from "@/shared/confirmation";
 import {
@@ -881,6 +883,103 @@ function RoleAccessSection({ title, items }: { title: string; items: string[] })
   );
 }
 
+function OwnerAdminDangerZone({ onNotice }: { onNotice: (message: string) => void }) {
+  const { hasRole } = useAuth();
+
+  if (!hasRole("owner", "admin")) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
+          Zona berbahaya · Owner / Admin
+        </p>
+        <p className="mt-1 text-sm text-amber-950">
+          Pilih pemutihan report jika hanya ingin mengosongkan laporan. Reset workspace menghapus
+          hampir semua data operasional termasuk form template — jangan dipakai untuk pemutihan
+          biasa.
+        </p>
+      </div>
+      <WipeReportsPanel onNotice={onNotice} />
+      <ResetWorkspacePanel onNotice={onNotice} />
+    </div>
+  );
+}
+
+function WipeReportsPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const confirm = useConfirmation();
+  const queryClient = useQueryClient();
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const [isWiping, setIsWiping] = useState(false);
+
+  async function handleWipe() {
+    if (confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS") {
+      onNotice('Ketik "WIPE REPORTS" untuk konfirmasi.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Pemutihan Report Semua Akun",
+      description:
+        "Semua data yang mengisi Reports akan dihapus permanen untuk semua outlet/akun: task, CAPA, submission, execution, finance deposit, incident, dan riwayat terkait.\n\nUser, outlet, form template, dan schedule tetap dipertahankan.\n\nLanjutkan?",
+      variant: "danger",
+      confirmText: "Putihkan report",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsWiping(true);
+      const result = await wipeReports(confirmPhrase);
+      await clearOfflineClientData();
+      localStorage.removeItem(TASK_SECTION_COLLAPSE_KEY);
+      localStorage.removeItem(RECENT_TEMPLATES_KEY);
+      await queryClient.invalidateQueries();
+      setConfirmPhrase("");
+      onNotice(result.message);
+      window.location.reload();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal memutihkan report.");
+    } finally {
+      setIsWiping(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Pemutihan Report (Direkomendasikan)">
+      <p className="mb-3 text-sm text-amber-900">
+        Untuk owner/admin: mengosongkan Reports / History / CAPA / Finance deposit di seluruh akun
+        dan outlet.
+      </p>
+      <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
+        <li>Dihapus: task, submission, execution, deposit, incident, riwayat terkait</li>
+        <li>Tetap: user, outlet, role, form template, schedule auto-publish, settings</li>
+      </ul>
+      <EnterpriseField label='Ketik "WIPE REPORTS" untuk konfirmasi'>
+        <EnterpriseInput
+          value={confirmPhrase}
+          onChange={(event) => setConfirmPhrase(event.target.value)}
+          placeholder="WIPE REPORTS"
+          autoComplete="off"
+        />
+      </EnterpriseField>
+      <button
+        type="button"
+        onClick={() => void handleWipe()}
+        disabled={isWiping || confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS"}
+        className="mt-4 rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        {isWiping ? "Memutihkan..." : "Putihkan report semua akun"}
+      </button>
+    </SectionCard>
+  );
+}
+
 function ResetWorkspacePanel({ onNotice }: { onNotice: (message: string) => void }) {
   const confirm = useConfirmation();
   const queryClient = useQueryClient();
@@ -897,9 +996,9 @@ function ResetWorkspacePanel({ onNotice }: { onNotice: (message: string) => void
     const confirmed = await confirm({
       title: "Reset Workspace ke Default",
       description:
-        "Semua task, form, submission, draft, notifikasi, dan data operasional akan dihapus permanen. Pengaturan workspace akan dikembalikan ke default. User, outlet, dan login admin tetap dipertahankan.\n\nLanjutkan?",
+        "INI BUKAN pemutihan report. Hampir semua data operasional akan dihapus permanen termasuk form template, schedule, draft, notifikasi, dan settings dikembalikan ke default. User/outlet tetap ada.\n\nJika hanya ingin kosongkan laporan, batalkan dan gunakan Pemutihan Report.\n\nLanjutkan reset penuh?",
       variant: "danger",
-      confirmText: "Reset ke default",
+      confirmText: "Reset semuanya",
       cancelText: "Batal",
     });
 
@@ -926,11 +1025,11 @@ function ResetWorkspacePanel({ onNotice }: { onNotice: (message: string) => void
   }
 
   return (
-    <SectionCard title="Reset Workspace (Smoke Test)">
+    <SectionCard title="Reset Workspace Penuh (Smoke Test)">
       <p className="mb-4 text-sm text-red-700">
-        Fitur ini menghapus semua task, form, submission, draft, riwayat notifikasi, dan data
-        operasional lainnya. Pengaturan workspace dikembalikan ke default. User, outlet, role, dan
-        login admin tetap dipertahankan. Gunakan hanya untuk smoke testing.
+        Menghapus hampir semua data operasional termasuk form template &amp; schedule, lalu
+        mengembalikan settings ke default. Bukan untuk pemutihan report harian — gunakan panel
+        Pemutihan Report di atas.
       </p>
       <EnterpriseField label='Ketik "RESET" untuk konfirmasi'>
         <EnterpriseInput
@@ -946,7 +1045,7 @@ function ResetWorkspacePanel({ onNotice }: { onNotice: (message: string) => void
         disabled={isResetting || confirmPhrase.trim().toUpperCase() !== "RESET"}
         className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
       >
-        {isResetting ? "Mereset..." : "Reset ke default"}
+        {isResetting ? "Mereset..." : "Reset workspace penuh"}
       </button>
     </SectionCard>
   );
@@ -1827,7 +1926,7 @@ export function SettingsWorkspace() {
 
           <BulkImportPanel onNotice={(message) => setNotice(message)} />
 
-          <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
+          <OwnerAdminDangerZone onNotice={(message) => setNotice(message)} />
 
           <div className="grid gap-6 xl:grid-cols-4">
             <SectionCard title="Role Guide">

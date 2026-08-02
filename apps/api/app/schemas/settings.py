@@ -77,6 +77,15 @@ class WorkspaceResetResponse(BaseModel):
     message: str
 
 
+class ReportWipeRequest(BaseModel):
+    confirm_phrase: str
+
+
+class ReportWipeResponse(BaseModel):
+    deleted: dict[str, int]
+    message: str
+
+
 class SettingsUpdate(BaseModel):
     organization_name: str | None = None
     workspace_name: str | None = None
@@ -141,13 +150,3 @@ class SettingsUpdate(BaseModel):
     iot_temp_max_c: float | None = None
     iot_auto_fail_enabled: bool | None = None
     lms_training_gate_enabled: bool | None = None
-
-
-class WorkspaceResetRequest(BaseModel):
-    confirm_phrase: str
-
-
-class WorkspaceResetResponse(BaseModel):
-    settings_reset: bool
-    deleted: dict[str, int]
-    message: str
