@@ -178,11 +178,14 @@ function OutletManualFormsWorkspace() {
   const { settings } = useSettings();
   const { refreshPendingCount, pendingSyncCount } = useOfflineSync();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { activeTemplates, isLoading, isError } = useActiveFormTemplates();
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [responses, setResponses] = useState<TaskFormResponses>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [submittedTemplateName, setSubmittedTemplateName] = useState("");
   const submitMutation = useMutation({
     mutationFn: formSubmissionService.submitManualForm,
   });
@@ -260,8 +263,19 @@ function OutletManualFormsWorkspace() {
           responses,
         });
 
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["reports"] }),
+          queryClient.invalidateQueries({ queryKey: ["form-submissions"] }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() }),
+        ]);
+
         setResponses({});
-        setNotice(`${selectedTemplate.name} submitted for ${workspace.outletName ?? "Outlet"}.`);
+        setSubmittedTemplateName(selectedTemplate.name);
+        setNotice(
+          `${selectedTemplate.name} berhasil disubmit untuk ${workspace.outletName ?? "Outlet"}.`
+        );
+        setSuccessModalOpen(true);
+        toast.success("Task My Form berhasil disubmit.");
         return;
       }
 
@@ -363,6 +377,40 @@ function OutletManualFormsWorkspace() {
           {isSubmitting || submitMutation.isPending ? "Submitting..." : "Submit Form"}
         </button>
       </div>
+
+      <Modal
+        open={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title="Submit berhasil"
+        description="Data outlet sudah masuk ke sistem dan report akan ikut diperbarui."
+        size="sm"
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSuccessModalOpen(false)}
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+            >
+              Tutup
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <Check className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-slate-950">
+              {submittedTemplateName || "Form"} sudah berhasil disubmit.
+            </p>
+            <p className="text-sm leading-6 text-slate-500">
+              Hasil submit dari akun outlet akan muncul di halaman report setelah data selesai
+              dimuat ulang.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
