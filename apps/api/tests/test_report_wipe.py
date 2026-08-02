@@ -1,6 +1,7 @@
 """Report wipe deletes transactional rows and keeps schedules/templates untouched."""
 
 import os
+from contextlib import contextmanager
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://novaops:novaops@127.0.0.1:5433/novaops")
 
@@ -26,6 +27,10 @@ class _FakeDb:
 
     def query(self, model):
         return _FakeQuery(self.counts.get(model, 0))
+
+    @contextmanager
+    def begin_nested(self):
+        yield
 
     def commit(self):
         self.committed = True
@@ -80,14 +85,35 @@ def test_wipe_rolls_back_on_error():
         def query(self, *_args, **_kwargs):
             raise RuntimeError("boom")
 
+        @contextmanager
+        def begin_nested(self):
+            raise RuntimeError("boom")
+            yield  # pragma: no cover
+
         def commit(self):
             return None
 
         def rollback(self):
             state["rolled_back"] = True
 
+    # begin_nested failures are swallowed per-table; force outer commit path by
+    # making commit itself fail after deletes return 0.
+    class _CommitBoomDb(_BoomDb):
+        def begin_nested(self):
+            @contextmanager
+            def _nested():
+                yield
+
+            return _nested()
+
+        def query(self, *_args, **_kwargs):
+            return _FakeQuery(0)
+
+        def commit(self):
+            raise RuntimeError("commit failed")
+
     try:
-        report_wipe.wipe_report_data_for_all_accounts(_BoomDb())
+        report_wipe.wipe_report_data_for_all_accounts(_CommitBoomDb())
         assert False, "expected RuntimeError"
     except RuntimeError:
         assert state["rolled_back"] is True

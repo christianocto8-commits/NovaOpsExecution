@@ -69,6 +69,11 @@ def reset_workspace(
     )
 
 
+def _is_wipe_reports_confirm_phrase(value: str) -> bool:
+    normalized = " ".join(value.strip().upper().replace("_", " ").split())
+    return normalized in {"WIPE REPORTS", "WIPE REPORT", "PUTIHKAN REPORT", "PUTIHKAN REPORTS"}
+
+
 @router.post("/wipe-reports", response_model=ReportWipeResponse)
 def wipe_reports(
     payload: ReportWipeRequest,
@@ -77,7 +82,7 @@ def wipe_reports(
 ):
     del current_user
 
-    if payload.confirm_phrase.strip().upper() != "WIPE REPORTS":
+    if not _is_wipe_reports_confirm_phrase(payload.confirm_phrase):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Ketik "WIPE REPORTS" untuk konfirmasi pemutihan report.',

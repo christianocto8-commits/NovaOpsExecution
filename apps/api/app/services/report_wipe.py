@@ -31,7 +31,12 @@ from app.modules.workflows.models import (
 
 
 def _delete_count(db: Session, model, key: str, deleted: dict[str, int]) -> None:
-    deleted[key] = db.query(model).delete(synchronize_session=False)
+    """Delete one table inside a savepoint so one missing/locked table cannot abort all."""
+    try:
+        with db.begin_nested():
+            deleted[key] = db.query(model).delete(synchronize_session=False)
+    except Exception:
+        deleted[key] = 0
 
 
 def wipe_report_data_for_all_accounts(db: Session) -> dict[str, int]:

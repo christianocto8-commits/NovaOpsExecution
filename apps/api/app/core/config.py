@@ -65,7 +65,7 @@ def _parse_cors_origins(raw_value: str | None) -> list[str]:
 
 class Settings(BaseSettings):
     app_name: str = "NovaOps Enterprise API"
-    app_version: str = "0.7.0"
+    app_version: str = "0.7.1"
     environment: str = "local"
 
     database_url: str

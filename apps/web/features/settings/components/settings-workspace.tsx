@@ -908,14 +908,29 @@ function OwnerAdminDangerZone({ onNotice }: { onNotice: (message: string) => voi
   );
 }
 
+function normalizeWipeConfirmPhrase(value: string) {
+  return value.trim().toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ");
+}
+
+function isWipeReportsConfirmPhrase(value: string) {
+  const normalized = normalizeWipeConfirmPhrase(value);
+  return (
+    normalized === "WIPE REPORTS" ||
+    normalized === "WIPE REPORT" ||
+    normalized === "PUTIHKAN REPORT" ||
+    normalized === "PUTIHKAN REPORTS"
+  );
+}
+
 function WipeReportsPanel({ onNotice }: { onNotice: (message: string) => void }) {
   const confirm = useConfirmation();
   const queryClient = useQueryClient();
   const [confirmPhrase, setConfirmPhrase] = useState("");
   const [isWiping, setIsWiping] = useState(false);
+  const canConfirmWipe = isWipeReportsConfirmPhrase(confirmPhrase);
 
   async function handleWipe() {
-    if (confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS") {
+    if (!canConfirmWipe) {
       onNotice('Ketik "WIPE REPORTS" untuk konfirmasi.');
       return;
     }
@@ -936,15 +951,29 @@ function WipeReportsPanel({ onNotice }: { onNotice: (message: string) => void })
     try {
       setIsWiping(true);
       const result = await wipeReports(confirmPhrase);
+      const totalDeleted = Object.values(result.deleted ?? {}).reduce(
+        (sum, count) => sum + count,
+        0
+      );
       await clearOfflineClientData();
       localStorage.removeItem(TASK_SECTION_COLLAPSE_KEY);
       localStorage.removeItem(RECENT_TEMPLATES_KEY);
       await queryClient.invalidateQueries();
       setConfirmPhrase("");
+      window.alert(
+        `${result.message}\n\nTotal baris terhapus: ${totalDeleted}\n` +
+          "Jika Reports masih terisi setelah reload, hard-refresh halaman (Ctrl+Shift+R)."
+      );
       onNotice(result.message);
-      window.location.reload();
+      window.location.assign("/dashboard/reports");
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Gagal memutihkan report.");
+      const raw = error instanceof Error ? error.message : "Gagal memutihkan report.";
+      const message =
+        /not found/i.test(raw) || raw.trim() === "Not Found"
+          ? "API pemutihan belum aktif di server (endpoint /wipe-reports 404). Redeploy/restart API dulu, pastikan /api/v1/health version >= 0.7.1, lalu coba lagi."
+          : raw;
+      window.alert(message);
+      onNotice(message);
     } finally {
       setIsWiping(false);
     }
@@ -971,7 +1000,7 @@ function WipeReportsPanel({ onNotice }: { onNotice: (message: string) => void })
       <button
         type="button"
         onClick={() => void handleWipe()}
-        disabled={isWiping || confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS"}
+        disabled={isWiping || !canConfirmWipe}
         className="mt-4 rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
       >
         {isWiping ? "Memutihkan..." : "Putihkan report semua akun"}
