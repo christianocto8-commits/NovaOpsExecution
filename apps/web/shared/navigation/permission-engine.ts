@@ -29,6 +29,7 @@ const outletNavigationItemIds = new Set([
   "evidence",
   "training",
   "settings",
+  "more",
 ]);
 
 const outletVisibleNavigationItemIds = new Set([
@@ -36,9 +37,13 @@ const outletVisibleNavigationItemIds = new Set([
   "tasks",
   "forms",
   "reports",
+  "more",
   "drafts",
   "notifications",
   "settings",
+  "corrective-actions",
+  "training",
+  "announcements",
 ]);
 
 const areaManagerVisibleNavigationItemIds = new Set([
@@ -152,8 +157,12 @@ export function getNavigationForPermissions(
       "tasks",
       "forms",
       "reports",
+      "more",
       "drafts",
+      "corrective-actions",
+      "training",
       "notifications",
+      "announcements",
       "settings",
     ];
     return [...visibleItems].sort(

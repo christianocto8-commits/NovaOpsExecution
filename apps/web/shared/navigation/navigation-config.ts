@@ -25,6 +25,7 @@ import {
   ShieldAlert,
   Thermometer,
   GraduationCap,
+  MoreHorizontal,
   Users,
   Wrench,
 } from "lucide-react";
@@ -320,6 +321,15 @@ export const navigationItems: NavigationItem[] = [
     icon: Settings,
     requiredPermissions: [],
     section: "configuration",
+  },
+  {
+    id: "more",
+    label: "More",
+    href: "/dashboard/more",
+    icon: MoreHorizontal,
+    requiredPermissions: [],
+    section: "configuration",
+    sidebar: false,
   },
   {
     id: "modules",

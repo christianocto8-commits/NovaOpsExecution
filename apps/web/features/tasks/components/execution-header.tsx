@@ -1,4 +1,7 @@
-import React from 'react';
+import React from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+
 import { GeofenceStatusBanner } from "@/shared/evidence";
 import { useLanguage } from "@/shared/i18n";
 
@@ -58,9 +61,22 @@ export const ExecutionHeader: React.FC<ExecutionHeaderProps> = ({
                     : "border-amber-200 bg-amber-50 text-amber-900"
                 }`}
               >
-                {trainingBlocked
-                  ? t("training.executionBlocked")
-                  : t("training.executionWarning")}
+                <div className="flex items-start justify-between gap-3">
+                  <p>
+                    {trainingBlocked
+                      ? t("training.executionBlocked")
+                      : t("training.executionWarning")}
+                  </p>
+                  <Link
+                    href="/dashboard/training"
+                    className={`inline-flex shrink-0 items-center gap-1 font-bold underline-offset-2 hover:underline ${
+                      trainingBlocked ? "text-red-900" : "text-amber-950"
+                    }`}
+                  >
+                    {t("training.openTraining")}
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
               </div>
             )}
           </>
