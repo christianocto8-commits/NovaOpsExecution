@@ -79,7 +79,7 @@ const areaManagerNavigationItemIds = new Set([
   "modules",
 ]);
 
-const financeNavigationItemIds = new Set(["finance-handoff", "notifications"]);
+const financeNavigationItemIds = new Set(["finance", "finance-handoff", "notifications"]);
 const managerRoles = new Set(["REGIONAL_MANAGER", "DISTRICT_MANAGER", "AREA_MANAGER"]);
 
 function canAccessItemForWorkspace(item: NavigationItem, workspace?: CurrentWorkspace) {
@@ -144,6 +144,13 @@ export function getNavigationForPermissions(
     const outletOrder = ["tasks", "forms", "reports", "drafts", "notifications", "settings"];
     return [...visibleItems].sort(
       (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)
+    );
+  }
+
+  if (workspace?.role === "FINANCE") {
+    const financeOrder = ["finance", "finance-handoff", "notifications"];
+    return [...visibleItems].sort(
+      (left, right) => financeOrder.indexOf(left.id) - financeOrder.indexOf(right.id)
     );
   }
 

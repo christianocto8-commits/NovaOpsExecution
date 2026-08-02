@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,9 @@ from app.models.form_template import FormTemplate
 from app.models.outlet import Outlet
 from app.models.task import Task
 from app.modules.finance_handoff.schemas import (
+    FinanceDailyTrendPoint,
+    FinanceDashboard,
+    FinanceOutletBreakdown,
     FinanceShiftDeposit,
     FinanceShiftDepositCreate,
     FinanceShiftDepositReview,
@@ -242,7 +246,7 @@ def _notify_finance(
             recipient.id,
             title=subject,
             body=body,
-            url="/dashboard/finance-handoff",
+            url="/dashboard/finance",
             data=payload,
         )
         sent += 1
@@ -494,13 +498,20 @@ def review_deposit(
     raise HTTPException(status_code=404, detail="Finance deposit not found")
 
 
-@router.get("/summary", response_model=FinanceSummary)
-def get_summary(
-    db: Session = Depends(get_db),
-    current_user: IdentityUser = Depends(require_permission("finance.read")),
-):
-    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
-    deposits = [FinanceShiftDeposit(**item) for item in items]
+def _parse_submitted_at(value: datetime | str | None) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _build_finance_summary(deposits: list[FinanceShiftDeposit]) -> FinanceSummary:
+    today = datetime.now(timezone.utc).date().isoformat()
     return FinanceSummary(
         pending_review=sum(1 for item in deposits if item.status == "pending_review"),
         approved=sum(1 for item in deposits if item.status == "approved"),
@@ -508,6 +519,188 @@ def get_summary(
         correction_requested=sum(1 for item in deposits if item.status == "correction_requested"),
         total_deposit_amount=round(sum(item.deposit_amount for item in deposits), 2),
         total_variance_amount=round(sum(item.variance_amount for item in deposits), 2),
-        discrepancy_count=sum(1 for item in deposits if abs(item.variance_amount) >= DISCREPANCY_THRESHOLD),
+        discrepancy_count=sum(
+            1 for item in deposits if abs(item.variance_amount) >= DISCREPANCY_THRESHOLD
+        ),
         discrepancy_threshold=DISCREPANCY_THRESHOLD,
+        total_reports=len(deposits),
+        incoming_today=sum(1 for item in deposits if item.business_date == today),
+        total_cash_sales=round(sum(item.cash_sales for item in deposits), 2),
+        total_qris_sales=round(sum(item.qris_sales for item in deposits), 2),
+        total_edc_sales=round(sum(item.edc_sales for item in deposits), 2),
+    )
+
+
+def _build_outlet_breakdown(deposits: list[FinanceShiftDeposit]) -> list[FinanceOutletBreakdown]:
+    grouped: dict[str, list[FinanceShiftDeposit]] = {}
+    for deposit in deposits:
+        key = deposit.outlet_name or deposit.outlet_id or "Unknown Outlet"
+        grouped.setdefault(key, []).append(deposit)
+
+    rows: list[FinanceOutletBreakdown] = []
+    for outlet_name, items in grouped.items():
+        rows.append(
+            FinanceOutletBreakdown(
+                outlet_id=items[0].outlet_id,
+                outlet_name=outlet_name,
+                total_reports=len(items),
+                pending_review=sum(1 for item in items if item.status == "pending_review"),
+                approved=sum(1 for item in items if item.status == "approved"),
+                total_deposit_amount=round(sum(item.deposit_amount for item in items), 2),
+                total_variance_amount=round(sum(item.variance_amount for item in items), 2),
+                discrepancy_count=sum(
+                    1 for item in items if abs(item.variance_amount) >= DISCREPANCY_THRESHOLD
+                ),
+            )
+        )
+
+    return sorted(
+        rows,
+        key=lambda row: (row.pending_review, row.discrepancy_count, row.total_deposit_amount),
+        reverse=True,
+    )
+
+
+def _build_daily_trend(
+    deposits: list[FinanceShiftDeposit],
+    *,
+    days: int = 7,
+) -> list[FinanceDailyTrendPoint]:
+    now = datetime.now(timezone.utc)
+    points: list[FinanceDailyTrendPoint] = []
+
+    for offset in range(days - 1, -1, -1):
+        day = (now - timedelta(days=offset)).date()
+        day_key = day.isoformat()
+        day_items = [item for item in deposits if item.business_date == day_key]
+        points.append(
+            FinanceDailyTrendPoint(
+                date=day.strftime("%d %b"),
+                reports_count=len(day_items),
+                deposit_amount=round(sum(item.deposit_amount for item in day_items), 2),
+                variance_amount=round(sum(item.variance_amount for item in day_items), 2),
+                pending_review=sum(1 for item in day_items if item.status == "pending_review"),
+            )
+        )
+
+    return points
+
+
+def _sort_recent(deposits: list[FinanceShiftDeposit]) -> list[FinanceShiftDeposit]:
+    return sorted(
+        deposits,
+        key=lambda item: _parse_submitted_at(item.submitted_at) or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+
+
+@router.get("/summary", response_model=FinanceSummary)
+def get_summary(
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("finance.read")),
+):
+    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
+    deposits = [FinanceShiftDeposit(**item) for item in items]
+    return _build_finance_summary(deposits)
+
+
+@router.get("/dashboard", response_model=FinanceDashboard)
+def get_finance_dashboard(
+    days: int = Query(default=7, ge=1, le=30),
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("finance.read")),
+):
+    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
+    deposits = [FinanceShiftDeposit(**item) for item in items]
+    recent = _sort_recent(deposits)
+    attention = [
+        item
+        for item in recent
+        if item.status in {"pending_review", "correction_requested"}
+        or abs(item.variance_amount) >= DISCREPANCY_THRESHOLD
+    ][:12]
+
+    return FinanceDashboard(
+        summary=_build_finance_summary(deposits),
+        by_outlet=_build_outlet_breakdown(deposits),
+        daily_trend=_build_daily_trend(deposits, days=days),
+        recent_incoming=recent[:10],
+        attention_queue=attention,
+    )
+
+
+@router.get("/export")
+def export_finance_reports(
+    format: str = Query(default="csv", alias="format"),
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_permission("finance.export")),
+):
+    export_format = format.lower().strip()
+    if export_format not in {"csv"}:
+        raise HTTPException(status_code=400, detail="Supported export formats: csv")
+
+    items = _filter_deposits_for_user(db, current_user, _load_deposits(db))
+    deposits = _sort_recent([FinanceShiftDeposit(**item) for item in items])
+
+    headers = [
+        "id",
+        "business_date",
+        "outlet_id",
+        "outlet_name",
+        "shift_name",
+        "department",
+        "cashier_name",
+        "cash_sales",
+        "qris_sales",
+        "edc_sales",
+        "expected_cash",
+        "actual_cash",
+        "deposit_amount",
+        "variance_amount",
+        "status",
+        "variance_reason",
+        "finance_note",
+        "submitted_at",
+        "reviewed_at",
+        "corrective_task_id",
+    ]
+
+    def csv_cell(value: object) -> str:
+        text = "" if value is None else str(value)
+        if any(char in text for char in [",", '"', "\n"]):
+            return '"' + text.replace('"', '""') + '"'
+        return text
+
+    lines = [",".join(headers)]
+    for deposit in deposits:
+        row = [
+            deposit.id,
+            deposit.business_date,
+            deposit.outlet_id,
+            deposit.outlet_name,
+            deposit.shift_name,
+            deposit.department,
+            deposit.cashier_name,
+            deposit.cash_sales,
+            deposit.qris_sales,
+            deposit.edc_sales,
+            deposit.expected_cash,
+            deposit.actual_cash,
+            deposit.deposit_amount,
+            deposit.variance_amount,
+            deposit.status,
+            deposit.variance_reason,
+            deposit.finance_note,
+            deposit.submitted_at,
+            deposit.reviewed_at,
+            deposit.corrective_task_id,
+        ]
+        lines.append(",".join(csv_cell(value) for value in row))
+
+    content = "\n".join(lines) + "\n"
+    filename = f"finance-reports-{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

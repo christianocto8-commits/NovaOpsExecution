@@ -66,7 +66,7 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
 
 function getPostLoginDestination(roleSlug: string, fallbackUrl: string) {
   return roleSlug === "finance" && fallbackUrl === "/dashboard"
-    ? "/dashboard/finance-handoff"
+    ? "/dashboard/finance"
     : fallbackUrl;
 }
 

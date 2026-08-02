@@ -63,3 +63,35 @@ class FinanceSummary(BaseModel):
     total_variance_amount: float
     discrepancy_count: int
     discrepancy_threshold: float
+    total_reports: int = 0
+    incoming_today: int = 0
+    total_cash_sales: float = 0
+    total_qris_sales: float = 0
+    total_edc_sales: float = 0
+
+
+class FinanceOutletBreakdown(BaseModel):
+    outlet_id: str | None = None
+    outlet_name: str
+    total_reports: int
+    pending_review: int
+    approved: int
+    total_deposit_amount: float
+    total_variance_amount: float
+    discrepancy_count: int
+
+
+class FinanceDailyTrendPoint(BaseModel):
+    date: str
+    reports_count: int
+    deposit_amount: float
+    variance_amount: float
+    pending_review: int
+
+
+class FinanceDashboard(BaseModel):
+    summary: FinanceSummary
+    by_outlet: list[FinanceOutletBreakdown] = Field(default_factory=list)
+    daily_trend: list[FinanceDailyTrendPoint] = Field(default_factory=list)
+    recent_incoming: list[FinanceShiftDeposit] = Field(default_factory=list)
+    attention_queue: list[FinanceShiftDeposit] = Field(default_factory=list)

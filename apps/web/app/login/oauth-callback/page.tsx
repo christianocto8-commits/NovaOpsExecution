@@ -52,7 +52,7 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
 }
 
 function getPostLoginDestination(roleSlug: string) {
-  return roleSlug === "finance" ? "/dashboard/finance-handoff" : "/dashboard";
+  return roleSlug === "finance" ? "/dashboard/finance" : "/dashboard";
 }
 
 function OAuthCallbackContent() {

@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CircleDollarSign, ShieldAlert } from "lucide-react";
+import { Banknote, CheckCircle2, CircleDollarSign, LayoutDashboard, ShieldAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import {
@@ -70,15 +71,24 @@ export default function FinanceHandoffPage() {
             Review setoran shift dari MyForm, cek variance, dan tindak lanjuti koreksi.
           </p>
         </div>
-        {can("form.create") ? (
-          <button
-            type="button"
-            onClick={() => void ensureTemplate()}
-            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white"
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/finance"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700"
           >
-            Siapkan Template My Form
-          </button>
-        ) : null}
+            <LayoutDashboard className="h-4 w-4" />
+            Finance Dashboard
+          </Link>
+          {can("form.create") ? (
+            <button
+              type="button"
+              onClick={() => void ensureTemplate()}
+              className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white"
+            >
+              Siapkan Template My Form
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <section className="grid gap-3 md:grid-cols-4">

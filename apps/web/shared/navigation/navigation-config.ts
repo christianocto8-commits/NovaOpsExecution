@@ -159,6 +159,14 @@ export const navigationItems: NavigationItem[] = [
     sidebar: false,
   },
   {
+    id: "finance",
+    label: "Finance Dashboard",
+    href: "/dashboard/finance",
+    icon: LayoutDashboard,
+    requiredPermissions: ["finance.read"],
+    section: "analytics",
+  },
+  {
     id: "finance-handoff",
     label: "Finance Reports",
     href: "/dashboard/finance-handoff",
