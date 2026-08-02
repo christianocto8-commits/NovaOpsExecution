@@ -4,14 +4,58 @@ $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $WebDir = Join-Path $Root "apps\web"
 $ApiDir = Join-Path $Root "apps\api"
 . (Join-Path $PSScriptRoot "Deploy-VpsFrontendArchive.ps1")
+. (Join-Path $PSScriptRoot "Deploy-VpsCodePayload.ps1")
 $VpsHost = if ($env:NOVAOPS_VPS_HOST) { $env:NOVAOPS_VPS_HOST } else { "root@103.247.10.145" }
 $RemoteRoot = "/opt/NovaOpsExecution"
-$SshKey = if ($env:NOVAOPS_VPS_SSH_KEY) {
-  $env:NOVAOPS_VPS_SSH_KEY
-} else {
-  Join-Path $env:USERPROFILE ".ssh\novaops_vps_ed25519"
+
+function Resolve-SshKeyPath {
+  if ($env:NOVAOPS_VPS_SSH_KEY) {
+    return @{
+      Path = $env:NOVAOPS_VPS_SSH_KEY
+      Checked = @($env:NOVAOPS_VPS_SSH_KEY)
+    }
+  }
+
+  $checked = New-Object System.Collections.Generic.List[string]
+  $candidates = New-Object System.Collections.Generic.List[string]
+
+  if ($env:USERPROFILE) {
+    $candidates.Add((Join-Path $env:USERPROFILE ".ssh\novaops_vps_ed25519"))
+    $candidates.Add((Join-Path $env:USERPROFILE ".ssh\id_ed25519"))
+  }
+
+  if ($env:HOME) {
+    $candidates.Add((Join-Path $env:HOME ".ssh/novaops_vps_ed25519"))
+    $candidates.Add((Join-Path $env:HOME ".ssh/id_ed25519"))
+  }
+
+  foreach ($candidate in $candidates) {
+    if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+    $checked.Add($candidate)
+    if (Test-Path -LiteralPath $candidate) {
+      return @{
+        Path = $candidate
+        Checked = $checked
+      }
+    }
+  }
+
+  return @{
+    Path = $null
+    Checked = $checked
+  }
 }
+
+$sshKeyResolution = Resolve-SshKeyPath
+$SshKey = $sshKeyResolution.Path
 $SshArgs = @("-i", $SshKey, "-o", "IdentitiesOnly=yes")
+
+function ConvertTo-BashSingleQuotedValue {
+  param([string]$Value)
+  if ($null -eq $Value) { return "''" }
+  $escaped = $Value.Replace("'", "'""'""'")
+  return "'$escaped'"
+}
 
 function Read-EnvValue($file, $key) {
   if (-not (Test-Path $file)) { return $null }
@@ -34,7 +78,11 @@ Write-Host "Target: $VpsHost" -ForegroundColor Gray
 Write-Host ""
 
 if (-not (Test-Path -LiteralPath $SshKey)) {
-  Write-Host "[BLOCKED] SSH private key tidak ditemukan: $SshKey" -ForegroundColor Red
+  Write-Host "[BLOCKED] SSH private key tidak ditemukan." -ForegroundColor Red
+  foreach ($checkedPath in $sshKeyResolution.Checked) {
+    Write-Host "  checked: $checkedPath" -ForegroundColor DarkGray
+  }
+  Write-Host "  hint: set NOVAOPS_VPS_SSH_KEY ke path private key yang valid." -ForegroundColor Yellow
   exit 1
 }
 
@@ -54,25 +102,26 @@ Copy-Item -Recurse -Force public .next\standalone\public
 Copy-Item -Recurse -Force .next\static .next\standalone\.next\static
 Pop-Location
 
-Write-Host "[2/6] Upload API + infra scripts..." -ForegroundColor Cyan
-scp @SshArgs -r "$ApiDir\app" "$ApiDir\alembic" "$ApiDir\requirements.txt" "$ApiDir\alembic.ini" "${VpsHost}:${RemoteRoot}/apps/api/"
-scp @SshArgs "$Root\scripts\vps-activate-live.sh" "$Root\scripts\vps-sync-production.sh" "$Root\scripts\vps-harden-production.sh" "$Root\scripts\backup-novaops-vps.sh" "${VpsHost}:${RemoteRoot}/scripts/"
-scp @SshArgs -r "$Root\deploy\systemd" "$Root\deploy\nginx" "$Root\deploy\scripts" "${VpsHost}:${RemoteRoot}/deploy/"
+Write-Host "[2/6] Upload backend + infra payload..." -ForegroundColor Cyan
+Deploy-VpsCodePayload -Root $Root -ApiDir $ApiDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot -SshKey $SshKey
 
 Write-Host "[3/6] Upload frontend standalone (tar.gz)..." -ForegroundColor Cyan
 Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot -SshKey $SshKey
 
 Write-Host "[4/6] Activate live integrations on VPS..." -ForegroundColor Cyan
-$remoteEnv = ""
+$remoteEnvPairs = @()
 if ($vapidPublic) {
-  $remoteEnv += "VAPID_PUBLIC_KEY='$vapidPublic' "
-  $remoteEnv += "VAPID_PRIVATE_KEY='$vapidPrivate' "
-  $remoteEnv += "VAPID_SUBJECT='$vapidSubject' "
+  $remoteEnvPairs += "VAPID_PUBLIC_KEY=$(ConvertTo-BashSingleQuotedValue $vapidPublic)"
+  $remoteEnvPairs += "VAPID_PRIVATE_KEY=$(ConvertTo-BashSingleQuotedValue $vapidPrivate)"
+  $remoteEnvPairs += "VAPID_SUBJECT=$(ConvertTo-BashSingleQuotedValue $vapidSubject)"
 }
-ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-activate-live.sh; $remoteEnv bash ${RemoteRoot}/scripts/vps-activate-live.sh"
+$remoteEnv = if ($remoteEnvPairs.Count -gt 0) { ($remoteEnvPairs -join " ") + " " } else { "" }
+ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-activate-live.sh; ${remoteEnv}bash ${RemoteRoot}/scripts/vps-activate-live.sh"
+if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "[5/6] Production sync (nginx, scheduler, backup, hardening)..." -ForegroundColor Cyan
 ssh @SshArgs $VpsHost "chmod +x ${RemoteRoot}/scripts/vps-sync-production.sh ${RemoteRoot}/scripts/vps-harden-production.sh ${RemoteRoot}/scripts/backup-novaops-vps.sh ${RemoteRoot}/deploy/scripts/novaops-scheduler-run.sh; bash ${RemoteRoot}/scripts/vps-sync-production.sh"
+if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "[6/6] Public health check..." -ForegroundColor Cyan
 $health = $null
@@ -131,4 +180,5 @@ if ($reloginProbeStatus -ne 422) {
 }
 Write-Host "  Relogin stale-cookie guard: 422 (expected validation response)" -ForegroundColor Gray
 Write-Host ""
+Write-Host "  Deploy source branch: main" -ForegroundColor Gray
 Write-Host "[DONE] https://nova-ops.cloud" -ForegroundColor Green

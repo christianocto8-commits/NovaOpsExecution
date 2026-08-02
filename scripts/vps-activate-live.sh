@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run on VPS after deploy — install deps + merge integration env keys.
+# Run on VPS after deploy - install deps + merge integration env keys.
 set -euo pipefail
 
 ENV_FILE="${NOVAOPS_ENV_FILE:-/opt/NovaOpsExecution/apps/api/.env}"
@@ -26,6 +26,26 @@ merge_env() {
   else
     echo "${key}=${value}" >> "$ENV_FILE"
   fi
+}
+
+wait_for_url() {
+  local url="$1"
+  local label="$2"
+  local attempts="${3:-20}"
+  local sleep_seconds="${4:-3}"
+  local response=""
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    if response="$(curl -fsS "$url" 2>/dev/null)"; then
+      echo "$response"
+      return 0
+    fi
+    echo "$label not ready ($attempt/$attempts), retrying in ${sleep_seconds}s..." >&2
+    sleep "$sleep_seconds"
+  done
+
+  echo "FAILED: $label did not become ready at $url" >&2
+  return 1
 }
 
 if [[ -n "${VAPID_PUBLIC_KEY:-}" ]]; then
@@ -73,10 +93,9 @@ systemctl restart novaops-api
 systemctl restart novaops-web
 systemctl restart nginx || true
 
-sleep 3
 echo "==> Health"
-curl -sf http://127.0.0.1:8000/api/v1/health
-echo ""
-curl -sf http://127.0.0.1:3000/api/keep-alive
-echo ""
+wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready"
+echo
+wait_for_url "http://127.0.0.1:3000/api/keep-alive" "Web keep-alive"
+echo
 echo "Activate-live complete."

@@ -5,6 +5,40 @@ set -euo pipefail
 ROOT="${NOVAOPS_ROOT:-/opt/NovaOpsExecution}"
 ENV_FILE="${NOVAOPS_ENV_FILE:-$ROOT/apps/api/.env}"
 
+warn() {
+  echo "WARN: $*" >&2
+}
+
+run_optional() {
+  local label="$1"
+  shift
+  if "$@"; then
+    return 0
+  fi
+  warn "$label failed but deploy will continue"
+  return 0
+}
+
+wait_for_url() {
+  local url="$1"
+  local label="$2"
+  local attempts="${3:-20}"
+  local sleep_seconds="${4:-3}"
+  local response=""
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    if response="$(curl -fsS "$url" 2>/dev/null)"; then
+      echo "$response"
+      return 0
+    fi
+    echo "$label not ready ($attempt/$attempts), retrying in ${sleep_seconds}s..." >&2
+    sleep "$sleep_seconds"
+  done
+
+  echo "FAILED: $label did not become ready at $url" >&2
+  return 1
+}
+
 echo "==> NovaOps VPS production sync"
 echo "Root: $ROOT"
 
@@ -16,7 +50,7 @@ if [[ -f "$ROOT/deploy/nginx/novaops-vps-ssl.conf" ]]; then
   systemctl reload nginx
   echo "Nginx reloaded"
 else
-  echo "WARN: missing $ROOT/deploy/nginx/novaops-vps-ssl.conf" >&2
+  warn "missing $ROOT/deploy/nginx/novaops-vps-ssl.conf"
 fi
 
 echo "==> Systemd units (scheduler + backup)"
@@ -40,48 +74,52 @@ if [[ -f "$ROOT/scripts/vps-harden-production.sh" ]]; then
   if grep -qE '^BOOTSTRAP_ADMIN_ENABLED=(true|1|yes)' "$ENV_FILE" 2>/dev/null; then
     bash "$ROOT/scripts/vps-harden-production.sh"
   else
-    echo "Bootstrap already disabled — skipping password rotation"
+    echo "Bootstrap already disabled - skipping password rotation"
     systemctl restart novaops-api novaops-web
   fi
 else
-  echo "WARN: hardening script missing" >&2
+  warn "hardening script missing"
 fi
 
 echo "==> Backup smoke test"
 if [[ -x "$ROOT/scripts/backup-novaops-vps.sh" ]]; then
-  NOVAOPS_ENV_FILE="$ENV_FILE" bash "$ROOT/scripts/backup-novaops-vps.sh"
+  run_optional "backup smoke test" env NOVAOPS_ENV_FILE="$ENV_FILE" bash "$ROOT/scripts/backup-novaops-vps.sh"
 else
-  echo "WARN: backup script missing" >&2
+  warn "backup script missing"
 fi
 
 echo "==> Scheduler smoke test"
 if [[ -x "$ROOT/deploy/scripts/novaops-scheduler-run.sh" ]]; then
-  NOVAOPS_ENV_FILE="$ENV_FILE" bash "$ROOT/deploy/scripts/novaops-scheduler-run.sh"
+  run_optional "scheduler smoke test" env NOVAOPS_ENV_FILE="$ENV_FILE" bash "$ROOT/deploy/scripts/novaops-scheduler-run.sh"
 else
-  echo "WARN: scheduler script missing" >&2
+  warn "scheduler script missing"
 fi
 
 echo "==> Health verification"
-curl -sf http://127.0.0.1:8000/api/v1/health
-echo ""
-curl -sf http://127.0.0.1/api/v1/health
-echo ""
-curl -sf https://nova-ops.cloud/api/v1/health
-echo ""
-curl -sf https://nova-ops.cloud/api/keep-alive
-echo ""
+wait_for_url "http://127.0.0.1:8000/api/v1/ready" "local API ready"
+echo
+wait_for_url "http://127.0.0.1/api/v1/health" "nginx API health"
+echo
+wait_for_url "https://nova-ops.cloud/api/v1/health" "public API health"
+echo
+wait_for_url "https://nova-ops.cloud/api/keep-alive" "public web keep-alive"
+echo
 
 echo "==> Task template integrity"
-sudo -u postgres psql -d novaops_db -t -A -c \
-  "SELECT count(*) FROM task_schedules WHERE form_template_id IS NULL AND is_active = true;" | {
-  read -r missing
-  if [[ "${missing:-0}" != "0" ]]; then
-    echo "WARN: $missing active schedule(s) without form_template_id" >&2
-  else
-    echo "All active schedules have form templates"
-  fi
-}
+if command -v sudo >/dev/null 2>&1; then
+  sudo -u postgres psql -d novaops_db -t -A -c \
+    "SELECT count(*) FROM task_schedules WHERE form_template_id IS NULL AND is_active = true;" | {
+    read -r missing
+    if [[ "${missing:-0}" != "0" ]]; then
+      warn "$missing active schedule(s) without form_template_id"
+    else
+      echo "All active schedules have form templates"
+    fi
+  }
+else
+  warn "sudo not available, skipped task template integrity check"
+fi
 
-echo ""
+echo
 echo "VPS production sync complete."
 echo "Admin credentials (if rotated): /root/novaops-production-credentials.txt"

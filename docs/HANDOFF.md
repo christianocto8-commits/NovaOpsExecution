@@ -84,11 +84,49 @@ PostgreSQL local: Docker port **5433**. Reset DB: `.\novaops.ps1 reset-db` (keti
 .\scripts\deploy-vps-live.ps1
 ```
 
+Deploy tercepat untuk routine production:
+
+- **GitHub Actions** via `.github/workflows/deploy-vps.yml`
+- Runner Linux build frontend lalu kirim **2 archive besar** ke VPS:
+  - backend + infra payload
+  - frontend standalone payload
+- Ini jauh lebih cepat dibanding `scp` ribuan file dari Windows lokal
+- Script CI cepat: `scripts/deploy-vps-ci-fast.sh`
+
 - Target: `root@103.247.10.145` → `/opt/NovaOpsExecution`
-- Build Next standalone, upload API, `alembic upgrade head`, restart systemd
+- Jalur deploy baku:
+  1. build Next standalone
+  2. paket backend + infra jadi satu archive
+  3. upload archive backend + frontend
+  4. swap frontend secara atomik
+  5. `alembic upgrade head`
+  6. restart service + health retry
 - Health: `https://nova-ops.cloud/api/v1/health`
 - Deploy menunggu `/api/v1/ready` agar database ikut tervalidasi
-- Setelah deploy API restart ~5–10 detik bisa 502 — normal, tunggu lalu cek lagi
+- Setelah deploy API restart ~5-10 detik bisa 502 — normal, script sekarang menunggu service ready sebelum lolos
+
+### Deploy dari GitHub / Cursor tanpa SSH key lokal
+
+Supaya Cursor juga bisa deploy tanpa memegang private key di environment lokalnya, gunakan workflow:
+
+- File: `.github/workflows/deploy-vps.yml`
+- Trigger:
+  - otomatis saat push ke `main`
+  - manual via **Actions -> NovaOps VPS Deploy**
+
+Secrets GitHub repo yang wajib diisi:
+
+- `NOVAOPS_VPS_SSH_KEY` -> isi private key deploy
+- `NOVAOPS_VPS_HOST` -> contoh `root@103.247.10.145`
+
+Flow:
+
+1. Cursor push ke `main`
+2. GitHub Actions inject SSH key dari repo secret
+3. Workflow jalankan `scripts/deploy-vps-live.ps1`
+4. Workflow cek `https://nova-ops.cloud/api/v1/health`
+
+Dengan pola ini, Cursor tidak perlu punya file SSH key lokal. Jalur tercepat untuk deploy reguler adalah GitHub Actions Linux, sedangkan `deploy-vps-live.ps1` tetap dipakai sebagai fallback lokal.
 
 **Jangan commit:** `.env`, `apps/api/uploads/`, `**/novaops-vps.env` (secrets).
 
