@@ -445,12 +445,8 @@ export function OutletTaskExecutionDrawer({
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: `calc(4.25rem + ${keyboardInset}px + env(safe-area-inset-bottom))` }}
         >
-          <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_360px] lg:px-8">
+          <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_280px] lg:px-8">
             <div className="min-w-0 space-y-3 sm:space-y-6">
-            <section className="hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 md:block sm:rounded-3xl">
-              <p className="text-sm font-semibold text-emerald-900">{t("execution.guideTitle")}</p>
-              <p className="mt-1 text-sm leading-6 text-emerald-800">{t("execution.guideBody")}</p>
-            </section>
               {templateQuery.isLoading ? (
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
                   {t("execution.loadingTemplate")}
@@ -466,11 +462,6 @@ export function OutletTaskExecutionDrawer({
                 </section>
               ) : template ? (
                 <section>
-                  <div className="mb-3 hidden px-1 sm:block">
-                    <p className="text-base font-bold text-slate-950">{template.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{template.description}</p>
-                  </div>
-
                   <SectionedFormRenderer
                     fields={template.fields}
                     responses={form.formResponses}
@@ -508,78 +499,90 @@ export function OutletTaskExecutionDrawer({
               )}
             </div>
 
-            <div className="space-y-4 lg:sticky lg:top-28 lg:self-start">
-              {missingRequiredFields.length > 0 ? (
-                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:rounded-3xl">
-                  <p className="text-sm font-bold text-amber-900">{t("execution.missingRequired")}</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
-                    {missingRequiredFields.map((field) => (
-                      <li key={field.id}>{field.label}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                <p className="text-sm font-bold text-slate-950">{t("execution.operator")}</p>
-                <div className="mt-4 grid gap-4">
-                  {!responsiblePersonField ? (
-                    <div>
-                      <label className="text-sm font-semibold text-slate-700">{t("execution.operatorName")}</label>
-                      <input
-                        value={form.operatorName}
-                        onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
-                        placeholder={t("execution.operatorPlaceholder")}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                      {t("execution.responsibleHint", {
-                        section: t("execution.responsibleSection"),
-                      })}
-                      {form.operatorName.trim() ? (
-                        <p className="mt-2 font-semibold">{form.operatorName}</p>
-                      ) : null}
-                    </div>
-                  )}
-
+            <div className="space-y-3 lg:sticky lg:top-28 lg:self-start">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                {!responsiblePersonField ? (
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">{t("execution.position")}</label>
-                    <select
-                      value={form.operatorPosition}
-                      onChange={(event) =>
-                        updateForm({
-                          ...form,
-                          operatorPosition: event.target.value as TaskExecutionForm["operatorPosition"],
-                        })
-                      }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
-                    >
-                      {operatorPositions.map((position) => (
-                        <option key={position} value={position}>
-                          {position}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-sm font-semibold text-slate-700">
+                      {t("execution.operatorName")}
+                    </label>
+                    <input
+                      value={form.operatorName}
+                      onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
+                      placeholder={t("execution.operatorPlaceholder")}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
+                    />
                   </div>
-                </div>
-              </section>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                    {t("execution.responsibleHint", {
+                      section: t("execution.responsibleSection"),
+                    })}
+                    {form.operatorName.trim() ? (
+                      <p className="mt-2 font-semibold">{form.operatorName}</p>
+                    ) : null}
+                  </div>
+                )}
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                <label className="text-sm font-bold text-slate-950">
-                  {t("execution.note")}
-                  {!templateSettings.require_execution_note ? (
-                    <span className="ml-1 font-normal text-slate-500">{t("execution.noteOptional")}</span>
-                  ) : null}
-                </label>
-                <textarea
-                  value={form.note}
-                  onChange={(event) => updateForm({ ...form, note: event.target.value })}
-                  placeholder={t("execution.notePlaceholder")}
-                  rows={5}
-                  className="mt-3 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
-                />
+                {templateSettings.require_execution_note ? (
+                  <div className="mt-4">
+                    <label className="text-sm font-bold text-slate-950">{t("execution.note")}</label>
+                    <textarea
+                      value={form.note}
+                      onChange={(event) => updateForm({ ...form, note: event.target.value })}
+                      placeholder={t("execution.notePlaceholder")}
+                      rows={3}
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                    />
+                  </div>
+                ) : null}
+
+                <details className="mt-4 rounded-xl bg-slate-50 px-3 py-2">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t("execution.moreDetails")}
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">
+                        {t("execution.position")}
+                      </label>
+                      <select
+                        value={form.operatorPosition}
+                        onChange={(event) =>
+                          updateForm({
+                            ...form,
+                            operatorPosition: event.target
+                              .value as TaskExecutionForm["operatorPosition"],
+                          })
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                      >
+                        {operatorPositions.map((position) => (
+                          <option key={position} value={position}>
+                            {position}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {!templateSettings.require_execution_note ? (
+                      <div>
+                        <label className="text-sm font-bold text-slate-950">
+                          {t("execution.note")}
+                          <span className="ml-1 font-normal text-slate-500">
+                            {t("execution.noteOptional")}
+                          </span>
+                        </label>
+                        <textarea
+                          value={form.note}
+                          onChange={(event) => updateForm({ ...form, note: event.target.value })}
+                          placeholder={t("execution.notePlaceholder")}
+                          rows={3}
+                          className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
               </section>
             </div>
           </div>

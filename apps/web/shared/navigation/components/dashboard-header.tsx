@@ -15,7 +15,7 @@ import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-ba
 
 type DashboardHeaderProps = {
   workspace: CurrentWorkspace;
-  onOpenMobileMenu: () => void;
+  onOpenMobileMenu?: () => void;
 };
 
 function getParentRoute(pathname: string) {
@@ -39,24 +39,23 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
   const pathname = usePathname();
 
   const parentRoute = useMemo(() => getParentRoute(pathname), [pathname]);
-  const showBackButton = pathname !== "/dashboard";
+  const showBackButton = pathname !== "/dashboard" && pathname !== "/dashboard/operator";
   const isOutletWorkspace = workspace.mode === "outlet";
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/90 px-3 py-3 backdrop-blur-xl sm:px-6 sm:py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={onOpenMobileMenu}
-            className={[
-              "flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden",
-              isOutletWorkspace ? "opacity-70" : "",
-            ].join(" ")}
-          >
-            <Menu className="size-5" />
-            <span className="sr-only">{t("header.openMenu")}</span>
-          </button>
+          {onOpenMobileMenu ? (
+            <button
+              type="button"
+              onClick={onOpenMobileMenu}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] lg:hidden"
+            >
+              <Menu className="size-5" />
+              <span className="sr-only">{t("header.openMenu")}</span>
+            </button>
+          ) : null}
 
           {showBackButton ? (
             <button

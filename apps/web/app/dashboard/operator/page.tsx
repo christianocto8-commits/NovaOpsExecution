@@ -19,7 +19,6 @@ import {
   getWorkspaceSnapshot,
   subscribeWorkspace,
 } from "@/shared/navigation";
-import { OperatorSectionTabs } from "@/shared/navigation/components/operator-section-tabs";
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 
 function isDueToday(task: Task) {
@@ -105,8 +104,7 @@ export default function OperatorHomePage() {
 
   return (
     <>
-      <OperatorSectionTabs />
-      <main className={`${mobileDashboardMainClass} pb-28 sm:pb-8`}>
+      <main className={`${mobileDashboardMainClass}`}>
         <header className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(145deg,#1f4d38_0%,#2f6b4d_48%,#3f8f66_100%)] px-5 py-6 text-white shadow-sm">
           <div className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-white/10" />
           <div className="pointer-events-none absolute -bottom-12 left-8 size-28 rounded-full bg-emerald-300/20" />
@@ -270,23 +268,6 @@ export default function OperatorHomePage() {
             </ul>
           )}
         </section>
-
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-          <Link
-            href={nextTask ? `/dashboard/tasks?taskId=${nextTask.id}` : "/dashboard/tasks"}
-            className="flex min-h-[52px] items-center justify-between rounded-2xl bg-emerald-700 px-5 py-4 text-white shadow-sm active:bg-emerald-800"
-          >
-            <div>
-              <p className="text-base font-bold">
-                {nextTask ? t("operator.continueTask") : t("operator.startTasks")}
-              </p>
-              <p className="text-xs text-emerald-100">
-                {t("operator.tasksWaiting", { count: openTasks.length })}
-              </p>
-            </div>
-            <ArrowRight className="size-6" />
-          </Link>
-        </div>
       </main>
     </>
   );

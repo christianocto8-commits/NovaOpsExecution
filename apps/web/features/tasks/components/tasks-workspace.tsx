@@ -496,7 +496,7 @@ function TaskGroupedList({
 
   return (
     <div className="space-y-3">
-      {groups.length > 1 ? (
+      {!isOutletRole && groups.length > 1 ? (
         <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -515,28 +515,50 @@ function TaskGroupedList({
         </div>
       ) : null}
 
-      {groups.map((section) => {
-        const defaultCollapsed = getDefaultSectionCollapsed(
-          section.id,
-          section.tasks.length,
-          isOutletRole
-        );
-        const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
+      {isOutletRole
+        ? groups.map((section) => (
+            <div key={section.id} className="space-y-2">
+              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {section.title}
+                <span className="ml-2 tabular-nums text-slate-400">{section.tasks.length}</span>
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                {section.tasks.map((task) => (
+                  <MobileTaskRow
+                    key={task.id}
+                    task={task}
+                    highlighted={highlightedTaskId === task.id}
+                    onOpen={() => onOpenTask(task)}
+                    formTemplates={formTemplates}
+                    isPendingSync={pendingTaskIds.has(task.id)}
+                    isFailedSync={failedTaskIds.has(task.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        : groups.map((section) => {
+            const defaultCollapsed = getDefaultSectionCollapsed(
+              section.id,
+              section.tasks.length,
+              isOutletRole
+            );
+            const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
 
-        return (
-          <CollapsibleTaskSection
-            key={section.id}
-            section={section}
-            highlightedTaskId={highlightedTaskId}
-            onOpenTask={onOpenTask}
-            formTemplates={formTemplates}
-            collapsed={collapsed}
-            onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
-            pendingTaskIds={pendingTaskIds}
-            failedTaskIds={failedTaskIds}
-          />
-        );
-      })}
+            return (
+              <CollapsibleTaskSection
+                key={section.id}
+                section={section}
+                highlightedTaskId={highlightedTaskId}
+                onOpenTask={onOpenTask}
+                formTemplates={formTemplates}
+                collapsed={collapsed}
+                onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
+                pendingTaskIds={pendingTaskIds}
+                failedTaskIds={failedTaskIds}
+              />
+            );
+          })}
     </div>
   );
 }
@@ -591,7 +613,7 @@ export function TasksWorkspace() {
     isOnline,
     pendingLocalSyncCount,
   } = useTaskWorkspace();
-  const { pendingTaskIds, failedTaskIds, workpackStats } = useOfflineSync();
+  const { pendingTaskIds, failedTaskIds } = useOfflineSync();
 
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -896,18 +918,14 @@ export function TasksWorkspace() {
                 : t("tasks.subtitleAdmin")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4">
-              <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-400 sm:inline">
-                {t("tasks.realtime")}
-              </span>
-              <RealtimeClock />
-            </div>
-            {isOutletWorkspace ? <OfflineSyncBadge /> : null}
-            {isOutletWorkspace && workpackStats?.taskCount ? (
-              <span className="inline-flex items-center rounded-2xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
-                {t("operator.cachedTasksChip", { count: workpackStats.taskCount })}
-              </span>
-            ) : null}
+            {isOutletWorkspace ? <OfflineSyncBadge /> : (
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+                <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-400 sm:inline">
+                  {t("tasks.realtime")}
+                </span>
+                <RealtimeClock />
+              </div>
+            )}
             <span
               className={`inline-flex items-center rounded-2xl px-3 py-2 text-xs font-bold sm:px-4 ${
                 isOnline ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
@@ -949,21 +967,23 @@ export function TasksWorkspace() {
 
       {isOutletWorkspace ? <PushNotificationPrompt /> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => setCalendarView((current) => !current)}
-          className={`rounded-2xl px-4 py-2 text-xs font-bold ${
-            calendarView
-              ? "bg-emerald-700 text-white"
-              : "border border-slate-200 bg-white text-slate-700"
-          }`}
-        >
-          {calendarView ? t("tasks.listView") : t("tasks.weekView")}
-        </button>
-      </div>
+      {!isOutletWorkspace ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setCalendarView((current) => !current)}
+            className={`rounded-2xl px-4 py-2 text-xs font-bold ${
+              calendarView
+                ? "bg-emerald-700 text-white"
+                : "border border-slate-200 bg-white text-slate-700"
+            }`}
+          >
+            {calendarView ? t("tasks.listView") : t("tasks.weekView")}
+          </button>
+        </div>
+      ) : null}
 
-      {calendarView ? (
+      {!isOutletWorkspace && calendarView ? (
         <TaskWeekCalendarStrip
           selectedDate={selectedCalendarDate}
           onSelectDate={setSelectedCalendarDate}
@@ -971,6 +991,7 @@ export function TasksWorkspace() {
         />
       ) : null}
 
+      {!isOutletWorkspace ? (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
           <p className="text-xs text-slate-500 md:text-sm">Total Tasks</p>
@@ -1005,27 +1026,28 @@ export function TasksWorkspace() {
           </div>
         </div>
       </div>
+      ) : null}
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-3 py-3 sm:px-4">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <section className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
+        <div className={`${isOutletWorkspace ? "pb-2" : "border-b border-slate-200 px-3 py-3 sm:px-4"}`}>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
             <Search className="h-4 w-4 text-slate-400" />
             <input
               value={mobileSearch}
               onChange={(event) => setMobileSearch(event.target.value)}
-              placeholder="Cari task, outlet, atau status"
+              placeholder={isOutletWorkspace ? "Cari task..." : "Cari task, outlet, atau status"}
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
           </div>
         </div>
 
-        <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
-          {isOutletRole
-            ? `Task belum selesai — ${workspace.outletName ?? "Outlet"} · selesai ada di Reports`
-            : `${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}
-        </div>
+        {!isOutletWorkspace ? (
+          <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
+            {`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}
+          </div>
+        ) : null}
 
-        <div className="bg-[#F7FAF8] p-3 sm:p-4">
+        <div className={isOutletWorkspace ? "pt-2" : "bg-[#F7FAF8] p-3 sm:p-4"}>
           <TaskGroupedList
             groups={activeTaskGroups}
             highlightedTaskId={highlightedTaskId}

@@ -9,6 +9,7 @@ import { AuthGuard } from "@/lib/auth/auth-guard";
 import {
   DashboardHeader,
   EnterpriseSidebar,
+  OperatorBottomNav,
   canAccessPath,
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -69,6 +70,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
     getServerWorkspaceSnapshot
   );
 
+  const isOutletShell = workspace.mode === "outlet" || workspace.role === "OUTLET";
   const canAccess = canAccessPath(can, pathname, workspace);
 
   useEffect(() => {
@@ -82,29 +84,34 @@ function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#F7FAF8]">
-      <EnterpriseSidebar
-        collapsed={collapsed}
-        workspace={workspace}
-        mobileOpen={mobileSidebarOpen}
-        onToggle={toggleSidebar}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-      />
+      {!isOutletShell ? (
+        <EnterpriseSidebar
+          collapsed={collapsed}
+          workspace={workspace}
+          mobileOpen={mobileSidebarOpen}
+          onToggle={toggleSidebar}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
+      ) : null}
 
       <div
         className={[
           "transition-all duration-300 ease-out",
-          collapsed ? "lg:pl-24" : "lg:pl-72",
+          isOutletShell ? "" : collapsed ? "lg:pl-24" : "lg:pl-72",
+          isOutletShell ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]" : "",
         ].join(" ")}
       >
         <DashboardHeader
           workspace={workspace}
-          onOpenMobileMenu={() => setMobileSidebarOpen(true)}
+          onOpenMobileMenu={isOutletShell ? undefined : () => setMobileSidebarOpen(true)}
         />
 
         <div className="min-w-0 overflow-x-hidden">
           {canAccess ? children : <AccessDenied />}
         </div>
       </div>
+
+      {isOutletShell ? <OperatorBottomNav /> : null}
     </div>
   );
 }

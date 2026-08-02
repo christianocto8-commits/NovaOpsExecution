@@ -2,24 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, ClipboardCheck, FileText } from "lucide-react";
+import { BarChart3, ClipboardCheck, FileText, Home } from "lucide-react";
+
+import { useLanguage } from "@/shared/i18n";
 
 const operatorNavItems = [
-  { href: "/dashboard/tasks", label: "Task", icon: ClipboardCheck },
-  { href: "/dashboard/forms", label: "My Form", icon: FileText },
-  { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
-  { href: "/dashboard/notifications", label: "Notif", icon: Bell },
+  { href: "/dashboard/operator", labelKey: "operator.tab.home", icon: Home, match: "exact" as const },
+  { href: "/dashboard/tasks", labelKey: "operator.tab.tasks", icon: ClipboardCheck, match: "prefix" as const },
+  { href: "/dashboard/forms", labelKey: "operator.tab.forms", icon: FileText, match: "prefix" as const },
+  { href: "/dashboard/reports", labelKey: "operator.tab.reports", icon: BarChart3, match: "prefix" as const },
 ] as const;
 
 export function OperatorBottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DDE8E1] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DDE8E1] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg"
+      aria-label={t("operator.tab.navLabel")}
+    >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around">
         {operatorNavItems.map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(item.href);
-
+          const active =
+            item.match === "exact"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
 
           return (
@@ -27,12 +35,12 @@ export function OperatorBottomNav() {
               <Link
                 href={item.href}
                 className={[
-                  "flex flex-col items-center gap-1 px-2 py-3 text-[10px] font-bold uppercase tracking-wide transition",
+                  "flex min-h-[56px] flex-col items-center justify-center gap-1 px-2 py-2 text-[11px] font-bold transition",
                   active ? "text-emerald-700" : "text-slate-400",
                 ].join(" ")}
               >
                 <Icon className={["size-5", active ? "text-emerald-700" : "text-slate-400"].join(" ")} />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             </li>
           );

@@ -697,6 +697,86 @@ export function ReportsWorkspace() {
     }
   }
 
+  if (isOutletWorkspace) {
+    const completedHistory = periodFilteredTasks
+      .filter(isTaskWorkedOn)
+      .sort((left, right) => {
+        const leftAt = left.execution?.completedAt ?? left.due ?? "";
+        const rightAt = right.execution?.completedAt ?? right.due ?? "";
+        return new Date(rightAt).getTime() - new Date(leftAt).getTime();
+      });
+
+    return (
+      <main className={mobileDashboardMainClass}>
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Laporan</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Riwayat Kerja</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Task yang sudah Anda selesaikan di {workspace.outletName ?? "outlet ini"}.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setPeriodDays(7)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                periodDays === 7 ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              7 hari
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodDays(30)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                periodDays === 30 ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              30 hari
+            </button>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+            {completedHistory.length} selesai
+          </span>
+        </div>
+
+        {completedHistory.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
+            Belum ada task selesai pada periode ini.
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+            {completedHistory.map((task) => (
+              <li key={task.id}>
+                <button
+                  type="button"
+                  onClick={() => openTrackingDetail(task.id)}
+                  className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-950">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {getDateLabel(
+                        task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due
+                      )}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                    Selesai
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <HistoryDetailDrawer selection={historySelection} onClose={() => setHistorySelection(null)} />
+      </main>
+    );
+  }
+
   return (
     <main className={mobileDashboardMainClass}>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -706,9 +786,7 @@ export function ReportsWorkspace() {
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             {isAreaWorkspace
               ? "Lihat task yang sudah dikerjakan per outlet dan export laporan PDF beserta foto bukti."
-              : isManagerWorkspace
-                ? "Riwayat task selesai per outlet dan export laporan hasil pekerjaan."
-                : "Task yang sudah Anda selesaikan dan laporan hasil pekerjaan."}
+              : "Riwayat task selesai per outlet dan export laporan hasil pekerjaan."}
           </p>
         </div>
 
