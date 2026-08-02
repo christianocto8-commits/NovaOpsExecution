@@ -4,9 +4,11 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { EvidenceReviewHub } from "@/features/evidence/components/evidence-review-hub";
+import { useFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { enrichTasksWithCompletedSessions } from "@/features/history/utils/execution-session-history";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
+import { formSubmissionService } from "@/services/form-submission.service";
 import { taskService } from "@/services/task.service";
 import { useLanguage } from "@/shared/i18n";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
@@ -23,6 +25,13 @@ export default function EvidencePage() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
+  const outletId =
+    workspace.mode === "outlet" && workspace.outletId ? workspace.outletId : undefined;
+  const numericOutletId =
+    workspace.mode === "outlet"
+      ? (workspace.legacyOutletId ??
+        (outletId && /^\d+$/.test(outletId) ? Number(outletId) : undefined))
+      : undefined;
 
   const tasksQuery = useQuery({
     queryKey: queryKeys.sop.tasks(),
@@ -35,12 +44,31 @@ export default function EvidencePage() {
     queryFn: () => getExecutionSessions({ status: "completed" }),
     retry: false,
   });
+  const formSubmissionsQuery = useQuery({
+    queryKey: [...queryKeys.history.formSubmissions(), numericOutletId ?? "all", "evidence"],
+    queryFn: () =>
+      formSubmissionService.list(
+        numericOutletId !== undefined ? { outletId: numericOutletId } : undefined
+      ),
+    retry: false,
+  });
+  const templatesQuery = useFormTemplates();
 
   const tasks = useMemo(() => {
     const baseTasks = tasksQuery.data ?? [];
     const sessions = executionSessionsQuery.data ?? [];
     return enrichTasksWithCompletedSessions(baseTasks, sessions);
   }, [tasksQuery.data, executionSessionsQuery.data]);
+  const formSubmissions = formSubmissionsQuery.data ?? [];
+  const templateNameById = useMemo(() => {
+    const map = new Map<string, string>();
+
+    (templatesQuery.data ?? []).forEach((template) => {
+      map.set(template.id, template.name);
+    });
+
+    return map;
+  }, [templatesQuery.data]);
   const pendingReviewCount = tasks.filter(
     (task) => task.execution?.reviewStatus === "pending_review"
   ).length;
@@ -54,12 +82,14 @@ export default function EvidencePage() {
         <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("evidence.subtitle")}</p>
       </div>
 
-      {tasksQuery.isError || executionSessionsQuery.isError ? (
+      {tasksQuery.isError || executionSessionsQuery.isError || formSubmissionsQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {tasksQuery.error instanceof Error
             ? tasksQuery.error.message
             : executionSessionsQuery.error instanceof Error
               ? executionSessionsQuery.error.message
+              : formSubmissionsQuery.error instanceof Error
+                ? formSubmissionsQuery.error.message
               : t("evidence.loadError")}
         </div>
       ) : null}
@@ -79,6 +109,8 @@ export default function EvidencePage() {
 
       <EvidenceReviewHub
         tasks={tasks}
+        formSubmissions={formSubmissions}
+        templateNameById={templateNameById}
         workspace={workspace}
         title={t("evidence.hubTitle")}
         description={t("evidence.hubDescription")}

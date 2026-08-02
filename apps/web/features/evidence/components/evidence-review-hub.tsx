@@ -4,19 +4,29 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, Search, X, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ImageIcon,
+  Search,
+  X,
+  XCircle,
+} from "lucide-react";
 
 import type { Task } from "@/features/tasks/types";
-import { queryKeys } from "@/lib/query/keys";
-import { taskService } from "@/services/task.service";
-import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
-import {
-  collectSubmissionEvidenceItems,
-} from "@/shared/evidence/submission-evidence";
 import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  formSubmissionService,
+  type FormSubmissionResponse,
+} from "@/services/form-submission.service";
+import { taskService } from "@/services/task.service";
 import { useLanguage } from "@/shared/i18n";
-import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 import type { OutletScopeContext } from "@/shared/navigation/outlet-scope";
+import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
+import { collectSubmissionEvidenceItems } from "@/shared/evidence/submission-evidence";
 
 export type ReviewEvidenceItem = {
   id: string;
@@ -28,6 +38,8 @@ export type ReviewEvidenceItem = {
   submittedAt: string;
   source: "execution" | "form";
   reviewStatus?: "approved" | "rejected" | "pending";
+  entityType: "task" | "submission";
+  submissionId?: number;
 };
 
 function normalizeReviewStatus(
@@ -37,8 +49,17 @@ function normalizeReviewStatus(
   return "pending";
 }
 
+function normalizeSubmissionReviewStatus(
+  status?: string
+): ReviewEvidenceItem["reviewStatus"] {
+  if (status === "approved" || status === "rejected") return status;
+  return "pending";
+}
+
 type EvidenceReviewHubProps = {
   tasks: Task[];
+  formSubmissions?: FormSubmissionResponse[];
+  templateNameById?: Map<string, string>;
   workspace: OutletScopeContext;
   title?: string;
   description?: string;
@@ -71,13 +92,46 @@ function extractEvidenceFromTasks(tasks: Task[]): ReviewEvidenceItem[] {
         submittedAt: item.uploadedAt || execution.completedAt,
         source: item.id.startsWith("form-") ? "form" : "execution",
         reviewStatus: normalizeReviewStatus(task.execution?.reviewStatus),
+        entityType: "task",
       });
     });
   });
 
-  return items.sort(
-    (first, second) => new Date(second.submittedAt).getTime() - new Date(first.submittedAt).getTime()
-  );
+  return items;
+}
+
+function extractEvidenceFromFormSubmissions(
+  formSubmissions: FormSubmissionResponse[],
+  templateNameById: Map<string, string>
+): ReviewEvidenceItem[] {
+  const items: ReviewEvidenceItem[] = [];
+
+  formSubmissions.forEach((submission) => {
+    const submissionItems = collectSubmissionEvidenceItems({
+      submissionAnswers: submission.answers,
+    });
+    const templateName =
+      templateNameById.get(String(submission.form_template_id)) ??
+      `My Form ${submission.form_template_id}`;
+
+    submissionItems.forEach((item) => {
+      items.push({
+        id: `submission-${submission.id}-${item.id}`,
+        url: item.url,
+        caption: item.caption ?? "My Form Evidence",
+        taskId: `submission-${submission.id}`,
+        taskTitle: templateName,
+        outlet: `Outlet ${submission.outlet_id}`,
+        submittedAt: item.uploadedAt || submission.submitted_at || new Date().toISOString(),
+        source: "form",
+        reviewStatus: normalizeSubmissionReviewStatus(submission.status),
+        entityType: "submission",
+        submissionId: submission.id,
+      });
+    });
+  });
+
+  return items;
 }
 
 function ReviewEvidenceCard({
@@ -137,13 +191,7 @@ function ReviewEvidenceLightboxImage({ item }: { item: ReviewEvidenceItem }) {
     );
   }
 
-  return (
-    <img
-      src={displayUrl}
-      alt={item.caption}
-      className="max-h-[70vh] w-full object-contain"
-    />
-  );
+  return <img src={displayUrl} alt={item.caption} className="max-h-[70vh] w-full object-contain" />;
 }
 
 function ReviewStatusPill({
@@ -163,7 +211,9 @@ function ReviewStatusPill({
   const Icon = status === "approved" ? CheckCircle2 : status === "rejected" ? XCircle : null;
 
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}>
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}
+    >
       {Icon ? <Icon className="size-3" /> : null}
       {status === "approved"
         ? t("evidence.statusApproved")
@@ -176,6 +226,8 @@ function ReviewStatusPill({
 
 export function EvidenceReviewHub({
   tasks,
+  formSubmissions = [],
+  templateNameById = new Map<string, string>(),
   workspace,
   title = "Evidence Review",
   description = "Photo and URL evidence collected from completed task submissions.",
@@ -185,7 +237,9 @@ export function EvidenceReviewHub({
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "execution" | "form">("all");
   const [outletFilter, setOutletFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "approved" | "rejected" | "pending"
+  >("all");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const reviewMutation = useMutation({
@@ -201,12 +255,33 @@ export function EvidenceReviewHub({
     },
   });
 
+  const submissionReviewMutation = useMutation({
+    mutationFn: ({
+      submissionId,
+      review,
+    }: {
+      submissionId: number;
+      review: "approved" | "rejected";
+    }) => formSubmissionService.review(submissionId, review),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form-submissions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() });
+    },
+  });
+
   const scopedTasks = useMemo(
     () => filterTasksForWorkspace(tasks, workspace).filter(isTaskWorkedOn),
     [tasks, workspace]
   );
 
-  const evidenceItems = useMemo(() => extractEvidenceFromTasks(scopedTasks), [scopedTasks]);
+  const evidenceItems = useMemo(
+    () =>
+      [...extractEvidenceFromTasks(scopedTasks), ...extractEvidenceFromFormSubmissions(formSubmissions, templateNameById)].sort(
+        (first, second) =>
+          new Date(second.submittedAt).getTime() - new Date(first.submittedAt).getTime()
+      ),
+    [formSubmissions, scopedTasks, templateNameById]
+  );
 
   const outletOptions = useMemo(() => {
     const outlets = new Set(evidenceItems.map((item) => item.outlet).filter(Boolean));
@@ -229,7 +304,8 @@ export function EvidenceReviewHub({
         item.taskId.toLowerCase().includes(normalizedQuery)
       );
     });
-  }, [evidenceItems, query, sourceFilter, outletFilter, statusFilter]);
+  }, [evidenceItems, outletFilter, query, sourceFilter, statusFilter]);
+
   const pendingItems = useMemo(
     () => evidenceItems.filter((item) => (item.reviewStatus ?? "pending") === "pending"),
     [evidenceItems]
@@ -254,6 +330,17 @@ export function EvidenceReviewHub({
     if (lightboxIndex == null || filteredItems.length === 0) return;
     setLightboxIndex((lightboxIndex + 1) % filteredItems.length);
   }
+
+  function submitReview(item: ReviewEvidenceItem, review: "approved" | "rejected") {
+    if (item.entityType === "submission" && item.submissionId != null) {
+      submissionReviewMutation.mutate({ submissionId: item.submissionId, review });
+      return;
+    }
+
+    reviewMutation.mutate({ taskId: item.taskId, review });
+  }
+
+  const isReviewing = reviewMutation.isPending || submissionReviewMutation.isPending;
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -337,24 +424,29 @@ export function EvidenceReviewHub({
               </thead>
               <tbody>
                 {pendingItems.slice(0, 8).map((item) => (
-                  <tr key={`approval-${item.id}`} className="border-b border-blue-100/70 last:border-b-0">
+                  <tr
+                    key={`approval-${item.id}`}
+                    className="border-b border-blue-100/70 last:border-b-0"
+                  >
                     <td className="px-4 py-3 font-semibold text-slate-950">{item.taskTitle}</td>
                     <td className="px-4 py-3 text-slate-600">{item.outlet}</td>
-                    <td className="px-4 py-3 text-slate-600">{new Date(item.submittedAt).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {new Date(item.submittedAt).toLocaleString()}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => reviewMutation.mutate({ taskId: item.taskId, review: "approved" })}
-                          disabled={reviewMutation.isPending}
+                          onClick={() => submitReview(item, "approved")}
+                          disabled={isReviewing}
                           className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          onClick={() => reviewMutation.mutate({ taskId: item.taskId, review: "rejected" })}
-                          disabled={reviewMutation.isPending}
+                          onClick={() => submitReview(item, "rejected")}
+                          disabled={isReviewing}
                           className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-60"
                         >
                           Reject
@@ -378,12 +470,7 @@ export function EvidenceReviewHub({
       ) : (
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredItems.map((item, index) => (
-            <ReviewEvidenceCard
-              key={item.id}
-              item={item}
-              t={t}
-              onOpen={() => openLightbox(index)}
-            />
+            <ReviewEvidenceCard key={item.id} item={item} t={t} onOpen={() => openLightbox(index)} />
           ))}
         </div>
       )}
@@ -401,7 +488,11 @@ export function EvidenceReviewHub({
               <div>
                 <p className="text-sm font-bold text-slate-950">{activeItem.taskTitle}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {activeItem.outlet} · Task {activeItem.taskId} · {activeItem.source}
+                  {activeItem.outlet} ·{" "}
+                  {activeItem.entityType === "submission"
+                    ? "Submission"
+                    : `Task ${activeItem.taskId}`}{" "}
+                  · {activeItem.source}
                 </p>
               </div>
               <button
@@ -437,10 +528,8 @@ export function EvidenceReviewHub({
               <div className="flex flex-wrap gap-2 border-t border-slate-200 px-4 py-4">
                 <button
                   type="button"
-                  onClick={() =>
-                    reviewMutation.mutate({ taskId: activeItem.taskId, review: "approved" })
-                  }
-                  disabled={reviewMutation.isPending}
+                  onClick={() => submitReview(activeItem, "approved")}
+                  disabled={isReviewing}
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
                   <CheckCircle2 className="size-4" />
@@ -448,10 +537,8 @@ export function EvidenceReviewHub({
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    reviewMutation.mutate({ taskId: activeItem.taskId, review: "rejected" })
-                  }
-                  disabled={reviewMutation.isPending}
+                  onClick={() => submitReview(activeItem, "rejected")}
+                  disabled={isReviewing}
                   className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-60"
                 >
                   <XCircle className="size-4" />

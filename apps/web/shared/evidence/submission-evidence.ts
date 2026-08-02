@@ -113,6 +113,14 @@ export function collectSubmissionEvidenceItems(args: {
   evidencePayload?: unknown;
   formResponses?: Record<string, string>;
   taskEvidence?: TaskEvidence[];
+  submissionAnswers?: Array<{
+    form_field_id: number;
+    answer_text?: string | null;
+    answer_number?: number | null;
+    answer_boolean?: boolean | null;
+    answer_json?: unknown;
+    evidence_url?: string | null;
+  }>;
 }): EvidenceItem[] {
   const seen = new Set<string>();
   const items: EvidenceItem[] = [];
@@ -129,6 +137,28 @@ export function collectSubmissionEvidenceItems(args: {
   }
 
   parseEvidencePayload(args.evidencePayload).forEach((item) => add(item));
+
+  (args.submissionAnswers ?? []).forEach((answer) => {
+    const rawUrl =
+      answer.evidence_url?.trim() ||
+      answer.answer_text?.trim() ||
+      (typeof answer.answer_json === "string" ? answer.answer_json.trim() : "");
+
+    if (!rawUrl) return;
+
+    const photoValue = parsePhotoFieldValue(rawUrl);
+    const url = photoValue?.url ?? getPhotoDisplayUrl(rawUrl);
+    if (!url || !isPhotoUrl(url)) return;
+
+    add({
+      id: `submission-${answer.form_field_id}`,
+      url,
+      caption: `Form field ${answer.form_field_id}`,
+      latitude: photoValue?.latitude,
+      longitude: photoValue?.longitude,
+      accuracy_m: photoValue?.accuracy_m,
+    });
+  });
 
   (args.taskEvidence ?? [])
     .filter((item) => (item.type === "photo" || item.type === "url") && item.value.trim())

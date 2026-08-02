@@ -80,6 +80,24 @@ function parseChecklist(answersJson: Record<string, unknown>) {
   };
 }
 
+function getSubmissionAnswerDisplayValue(answer: FormSubmissionResponse["answers"][number]) {
+  if (answer.answer_text != null && answer.answer_text !== "") return answer.answer_text;
+  if (answer.answer_number != null) return String(answer.answer_number);
+  if (answer.answer_boolean === true) return "yes";
+  if (answer.answer_boolean === false) return "no";
+  if (typeof answer.answer_json === "string") return answer.answer_json;
+  return "";
+}
+
+function buildSubmissionResponses(submission: FormSubmissionResponse) {
+  return Object.fromEntries(
+    submission.answers.map((answer) => [
+      String(answer.form_field_id),
+      getSubmissionAnswerDisplayValue(answer),
+    ])
+  );
+}
+
 export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: HistoryDetailDrawerProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [draftNote, setDraftNote] = useState("");
@@ -241,14 +259,7 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
 
   const responses =
     resolvedSelection.kind === "form"
-      ? Object.fromEntries(
-          resolvedSelection.submission.answers.map((answer) => [
-            String(answer.form_field_id),
-            answer.answer_text ??
-              (answer.answer_number != null ? String(answer.answer_number) : "") ??
-              "",
-          ])
-        )
+      ? buildSubmissionResponses(resolvedSelection.submission)
       : parseResponses(answersJson as Record<string, unknown>);
 
   const checklist =
@@ -261,6 +272,8 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
   const evidenceItems = collectSubmissionEvidenceItems({
     evidencePayload: (answersJson as Record<string, unknown>).evidence,
     formResponses: responses,
+    submissionAnswers:
+      resolvedSelection.kind === "form" ? resolvedSelection.submission.answers : undefined,
     taskEvidence:
       resolvedSelection.kind === "task" ? resolvedSelection.task.execution?.evidence : undefined,
   });
