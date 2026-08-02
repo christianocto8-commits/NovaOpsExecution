@@ -83,9 +83,10 @@ function normalizeTask(task: Task): Task {
     ...task,
     formTemplateId: task.formTemplateId ?? "",
     recurrence,
-    shifts: recurrence === "weekly" || recurrence === "monthly" ? [] : (task.shifts ?? ["morning"]),
+    shifts: [],
     targetOutlets: task.targetOutlets ?? [task.outlet],
     autoPublish: task.autoPublish ?? false,
+    publishTime: task.publishTime,
     dueTime: task.dueTime ?? getTimeFromDue(task.due),
     weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
   };
@@ -617,7 +618,9 @@ export function useTaskWorkspace() {
       assignedToId: null,
       publishAt: getLocalDateTimeValue(),
       due: getLocalDateTimeValue(24 * 60),
-      dueTime: defaultTaskDueTime,
+      publishTime: defaultTaskDueTime,
+      dueTime: "17:00",
+      shifts: [],
     });
     setIsFormOpen(true);
   }
@@ -640,10 +643,11 @@ export function useTaskWorkspace() {
       description: task.description,
       formTemplateId: task.formTemplateId ?? "",
       recurrence: task.recurrence ?? "once",
-      shifts: task.shifts ?? ["morning"],
+      shifts: [],
       targetOutlets: task.targetOutlets ?? [task.outlet],
       autoPublish: task.autoPublish ?? false,
-      dueTime: task.dueTime ?? getTimeFromDue(task.due, defaultTaskDueTime),
+      publishTime: task.publishTime ?? defaultTaskDueTime,
+      dueTime: task.dueTime ?? getTimeFromDue(task.due, "17:00"),
       weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
       monthlyPublishDay: task.monthlyPublishDay ?? 1,
     });

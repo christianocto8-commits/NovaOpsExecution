@@ -19,6 +19,12 @@ from app.modules.notifications.task_notifications import (
 from app.services.workspace_settings import get_workspace_settings
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.modules.tasks.identity_bridge import resolve_legacy_outlet_id
+from app.modules.task_schedules.schedule_timing import (
+    build_due_datetime,
+    resolve_due_time,
+    resolve_publish_time,
+    should_publish_recurring,
+)
 
 SHIFT_LABELS = {
     "morning": "Morning",
@@ -126,40 +132,18 @@ class TaskSchedulePublisher:
             return bool(schedule.next_publish_at and schedule.next_publish_at <= current)
 
         local_current = current.astimezone(self._workspace_timezone())
+        publish_time = self._schedule_publish_time(schedule)
+        return should_publish_recurring(
+            recurrence=schedule.recurrence,
+            publish_time=publish_time,
+            local_current=local_current,
+            weekly_publish_day=schedule.weekly_publish_day,
+            monthly_publish_day=schedule.monthly_publish_day,
+            weekday_to_name=WEEKDAY_TO_NAME,
+        )
 
-        if schedule.recurrence == "daily":
-            return self._is_past_due_time(schedule.due_time, local_current)
-
-        if schedule.recurrence == "weekly":
-            if not schedule.weekly_publish_day:
-                return False
-
-            current_day = WEEKDAY_TO_NAME[local_current.weekday()]
-            if current_day != schedule.weekly_publish_day.lower():
-                return False
-
-            return self._is_past_due_time(schedule.due_time, local_current)
-
-        if schedule.recurrence == "monthly":
-            if not schedule.monthly_publish_day:
-                return False
-
-            publish_day = min(schedule.monthly_publish_day, 28)
-            if local_current.day != publish_day:
-                return False
-
-            return self._is_past_due_time(schedule.due_time, local_current)
-
-        return False
-
-    def _is_past_due_time(self, due_time: str, current: datetime) -> bool:
-        try:
-            hour, minute = [int(part) for part in due_time.split(":")]
-        except (TypeError, ValueError):
-            hour, minute = 9, 0
-
-        publish_time = time(hour=hour, minute=minute)
-        return current.time() >= publish_time
+    def _schedule_publish_time(self, schedule: TaskSchedule) -> str:
+        return resolve_publish_time(getattr(schedule, "publish_time", None), schedule.due_time)
 
     def _publish_schedule(
         self,
@@ -209,18 +193,17 @@ class TaskSchedulePublisher:
                     created += 1
             return created, skipped, skipped_by_exception
 
-        shifts = schedule.shifts_json or ["morning"]
+        # Daily: one task per outlet (no shift fan-out). Publish/due times are explicit.
         for outlet_ref in outlet_ids:
-            for shift in shifts:
-                if self._is_exception_day(outlet_ref, current):
-                    skipped_by_exception += 1
-                    continue
-                if self._task_exists(schedule, outlet_ref, shift, current, force=force):
-                    skipped += 1
-                    continue
+            if self._is_exception_day(outlet_ref, current):
+                skipped_by_exception += 1
+                continue
+            if self._task_exists(schedule, outlet_ref, None, current, force=force):
+                skipped += 1
+                continue
 
-                if self._create_task(schedule, outlet_ref, shift, current):
-                    created += 1
+            if self._create_task(schedule, outlet_ref, None, current):
+                created += 1
 
         return created, skipped, skipped_by_exception
 
@@ -342,31 +325,17 @@ class TaskSchedulePublisher:
         shift: str | None,
         current: datetime,
     ) -> datetime:
-        due_time = schedule.due_time
+        del shift  # shift category removed from publish/due semantics
         if schedule.recurrence == "once" and schedule.one_time_due_at:
             return schedule.one_time_due_at
 
-        local_current = current.astimezone(self._workspace_timezone())
-
-        if shift == "morning":
-            due_time = "07:00"
-        elif shift == "evening":
-            due_time = "15:00"
-        elif shift == "midnight":
-            due_time = "23:00"
-
-        try:
-            hour, minute = [int(part) for part in due_time.split(":")]
-        except (TypeError, ValueError):
-            hour, minute = 9, 0
-
-        local_due_date = datetime(
-            year=local_current.year,
-            month=local_current.month,
-            day=local_current.day,
-            hour=hour,
-            minute=minute,
-            tzinfo=self._workspace_timezone(),
+        tz = self._workspace_timezone()
+        local_current = current.astimezone(tz)
+        local_due_date = build_due_datetime(
+            local_current=local_current,
+            publish_time=self._schedule_publish_time(schedule),
+            due_time=resolve_due_time(schedule.due_time),
+            tz=tz,
         )
         return local_due_date.astimezone(timezone.utc)
 
@@ -402,11 +371,7 @@ class TaskSchedulePublisher:
 
     def expand_schedule_targets(self, schedule: TaskSchedule) -> list[tuple[str, str | None]]:
         outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
-        if schedule.recurrence in {"once", "weekly", "monthly"}:
-            return [(outlet_ref, None) for outlet_ref in outlet_ids]
-
-        shifts = schedule.shifts_json or ["morning"]
-        return [(outlet_ref, shift) for outlet_ref in outlet_ids for shift in shifts]
+        return [(outlet_ref, None) for outlet_ref in outlet_ids]
 
     def compute_next_publish_at(self, schedule: TaskSchedule, current: datetime) -> datetime:
         if schedule.recurrence == "once" and schedule.next_publish_at:
@@ -415,7 +380,7 @@ class TaskSchedulePublisher:
         local_current = current.astimezone(self._workspace_timezone())
 
         try:
-            hour, minute = [int(part) for part in schedule.due_time.split(":")]
+            hour, minute = [int(part) for part in self._schedule_publish_time(schedule).split(":")]
         except (TypeError, ValueError):
             hour, minute = 9, 0
 

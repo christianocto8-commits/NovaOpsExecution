@@ -39,8 +39,10 @@ class TaskScheduleService:
             form_template_id=payload.form_template_id,
             priority=payload.priority,
             recurrence=payload.recurrence,
-            shifts_json=payload.shifts,
+            # Shift fan-out removed: keep empty for compatibility.
+            shifts_json=[],
             outlet_ids_json=payload.outlet_ids,
+            publish_time=payload.publish_time,
             due_time=payload.due_time,
             one_time_due_at=payload.one_time_due_at,
             weekly_publish_day=payload.weekly_publish_day,
@@ -70,7 +72,9 @@ class TaskScheduleService:
         update_data = payload.model_dump(exclude_unset=True)
 
         if "shifts" in update_data:
-            schedule.shifts_json = update_data.pop("shifts")
+            # Ignore legacy shifts payload — recurring schedules no longer fan-out by shift.
+            update_data.pop("shifts")
+            schedule.shifts_json = []
 
         next_outlet_ids = schedule.outlet_ids_json or []
         if "outlet_ids" in update_data:
@@ -220,12 +224,6 @@ class TaskScheduleService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="monthly_publish_day is required for monthly schedules",
-            )
-
-        if payload.recurrence == "daily" and not payload.shifts:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least one shift is required for daily schedules",
             )
 
         if payload.assigned_to:

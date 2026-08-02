@@ -36,10 +36,11 @@ function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<st
     description: schedule.description ?? "",
     formTemplateId: form.formTemplateId,
     recurrence: form.recurrence,
-    shifts: form.shifts,
+    shifts: [],
     targetOutlets: form.targetOutlets,
     targetOutletIds: form.targetOutletIds,
     autoPublish: form.autoPublish,
+    publishTime: form.publishTime,
     dueTime: form.dueTime,
     weeklyPublishDay: form.weeklyPublishDay,
     monthlyPublishDay: form.monthlyPublishDay,
@@ -325,7 +326,9 @@ export function SchedulesWorkspace() {
       assigneeSelection: "outlet_team",
       monthlyPublishDay: 1,
       formTemplateId: activeTemplates[0]?.id ?? "",
-      shifts: ["morning"],
+      shifts: [],
+      publishTime: "09:00",
+      dueTime: "17:00",
     });
     setIsFormOpen(true);
   }
@@ -508,7 +511,8 @@ export function SchedulesWorkspace() {
                 </p>
                 <p className="mt-1 font-bold text-slate-950">{schedule.title}</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {outletCount} outlet - due {schedule.due_time}
+                  {outletCount} outlet · publish {schedule.publish_time || schedule.due_time} · due{" "}
+                  {schedule.due_time}
                 </p>
               </div>
             ))

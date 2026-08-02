@@ -25,7 +25,8 @@ class TaskScheduleCreate(BaseModel):
     recurrence: TaskScheduleRecurrence
     shifts: list[TaskScheduleShift] = Field(default_factory=list)
     outlet_ids: list[str] = Field(min_length=1)
-    due_time: str = "09:00"
+    publish_time: str = "09:00"
+    due_time: str = "17:00"
     publish_at: datetime | None = None
     one_time_due_at: datetime | None = None
     weekly_publish_day: TaskWeeklyPublishDay | None = None
@@ -55,6 +56,7 @@ class TaskScheduleUpdate(BaseModel):
     recurrence: TaskScheduleRecurrence | None = None
     shifts: list[TaskScheduleShift] | None = None
     outlet_ids: list[str] | None = None
+    publish_time: str | None = None
     due_time: str | None = None
     publish_at: datetime | None = None
     one_time_due_at: datetime | None = None
@@ -74,6 +76,7 @@ class TaskScheduleResponse(BaseModel):
     recurrence: str
     shifts_json: list[str]
     outlet_ids_json: list[str]
+    publish_time: str
     due_time: str
     weekly_publish_day: str | None
     monthly_publish_day: int | None

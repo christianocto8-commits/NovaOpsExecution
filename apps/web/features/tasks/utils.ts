@@ -29,18 +29,25 @@ export function formatTaskDue(value: string) {
 }
 
 export function formatTaskSchedule(
-  task: Pick<Task, "due" | "dueTime" | "recurrence" | "weeklyPublishDay" | "monthlyPublishDay">
+  task: Pick<
+    Task,
+    "due" | "publishTime" | "dueTime" | "recurrence" | "weeklyPublishDay" | "monthlyPublishDay"
+  >
 ) {
-  if (task.recurrence === "daily") return `Daily at ${task.dueTime || task.due || "-"}`;
+  const publish = task.publishTime || "-";
+  const due = task.dueTime || task.due || "-";
+
+  if (task.recurrence === "daily") {
+    return `Daily publish ${publish}, due ${due}`;
+  }
 
   if (task.recurrence === "weekly") {
     const publishDay = weeklyDayLabels[task.weeklyPublishDay ?? "sunday"] ?? "Sunday";
-
-    return `Weekly ${publishDay} at ${task.dueTime || task.due || "-"}`;
+    return `Weekly ${publishDay} publish ${publish}, due ${due}`;
   }
 
   if (task.recurrence === "monthly") {
-    return `Monthly day ${task.monthlyPublishDay ?? 1} at ${task.dueTime || task.due || "-"}`;
+    return `Monthly day ${task.monthlyPublishDay ?? 1} publish ${publish}, due ${due}`;
   }
 
   return formatTaskDue(task.due);

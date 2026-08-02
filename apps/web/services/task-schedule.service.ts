@@ -15,6 +15,7 @@ export type BackendTaskSchedule = {
   recurrence: TaskRecurrence;
   shifts_json: TaskShift[];
   outlet_ids_json: string[];
+  publish_time: string;
   due_time: string;
   weekly_publish_day: TaskWeeklyPublishDay | null;
   monthly_publish_day: number | null;
@@ -61,6 +62,7 @@ type CreateTaskSchedulePayload = {
   recurrence: "once" | "daily" | "weekly" | "monthly";
   shifts: TaskShift[];
   outlet_ids: string[];
+  publish_time: string;
   due_time: string;
   publish_at: string | null;
   one_time_due_at: string | null;
@@ -126,9 +128,10 @@ function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
     form_template_id: resolveFormTemplateId(form.formTemplateId),
     priority: toBackendPriority(form.priority),
     recurrence,
-    shifts: recurrence === "daily" ? form.shifts : [],
+    shifts: [],
     outlet_ids: resolveOutletIds(form),
-    due_time: form.dueTime || "09:00",
+    publish_time: form.publishTime || "09:00",
+    due_time: form.dueTime || "17:00",
     publish_at:
       recurrence === "once" && form.publishAt ? new Date(form.publishAt).toISOString() : null,
     one_time_due_at: recurrence === "once" && form.due ? new Date(form.due).toISOString() : null,
@@ -173,11 +176,12 @@ export function scheduleToFormState(
     description: schedule.description ?? "",
     formTemplateId: schedule.form_template_id ? String(schedule.form_template_id) : "",
     recurrence,
-    shifts: schedule.shifts_json.length > 0 ? schedule.shifts_json : ["morning"],
+    shifts: [],
     targetOutlets,
     targetOutletIds: schedule.outlet_ids_json,
     autoPublish: schedule.auto_publish,
-    dueTime: schedule.due_time,
+    publishTime: schedule.publish_time || schedule.due_time || "09:00",
+    dueTime: schedule.due_time || "17:00",
     weeklyPublishDay: schedule.weekly_publish_day ?? "sunday",
     monthlyPublishDay: schedule.monthly_publish_day ?? 1,
   };

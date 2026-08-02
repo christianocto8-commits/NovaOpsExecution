@@ -19,7 +19,8 @@ class TaskSchedule(Base):
     shifts_json = Column(JSON, nullable=False, default=list)
     outlet_ids_json = Column(JSON, nullable=False, default=list)
 
-    due_time = Column(String(5), nullable=False, default="09:00")
+    publish_time = Column(String(5), nullable=False, default="09:00")
+    due_time = Column(String(5), nullable=False, default="17:00")
     weekly_publish_day = Column(String(20), nullable=True)
     monthly_publish_day = Column(Integer, nullable=True)
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)

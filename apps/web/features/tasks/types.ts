@@ -144,6 +144,7 @@ export type Task = {
   targetOutlets?: string[];
   targetOutletIds?: string[];
   autoPublish?: boolean;
+  publishTime?: string;
   dueTime?: string;
   weeklyPublishDay?: TaskWeeklyPublishDay;
   monthlyPublishDay?: number;
@@ -173,6 +174,7 @@ export type TaskFormState = {
   targetOutlets: string[];
   targetOutletIds?: string[];
   autoPublish: boolean;
+  publishTime: string;
   dueTime: string;
   weeklyPublishDay: TaskWeeklyPublishDay;
   monthlyPublishDay: number;

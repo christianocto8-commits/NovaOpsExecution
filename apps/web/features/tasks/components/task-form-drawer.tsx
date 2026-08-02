@@ -17,7 +17,6 @@ import {
   TaskFormState,
   TaskPriority,
   TaskRecurrence,
-  TaskShift,
   TaskStatus,
   TaskWeeklyPublishDay,
 } from "@/features/tasks/types";
@@ -43,11 +42,6 @@ const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
   { value: "monthly", label: "Monthly" },
 ];
 const recurringRecurrences = recurrences.filter((recurrence) => recurrence.value !== "once");
-const shiftOptions: Array<{ value: TaskShift; label: string; time: string }> = [
-  { value: "morning", label: "Morning", time: "07:00" },
-  { value: "evening", label: "Evening", time: "15:00" },
-  { value: "midnight", label: "Midnight", time: "23:00" },
-];
 const weeklyPublishDayOptions: Array<{ value: TaskWeeklyPublishDay; label: string }> = [
   { value: "sunday", label: "Sunday" },
   { value: "monday", label: "Monday" },
@@ -75,7 +69,8 @@ export function TaskFormDrawer({
 }: TaskFormDrawerProps) {
   const isEditMode = mode === "edit";
   const { settings } = useSettings();
-  const defaultTaskDueTime = settings?.default_task_due_time ?? "09:00";
+  const defaultPublishTime = settings?.default_task_due_time ?? "09:00";
+  const defaultOverdueTime = "17:00";
   const identityOutletsQuery = useQuery({
     queryKey: queryKeys.identity.outlets,
     queryFn: getIdentityOutlets,
@@ -146,29 +141,23 @@ export function TaskFormDrawer({
     assignee: form.assignee,
     assigneeSelection: form.assigneeSelection,
   });
-  const selectedShiftCount = form.shifts.length;
   const isRecurringTask = form.recurrence !== "once";
   const isDailyTask = form.recurrence === "daily";
   const isWeeklyTask = form.recurrence === "weekly";
   const isMonthlyTask = form.recurrence === "monthly";
-  const autoPublishTaskCount = form.autoPublish
-    ? isDailyTask
-      ? selectedTargetOutlets.length * selectedShiftCount
-      : selectedTargetOutlets.length
-    : 0;
+  const autoPublishTaskCount = form.autoPublish ? selectedTargetOutlets.length : 0;
 
   const canSubmit =
     Boolean(form.title?.trim()) &&
     Boolean((form.assignee ?? "Outlet Team").trim()) &&
     (form.recurrence === "once"
       ? Boolean(form.due?.trim())
-      : Boolean(form.dueTime?.trim()) &&
+      : Boolean((form.publishTime || defaultPublishTime).trim()) &&
+        Boolean((form.dueTime || defaultOverdueTime).trim()) &&
         (form.recurrence !== "weekly" || Boolean(form.weeklyPublishDay)) &&
         (form.recurrence !== "monthly" || Boolean(form.monthlyPublishDay))) &&
     Boolean(safeFormTemplateId.trim()) &&
-    (form.recurrence === "once"
-      ? outletOptions.length > 0
-      : selectedTargetOutlets.length > 0 && (!isDailyTask || selectedShiftCount > 0));
+    (form.recurrence === "once" ? outletOptions.length > 0 : selectedTargetOutlets.length > 0);
 
   function toggleTargetOutlet(outletId: string, outletName: string) {
     const selected = selectedTargetOutletIds.includes(outletId);
@@ -188,18 +177,6 @@ export function TaskFormDrawer({
     });
   }
 
-  function toggleShift(shift: TaskShift) {
-    const selected = form.shifts.includes(shift);
-    const nextShifts = selected
-      ? form.shifts.filter((currentShift) => currentShift !== shift)
-      : [...form.shifts, shift];
-
-    onChange({
-      ...form,
-      shifts: nextShifts,
-    });
-  }
-
   function selectTaskFlow(flow: "once" | "recurring") {
     if (flow === "once") {
       onChange({
@@ -208,7 +185,8 @@ export function TaskFormDrawer({
         autoPublish: true,
         publishAt: form.publishAt || getLocalDateTimeValue(),
         due: form.due || getLocalDateTimeValue(24 * 60),
-        dueTime: form.dueTime || defaultTaskDueTime,
+        publishTime: form.publishTime || defaultPublishTime,
+        dueTime: form.dueTime || defaultOverdueTime,
         shifts: [],
       });
       return;
@@ -220,8 +198,9 @@ export function TaskFormDrawer({
       ...form,
       recurrence,
       autoPublish: true,
-      dueTime: form.dueTime || defaultTaskDueTime,
-      shifts: recurrence === "daily" ? (form.shifts.length > 0 ? form.shifts : ["morning"]) : [],
+      publishTime: form.publishTime || defaultPublishTime,
+      dueTime: form.dueTime || defaultOverdueTime,
+      shifts: [],
       weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
       monthlyPublishDay:
         recurrence === "monthly" ? form.monthlyPublishDay || 1 : form.monthlyPublishDay,
@@ -439,13 +418,9 @@ export function TaskFormDrawer({
                         ...form,
                         recurrence,
                         autoPublish: true,
-                        dueTime: form.dueTime || defaultTaskDueTime,
-                        shifts:
-                          recurrence === "daily"
-                            ? form.shifts.length > 0
-                              ? form.shifts
-                              : ["morning"]
-                            : [],
+                        publishTime: form.publishTime || defaultPublishTime,
+                        dueTime: form.dueTime || defaultOverdueTime,
+                        shifts: [],
                         weeklyPublishDay:
                           recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
                         monthlyPublishDay:
@@ -477,20 +452,39 @@ export function TaskFormDrawer({
                     className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
                   />
                 </div>
-              ) : (
+              ) : null}
+            </div>
+
+            {isRecurringTask ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
-                    Due Time
+                    Publish Time
                   </label>
                   <input
                     type="time"
-                    value={form.dueTime ?? defaultTaskDueTime}
+                    value={form.publishTime || defaultPublishTime}
+                    onChange={(event) => onChange({ ...form, publishTime: event.target.value })}
+                    className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Kapan task muncul di outlet.</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                    Due / Overdue Time
+                  </label>
+                  <input
+                    type="time"
+                    value={form.dueTime || defaultOverdueTime}
                     onChange={(event) => onChange({ ...form, dueTime: event.target.value })}
                     className="mt-2 h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-600"
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Setelah jam ini task dianggap overdue.
+                  </p>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : null}
 
             {form.recurrence === "weekly" ? (
               <div className="mt-4">
@@ -578,36 +572,10 @@ export function TaskFormDrawer({
                 </p>
                 <p className="mt-1 text-2xl font-bold text-emerald-950">{autoPublishTaskCount}</p>
                 <p className="text-xs text-slate-500">
-                  {isWeeklyTask ? "tasks per weekly publish" : "tasks per scheduled shift publish"}
+                  {isWeeklyTask || isMonthlyTask || isDailyTask
+                    ? "tasks per publish cycle (1 per outlet)"
+                    : "tasks per publish"}
                 </p>
-              </div>
-            ) : null}
-
-            {isDailyTask ? (
-              <div className="mt-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Shifts</p>
-                <p className="mt-1 text-xs text-emerald-700">
-                  Daily tasks are created for each selected shift.
-                </p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                  {shiftOptions.map((shift) => (
-                    <label
-                      key={shift.value}
-                      className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm"
-                    >
-                      <span>
-                        <span className="font-semibold text-slate-900">{shift.label}</span>
-                        <span className="ml-2 text-xs text-slate-500">{shift.time}</span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={form.shifts.includes(shift.value)}
-                        onChange={() => toggleShift(shift.value)}
-                        className="size-4 accent-emerald-700"
-                      />
-                    </label>
-                  ))}
-                </div>
               </div>
             ) : null}
 
