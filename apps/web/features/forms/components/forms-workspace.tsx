@@ -188,6 +188,14 @@ function OutletManualFormsWorkspace() {
   const [submittedTemplateName, setSubmittedTemplateName] = useState("");
   const submitMutation = useMutation({
     mutationFn: formSubmissionService.submitManualForm,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() }),
+        queryClient.invalidateQueries({ queryKey: ["form-submissions"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports.summary() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports.trends() }),
+      ]);
+    },
   });
 
   useEffect(() => {

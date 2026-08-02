@@ -470,9 +470,25 @@ export function ReportsWorkspace() {
     queryKey: queryKeys.sop.formTemplates(),
     queryFn: formTemplateService.list,
   });
+  const numericOutletId =
+    workspace.mode === "outlet"
+      ? (workspace.legacyOutletId ??
+        (workspace.outletId && /^\d+$/.test(workspace.outletId)
+          ? Number(workspace.outletId)
+          : undefined))
+      : undefined;
+
   const formSubmissionsQuery = useQuery({
-    queryKey: ["form-submissions", "reports", workspace.outletId ?? workspace.mode],
-    queryFn: () => formSubmissionService.list(),
+    queryKey: [
+      "form-submissions",
+      "reports",
+      workspace.outletId ?? workspace.mode,
+      numericOutletId ?? "all",
+    ],
+    queryFn: () =>
+      formSubmissionService.list(
+        numericOutletId !== undefined ? { outletId: numericOutletId } : undefined
+      ),
     retry: false,
   });
   const executionSessionsQuery = useQuery({
@@ -508,30 +524,37 @@ export function ReportsWorkspace() {
     });
   }, [enrichedScopedTasks, periodAnchor, periodDays]);
 
-  const manualSubmissionRows = useMemo(() => {
+  const periodFilteredFormSubmissions = useMemo(() => {
     const cutoff = periodAnchor - periodDays * 24 * 60 * 60 * 1000;
+
+    return formSubmissions.filter((submission) => {
+      if (numericOutletId !== undefined && submission.outlet_id !== numericOutletId) {
+        return false;
+      }
+      if (submission.status === "draft") return false;
+      if (!submission.submitted_at) return true;
+      return new Date(submission.submitted_at).getTime() >= cutoff;
+    });
+  }, [formSubmissions, numericOutletId, periodAnchor, periodDays]);
+
+  const manualSubmissionRows = useMemo(() => {
     const templateNames = new Map(
       formTemplates.map((template) => [Number(template.id), template.name])
     );
     const outletNames = new Map(
       tasks.filter((task) => task.outletId).map((task) => [Number(task.outletId), task.outlet])
     );
-    const selectedOutletId = workspace.outletId ? Number(workspace.outletId) : null;
 
-    return formSubmissions
-      .filter((submission) => {
-        if (selectedOutletId !== null && submission.outlet_id !== selectedOutletId) return false;
-        if (!submission.submitted_at) return true;
-        return new Date(submission.submitted_at).getTime() >= cutoff;
-      })
-      .map((submission) =>
-        toManualSubmissionReportRow(
-          submission,
-          templateNames.get(submission.form_template_id) ?? `Form #${submission.form_template_id}`,
-          outletNames.get(submission.outlet_id) ?? `Outlet #${submission.outlet_id}`
-        )
-      );
-  }, [formSubmissions, formTemplates, periodAnchor, periodDays, tasks, workspace.outletId]);
+    return periodFilteredFormSubmissions.map((submission) =>
+      toManualSubmissionReportRow(
+        submission,
+        templateNames.get(submission.form_template_id) ?? `Form #${submission.form_template_id}`,
+        outletNames.get(submission.outlet_id) ??
+          workspace.outletName ??
+          `Outlet #${submission.outlet_id}`
+      )
+    );
+  }, [formTemplates, periodFilteredFormSubmissions, tasks, workspace.outletName]);
   const reportRows = useMemo(
     () => [...periodFilteredTasks.map(toReportRow), ...manualSubmissionRows],
     [manualSubmissionRows, periodFilteredTasks]
@@ -698,13 +721,34 @@ export function ReportsWorkspace() {
   }
 
   if (isOutletWorkspace) {
-    const completedHistory = periodFilteredTasks
-      .filter(isTaskWorkedOn)
-      .sort((left, right) => {
-        const leftAt = left.execution?.completedAt ?? left.due ?? "";
-        const rightAt = right.execution?.completedAt ?? right.due ?? "";
-        return new Date(rightAt).getTime() - new Date(leftAt).getTime();
-      });
+    const templateNameById = new Map(
+      formTemplates.map((template) => [Number(template.id), template.name])
+    );
+
+    const completedHistory = [
+      ...periodFilteredTasks.filter(isTaskWorkedOn).map((task) => ({
+        id: `task-${task.id}`,
+        title: task.title,
+        completedAt: task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due,
+        kind: "task" as const,
+        taskId: task.id,
+      })),
+      ...periodFilteredFormSubmissions.map((submission) => ({
+        id: `form-${submission.id}`,
+        title:
+          templateNameById.get(submission.form_template_id) ??
+          `Form #${submission.form_template_id}`,
+        completedAt: submission.submitted_at ?? "",
+        kind: "form" as const,
+        submission,
+        templateName:
+          templateNameById.get(submission.form_template_id) ??
+          `Form #${submission.form_template_id}`,
+      })),
+    ].sort(
+      (left, right) =>
+        new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime()
+    );
 
     return (
       <main className={mobileDashboardMainClass}>
@@ -712,7 +756,7 @@ export function ReportsWorkspace() {
           <p className="text-sm font-medium text-emerald-700">Laporan</p>
           <h1 className="text-2xl font-semibold text-slate-950">Riwayat Kerja</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Task yang sudah Anda selesaikan di {workspace.outletName ?? "outlet ini"}.
+            Task dan form yang sudah Anda selesaikan di {workspace.outletName ?? "outlet ini"}.
           </p>
         </div>
 
@@ -744,23 +788,33 @@ export function ReportsWorkspace() {
 
         {completedHistory.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
-            Belum ada task selesai pada periode ini.
+            Belum ada pekerjaan selesai pada periode ini.
           </div>
         ) : (
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-            {completedHistory.map((task) => (
-              <li key={task.id}>
+            {completedHistory.map((item) => (
+              <li key={item.id}>
                 <button
                   type="button"
-                  onClick={() => openTrackingDetail(task.id)}
+                  onClick={() => {
+                    if (item.kind === "task") {
+                      openTrackingDetail(item.taskId);
+                      return;
+                    }
+
+                    setHistorySelection({
+                      kind: "form",
+                      submission: item.submission,
+                      templateName: item.templateName,
+                    });
+                  }}
                   className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-950">{task.title}</p>
+                    <p className="truncate font-semibold text-slate-950">{item.title}</p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {getDateLabel(
-                        task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due
-                      )}
+                      {item.kind === "form" ? "My Form · " : ""}
+                      {getDateLabel(item.completedAt)}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
