@@ -178,6 +178,7 @@ function OutletManualFormsWorkspace() {
   const { settings } = useSettings();
   const { refreshPendingCount, pendingSyncCount } = useOfflineSync();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { activeTemplates, isLoading, isError } = useActiveFormTemplates();
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [responses, setResponses] = useState<TaskFormResponses>({});
@@ -185,6 +186,14 @@ function OutletManualFormsWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitMutation = useMutation({
     mutationFn: formSubmissionService.submitManualForm,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() }),
+        queryClient.invalidateQueries({ queryKey: ["form-submissions"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports.summary() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports.trends() }),
+      ]);
+    },
   });
 
   useEffect(() => {
