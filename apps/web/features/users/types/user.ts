@@ -1,9 +1,15 @@
-export type UserStatus = "Active" | "Pending" | "Suspended";
+export type OutletScope = "All Outlets" | "Multiple Outlets" | "Single Outlet";
 
 export type UserRole =
-  "Owner/Admin" | "Regional Manager" | "District Manager" | "Area Manager" | "Finance" | "Outlet";
+  | "Owner/Admin"
+  | "Regional Manager"
+  | "District Manager"
+  | "Area Manager"
+  | "Finance Head Office"
+  | "Finance Outlet"
+  | "Outlet";
 
-export type OutletScope = "All Outlets" | "Multiple Outlets" | "Single Outlet";
+export type UserStatus = "Active" | "Pending" | "Suspended";
 
 export type User = {
   id: string;

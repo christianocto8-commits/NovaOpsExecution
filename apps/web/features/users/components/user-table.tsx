@@ -25,7 +25,8 @@ const userFilterDefinitions = [
     options: [
       { label: "Owner/Admin", value: "Owner/Admin" },
       { label: "Area Manager", value: "Area Manager" },
-      { label: "Finance", value: "Finance" },
+      { label: "Finance Head Office", value: "Finance Head Office" },
+      { label: "Finance Outlet", value: "Finance Outlet" },
       { label: "Outlet", value: "Outlet" },
     ],
   },

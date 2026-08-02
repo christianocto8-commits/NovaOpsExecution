@@ -25,18 +25,19 @@ const roles: UserRole[] = [
   "Regional Manager",
   "District Manager",
   "Area Manager",
-  "Finance",
+  "Finance Head Office",
+  "Finance Outlet",
   "Outlet",
 ];
 const statuses: UserStatus[] = ["Active", "Pending", "Suspended"];
 
 function getScopeLabel(role: UserRole) {
-  if (role === "Owner/Admin") return "All Outlets";
+  if (role === "Owner/Admin" || role === "Finance Head Office") return "All Outlets";
   if (
     role === "Regional Manager" ||
     role === "District Manager" ||
     role === "Area Manager" ||
-    role === "Finance"
+    role === "Finance Outlet"
   ) {
     return "Multiple Outlets";
   }
@@ -132,8 +133,9 @@ export function UserFormDialog({
                 {editingUserId ? "Edit Account" : "Create Account"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Owner/Admin gets all outlets. Regional, District, Area, and Finance accounts manage
-                selected outlets. Outlet accounts stay restricted to one outlet.
+                Owner/Admin and Finance Head Office see all outlets. Finance Outlet, Regional,
+                District, and Area accounts manage selected outlets. Outlet accounts stay restricted
+                to one outlet.
               </p>
             </div>
           </div>
@@ -194,12 +196,12 @@ export function UserFormDialog({
                     role,
                     outletScope: getScopeLabel(role),
                     outlet:
-                      role === "Owner/Admin"
+                      role === "Owner/Admin" || role === "Finance Head Office"
                         ? "All Outlets"
                         : role === "Regional Manager" ||
                             role === "District Manager" ||
                             role === "Area Manager" ||
-                            role === "Finance"
+                            role === "Finance Outlet"
                           ? "Multiple Outlets"
                           : (firstOutlet?.id ?? ""),
                     outletIds: [],
@@ -239,7 +241,7 @@ export function UserFormDialog({
             />
           </Field>
 
-          {form.role === "Owner/Admin" ? (
+          {form.role === "Owner/Admin" || form.role === "Finance Head Office" ? (
             <Field label="Outlet Access">
               <input
                 value="All Outlets"
@@ -274,7 +276,7 @@ export function UserFormDialog({
           {form.role === "Regional Manager" ||
           form.role === "District Manager" ||
           form.role === "Area Manager" ||
-          form.role === "Finance" ? (
+          form.role === "Finance Outlet" ? (
             <div className="grid gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Managed Outlets

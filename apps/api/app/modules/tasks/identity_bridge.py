@@ -150,7 +150,7 @@ def get_default_identity_outlet(identity_user: IdentityUser) -> IdentityOutlet |
 def get_accessible_identity_outlets(db: Session, identity_user: IdentityUser) -> tuple[list[IdentityOutlet], bool]:
     role_slug = identity_user.role.slug if identity_user.role else ""
 
-    if role_slug in {"owner", "admin"}:
+    if role_slug in {"owner", "admin", "finance_head_office"}:
         return db.query(IdentityOutlet).order_by(IdentityOutlet.code.asc()).all(), True
 
     if role_slug in {"regional_manager", "district_manager", "area_manager"}:

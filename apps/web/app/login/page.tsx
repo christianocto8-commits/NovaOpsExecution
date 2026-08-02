@@ -60,12 +60,13 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
   if (roleSlug === "district_manager") return "DISTRICT_MANAGER";
   if (roleSlug === "area_manager") return "AREA_MANAGER";
   if (roleSlug === "outlet") return "OUTLET";
-  if (roleSlug === "finance") return "FINANCE";
+  if (roleSlug === "finance" || roleSlug === "finance_head_office") return "FINANCE";
   return "OWNER_ADMIN";
 }
 
 function getPostLoginDestination(roleSlug: string, fallbackUrl: string) {
-  return roleSlug === "finance" && fallbackUrl === "/dashboard"
+  return (roleSlug === "finance" || roleSlug === "finance_head_office") &&
+    fallbackUrl === "/dashboard"
     ? "/dashboard/finance"
     : fallbackUrl;
 }

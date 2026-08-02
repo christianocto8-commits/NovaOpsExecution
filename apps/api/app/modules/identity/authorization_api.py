@@ -32,7 +32,7 @@ def resolve_outlet_access(db: Session, auth_context: AuthContext) -> AuthContext
     role_slug = user.role.slug
     legacy_outlet_id, legacy_outlet_ids = _legacy_ids_for_outlets(db, auth_context)
 
-    if role_slug in {"owner", "admin"}:
+    if role_slug in {"owner", "admin", "finance_head_office"}:
         return AuthContextOutletAccessResponse(
             scope="all",
             outlet_id=None,
@@ -42,14 +42,19 @@ def resolve_outlet_access(db: Session, auth_context: AuthContext) -> AuthContext
             outlets=[],
         )
 
-    if role_slug == "area_manager":
+    if role_slug in {"area_manager", "finance"}:
+        assigned = list(user.assigned_outlets or [])
+        if role_slug == "finance" and not assigned and user.outlet:
+            assigned = [user.outlet]
         return AuthContextOutletAccessResponse(
-            scope="multiple",
-            outlet_id=None,
-            outlet_ids=[outlet.id for outlet in user.assigned_outlets],
+            scope="multiple" if len(assigned) != 1 else "single",
+            outlet_id=assigned[0].id if len(assigned) == 1 else None,
+            outlet_ids=[outlet.id for outlet in assigned],
+            outlet_name=assigned[0].name if len(assigned) == 1 else None,
+            outlet_code=assigned[0].code if len(assigned) == 1 else None,
             legacy_outlet_id=legacy_outlet_id,
             legacy_outlet_ids=legacy_outlet_ids,
-            outlets=[OutletRead.model_validate(outlet) for outlet in user.assigned_outlets],
+            outlets=[OutletRead.model_validate(outlet) for outlet in assigned],
         )
 
     legacy_for_user = legacy_outlet_id

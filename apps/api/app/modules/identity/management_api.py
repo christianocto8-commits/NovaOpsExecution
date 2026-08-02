@@ -19,7 +19,11 @@ from app.modules.identity.models import (
     User,
 )
 from app.modules.tasks.identity_bridge import get_accessible_identity_outlets
-from app.modules.identity.permissions import ROLE_PERMISSION_MAP, SYSTEM_ROLES
+from app.modules.identity.permissions import (
+    ROLE_DISPLAY_NAMES,
+    ROLE_PERMISSION_MAP,
+    SYSTEM_ROLES,
+)
 from app.modules.identity.repository import (
     OrganizationRepository,
     LoginOtpChallengeRepository,
@@ -61,7 +65,7 @@ def resolve_user_outlet_access(
     outlet_ids: list[UUID] | None,
     outlets: OutletRepository,
 ) -> tuple[UUID | None, list[Outlet]]:
-    if role_slug in {"owner", "admin"}:
+    if role_slug in {"owner", "admin", "finance_head_office"}:
         return None, []
 
     if role_slug == "outlet":
@@ -88,7 +92,11 @@ def resolve_user_outlet_access(
         if not selected_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{role_slug.replace('_', ' ').title()} must manage at least one outlet",
+                detail=(
+                    "Finance Outlet must manage at least one outlet"
+                    if role_slug == "finance"
+                    else f"{role_slug.replace('_', ' ').title()} must manage at least one outlet"
+                ),
             )
 
         selected_outlets: list[Outlet] = []
@@ -120,14 +128,17 @@ def ensure_system_roles_and_permissions(db: Session) -> list[Role]:
     synced_roles: list[Role] = []
     for slug in SYSTEM_ROLES:
         role = RoleRepository(db).find_by_slug(slug)
+        desired_name = ROLE_DISPLAY_NAMES.get(slug, slug.replace("_", " ").title())
         if role is None:
             role = Role(
                 slug=slug,
-                name=slug.replace("_", " ").title(),
+                name=desired_name,
                 description=f"System role: {slug}",
             )
             db.add(role)
             db.flush()
+        elif role.name != desired_name:
+            role.name = desired_name
         role.permissions = [
             permissions_by_code[code]
             for code in ROLE_PERMISSION_MAP.get(slug, [])

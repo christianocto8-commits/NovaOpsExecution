@@ -23,12 +23,12 @@ import { emptyUserForm } from "../data/users-data";
 import { OutletScope, User, UserFormState, UserRole, UserStatus } from "../types";
 
 function getScopeByRole(role: UserRole): OutletScope {
-  if (role === "Owner/Admin") return "All Outlets";
+  if (role === "Owner/Admin" || role === "Finance Head Office") return "All Outlets";
   if (
     role === "Regional Manager" ||
     role === "District Manager" ||
     role === "Area Manager" ||
-    role === "Finance"
+    role === "Finance Outlet"
   ) {
     return "Multiple Outlets";
   }
@@ -40,8 +40,22 @@ function getRoleLabel(slug: string): UserRole {
   if (slug === "regional_manager") return "Regional Manager";
   if (slug === "district_manager") return "District Manager";
   if (slug === "area_manager") return "Area Manager";
-  if (slug === "finance") return "Finance";
+  if (slug === "finance_head_office") return "Finance Head Office";
+  if (slug === "finance") return "Finance Outlet";
   return "Outlet";
+}
+
+function isMultiOutletRole(role: UserRole) {
+  return (
+    role === "Regional Manager" ||
+    role === "District Manager" ||
+    role === "Area Manager" ||
+    role === "Finance Outlet"
+  );
+}
+
+function isAllOutletsRole(role: UserRole) {
+  return role === "Owner/Admin" || role === "Finance Head Office";
 }
 
 function getStatus(isActive: boolean): UserStatus {
@@ -60,17 +74,13 @@ function mapIdentityUser(user: IdentityUser): User {
     email: user.email,
     username: user.username,
     role,
-    outlet:
-      role === "Owner/Admin"
-        ? "All Outlets"
-        : role === "Regional Manager" ||
-            role === "District Manager" ||
-            role === "Area Manager" ||
-            role === "Finance"
-          ? assignedOutletNames.length
-            ? assignedOutletNames.join(", ")
-            : "No outlets assigned"
-          : (user.outlet?.name ?? "No outlet assigned"),
+    outlet: isAllOutletsRole(role)
+      ? "All Outlets"
+      : isMultiOutletRole(role)
+        ? assignedOutletNames.length
+          ? assignedOutletNames.join(", ")
+          : "No outlets assigned"
+        : (user.outlet?.name ?? "No outlet assigned"),
     outletIds,
     outletScope: getScopeByRole(role),
     status: getStatus(user.is_active),
@@ -88,9 +98,11 @@ function getRoleIdByFormRole(roles: IdentityRole[], role: UserRole) {
           ? "district_manager"
           : role === "Area Manager"
             ? "area_manager"
-            : role === "Finance"
-              ? "finance"
-              : "outlet";
+            : role === "Finance Head Office"
+              ? "finance_head_office"
+              : role === "Finance Outlet"
+                ? "finance"
+                : "outlet";
 
   return roles.find((item) => item.slug === slug)?.id ?? "";
 }
@@ -221,15 +233,11 @@ export function useUsersWorkspace() {
       username: user.username,
       password: "",
       role: user.role,
-      outlet:
-        user.role === "Outlet"
-          ? (user.outletIds[0] ?? "")
-          : user.role === "Regional Manager" ||
-              user.role === "District Manager" ||
-              user.role === "Area Manager" ||
-              user.role === "Finance"
-            ? "Multiple Outlets"
-            : "All Outlets",
+      outlet: user.role === "Outlet"
+        ? (user.outletIds[0] ?? "")
+        : isMultiOutletRole(user.role)
+          ? "Multiple Outlets"
+          : "All Outlets",
       outletIds: user.outletIds,
       outletScope: user.outletScope,
       status: user.status,
@@ -239,19 +247,14 @@ export function useUsersWorkspace() {
   }
 
   function resolveAccessPayload(normalizedForm: UserFormState) {
-    if (normalizedForm.role === "Owner/Admin") {
+    if (isAllOutletsRole(normalizedForm.role)) {
       return {
         outlet_id: null,
         outlet_ids: [],
       };
     }
 
-    if (
-      normalizedForm.role === "Regional Manager" ||
-      normalizedForm.role === "District Manager" ||
-      normalizedForm.role === "Area Manager" ||
-      normalizedForm.role === "Finance"
-    ) {
+    if (isMultiOutletRole(normalizedForm.role)) {
       if (normalizedForm.outletIds.length === 0) {
         throw new Error(`${normalizedForm.role} must manage at least one outlet`);
       }

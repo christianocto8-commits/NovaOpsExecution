@@ -18,7 +18,7 @@ from app.models.task import Task
 from app.modules.identity.dependencies import require_permission
 from app.modules.api_keys.models import ApiKey
 from app.modules.identity.models import User as IdentityUser
-from app.modules.identity.permissions import FINANCE_ROLE
+from app.modules.identity.permissions import FINANCE_HEAD_OFFICE_ROLE, FINANCE_ROLE
 from app.modules.tasks.router import resolve_task_outlet_access
 from app.schemas.reports import (
     ComplianceReport,
@@ -51,7 +51,7 @@ SCHEDULED_REPORT_KEY = "scheduled_report_config"
 def _ensure_operational_report_access(db: Session, current_user) -> None:
     identity_user = db.query(IdentityUser).filter(IdentityUser.email == current_user.email).first()
     role_slug = identity_user.role.slug if identity_user and identity_user.role else ""
-    if role_slug == FINANCE_ROLE:
+    if role_slug in {FINANCE_ROLE, FINANCE_HEAD_OFFICE_ROLE}:
         raise HTTPException(
             status_code=403,
             detail="Finance accounts can access Finance Reports only",

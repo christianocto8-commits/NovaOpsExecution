@@ -14,7 +14,8 @@ ROLE_NAMES = {
     "admin": "Admin",
     "area_manager": "Area Manager",
     "outlet": "Outlet",
-    "finance": "Finance",
+    "finance": "Finance Outlet",
+    "finance_head_office": "Finance Head Office",
 }
 
 DEFAULT_ORGANIZATION_CODE = "NOVAOPS"

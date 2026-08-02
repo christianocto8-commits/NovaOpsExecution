@@ -29,7 +29,13 @@ from app.modules.finance_handoff.schemas import (
 from app.modules.identity.dependencies import require_permission
 from app.modules.identity.models import Outlet as IdentityOutlet
 from app.modules.identity.models import Role, User as IdentityUser
-from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, FINANCE_ROLE, OWNER_ROLE
+from app.modules.identity.permissions import (
+    ADMIN_ROLE,
+    AREA_MANAGER_ROLE,
+    FINANCE_HEAD_OFFICE_ROLE,
+    FINANCE_ROLE,
+    OWNER_ROLE,
+)
 from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.push_service import PushNotificationService
 from app.modules.notifications.schemas import NotificationEventCreate
@@ -269,7 +275,17 @@ def _user_has_outlet_access(
 
 def _finance_recipients(db: Session, outlet_id: int | None) -> list[IdentityUser]:
     roles = db.scalars(
-        select(Role).where(Role.slug.in_([OWNER_ROLE, ADMIN_ROLE, FINANCE_ROLE, AREA_MANAGER_ROLE]))
+        select(Role).where(
+            Role.slug.in_(
+                [
+                    OWNER_ROLE,
+                    ADMIN_ROLE,
+                    FINANCE_ROLE,
+                    FINANCE_HEAD_OFFICE_ROLE,
+                    AREA_MANAGER_ROLE,
+                ]
+            )
+        )
     ).all()
     role_ids = [role.id for role in roles]
     if not role_ids:
@@ -286,6 +302,7 @@ def _finance_recipients(db: Session, outlet_id: int | None) -> list[IdentityUser
             continue
         if role_slug == FINANCE_ROLE and not _user_has_outlet_access(user, identity_outlet):
             continue
+        # finance_head_office / owner / admin receive all finance notifications
         scoped.append(user)
     return scoped
 

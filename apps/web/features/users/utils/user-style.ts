@@ -21,7 +21,7 @@ export function getUserRoleClass(role: UserRole) {
     return "border-blue-200 bg-blue-50 text-blue-700";
   }
 
-  if (role === "Finance") {
+  if (role === "Finance Head Office" || role === "Finance Outlet") {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
 

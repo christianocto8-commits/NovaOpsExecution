@@ -5,6 +5,7 @@ DISTRICT_MANAGER_ROLE = "district_manager"
 AREA_MANAGER_ROLE = "area_manager"
 OUTLET_ROLE = "outlet"
 FINANCE_ROLE = "finance"
+FINANCE_HEAD_OFFICE_ROLE = "finance_head_office"
 
 SYSTEM_ROLES = [
     OWNER_ROLE,
@@ -14,6 +15,29 @@ SYSTEM_ROLES = [
     AREA_MANAGER_ROLE,
     OUTLET_ROLE,
     FINANCE_ROLE,
+    FINANCE_HEAD_OFFICE_ROLE,
+]
+
+ROLE_DISPLAY_NAMES = {
+    OWNER_ROLE: "Owner",
+    ADMIN_ROLE: "Admin",
+    REGIONAL_MANAGER_ROLE: "Regional Manager",
+    DISTRICT_MANAGER_ROLE: "District Manager",
+    AREA_MANAGER_ROLE: "Area Manager",
+    OUTLET_ROLE: "Outlet",
+    FINANCE_ROLE: "Finance Outlet",
+    FINANCE_HEAD_OFFICE_ROLE: "Finance Head Office",
+}
+
+FINANCE_PERMISSIONS = [
+    "task.read",
+    "report.read",
+    "report.export",
+    "notification.read",
+    "finance.read",
+    "finance.review",
+    "finance.export",
+    "outlet.read",
 ]
 
 DEFAULT_PERMISSIONS = [
@@ -147,14 +171,6 @@ ROLE_PERMISSION_MAP = {
         "finance.submit",
         "finance.read",
     ],
-    FINANCE_ROLE: [
-        "task.read",
-        "report.read",
-        "report.export",
-        "notification.read",
-        "finance.read",
-        "finance.review",
-        "finance.export",
-        "outlet.read",
-    ],
+    FINANCE_ROLE: FINANCE_PERMISSIONS,
+    FINANCE_HEAD_OFFICE_ROLE: list(FINANCE_PERMISSIONS),
 }
