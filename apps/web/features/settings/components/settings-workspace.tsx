@@ -18,6 +18,7 @@ import {
 import {
   changePassword,
   resetWorkspace,
+  wipeReports,
   WORKSPACE_SETTINGS_DEFAULTS,
   type SettingsResponse,
 } from "@/features/settings/settings-api";
@@ -877,6 +878,74 @@ function RoleAccessSection({ title, items }: { title: string; items: string[] })
           </div>
         ))}
       </div>
+    </SectionCard>
+  );
+}
+
+function WipeReportsPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const confirm = useConfirmation();
+  const queryClient = useQueryClient();
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const [isWiping, setIsWiping] = useState(false);
+
+  async function handleWipe() {
+    if (confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS") {
+      onNotice('Ketik "WIPE REPORTS" untuk konfirmasi.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Pemutihan Report Semua Akun",
+      description:
+        "Semua data yang mengisi Reports akan dihapus permanen untuk semua outlet/akun: task, CAPA, submission, execution, finance deposit, incident, dan riwayat terkait.\n\nUser, outlet, form template, dan schedule tetap dipertahankan.\n\nLanjutkan?",
+      variant: "danger",
+      confirmText: "Putihkan report",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsWiping(true);
+      const result = await wipeReports(confirmPhrase);
+      await clearOfflineClientData();
+      localStorage.removeItem(TASK_SECTION_COLLAPSE_KEY);
+      localStorage.removeItem(RECENT_TEMPLATES_KEY);
+      await queryClient.invalidateQueries();
+      setConfirmPhrase("");
+      onNotice(result.message);
+      window.location.reload();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal memutihkan report.");
+    } finally {
+      setIsWiping(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Pemutihan Report (Semua Akun)">
+      <p className="mb-4 text-sm text-amber-800">
+        Mengosongkan Reports / History / CAPA / Finance deposit untuk seluruh akun dan outlet.
+        Tidak menghapus user, outlet, role, form template, atau schedule auto-publish.
+      </p>
+      <EnterpriseField label='Ketik "WIPE REPORTS" untuk konfirmasi'>
+        <EnterpriseInput
+          value={confirmPhrase}
+          onChange={(event) => setConfirmPhrase(event.target.value)}
+          placeholder="WIPE REPORTS"
+          autoComplete="off"
+        />
+      </EnterpriseField>
+      <button
+        type="button"
+        onClick={() => void handleWipe()}
+        disabled={isWiping || confirmPhrase.trim().toUpperCase() !== "WIPE REPORTS"}
+        className="mt-4 rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        {isWiping ? "Memutihkan..." : "Putihkan report semua akun"}
+      </button>
     </SectionCard>
   );
 }
@@ -1826,6 +1895,8 @@ export function SettingsWorkspace() {
           <ApiKeysPanel />
 
           <BulkImportPanel onNotice={(message) => setNotice(message)} />
+
+          <WipeReportsPanel onNotice={(message) => setNotice(message)} />
 
           <ResetWorkspacePanel onNotice={(message) => setNotice(message)} />
 
