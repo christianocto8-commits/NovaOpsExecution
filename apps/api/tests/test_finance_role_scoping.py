@@ -1,5 +1,9 @@
 """Finance Head Office sees all outlets; Finance Outlet stays assigned-scoped."""
 
+import os
+
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://novaops:novaops@127.0.0.1:5433/novaops")
+
 from types import SimpleNamespace
 from uuid import uuid4
 
