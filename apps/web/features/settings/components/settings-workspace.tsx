@@ -17,6 +17,7 @@ import {
 
 import {
   changePassword,
+  installStarterPack,
   resetWorkspace,
   wipeReports,
   WORKSPACE_SETTINGS_DEFAULTS,
@@ -883,6 +884,102 @@ function RoleAccessSection({ title, items }: { title: string; items: string[] })
   );
 }
 
+function StarterPackPanel({ onNotice }: { onNotice: (message: string) => void }) {
+  const { hasRole } = useAuth();
+  const queryClient = useQueryClient();
+  const [isInstalling, setIsInstalling] = useState(false);
+
+  if (!hasRole("owner", "admin")) {
+    return null;
+  }
+
+  async function handleInstall() {
+    try {
+      setIsInstalling(true);
+      const result = await installStarterPack();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sop", "form-templates"] }),
+        queryClient.invalidateQueries({ queryKey: ["sop", "schedules"] }),
+      ]);
+      const created = result.templates_created.length + result.schedules_created.length;
+      onNotice(
+        created > 0
+          ? result.message
+          : "Starter pack sudah terpasang. Tidak ada template/jadwal baru yang ditambahkan."
+      );
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Gagal memasang starter pack.");
+    } finally {
+      setIsInstalling(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Starter Pack Operasional">
+      <p className="mb-4 text-sm text-slate-500">
+        Pasang checklist Opening, Food Safety, Cleaning, Closing, Field Audit, plus jadwal harian
+        default. Aman dijalankan ulang — yang sudah ada tidak diganti.
+      </p>
+      <button
+        type="button"
+        onClick={() => void handleInstall()}
+        disabled={isInstalling}
+        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+      >
+        {isInstalling ? "Memasang..." : "Install starter pack"}
+      </button>
+    </SectionCard>
+  );
+}
+
+function GeofenceCoordsWarning({ enabled }: { enabled: boolean }) {
+  const [missingCount, setMissingCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) {
+      setMissingCount(0);
+      setTotalCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    void outletService
+      .listMine()
+      .then((items) => {
+        if (cancelled) return;
+        setTotalCount(items.length);
+        setMissingCount(
+          items.filter((item) => item.latitude == null || item.longitude == null).length
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMissingCount(0);
+          setTotalCount(0);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  if (!enabled || missingCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <p className="font-semibold">Geofence aktif, tapi koordinat outlet belum lengkap</p>
+      <p className="mt-1 text-amber-900">
+        {missingCount} dari {totalCount} outlet belum punya latitude/longitude. Isi di panel Outlet
+        Geolocation di bawah agar submit crew tidak tertolak.
+      </p>
+    </div>
+  );
+}
+
 function OwnerAdminDangerZone({ onNotice }: { onNotice: (message: string) => void }) {
   const { hasRole } = useAuth();
 
@@ -1722,7 +1819,7 @@ export function SettingsWorkspace() {
                 />
                 <ActionCard
                   title="Geofence enforcement"
-                  description="Wajibkan crew berada di radius outlet saat submit checklist."
+                  description="Wajibkan crew berada di radius outlet saat submit checklist. Pastikan koordinat outlet sudah diisi."
                   action={
                     <EnterpriseCheckbox
                       checked={state.geofence_enabled}
@@ -1730,6 +1827,7 @@ export function SettingsWorkspace() {
                     />
                   }
                 />
+                <GeofenceCoordsWarning enabled={state.geofence_enabled} />
                 <ActionCard
                   title="IoT auto-fail checklist"
                   description="Gagalkan checklist jika probe suhu terakhir di luar ambang cold chain."
@@ -1758,7 +1856,7 @@ export function SettingsWorkspace() {
                 </EnterpriseField>
                 <ActionCard
                   title="LMS training gate"
-                  description="Blokir submit task sampai modul pelatihan wajib selesai."
+                  description="Opsional. Blokir submit task sampai modul pelatihan wajib selesai. Biarkan off untuk tenant baru sampai training siap."
                   action={
                     <EnterpriseCheckbox
                       checked={state.lms_training_gate_enabled}
@@ -1950,6 +2048,8 @@ export function SettingsWorkspace() {
           </div>
 
           <OutletLocationPanel onNotice={(message) => setNotice(message)} />
+
+          <StarterPackPanel onNotice={(message) => setNotice(message)} />
 
           <ApiKeysPanel />
 

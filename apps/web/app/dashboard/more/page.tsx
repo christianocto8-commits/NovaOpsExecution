@@ -8,6 +8,7 @@ import {
   LogOut,
   Megaphone,
   Settings,
+  Siren,
   Wrench,
 } from "lucide-react";
 import { useSyncExternalStore } from "react";
@@ -33,7 +34,7 @@ type MoreLink = {
 
 export default function OutletMorePage() {
   const { t } = useLanguage();
-  const { logout, user } = useAuth();
+  const { logout, user, can } = useAuth();
   const { settings } = useSettings();
   const workspace = useSyncExternalStore(
     subscribeWorkspace,
@@ -41,6 +42,7 @@ export default function OutletMorePage() {
     getServerWorkspaceSnapshot
   );
   const capaEnabled = isCapaEnabled(settings);
+  const canReportIssue = can("incident.create") || can("incident.read");
 
   const links: MoreLink[] = [
     {
@@ -50,6 +52,17 @@ export default function OutletMorePage() {
       icon: FileClock,
       tone: "bg-blue-50 text-blue-700",
     },
+    ...(canReportIssue
+      ? [
+          {
+            href: "/dashboard/incidents?create=1",
+            titleKey: "more.link.reportIssue",
+            bodyKey: "more.link.reportIssueBody",
+            icon: Siren,
+            tone: "bg-red-50 text-red-700",
+          } satisfies MoreLink,
+        ]
+      : []),
     ...(capaEnabled
       ? [
           {

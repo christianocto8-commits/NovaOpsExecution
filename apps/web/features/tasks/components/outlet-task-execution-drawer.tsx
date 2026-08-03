@@ -89,7 +89,7 @@ export function OutletTaskExecutionDrawer({
 
   const geofenceEnabled = Boolean(settings?.geofence_enabled);
   const geofenceRadius = settings?.geofence_radius_meters ?? 200;
-  const trainingGateEnabled = settings?.lms_training_gate_enabled !== false;
+  const trainingGateEnabled = settings?.lms_training_gate_enabled === true;
 
   const outletQuery = useQuery({
     queryKey: ["outlet", "current"],

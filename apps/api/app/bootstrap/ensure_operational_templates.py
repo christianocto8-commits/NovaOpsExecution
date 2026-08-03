@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
@@ -145,27 +146,31 @@ OPERATIONAL_TEMPLATES: list[dict] = [
 ]
 
 
-def _get_legacy_creator(db) -> User | None:
+def _get_legacy_creator(db: Session) -> User | None:
     settings = get_settings()
     email = (settings.bootstrap_admin_email or "admin@novaops.com").strip().lower()
 
     identity_user = db.scalar(select(IdentityUser).where(IdentityUser.email == email))
     if identity_user:
-        identity_outlet = get_default_identity_outlet(identity_user)
-        legacy_outlet = (
-            get_or_create_legacy_outlet(db, identity_outlet) if identity_outlet else None
-        )
-        return sync_legacy_user(db, identity_user, legacy_outlet)
+        return resolve_template_creator(db, identity_user)
 
     return db.scalar(select(User).where(User.email == email))
 
 
-def _get_outlet_ids(db) -> list[str]:
+def resolve_template_creator(db: Session, identity_user: IdentityUser) -> User | None:
+    identity_outlet = get_default_identity_outlet(identity_user)
+    legacy_outlet = (
+        get_or_create_legacy_outlet(db, identity_outlet) if identity_outlet else None
+    )
+    return sync_legacy_user(db, identity_user, legacy_outlet)
+
+
+def _get_outlet_ids(db: Session) -> list[str]:
     outlets = db.scalars(select(IdentityOutlet)).all()
     return [str(outlet.id) for outlet in outlets]
 
 
-def _normalize_legacy_money_fields(db, template: FormTemplate) -> None:
+def _normalize_legacy_money_fields(db: Session, template: FormTemplate) -> None:
     """Align legacy money widgets with Zenput-style number fields."""
     legacy_types = {"money_amount", "money_denomination"}
     fields = db.scalars(
@@ -181,6 +186,105 @@ def _normalize_legacy_money_fields(db, template: FormTemplate) -> None:
             field.help_text = None
 
 
+def install_operational_templates(
+    db: Session,
+    *,
+    creator: User | None = None,
+) -> dict:
+    """Idempotently install starter form templates and daily schedules."""
+    resolved_creator = creator or _get_legacy_creator(db)
+    if resolved_creator is None:
+        return {
+            "ok": False,
+            "message": "Tidak ada user admin untuk membuat starter pack.",
+            "templates_created": [],
+            "templates_existing": [],
+            "schedules_created": [],
+            "schedules_existing": [],
+            "outlet_count": 0,
+        }
+
+    db.flush()
+    outlet_ids = _get_outlet_ids(db)
+
+    templates_created: list[str] = []
+    templates_existing: list[str] = []
+    schedules_created: list[str] = []
+    schedules_existing: list[str] = []
+
+    for spec in OPERATIONAL_TEMPLATES:
+        existing = db.scalar(select(FormTemplate).where(FormTemplate.title == spec["title"]))
+        if existing:
+            template = existing
+            templates_existing.append(spec["title"])
+            _normalize_legacy_money_fields(db, template)
+        else:
+            template = FormTemplate(
+                title=spec["title"],
+                description=spec["description"],
+                form_type=spec["form_type"],
+                created_by=resolved_creator.id,
+                is_active=True,
+            )
+            db.add(template)
+            db.flush()
+
+            for field_spec in spec["fields"]:
+                db.add(FormField(form_template_id=template.id, **field_spec))
+            templates_created.append(spec["title"])
+
+        schedule_spec = spec.get("schedule")
+        if not schedule_spec:
+            continue
+
+        if not outlet_ids:
+            continue
+
+        schedule_title = schedule_spec["title"]
+        existing_schedule = db.scalar(
+            select(TaskSchedule).where(TaskSchedule.title == schedule_title)
+        )
+        if existing_schedule:
+            schedules_existing.append(schedule_title)
+            continue
+
+        db.add(
+            TaskSchedule(
+                title=schedule_title,
+                description=spec["description"],
+                form_template_id=template.id,
+                priority=schedule_spec["priority"],
+                recurrence=schedule_spec["recurrence"],
+                shifts_json=[],
+                outlet_ids_json=outlet_ids,
+                publish_time=schedule_spec.get("publish_time", "09:00"),
+                due_time=schedule_spec["due_time"],
+                weekly_publish_day=None,
+                auto_publish=True,
+                is_active=True,
+                created_by=resolved_creator.id,
+            )
+        )
+        schedules_created.append(schedule_title)
+
+    message_parts = [
+        f"{len(templates_created)} template baru",
+        f"{len(schedules_created)} jadwal baru",
+    ]
+    if not outlet_ids and any(spec.get("schedule") for spec in OPERATIONAL_TEMPLATES):
+        message_parts.append("jadwal ditunda sampai outlet tersedia")
+
+    return {
+        "ok": True,
+        "message": "Starter pack terpasang: " + ", ".join(message_parts) + ".",
+        "templates_created": templates_created,
+        "templates_existing": templates_existing,
+        "schedules_created": schedules_created,
+        "schedules_existing": schedules_existing,
+        "outlet_count": len(outlet_ids),
+    }
+
+
 def ensure_operational_templates() -> None:
     settings = get_settings()
     if not settings.bootstrap_admin_enabled:
@@ -188,67 +292,9 @@ def ensure_operational_templates() -> None:
 
     db = SessionLocal()
     try:
-        creator = _get_legacy_creator(db)
-        if creator is None:
-            return
-
-        db.flush()
-
-        outlet_ids = _get_outlet_ids(db)
-        if not outlet_ids:
-            return
-
-        for spec in OPERATIONAL_TEMPLATES:
-            existing = db.scalar(
-                select(FormTemplate).where(FormTemplate.title == spec["title"])
-            )
-            if existing:
-                template = existing
-                _normalize_legacy_money_fields(db, template)
-            else:
-                template = FormTemplate(
-                    title=spec["title"],
-                    description=spec["description"],
-                    form_type=spec["form_type"],
-                    created_by=creator.id,
-                    is_active=True,
-                )
-                db.add(template)
-                db.flush()
-
-                for field_spec in spec["fields"]:
-                    db.add(FormField(form_template_id=template.id, **field_spec))
-
-            schedule_spec = spec.get("schedule")
-            if not schedule_spec:
-                continue
-
-            schedule_title = schedule_spec["title"]
-            existing_schedule = db.scalar(
-                select(TaskSchedule).where(TaskSchedule.title == schedule_title)
-            )
-            if existing_schedule:
-                continue
-
-            db.add(
-                TaskSchedule(
-                    title=schedule_title,
-                    description=spec["description"],
-                    form_template_id=template.id,
-                    priority=schedule_spec["priority"],
-                    recurrence=schedule_spec["recurrence"],
-                    shifts_json=[],
-                    outlet_ids_json=outlet_ids,
-                    publish_time=schedule_spec.get("publish_time", "09:00"),
-                    due_time=schedule_spec["due_time"],
-                    weekly_publish_day=None,
-                    auto_publish=True,
-                    is_active=True,
-                    created_by=creator.id,
-                )
-            )
-
-        db.commit()
+        result = install_operational_templates(db)
+        if result.get("ok"):
+            db.commit()
     except Exception:
         db.rollback()
         raise

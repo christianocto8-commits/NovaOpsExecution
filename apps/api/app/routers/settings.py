@@ -4,11 +4,16 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.identity.dependencies import get_current_active_user, require_role
 from app.modules.identity.models import User as IdentityUser
+from app.bootstrap.ensure_operational_templates import (
+    install_operational_templates,
+    resolve_template_creator,
+)
 from app.schemas.settings import (
     ReportWipeRequest,
     ReportWipeResponse,
     SettingsResponse,
     SettingsUpdate,
+    StarterPackInstallResponse,
     WorkspaceResetRequest,
     WorkspaceResetResponse,
 )
@@ -99,3 +104,20 @@ def wipe_reports(
             "User, outlet, template, dan schedule tetap dipertahankan."
         ),
     )
+
+
+@router.post("/install-starter-pack", response_model=StarterPackInstallResponse)
+def install_starter_pack(
+    db: Session = Depends(get_db),
+    current_user: IdentityUser = Depends(require_role("owner", "admin")),
+):
+    creator = resolve_template_creator(db, current_user)
+    result = install_operational_templates(db, creator=creator)
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message") or "Gagal memasang starter pack.",
+        )
+
+    db.commit()
+    return StarterPackInstallResponse(**result)

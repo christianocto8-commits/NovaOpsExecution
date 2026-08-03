@@ -23,6 +23,7 @@ const operatorNavItems = [
 const morePaths = [
   "/dashboard/more",
   "/dashboard/drafts",
+  "/dashboard/incidents",
   "/dashboard/corrective-actions",
   "/dashboard/training",
   "/dashboard/notifications",

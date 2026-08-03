@@ -64,7 +64,7 @@ class SettingsResponse(BaseModel):
     iot_temp_min_c: float = 2.0
     iot_temp_max_c: float = 8.0
     iot_auto_fail_enabled: bool = True
-    lms_training_gate_enabled: bool = True
+    lms_training_gate_enabled: bool = False
 
 
 class WorkspaceResetRequest(BaseModel):
@@ -84,6 +84,16 @@ class ReportWipeRequest(BaseModel):
 class ReportWipeResponse(BaseModel):
     deleted: dict[str, int]
     message: str
+
+
+class StarterPackInstallResponse(BaseModel):
+    ok: bool
+    message: str
+    templates_created: list[str]
+    templates_existing: list[str]
+    schedules_created: list[str]
+    schedules_existing: list[str]
+    outlet_count: int
 
 
 class SettingsUpdate(BaseModel):

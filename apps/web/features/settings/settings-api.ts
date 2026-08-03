@@ -129,7 +129,7 @@ export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
   iot_temp_min_c: 2,
   iot_temp_max_c: 8,
   iot_auto_fail_enabled: true,
-  lms_training_gate_enabled: true,
+  lms_training_gate_enabled: false,
 };
 
 export type SettingsPayload = Partial<SettingsResponse>;
@@ -179,5 +179,21 @@ export async function wipeReports(confirmPhrase: string) {
   return api<ReportWipeResponse>("/api/v1/settings/wipe-reports", {
     method: "POST",
     body: JSON.stringify({ confirm_phrase: confirmPhrase }),
+  });
+}
+
+export type StarterPackInstallResponse = {
+  ok: boolean;
+  message: string;
+  templates_created: string[];
+  templates_existing: string[];
+  schedules_created: string[];
+  schedules_existing: string[];
+  outlet_count: number;
+};
+
+export async function installStarterPack() {
+  return api<StarterPackInstallResponse>("/api/v1/settings/install-starter-pack", {
+    method: "POST",
   });
 }

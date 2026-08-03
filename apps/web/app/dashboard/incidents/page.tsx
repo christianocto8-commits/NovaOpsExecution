@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -25,7 +26,13 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from "@/services/incident.service";
+import { useLanguage } from "@/shared/i18n";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { useToast } from "@/shared/toast";
 
 const STATUS_OPTIONS: IncidentStatus[] = [
@@ -56,11 +63,20 @@ function statusClass(status: IncidentStatus) {
   return "bg-slate-100 text-slate-700";
 }
 
-export default function IncidentsPage() {
+function IncidentsPageContent() {
   const auth = useAuth();
+  const { t } = useLanguage();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const isOutletWorkspace = workspace.mode === "outlet";
   const canManage = auth.can("incident.manage");
+  const canCreate = auth.can("incident.create");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [selected, setSelected] = useState<Incident | null>(null);
@@ -94,6 +110,7 @@ export default function IncidentsPage() {
   const summaryQuery = useQuery({
     queryKey: ["incidents", "summary"],
     queryFn: incidentService.summary,
+    enabled: !isOutletWorkspace,
   });
   const outletsQuery = useQuery({
     queryKey: ["identity-outlets", "incident-form"],
@@ -110,6 +127,22 @@ export default function IncidentsPage() {
     if (outletsQuery.data?.length) return outletsQuery.data;
     return auth.user?.outlet_access.outlets ?? [];
   }, [auth.user?.outlet_access.outlets, outletsQuery.data]);
+
+  useEffect(() => {
+    if (!canCreate) return;
+    if (searchParams.get("create") === "1") {
+      setShowCreate(true);
+    }
+  }, [canCreate, searchParams]);
+
+  useEffect(() => {
+    if (!isOutletWorkspace) return;
+    const outletId = workspace.outletId || auth.user?.outlet_access.outlet_id || "";
+    if (!outletId) return;
+    setForm((current) =>
+      current.outlet_id === outletId ? current : { ...current, outlet_id: outletId }
+    );
+  }, [auth.user?.outlet_access.outlet_id, isOutletWorkspace, workspace.outletId]);
 
   const refresh = async () => {
     await Promise.all([
@@ -206,62 +239,74 @@ export default function IncidentsPage() {
     <main className={mobileDashboardMainClass}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Execution</p>
-          <h1 className="text-2xl font-semibold text-slate-950">Incidents</h1>
+          <p className="text-sm font-medium text-emerald-700">
+            {isOutletWorkspace ? t("incidents.outletEyebrow") : "Execution"}
+          </p>
+          <h1 className="text-2xl font-semibold text-slate-950">
+            {isOutletWorkspace ? t("incidents.outletTitle") : "Incidents"}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Report, investigate, resolve, and follow up operational incidents.
+            {isOutletWorkspace
+              ? t("incidents.outletSubtitle")
+              : "Report, investigate, resolve, and follow up operational incidents."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white"
-        >
-          <Plus className="size-4" />
-          Report incident
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white"
+          >
+            <Plus className="size-4" />
+            {isOutletWorkspace ? t("incidents.reportCta") : "Report incident"}
+          </button>
+        ) : null}
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {cards.map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className={`flex items-center gap-2 text-xs font-semibold uppercase ${tone}`}>
-              <Icon className="size-4" />
-              {label}
+      {!isOutletWorkspace ? (
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {cards.map(({ label, value, icon: Icon, tone }) => (
+            <div key={label} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className={`flex items-center gap-2 text-xs font-semibold uppercase ${tone}`}>
+                <Icon className="size-4" />
+                {label}
+              </div>
+              <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
             </div>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      ) : null}
 
-      <section className="flex flex-col gap-3 border-y border-slate-200 py-4 sm:flex-row">
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm"
-          aria-label="Filter status"
-        >
-          <option value="">All status</option>
-          {STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {status.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-        <select
-          value={severityFilter}
-          onChange={(event) => setSeverityFilter(event.target.value)}
-          className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm"
-          aria-label="Filter severity"
-        >
-          <option value="">All severity</option>
-          {SEVERITY_OPTIONS.map((severity) => (
-            <option key={severity} value={severity}>
-              {severity}
-            </option>
-          ))}
-        </select>
-      </section>
+      {!isOutletWorkspace ? (
+        <section className="flex flex-col gap-3 border-y border-slate-200 py-4 sm:flex-row">
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+            aria-label="Filter status"
+          >
+            <option value="">All status</option>
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={severityFilter}
+            onChange={(event) => setSeverityFilter(event.target.value)}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+            aria-label="Filter severity"
+          >
+            <option value="">All severity</option>
+            {SEVERITY_OPTIONS.map((severity) => (
+              <option key={severity} value={severity}>
+                {severity}
+              </option>
+            ))}
+          </select>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden border-y border-slate-200 bg-white">
         {incidentsQuery.isLoading ? (
@@ -308,28 +353,36 @@ export default function IncidentsPage() {
             className="max-h-[92dvh] w-full overflow-y-auto bg-white p-5 sm:max-w-xl sm:rounded-lg"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-950">Report incident</h2>
+              <h2 className="text-lg font-semibold text-slate-950">
+                {isOutletWorkspace ? t("incidents.reportCta") : "Report incident"}
+              </h2>
               <button type="button" onClick={() => setShowCreate(false)} aria-label="Close">
                 <X className="size-5" />
               </button>
             </div>
             <div className="mt-5 grid gap-4">
-              <label className="grid gap-1 text-sm font-medium">
-                Outlet
-                <select
-                  required
-                  value={form.outlet_id}
-                  onChange={(event) => setForm({ ...form, outlet_id: event.target.value })}
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 font-normal"
-                >
-                  <option value="">Select outlet</option>
-                  {outlets.map((outlet) => (
-                    <option key={outlet.id} value={outlet.id}>
-                      {outlet.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {isOutletWorkspace ? (
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  {workspace.outletName || outlets[0]?.name || "Outlet"}
+                </p>
+              ) : (
+                <label className="grid gap-1 text-sm font-medium">
+                  Outlet
+                  <select
+                    required
+                    value={form.outlet_id}
+                    onChange={(event) => setForm({ ...form, outlet_id: event.target.value })}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 font-normal"
+                  >
+                    <option value="">Select outlet</option>
+                    {outlets.map((outlet) => (
+                      <option key={outlet.id} value={outlet.id}>
+                        {outlet.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="grid gap-1 text-sm font-medium">
                 Title
                 <input
@@ -611,5 +664,19 @@ export default function IncidentsPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function IncidentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-sm text-slate-500">Loading incidents...</div>
+        </main>
+      }
+    >
+      <IncidentsPageContent />
+    </Suspense>
   );
 }

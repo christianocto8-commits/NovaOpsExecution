@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2, CircleAlert, Clock3 } from "lucide-react";
 
 import { AnnouncementBanner } from "@/features/announcements/components/announcement-banner";
+import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
 import type { Task } from "@/features/tasks/types";
 import { isOpenTaskInInbox, isTaskCompleted } from "@/features/tasks/utils/task-inbox";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -180,6 +181,8 @@ export default function OperatorHomePage() {
       ) : null}
 
       <AnnouncementBanner />
+
+      <PushNotificationPrompt compact />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
