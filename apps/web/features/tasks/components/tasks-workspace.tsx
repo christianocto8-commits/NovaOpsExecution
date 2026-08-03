@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Lock, Search } from "lucide-react";
 
@@ -942,7 +943,7 @@ export function TasksWorkspace() {
         </div>
 
         {!isOutletWorkspace ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {canCreateTask ? (
               <button
                 type="button"
@@ -951,6 +952,14 @@ export function TasksWorkspace() {
               >
                 {t("tasks.createTask")}
               </button>
+            ) : null}
+            {canCreateTask ? (
+              <Link
+                href="/dashboard/schedules"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                {t("tasks.manageSchedules")}
+              </Link>
             ) : null}
           </div>
         ) : null}
@@ -1060,6 +1069,7 @@ export function TasksWorkspace() {
         <TaskFormDrawer
           open={isFormOpen}
           mode={isEditingTask ? "edit" : "create"}
+          variant="task"
           form={taskForm}
           onClose={closeTaskForm}
           onChange={setTaskForm}

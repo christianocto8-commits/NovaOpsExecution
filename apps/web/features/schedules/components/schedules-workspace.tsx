@@ -546,6 +546,7 @@ export function SchedulesWorkspace() {
       <TaskFormDrawer
         open={isFormOpen}
         mode={editingScheduleId ? "edit" : "create"}
+        variant="schedule"
         form={scheduleForm}
         onClose={() => {
           setIsFormOpen(false);

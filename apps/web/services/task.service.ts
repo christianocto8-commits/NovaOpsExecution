@@ -1,6 +1,5 @@
 import { api } from "@/services/api";
 import { cacheTasks, getCachedTasks } from "@/lib/offline/store";
-import { taskScheduleService } from "@/services/task-schedule.service";
 import type {
   Task,
   TaskFormState,
@@ -307,39 +306,20 @@ export const taskService = {
   },
 
   async create(form: TaskFormState) {
-    if (form.recurrence === "once") {
-      const payload = toBackendPayload(form);
-      const task = await api<BackendTask>("/api/v1/tasks", {
-        method: "POST",
-        headers: form.outletId ? { "X-Outlet-Id": form.outletId } : undefined,
-        body: JSON.stringify(payload),
-      });
-
-      return mapBackendTask(task);
+    if (form.recurrence !== "once") {
+      throw new Error(
+        "Recurring SOP harus dibuat dari menu Schedules, bukan Tasks."
+      );
     }
 
-    const schedule = await taskScheduleService.create(form);
+    const payload = toBackendPayload(form);
+    const task = await api<BackendTask>("/api/v1/tasks", {
+      method: "POST",
+      headers: form.outletId ? { "X-Outlet-Id": form.outletId } : undefined,
+      body: JSON.stringify(payload),
+    });
 
-    return {
-      id: `SCHEDULE-${schedule.id}`,
-      title: schedule.title,
-      outlet: form.targetOutlets[0] ?? form.outlet,
-      outletId: form.targetOutletIds?.[0] ?? form.outletId,
-      status: "Pending",
-      priority: form.priority,
-      assignee: form.assignee || "Outlet Team",
-      assignedToId: form.assignedToId ?? null,
-      due: form.dueTime,
-      description: form.description,
-      formTemplateId: form.formTemplateId,
-      recurrence: schedule.recurrence,
-      shifts: form.shifts,
-      targetOutlets: form.targetOutlets,
-      autoPublish: schedule.auto_publish,
-      dueTime: schedule.due_time,
-      publishAt: schedule.next_publish_at ?? form.publishAt,
-      weeklyPublishDay: form.weeklyPublishDay,
-    };
+    return mapBackendTask(task);
   },
 
   async update(taskId: string, form: TaskFormState) {

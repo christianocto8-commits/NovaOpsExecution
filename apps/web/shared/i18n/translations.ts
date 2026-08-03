@@ -263,7 +263,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "schedules.eyebrow": "Schedule Management",
     "schedules.title": "Task Schedules",
     "schedules.description":
-      "Manage daily, weekly, and monthly recurring tasks, form templates, target outlets, and assignees.",
+      "Create and manage recurring SOP schedules (daily, weekly, monthly). One-shot tasks stay in Tasks.",
     "schedules.new": "New Schedule",
     "schedules.tableTitle": "Active and inactive recurring schedules",
     "schedules.emptyTitle": "No task schedules yet",
@@ -271,7 +271,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.eyebrow": "Form Library",
     "forms.admin.title": "My Form",
     "forms.admin.subtitle":
-      "Create reusable form templates for Task. Scheduling and auto-publish live inside Task.",
+      "Create reusable form templates for Tasks and Schedules. Recurring auto-publish is managed in Schedules.",
     "forms.admin.subtitleArea":
       "Area manager can view active form templates as operational reference without editing the library.",
     "forms.admin.loading": "Loading form templates...",
@@ -290,7 +290,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.saveTemplate": "Save Template",
     "forms.admin.saving": "Saving...",
     "forms.admin.tableTitle": "My Form Library",
-    "forms.admin.tableDescription": "Reusable form templates that can be selected inside Task.",
+    "forms.admin.tableDescription":
+      "Reusable templates selected when creating one-shot Tasks or recurring Schedules.",
     "forms.admin.versionHistory": "Version History",
     "forms.admin.versionHistoryTitle": "Template Version History",
     "forms.admin.versionHistoryDescription": "Restore a previous snapshot of this template.",
@@ -308,7 +309,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.subtitleArea":
       "Monitor outlet tasks, review draft progress, and follow up execution without changing core tasks.",
     "tasks.subtitleAdmin":
-      "Assign, execute, review saved drafts, and verify outlet work with evidence and corrective actions.",
+      "Create one-shot tasks, monitor execution, and verify outlet work. Recurring SOP lives in Schedules.",
     "tasks.realtime": "Realtime",
     "tasks.online": "Online",
     "tasks.offline": "Offline",
@@ -318,6 +319,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.weekView": "Week view",
     "tasks.listView": "List view",
     "tasks.createTask": "Create Task",
+    "tasks.manageSchedules": "Schedules",
     "tasks.incompleteOnly": "Incomplete tasks only",
     "tasks.allTasks": "All tasks",
     "execution.eyebrow": "Task Execution",
@@ -851,7 +853,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "schedules.eyebrow": "Manajemen Jadwal",
     "schedules.title": "Jadwal Task",
     "schedules.description":
-      "Kelola task recurring harian/mingguan/bulanan, template form, outlet target, dan assignee.",
+      "Buat dan kelola jadwal SOP recurring (harian, mingguan, bulanan). Task sekali jalan tetap di menu Tasks.",
     "schedules.new": "Jadwal Baru",
     "schedules.tableTitle": "Jadwal recurring aktif dan nonaktif",
     "schedules.emptyTitle": "Belum ada jadwal task",
@@ -859,7 +861,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.eyebrow": "Perpustakaan Form",
     "forms.admin.title": "My Form",
     "forms.admin.subtitle":
-      "Buat template form reusable untuk Task. Penjadwalan dan auto-publish ada di Task.",
+      "Buat template form reusable untuk Tasks dan Schedules. Auto-publish recurring dikelola di Schedules.",
     "forms.admin.subtitleArea":
       "Area manager dapat melihat template form aktif sebagai referensi operasional, tanpa mengubah library template.",
     "forms.admin.loading": "Memuat template form...",
@@ -878,7 +880,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "forms.admin.saveTemplate": "Simpan Template",
     "forms.admin.saving": "Menyimpan...",
     "forms.admin.tableTitle": "Perpustakaan My Form",
-    "forms.admin.tableDescription": "Template form reusable yang bisa dipilih di Task.",
+    "forms.admin.tableDescription":
+      "Template reusable yang dipilih saat membuat Task sekali jalan atau Schedule recurring.",
     "forms.admin.versionHistory": "Riwayat Versi",
     "forms.admin.versionHistoryTitle": "Riwayat Versi Template",
     "forms.admin.versionHistoryDescription": "Pulihkan snapshot template sebelumnya.",
@@ -896,7 +899,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.subtitleArea":
       "Pantau task outlet, cek progres draft, dan follow up execution tanpa mengubah task inti.",
     "tasks.subtitleAdmin":
-      "Assign, execute, review draft tersimpan, dan verifikasi pekerjaan outlet dengan evidence dan corrective actions.",
+      "Buat task sekali jalan, pantau eksekusi, dan verifikasi pekerjaan outlet. SOP recurring ada di Schedules.",
     "tasks.realtime": "Realtime",
     "tasks.online": "Online",
     "tasks.offline": "Offline",
@@ -906,6 +909,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "tasks.weekView": "Tampilan minggu",
     "tasks.listView": "Tampilan daftar",
     "tasks.createTask": "Buat Task",
+    "tasks.manageSchedules": "Schedules",
     "tasks.incompleteOnly": "Hanya task belum selesai",
     "tasks.allTasks": "Semua task",
     "execution.eyebrow": "Eksekusi Task",

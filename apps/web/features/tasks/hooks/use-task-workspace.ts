@@ -613,6 +613,8 @@ export function useTaskWorkspace() {
     setEditingTaskId(null);
     setTaskForm({
       ...emptyTaskForm,
+      recurrence: "once",
+      autoPublish: false,
       assignee: "Outlet Team",
       assigneeSelection: "outlet_team",
       assignedToId: null,
@@ -642,12 +644,14 @@ export function useTaskWorkspace() {
       publishAt: task.publishAt ?? "",
       description: task.description,
       formTemplateId: task.formTemplateId ?? "",
-      recurrence: task.recurrence ?? "once",
+      recurrence: "once",
       shifts: [],
       targetOutlets: task.targetOutlets ?? [task.outlet],
-      autoPublish: task.autoPublish ?? false,
+      targetOutletIds: task.targetOutletIds ?? (task.outletId ? [task.outletId] : []),
+      outletId: task.outletId,
+      autoPublish: false,
       publishTime: task.publishTime ?? defaultTaskDueTime,
-      dueTime: task.dueTime ?? getTimeFromDue(task.due, "17:00"),
+      dueTime: task.dueTime ?? "17:00",
       weeklyPublishDay: task.weeklyPublishDay ?? "sunday",
       monthlyPublishDay: task.monthlyPublishDay ?? 1,
     });
@@ -698,18 +702,17 @@ export function useTaskWorkspace() {
       return;
     }
 
-    if (resolvedForm.recurrence === "once" && !resolvedForm.outletId) {
+    if (resolvedForm.recurrence !== "once") {
       toast.error(
-        "Outlet belum dipilih. Buat outlet di menu Outlets terlebih dahulu, lalu coba lagi."
+        "SOP recurring dibuat dari menu Schedules. Di Tasks hanya untuk task sekali jalan."
       );
       return;
     }
 
-    if (
-      resolvedForm.recurrence !== "once" &&
-      (!resolvedForm.targetOutletIds || resolvedForm.targetOutletIds.length === 0)
-    ) {
-      toast.error("Pilih minimal satu outlet untuk task recurring.");
+    if (resolvedForm.recurrence === "once" && !resolvedForm.outletId) {
+      toast.error(
+        "Outlet belum dipilih. Buat outlet di menu Outlets terlebih dahulu, lalu coba lagi."
+      );
       return;
     }
 
@@ -726,12 +729,8 @@ export function useTaskWorkspace() {
         await updateTaskMutation.mutateAsync({ taskId: editingTaskId, form: resolvedForm });
         toast.success("Task berhasil diperbarui.");
       } else {
-        await createTaskMutation.mutateAsync(resolvedForm);
-        toast.success(
-          resolvedForm.recurrence === "once"
-            ? "One-time project berhasil dibuat dan masuk ke outlet."
-            : "Schedule recurring berhasil dibuat."
-        );
+        await createTaskMutation.mutateAsync({ ...resolvedForm, recurrence: "once" });
+        toast.success("Task sekali jalan berhasil dibuat dan masuk ke outlet.");
       }
 
       closeTaskForm();

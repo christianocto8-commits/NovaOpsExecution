@@ -27,6 +27,8 @@ import { taskService } from "@/services/task.service";
 type TaskFormDrawerProps = {
   open: boolean;
   mode: "create" | "edit";
+  /** task = one-shot execution item; schedule = recurring publish rule */
+  variant?: "task" | "schedule";
   form: TaskFormState;
   onClose: () => void;
   onChange: (form: TaskFormState) => void;
@@ -52,22 +54,17 @@ const weeklyPublishDayOptions: Array<{ value: TaskWeeklyPublishDay; label: strin
   { value: "saturday", label: "Saturday" },
 ];
 
-function getLocalDateTimeValue(offsetMinutes = 0) {
-  const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
-  date.setSeconds(0, 0);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
 export function TaskFormDrawer({
   open,
   mode,
+  variant = "task",
   form,
   onClose,
   onChange,
   onSubmit,
 }: TaskFormDrawerProps) {
   const isEditMode = mode === "edit";
+  const isScheduleVariant = variant === "schedule";
   const { settings } = useSettings();
   const defaultPublishTime = settings?.default_task_due_time ?? "09:00";
   const defaultOverdueTime = "17:00";
@@ -86,6 +83,33 @@ export function TaskFormDrawer({
   const selectedTemplate = availableTemplates.find(
     (template) => template.id === safeFormTemplateId
   );
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (isScheduleVariant && form.recurrence === "once") {
+      onChange({
+        ...form,
+        recurrence: "daily",
+        autoPublish: true,
+        publishTime: form.publishTime || defaultPublishTime,
+        dueTime: form.dueTime || defaultOverdueTime,
+        shifts: [],
+      });
+      return;
+    }
+
+    if (!isScheduleVariant && form.recurrence !== "once") {
+      onChange({
+        ...form,
+        recurrence: "once",
+        autoPublish: false,
+        shifts: [],
+      });
+    }
+    // Only normalize when the drawer opens or recurrence drifts from the intended variant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isScheduleVariant, form.recurrence]);
 
   useEffect(() => {
     if (!open || isEditMode || form.formTemplateId || availableTemplates.length === 0) {
@@ -141,7 +165,6 @@ export function TaskFormDrawer({
     assignee: form.assignee,
     assigneeSelection: form.assigneeSelection,
   });
-  const isRecurringTask = form.recurrence !== "once";
   const isDailyTask = form.recurrence === "daily";
   const isWeeklyTask = form.recurrence === "weekly";
   const isMonthlyTask = form.recurrence === "monthly";
@@ -177,36 +200,6 @@ export function TaskFormDrawer({
     });
   }
 
-  function selectTaskFlow(flow: "once" | "recurring") {
-    if (flow === "once") {
-      onChange({
-        ...form,
-        recurrence: "once",
-        autoPublish: true,
-        publishAt: form.publishAt || getLocalDateTimeValue(),
-        due: form.due || getLocalDateTimeValue(24 * 60),
-        publishTime: form.publishTime || defaultPublishTime,
-        dueTime: form.dueTime || defaultOverdueTime,
-        shifts: [],
-      });
-      return;
-    }
-
-    const recurrence = form.recurrence === "once" ? "daily" : form.recurrence;
-
-    onChange({
-      ...form,
-      recurrence,
-      autoPublish: true,
-      publishTime: form.publishTime || defaultPublishTime,
-      dueTime: form.dueTime || defaultOverdueTime,
-      shifts: [],
-      weeklyPublishDay: recurrence === "weekly" ? form.weeklyPublishDay : "sunday",
-      monthlyPublishDay:
-        recurrence === "monthly" ? form.monthlyPublishDay || 1 : form.monthlyPublishDay,
-    });
-  }
-
   if (!open) return null;
 
   return (
@@ -222,13 +215,27 @@ export function TaskFormDrawer({
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                {isEditMode ? "Task Update" : "Task Creation"}
+                {isScheduleVariant
+                  ? isEditMode
+                    ? "Schedule Update"
+                    : "Schedule Creation"
+                  : isEditMode
+                    ? "Task Update"
+                    : "Task Creation"}
               </p>
               <h2 className="mt-1 text-xl font-bold text-slate-950">
-                {isEditMode ? "Edit Task" : "Create Task"}
+                {isScheduleVariant
+                  ? isEditMode
+                    ? "Edit Schedule"
+                    : "New Schedule"
+                  : isEditMode
+                    ? "Edit Task"
+                    : "Create Task"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Pilih template, outlet, dan jadwal kerja outlet.
+                {isScheduleVariant
+                  ? "Atur SOP recurring yang auto-publish ke outlet."
+                  : "Buat task sekali jalan untuk outlet yang dipilih."}
               </p>
             </div>
 
@@ -285,7 +292,7 @@ export function TaskFormDrawer({
               value={form.title ?? ""}
               onChange={(event) => onChange({ ...form, title: event.target.value })}
               placeholder={
-                isRecurringTask ? "Contoh: Daily opening checklist" : "Contoh: Project audit outlet"
+                isScheduleVariant ? "Contoh: Daily opening checklist" : "Contoh: Project audit outlet"
               }
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />
@@ -366,51 +373,28 @@ export function TaskFormDrawer({
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-emerald-950">Schedule</p>
+                <p className="text-sm font-bold text-emerald-950">
+                  {isScheduleVariant ? "Recurring schedule" : "Due schedule"}
+                </p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800">
-                  Pilih sekali jalan untuk project, atau recurring untuk SOP harian/mingguan.
+                  {isScheduleVariant
+                    ? "Pilih frekuensi publish. Task one-shot dibuat dari menu Tasks."
+                    : "Task sekali jalan langsung masuk outlet. Untuk SOP recurring, buat di menu Schedules."}
                 </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
-                {isRecurringTask ? "Auto Publish" : "One-time"}
+                {isScheduleVariant ? "Auto Publish" : "One-time"}
               </span>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => selectTaskFlow("once")}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                  !isRecurringTask
-                    ? "border-emerald-600 bg-white text-emerald-900 shadow-sm"
-                    : "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-white"
-                }`}
-              >
-                <span className="block font-bold">One-time task</span>
-                <span className="mt-1 block text-xs">Langsung masuk ke outlet yang dipilih.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => selectTaskFlow("recurring")}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                  isRecurringTask
-                    ? "border-emerald-600 bg-white text-emerald-900 shadow-sm"
-                    : "border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-white"
-                }`}
-              >
-                <span className="block font-bold">Recurring SOP</span>
-                <span className="mt-1 block text-xs">Auto publish untuk rutinitas outlet.</span>
-              </button>
-            </div>
-
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {isRecurringTask ? (
+              {isScheduleVariant ? (
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                     Frequency
                   </label>
                   <select
-                    value={form.recurrence}
+                    value={form.recurrence === "once" ? "daily" : form.recurrence}
                     onChange={(event) => {
                       const recurrence = event.target.value as TaskRecurrence;
 
@@ -440,7 +424,7 @@ export function TaskFormDrawer({
                 </div>
               ) : null}
 
-              {form.recurrence === "once" ? (
+              {!isScheduleVariant ? (
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                     Due Date & Time
@@ -455,7 +439,7 @@ export function TaskFormDrawer({
               ) : null}
             </div>
 
-            {isRecurringTask ? (
+            {isScheduleVariant ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
@@ -486,7 +470,7 @@ export function TaskFormDrawer({
               </div>
             ) : null}
 
-            {form.recurrence === "weekly" ? (
+            {isScheduleVariant && form.recurrence === "weekly" ? (
               <div className="mt-4">
                 <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                   Publish Day
@@ -510,7 +494,7 @@ export function TaskFormDrawer({
               </div>
             ) : null}
 
-            {form.recurrence === "monthly" ? (
+            {isScheduleVariant && form.recurrence === "monthly" ? (
               <div className="mt-4">
                 <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                   Publish Date (day of month)
@@ -534,7 +518,7 @@ export function TaskFormDrawer({
               </div>
             ) : null}
 
-            {!isRecurringTask ? (
+            {!isScheduleVariant ? (
               <div className="mt-4">
                 <label className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                   Outlet
@@ -565,7 +549,7 @@ export function TaskFormDrawer({
               </div>
             ) : null}
 
-            {isRecurringTask ? (
+            {isScheduleVariant ? (
               <div className="mt-4 rounded-xl bg-white p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
                   Publish output
@@ -579,7 +563,7 @@ export function TaskFormDrawer({
               </div>
             ) : null}
 
-            {isRecurringTask ? (
+            {isScheduleVariant ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
@@ -628,7 +612,7 @@ export function TaskFormDrawer({
             disabled={!canSubmit}
             className="w-full rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isEditMode ? "Save Changes" : "Create Task"}
+            {isEditMode ? "Save Changes" : isScheduleVariant ? "Create Schedule" : "Create Task"}
           </button>
         </div>
       </div>
