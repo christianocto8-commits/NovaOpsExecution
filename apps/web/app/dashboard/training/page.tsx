@@ -2,15 +2,26 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
 
 import { completeTrainingModule, listMyTraining } from "@/services/lms.service";
 import { useLanguage } from "@/shared/i18n";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 
 export default function TrainingPage() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const canManageTraining = workspace.mode !== "outlet";
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ message: string; passed: boolean } | null>(null);
 
@@ -45,13 +56,15 @@ export default function TrainingPage() {
           <h1 className="text-2xl font-semibold text-slate-950">{t("training.title")}</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("training.subtitle")}</p>
         </div>
-        <Link
-          href="/dashboard/training/manage"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          {t("training.manageLink")}
-          <ArrowRight className="size-4" />
-        </Link>
+        {canManageTraining ? (
+          <Link
+            href="/dashboard/training/manage"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {t("training.manageLink")}
+            <ArrowRight className="size-4" />
+          </Link>
+        ) : null}
       </div>
 
       {incomplete.length ? (
