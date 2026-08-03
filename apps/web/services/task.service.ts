@@ -47,6 +47,10 @@ export type BackendTask = {
   due_time: string | null;
   weekly_publish_day: string | null;
   auto_publish: boolean | null;
+  capa_root_cause?: string | null;
+  capa_before_evidence_url?: string | null;
+  capa_after_evidence_url?: string | null;
+  capa_evidence_note?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -176,6 +180,10 @@ export function mapBackendTask(task: BackendTask): Task {
     backendStatus: task.status,
     verifiedAt: task.verified_at ?? undefined,
     approvedAt: task.approved_at ?? undefined,
+    capaRootCause: task.capa_root_cause ?? undefined,
+    capaBeforeEvidenceUrl: task.capa_before_evidence_url ?? undefined,
+    capaAfterEvidenceUrl: task.capa_after_evidence_url ?? undefined,
+    capaEvidenceNote: task.capa_evidence_note ?? undefined,
     execution: reviewStatus
       ? {
           operatorName: "",

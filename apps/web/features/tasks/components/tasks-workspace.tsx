@@ -38,7 +38,6 @@ import { isOpenTaskInInbox, isTaskCompleted } from "@/features/tasks/utils/task-
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
 import {
-  setCorrectiveAction,
   updateOutletTaskStoreItem,
   upsertOutletTaskStoreItem,
 } from "@/shared/outlet-task-store";
@@ -191,14 +190,6 @@ function syncTaskToOutletTaskStore(task: Task, templates: FormTemplate[]) {
     due: formatTaskSchedule(task),
     submittedAt: status === "submitted" ? "Realtime" : hasDraft ? "Saved Draft" : "-",
     updatedAt: "Realtime",
-    correctiveActionStatus: task.execution?.reviewStatus === "rejected" ? "open" : undefined,
-    correctiveActionOwner:
-      task.execution?.reviewStatus === "rejected" ? "Store Manager" : undefined,
-    correctiveActionDue: task.execution?.reviewStatus === "rejected" ? "Today 18:00" : undefined,
-    correctiveActionNote:
-      task.execution?.reviewStatus === "rejected"
-        ? (task.execution.reviewNote ?? "Evidence rejected. Correct and resubmit task evidence.")
-        : undefined,
   });
 }
 

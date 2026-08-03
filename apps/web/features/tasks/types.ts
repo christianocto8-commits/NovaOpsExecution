@@ -139,6 +139,10 @@ export type Task = {
   backendStatus?: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
   verifiedAt?: string;
   approvedAt?: string;
+  capaRootCause?: string;
+  capaBeforeEvidenceUrl?: string;
+  capaAfterEvidenceUrl?: string;
+  capaEvidenceNote?: string;
   recurrence?: TaskRecurrence;
   shifts?: TaskShift[];
   targetOutlets?: string[];

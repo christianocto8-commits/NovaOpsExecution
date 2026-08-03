@@ -1,5 +1,4 @@
 export type OutletTaskExecutionStatus = "pending" | "draft" | "submitted" | "completed" | "overdue";
-export type CorrectiveActionStatus = "none" | "open" | "resolved";
 
 export type OutletTaskStoreItem = {
   id: string;
@@ -13,11 +12,6 @@ export type OutletTaskStoreItem = {
   due: string;
   submittedAt: string;
   updatedAt: string;
-  correctiveActionStatus?: CorrectiveActionStatus;
-  correctiveActionOwner?: string;
-  correctiveActionDue?: string;
-  correctiveActionNote?: string;
-  correctiveActionResolvedAt?: string;
 };
 
 export type OutletTaskStoreSummary = {
