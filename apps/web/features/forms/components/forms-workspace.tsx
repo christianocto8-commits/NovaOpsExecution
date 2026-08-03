@@ -45,6 +45,7 @@ import {
   ZENPUT_FORM_CATEGORIES,
 } from "@/features/forms/constants/form-categories";
 import { TaskFormResponses } from "@/features/tasks/types";
+import { installStarterPack } from "@/features/settings/settings-api";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { createLocalId } from "@/lib/local-id";
@@ -53,6 +54,12 @@ import { queryKeys } from "@/lib/query/keys";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { useLanguage } from "@/shared/i18n";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
+
+const BARISTA_TEMPLATE_TITLES = [
+  "Barista Opening Routine",
+  "Barista Evening Routine",
+  "Barista Midnight Closing Routine",
+];
 import {
   buildFormSubmissionCreatePayload,
   formSubmissionService,
@@ -430,7 +437,7 @@ export function FormsWorkspace() {
     getWorkspaceSnapshot,
     getServerWorkspaceSnapshot
   );
-  const { can } = useAuth();
+  const { can, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const templatesQuery = useFormTemplates();
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
@@ -439,6 +446,7 @@ export function FormsWorkspace() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [installingPack, setInstallingPack] = useState(false);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [advancedEditorOpen, setAdvancedEditorOpen] = useState(false);
@@ -615,13 +623,32 @@ export function FormsWorkspace() {
     filteredTemplates[0] ??
     templates[0];
 
+  const missingBaristaTemplates = useMemo(() => {
+    const names = new Set(templates.map((template) => template.name));
+    return BARISTA_TEMPLATE_TITLES.filter((title) => !names.has(title));
+  }, [templates]);
+
   if (workspace.mode === "outlet") {
     return <OutletManualFormsWorkspace />;
   }
 
   const isAreaWorkspace = workspace.mode === "area";
   const canManageTemplates = can("form.create") || can("form.edit");
+  const canInstallStarterPack = hasRole("owner", "admin");
   const hasSelectedTemplate = Boolean(selectedTemplate);
+
+  async function handleInstallBaristaPack() {
+    try {
+      setInstallingPack(true);
+      const result = await installStarterPack();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.sop.formTemplates() });
+      toast.success(result.message || "Starter pack / barista templates terpasang.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memasang template.");
+    } finally {
+      setInstallingPack(false);
+    }
+  }
 
   function createTemplate(categoryId = "uncategorized") {
     const newTemplate = createBlankFormTemplate();
@@ -827,6 +854,24 @@ export function FormsWorkspace() {
           </div>
           {saveError ? <p className="mt-2 text-sm text-red-600">{saveError}</p> : null}
         </div>
+
+        {canInstallStarterPack && missingBaristaTemplates.length > 0 ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-semibold">Template Barista Routine belum ada di library</p>
+            <p className="mt-1 text-amber-900">
+              Belum terpasang: {missingBaristaTemplates.join(", ")}. Install starter pack untuk
+              menambahkannya ke Forms / My Form.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleInstallBaristaPack()}
+              disabled={installingPack}
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {installingPack ? "Memasang..." : "Install barista templates"}
+            </button>
+          </div>
+        ) : null}
 
         {isAreaWorkspace ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">

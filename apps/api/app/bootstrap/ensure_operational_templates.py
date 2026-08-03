@@ -10,7 +10,11 @@ from app.models.form_field import FormField
 from app.models.form_template import FormTemplate
 from app.models.task_schedule import TaskSchedule
 from app.models.user import User
-from app.modules.identity.models import Outlet as IdentityOutlet, User as IdentityUser
+from app.modules.identity.models import (
+    Outlet as IdentityOutlet,
+    Role as IdentityRole,
+    User as IdentityUser,
+)
 from app.modules.tasks.identity_bridge import (
     get_default_identity_outlet,
     get_or_create_legacy_outlet,
@@ -155,7 +159,24 @@ def _get_legacy_creator(db: Session) -> User | None:
     if identity_user:
         return resolve_template_creator(db, identity_user)
 
-    return db.scalar(select(User).where(User.email == email))
+    legacy = db.scalar(select(User).where(User.email == email))
+    if legacy:
+        return legacy
+
+    # Production often disables BOOTSTRAP_ADMIN_*; fall back to any owner/admin.
+    owner_admin = db.scalar(
+        select(IdentityUser)
+        .join(IdentityRole, IdentityUser.role_id == IdentityRole.id)
+        .where(
+            IdentityRole.slug.in_(("owner", "admin")),
+            IdentityUser.is_active.is_(True),
+        )
+        .order_by(IdentityUser.created_at.asc())
+    )
+    if owner_admin:
+        return resolve_template_creator(db, owner_admin)
+
+    return db.scalar(select(User).order_by(User.id.asc()))
 
 
 def resolve_template_creator(db: Session, identity_user: IdentityUser) -> User | None:
@@ -299,10 +320,11 @@ def install_operational_templates(
 
 
 def ensure_operational_templates() -> None:
-    settings = get_settings()
-    if not settings.bootstrap_admin_enabled:
-        return
+    """Idempotently seed starter + barista templates on every API boot.
 
+    Not gated by BOOTSTRAP_ADMIN_ENABLED so production (flag usually false)
+    still receives new template packs after deploy.
+    """
     db = SessionLocal()
     try:
         result = install_operational_templates(db)
