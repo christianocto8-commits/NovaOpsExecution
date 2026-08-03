@@ -10,7 +10,11 @@ from app.modules.tasks.schemas import TaskDetailResponse, TaskResponse
 
 
 def resolve_task_form_template_id(task: Task) -> int | None:
-    if task.source_type == "form_template" and task.source_id and int(task.source_id) > 0:
+    if (
+        task.source_type in {"form_template", "field_audit"}
+        and task.source_id
+        and int(task.source_id) > 0
+    ):
         return int(task.source_id)
     if task.schedule and task.schedule.form_template_id:
         return int(task.schedule.form_template_id)

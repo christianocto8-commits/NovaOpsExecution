@@ -131,7 +131,10 @@ function parseSourceFormTemplateId(task: BackendTask) {
     return String(task.form_template_id);
   }
 
-  if (task.source_type === "form_template" && isValidBackendFormTemplateId(task.source_id)) {
+  if (
+    (task.source_type === "form_template" || task.source_type === "field_audit") &&
+    isValidBackendFormTemplateId(task.source_id)
+  ) {
     return String(task.source_id);
   }
 
@@ -303,6 +306,39 @@ export const taskService = {
 
   async listCorrectiveActions() {
     return taskService.list("corrective_action");
+  },
+
+  async listFieldAudits() {
+    return taskService.list("field_audit");
+  },
+
+  async createFieldAudit(input: {
+    title: string;
+    outletId: string;
+    formTemplateId: string;
+    description?: string;
+    priority?: TaskPriority;
+  }) {
+    const numericTemplateId = Number(input.formTemplateId);
+    if (!isValidBackendFormTemplateId(numericTemplateId)) {
+      throw new Error("Template audit tidak valid. Publish form kategori Audit di menu Forms.");
+    }
+
+    const task = await api<BackendTask>("/api/v1/tasks", {
+      method: "POST",
+      headers: { "X-Outlet-Id": input.outletId },
+      body: JSON.stringify({
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+        assigned_to: null,
+        priority: toBackendPriority(input.priority ?? "High"),
+        due_date: new Date().toISOString(),
+        source_type: "field_audit",
+        source_id: numericTemplateId,
+      }),
+    });
+
+    return mapBackendTask(task);
   },
 
   async create(form: TaskFormState) {

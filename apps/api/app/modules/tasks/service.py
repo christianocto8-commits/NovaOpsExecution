@@ -453,7 +453,7 @@ class TaskService:
                 )
 
         form_template_id = payload.form_template_id or task.form_template_id
-        if form_template_id is None and task.source_type == "form_template":
+        if form_template_id is None and task.source_type in {"form_template", "field_audit"}:
             form_template_id = task.source_id
 
         validate_task_execution_answers(
@@ -548,13 +548,17 @@ class TaskService:
         ):
             failed_items = checklist_result["failed_items"]
             failed_labels = [item["label"] for item in failed_items]
+            title_prefix = "CAPA from audit" if task.source_type == "field_audit" else "Corrective"
             if len(failed_labels) <= 3:
-                corrective_title = f"Corrective: {', '.join(failed_labels)}"
+                corrective_title = f"{title_prefix}: {', '.join(failed_labels)}"
             else:
-                corrective_title = f"Corrective: {task.title}"
+                corrective_title = f"{title_prefix}: {task.title}"
 
+            source_label = (
+                "Field audit" if task.source_type == "field_audit" else "Checklist"
+            )
             description_lines = [
-                f"Checklist failure from task #{task.id}: {task.title}",
+                f"{source_label} failure from task #{task.id}: {task.title}",
                 f"Score: {checklist_result['score']}% (threshold: {workspace_settings.pass_threshold}%)",
                 "",
                 "Failed items:",
@@ -633,8 +637,24 @@ class TaskService:
                 actor_name=actor_name,
                 resource_type="task",
                 resource_id=str(corrective_task.id),
-                metadata={"parent_task_id": task.id},
+                metadata={
+                    "parent_task_id": task.id,
+                    "parent_source_type": task.source_type,
+                },
             )
+            notify_task_incoming_recipients(self.db, task=corrective_task)
+            if corrective_task.assigned_to:
+                notify_task_recipient(
+                    self.db,
+                    task=corrective_task,
+                    event_type="task_assigned",
+                    subject=f"CAPA baru: {corrective_task.title}",
+                    body=(
+                        f'Perbaikan otomatis dibuat dari temuan audit/checklist '
+                        f'"{task.title}". Segera tindak lanjuti.'
+                    ),
+                    recipient_legacy_user_id=corrective_task.assigned_to,
+                )
 
         if completed:
             record_activity_event(

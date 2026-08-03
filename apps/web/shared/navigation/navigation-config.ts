@@ -4,6 +4,7 @@ import {
   Bell,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   CalendarClock,
   Camera,
   FileText,
@@ -96,6 +97,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard/forms",
     icon: FileText,
     requiredPermissions: ["form.read"],
+    section: "sop",
+  },
+  {
+    id: "field-audits",
+    label: "Field Audits",
+    href: "/dashboard/field-audits",
+    icon: ClipboardList,
+    requiredPermissions: ["task.read"],
     section: "sop",
   },
   {

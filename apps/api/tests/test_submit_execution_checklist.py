@@ -265,3 +265,62 @@ def test_submit_execution_allows_missing_note_when_template_opted_out(
 
     assert response.status_code == 200, response.text
     assert response.json()["checklist"]["status"] == "pass"
+
+
+def test_field_audit_submit_creates_capa_and_resolves_template(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db: Session,
+):
+    template_id, fields = _create_checklist_template(db)
+    task = Task(
+        title="Store Visit / Field Audit · HQ",
+        description="Manager field audit walkthrough.",
+        outlet_id=1,
+        assigned_to=None,
+        created_by=1,
+        source_type="field_audit",
+        source_id=template_id,
+        priority="high",
+        status="open",
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    detail = client.get(
+        f"/api/v1/tasks/{task.id}",
+        headers={**auth_headers, "X-Outlet-Id": str(task.outlet_id)},
+    )
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["form_template_id"] == template_id
+    assert detail.json()["source_type"] == "field_audit"
+
+    response = client.post(
+        f"/api/v1/tasks/{task.id}/submit-execution",
+        headers={**auth_headers, "X-Outlet-Id": str(task.outlet_id)},
+        json={
+            "answers_json": {
+                "operator": {"name": "Area Manager", "position": "Lead Barista"},
+                "note": "Food safety finding during visit.",
+                "evidence": '[{"id":"1","url":"/uploads/evidence/audit.png"}]',
+                "responses": {
+                    str(fields[0].id): "no",
+                    str(fields[1].id): "4",
+                },
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["checklist"]["status"] == "fail"
+    assert payload["corrective_task"] is not None
+    assert payload["corrective_task"]["source_type"] == "corrective_action"
+    assert payload["corrective_task"]["title"].startswith("CAPA from audit:")
+
+    list_response = client.get(
+        "/api/v1/tasks?source_type=field_audit",
+        headers=auth_headers,
+    )
+    assert list_response.status_code == 200
+    assert any(item["id"] == task.id for item in list_response.json())

@@ -93,6 +93,55 @@ OPERATIONAL_TEMPLATES: list[dict] = [
             "priority": "high",
         },
     },
+    {
+        "title": "Store Visit / Field Audit",
+        "description": "Manager walkthrough for brand standards, food safety, and guest experience. Failed items auto-create CAPA.",
+        "form_type": "audit",
+        "fields": [
+            {
+                "label": "Exterior & signage presentable",
+                "field_type": "yes_no",
+                "is_required": True,
+                "sort_order": 0,
+            },
+            {
+                "label": "Guest area clean and welcoming",
+                "field_type": "yes_no",
+                "is_required": True,
+                "sort_order": 1,
+            },
+            {
+                "label": "Food safety standards met",
+                "field_type": "yes_no",
+                "is_required": True,
+                "sort_order": 2,
+            },
+            {
+                "label": "Team in proper uniform",
+                "field_type": "yes_no",
+                "is_required": True,
+                "sort_order": 3,
+            },
+            {
+                "label": "Service speed meets standard",
+                "field_type": "yes_no",
+                "is_required": True,
+                "sort_order": 4,
+            },
+            {
+                "label": "Finding photo evidence",
+                "field_type": "photo",
+                "is_required": True,
+                "sort_order": 5,
+            },
+            {
+                "label": "Visit notes / coaching points",
+                "field_type": "textarea",
+                "is_required": False,
+                "sort_order": 6,
+            },
+        ],
+    },
 ]
 
 
@@ -170,7 +219,10 @@ def ensure_operational_templates() -> None:
                 for field_spec in spec["fields"]:
                     db.add(FormField(form_template_id=template.id, **field_spec))
 
-            schedule_spec = spec["schedule"]
+            schedule_spec = spec.get("schedule")
+            if not schedule_spec:
+                continue
+
             schedule_title = schedule_spec["title"]
             existing_schedule = db.scalar(
                 select(TaskSchedule).where(TaskSchedule.title == schedule_title)

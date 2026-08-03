@@ -78,7 +78,11 @@ class Task(Base):
 
     @property
     def form_template_id(self):
-        if self.source_type == "form_template" and self.source_id and int(self.source_id) > 0:
+        if (
+            self.source_type in {"form_template", "field_audit"}
+            and self.source_id
+            and int(self.source_id) > 0
+        ):
             return self.source_id
         if self.schedule and self.schedule.form_template_id and int(self.schedule.form_template_id) > 0:
             return self.schedule.form_template_id
