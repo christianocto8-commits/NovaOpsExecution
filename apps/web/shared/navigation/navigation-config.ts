@@ -122,6 +122,8 @@ export const navigationItems: NavigationItem[] = [
     icon: Siren,
     requiredPermissions: ["incident.read"],
     section: "sop",
+    // Keep for outlet More + manager Modules; hide from primary sidebar.
+    sidebar: false,
   },
   {
     id: "evidence",

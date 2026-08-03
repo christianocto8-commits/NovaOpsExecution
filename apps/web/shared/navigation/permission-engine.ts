@@ -42,7 +42,6 @@ const outletVisibleNavigationItemIds = new Set([
   "notifications",
   "settings",
   "corrective-actions",
-  "incidents",
   "training",
   "announcements",
 ]);
@@ -58,7 +57,6 @@ const areaManagerVisibleNavigationItemIds = new Set([
   "settings",
   "exceptions",
   "corrective-actions",
-  "incidents",
   "modules",
 ]);
 
@@ -162,7 +160,6 @@ export function getNavigationForPermissions(
       "reports",
       "more",
       "drafts",
-      "incidents",
       "corrective-actions",
       "training",
       "notifications",
