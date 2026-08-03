@@ -36,7 +36,11 @@ from app.modules.tasks.identity_bridge import (
 )
 from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
 from app.modules.tasks.overdue_alerts import process_overdue_task_alerts
-from app.modules.tasks.serializers import build_task_detail_response, build_task_response
+from app.modules.tasks.serializers import (
+    build_task_detail_response,
+    build_task_response,
+    build_task_responses,
+)
 from app.modules.tasks.service import TaskService
 from app.repositories.outlet_repository import OutletRepository
 
@@ -187,7 +191,7 @@ def list_tasks(
         all_outlets=full_access and x_outlet_id is None,
         source_type=source_type,
     )
-    return [build_task_response(db, task) for task in tasks]
+    return build_task_responses(db, tasks)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

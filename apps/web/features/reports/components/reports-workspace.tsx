@@ -273,15 +273,26 @@ export function ReportsWorkspace() {
   }, [formTemplates]);
 
   const manualSubmissionRows = useMemo(() => {
-    const outletNames = new Map(
-      tasks.filter((task) => task.outletId).map((task) => [Number(task.outletId), task.outlet])
-    );
+    const outletNames = new Map<number, string>();
+
+    tasks.forEach((task) => {
+      const outletId = Number(task.outletId);
+      if (!Number.isFinite(outletId) || !task.outlet?.trim()) return;
+      if (/^Outlet\s+\d+$/i.test(task.outlet.trim())) return;
+      outletNames.set(outletId, task.outlet.trim());
+    });
+
+    periodFilteredFormSubmissions.forEach((submission) => {
+      const name = submission.outlet_name?.trim();
+      if (name) outletNames.set(submission.outlet_id, name);
+    });
 
     return periodFilteredFormSubmissions.map((submission) =>
       toManualSubmissionReportRow(
         submission,
         templateNameById.get(submission.form_template_id) ?? `Form #${submission.form_template_id}`,
         outletNames.get(submission.outlet_id) ??
+          submission.outlet_name?.trim() ??
           workspace.outletName ??
           `Outlet #${submission.outlet_id}`
       )

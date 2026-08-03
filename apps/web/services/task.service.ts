@@ -150,7 +150,7 @@ function deriveReviewStatus(task: BackendTask): TaskReviewStatus | undefined {
 }
 
 export function mapBackendTask(task: BackendTask): Task {
-  const outletName = task.outlet_name ?? `Outlet ${task.outlet_id}`;
+  const outletName = task.outlet_name?.trim() || `Outlet ${task.outlet_id}`;
   const recurrence = task.recurrence ?? "once";
   const shifts: TaskShift[] =
     recurrence === "weekly" || recurrence === "monthly"

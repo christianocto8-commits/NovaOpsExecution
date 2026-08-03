@@ -32,6 +32,42 @@ router = APIRouter(prefix="/form-submissions", tags=["Form Submissions"])
 logger = logging.getLogger(__name__)
 
 
+def build_form_submission_response(
+    db: Session,
+    submission: FormSubmission,
+    *,
+    outlet_name_by_id: dict[int, str] | None = None,
+) -> FormSubmissionResponse:
+    payload = FormSubmissionResponse.model_validate(submission).model_dump()
+    if outlet_name_by_id is not None:
+        outlet_name = outlet_name_by_id.get(submission.outlet_id)
+    else:
+        outlet = db.get(Outlet, submission.outlet_id)
+        outlet_name = outlet.name if outlet else None
+    payload["outlet_name"] = outlet_name
+    return FormSubmissionResponse(**payload)
+
+
+def build_form_submission_responses(
+    db: Session,
+    submissions: list[FormSubmission],
+) -> list[FormSubmissionResponse]:
+    outlet_ids = {submission.outlet_id for submission in submissions}
+    outlet_name_by_id: dict[int, str] = {}
+    if outlet_ids:
+        outlet_name_by_id = {
+            outlet.id: outlet.name
+            for outlet in db.query(Outlet).filter(Outlet.id.in_(outlet_ids)).all()
+        }
+
+    return [
+        build_form_submission_response(
+            db, submission, outlet_name_by_id=outlet_name_by_id
+        )
+        for submission in submissions
+    ]
+
+
 def resolve_form_submission_scope(
     db: Session,
     current_user: User,
@@ -263,7 +299,7 @@ def create_form_submission(
             stored_submission.id,
         )
 
-    return stored_submission
+    return build_form_submission_response(db, stored_submission)
 
 
 @router.get("", response_model=list[FormSubmissionResponse])
@@ -295,7 +331,8 @@ def list_form_submissions(
     if status_filter:
         query = query.filter(FormSubmission.status == status_filter)
 
-    return query.order_by(FormSubmission.id.desc()).all()
+    submissions = query.order_by(FormSubmission.id.desc()).all()
+    return build_form_submission_responses(db, submissions)
 
 
 @router.get("/{submission_id}", response_model=FormSubmissionResponse)
@@ -316,8 +353,7 @@ def get_form_submission(
 
     ensure_form_submission_outlet_access(db, current_user, submission.outlet_id)
 
-    return submission
-
+    return build_form_submission_response(db, submission)
 
 @router.patch("/{submission_id}/review", response_model=FormSubmissionResponse)
 def review_form_submission(
@@ -388,4 +424,4 @@ def review_form_submission(
 
     db.commit()
     db.refresh(submission)
-    return submission
+    return build_form_submission_response(db, submission)

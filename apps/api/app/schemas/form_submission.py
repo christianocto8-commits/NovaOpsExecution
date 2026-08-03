@@ -45,6 +45,7 @@ class FormSubmissionResponse(BaseModel):
     id: int
     form_template_id: int
     outlet_id: int
+    outlet_name: Optional[str] = None
     submitted_by: int
     reviewed_by: Optional[int]
     status: str

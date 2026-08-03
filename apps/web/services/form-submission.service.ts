@@ -33,6 +33,7 @@ export type FormSubmissionResponse = {
   id: number;
   form_template_id: number;
   outlet_id: number;
+  outlet_name?: string | null;
   submitted_by: number;
   reviewed_by: number | null;
   status: string;

@@ -102,7 +102,8 @@ function extractEvidenceFromTasks(tasks: Task[]): ReviewEvidenceItem[] {
 
 function extractEvidenceFromFormSubmissions(
   formSubmissions: FormSubmissionResponse[],
-  templateNameById: Map<string, string>
+  templateNameById: Map<string, string>,
+  outletNameById?: Map<number, string>
 ): ReviewEvidenceItem[] {
   const items: ReviewEvidenceItem[] = [];
 
@@ -113,6 +114,10 @@ function extractEvidenceFromFormSubmissions(
     const templateName =
       templateNameById.get(String(submission.form_template_id)) ??
       `My Form ${submission.form_template_id}`;
+    const outletName =
+      submission.outlet_name?.trim() ||
+      outletNameById?.get(submission.outlet_id) ||
+      `Outlet ${submission.outlet_id}`;
 
     submissionItems.forEach((item) => {
       items.push({
@@ -121,7 +126,7 @@ function extractEvidenceFromFormSubmissions(
         caption: item.caption ?? "My Form Evidence",
         taskId: `submission-${submission.id}`,
         taskTitle: templateName,
-        outlet: `Outlet ${submission.outlet_id}`,
+        outlet: outletName,
         submittedAt: item.uploadedAt || submission.submitted_at || new Date().toISOString(),
         source: "form",
         reviewStatus: normalizeSubmissionReviewStatus(submission.status),
@@ -274,14 +279,27 @@ export function EvidenceReviewHub({
     [tasks, workspace]
   );
 
-  const evidenceItems = useMemo(
-    () =>
-      [...extractEvidenceFromTasks(scopedTasks), ...extractEvidenceFromFormSubmissions(formSubmissions, templateNameById)].sort(
-        (first, second) =>
-          new Date(second.submittedAt).getTime() - new Date(first.submittedAt).getTime()
-      ),
-    [formSubmissions, scopedTasks, templateNameById]
-  );
+  const evidenceItems = useMemo(() => {
+    const outletNameById = new Map<number, string>();
+    scopedTasks.forEach((task) => {
+      const outletId = Number(task.outletId);
+      if (!Number.isFinite(outletId) || !task.outlet?.trim()) return;
+      if (/^Outlet\s+\d+$/i.test(task.outlet.trim())) return;
+      outletNameById.set(outletId, task.outlet.trim());
+    });
+    formSubmissions.forEach((submission) => {
+      const name = submission.outlet_name?.trim();
+      if (name) outletNameById.set(submission.outlet_id, name);
+    });
+
+    return [
+      ...extractEvidenceFromTasks(scopedTasks),
+      ...extractEvidenceFromFormSubmissions(formSubmissions, templateNameById, outletNameById),
+    ].sort(
+      (first, second) =>
+        new Date(second.submittedAt).getTime() - new Date(first.submittedAt).getTime()
+    );
+  }, [formSubmissions, scopedTasks, templateNameById]);
 
   const outletOptions = useMemo(() => {
     const outlets = new Set(evidenceItems.map((item) => item.outlet).filter(Boolean));
