@@ -117,7 +117,7 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "evidence",
     label: "Evidence",
-    href: "/dashboard/evidence",
+    href: "/dashboard/reports?tab=bukti",
     icon: Camera,
     requiredPermissions: ["report.read"],
     section: "analytics",
@@ -246,7 +246,7 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "history",
     label: "History",
-    href: "/dashboard/history",
+    href: "/dashboard/reports?tab=riwayat",
     icon: History,
     requiredPermissions: ["task.execute"],
     section: "analytics",

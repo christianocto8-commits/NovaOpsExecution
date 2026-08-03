@@ -859,7 +859,7 @@ export default function ComplianceCenterPage() {
                   key={item.outlet}
                   type="button"
                   onClick={() =>
-                    router.push(`/dashboard/history?outlet=${encodeURIComponent(item.outlet)}`)
+                    router.push("/dashboard/reports?tab=riwayat")
                   }
                   className={`rounded-2xl border p-4 text-left transition hover:scale-[1.01] hover:shadow-md ${getHeatmapClass(item.tone)}`}
                 >

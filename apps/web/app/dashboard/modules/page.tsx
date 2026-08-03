@@ -23,7 +23,11 @@ export default function ModulesPage() {
     getServerWorkspaceSnapshot
   );
   const advancedItems = navigationItems.filter(
-    (item) => item.sidebar === false && canAccessNavigationItem(can, item.id, workspace)
+    (item) =>
+      item.sidebar === false &&
+      item.id !== "history" &&
+      item.id !== "evidence" &&
+      canAccessNavigationItem(can, item.id, workspace)
   );
   const sections = Object.entries(navigationSectionLabels)
     .map(([section, label]) => ({

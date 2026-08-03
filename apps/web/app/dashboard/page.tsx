@@ -342,7 +342,7 @@ export default function DashboardPage() {
           {outletProgress.slice(0, 8).map((item) => (
             <Link
               key={item.outlet}
-              href={`/dashboard/history?outlet=${encodeURIComponent(item.outlet)}`}
+              href="/dashboard/reports?tab=riwayat"
               className="min-w-[140px] shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-300 hover:bg-white"
             >
               <p className="truncate text-sm font-bold text-slate-950">{item.outlet}</p>
@@ -373,10 +373,10 @@ export default function DashboardPage() {
             </Link>
           ) : null}
           <Link
-            href="/dashboard/evidence"
+            href="/dashboard/reports?tab=bukti"
             className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
           >
-            Evidence
+            Review Bukti
           </Link>
         </div>
       </section>
