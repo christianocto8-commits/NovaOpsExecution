@@ -113,7 +113,14 @@ function toFrontendPriority(priority: BackendTaskPriority): TaskPriority {
 
 function formatDueDate(value: string | null) {
   if (!value) return "";
-  return value.slice(0, 16);
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.slice(0, 16);
+  }
+
+  const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function parseSourceFormTemplateId(task: BackendTask) {
