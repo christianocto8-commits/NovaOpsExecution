@@ -107,6 +107,11 @@ export function DynamicFormRenderer({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <label className="text-sm font-bold text-slate-800">{field.label}</label>
+                {field.options?.standard ? (
+                  <p className="mt-1 text-xs font-medium text-emerald-800/80">
+                    Standard: {field.options.standard}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-slate-400">
                   {typeLabel}
                   {field.required ? " • Wajib diisi" : " • Opsional"}

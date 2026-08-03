@@ -142,6 +142,9 @@ function parseFieldOptions(optionsJson: unknown): FormFieldOptions | undefined {
       options.require_execution_note === undefined
         ? undefined
         : options.require_execution_note === true,
+    requires_approval:
+      options.requires_approval === undefined ? undefined : options.requires_approval === true,
+    standard: typeof options.standard === "string" ? options.standard : undefined,
     maxStars:
       typeof options.maxStars === "number" && options.maxStars > 0
         ? Math.min(10, Math.round(options.maxStars))

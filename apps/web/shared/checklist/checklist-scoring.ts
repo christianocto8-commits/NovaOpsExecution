@@ -4,8 +4,18 @@ import { isResponsiblePersonField } from "@/features/forms/utils/system-fields";
 import type { ChecklistScore, TaskFormResponses } from "@/features/tasks/types";
 
 const YES_VALUES = new Set(["yes", "ya", "true", "1"]);
-const NO_VALUES = new Set(["no", "false", "0"]);
+const NO_VALUES = new Set(["no", "tidak", "false", "0"]);
 const NA_VALUES = new Set(["n/a", "na", "tidak berlaku", "tidak_berlaku"]);
+const SELECT_FAIL_VALUES = new Set(["fail", "gagal", "rejected", "not ready", "critical issue"]);
+const SELECT_PASS_VALUES = new Set([
+  "pass",
+  "lulus",
+  "approved",
+  "ready",
+  "controlled",
+  "ready for tomorrow",
+  "recorded",
+]);
 
 function normalizeText(value: unknown): string {
   if (value == null) return "";
@@ -117,9 +127,19 @@ function scoreField(field: FormField, value: unknown): { passed: boolean | null;
     case "select": {
       if (!isFilled(value)) return { passed: false, reason: "Required field empty" };
       const choices = field.options?.choices ?? [];
-      if (choices.length > 0 && !choices.includes(normalizeText(value))) {
-        return { passed: false, reason: `Invalid selection: ${value}` };
+      const normalized = normalizeText(value);
+      if (choices.length > 0) {
+        const choiceSet = new Set(choices.map((item) => normalizeText(item).toLowerCase()));
+        if (!choiceSet.has(normalized.toLowerCase()) && !choices.includes(normalized)) {
+          return { passed: false, reason: `Invalid selection: ${value}` };
+        }
       }
+      const lower = normalized.toLowerCase();
+      if (NA_VALUES.has(lower)) return { passed: null };
+      if (SELECT_FAIL_VALUES.has(lower)) {
+        return { passed: false, reason: `Failed check: ${value}` };
+      }
+      if (SELECT_PASS_VALUES.has(lower)) return { passed: true };
       return { passed: true };
     }
     case "date":
@@ -151,8 +171,16 @@ export function scoreChecklistClientSide(args: {
 
     const value = args.responses[field.id];
     const allowNa = fieldAllowsNa(field);
+    const selectAllowsNa = (field.options?.choices ?? []).some((item) =>
+      NA_VALUES.has(normalizeText(item).toLowerCase())
+    );
 
     if (field.type === "yes_no" && allowNa && isNaValue(value)) {
+      naCount += 1;
+      continue;
+    }
+
+    if (field.type === "select" && selectAllowsNa && isNaValue(value)) {
       naCount += 1;
       continue;
     }

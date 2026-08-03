@@ -9,8 +9,24 @@ from app.services.field_visibility import is_field_visible
 from app.services.workspace_settings import get_workspace_settings
 
 YES_VALUES = {"yes", "ya", "true", "1"}
-NO_VALUES = {"no", "false", "0"}
+NO_VALUES = {"no", "tidak", "false", "0"}
 NA_VALUES = {"n/a", "na", "tidak berlaku", "tidak_berlaku"}
+SELECT_FAIL_VALUES = {
+    "fail",
+    "gagal",
+    "rejected",
+    "not ready",
+    "critical issue",
+}
+SELECT_PASS_VALUES = {
+    "pass",
+    "lulus",
+    "approved",
+    "ready",
+    "controlled",
+    "ready for tomorrow",
+    "recorded",
+}
 
 
 def _normalize_text(value: Any) -> str:
@@ -169,8 +185,20 @@ def _score_field(field: FormField, value: Any) -> tuple[bool | None, str | None]
             raw_choices = field.options_json.get("choices")
             if isinstance(raw_choices, list):
                 choices = [str(item).strip() for item in raw_choices if str(item).strip()]
-        if choices and _normalize_text(value) not in choices:
-            return False, f"Invalid selection: {value}"
+        normalized = _normalize_text(value)
+        if choices and normalized not in choices:
+            # Case-insensitive match against choices
+            choice_map = {_normalize_text(item).lower(): item for item in choices}
+            if normalized.lower() not in choice_map:
+                return False, f"Invalid selection: {value}"
+        normalized_lower = normalized.lower()
+        if normalized_lower in NA_VALUES:
+            return True, None
+        if normalized_lower in SELECT_FAIL_VALUES:
+            return False, f"Failed check: {value}"
+        if normalized_lower in SELECT_PASS_VALUES:
+            return True, None
+        # Unknown select value that is filled counts as pass (e.g. custom choices)
         return True, None
 
     if field_type in {"date", "time"}:
@@ -234,8 +262,18 @@ def score_checklist(
 
         value = _get_response(responses, field.id)
         allow_na = _field_allows_na(field)
+        select_choices: list[str] = []
+        if isinstance(field.options_json, dict) and isinstance(field.options_json.get("choices"), list):
+            select_choices = [
+                str(item).strip() for item in field.options_json.get("choices") if str(item).strip()
+            ]
+        select_allows_na = any(_normalize_text(item).lower() in NA_VALUES for item in select_choices)
 
         if field.field_type.lower() == "yes_no" and allow_na and _is_na_value(value):
+            na_count += 1
+            continue
+
+        if field.field_type.lower() == "select" and select_allows_na and _is_na_value(value):
             na_count += 1
             continue
 

@@ -32,6 +32,8 @@ export type FormFieldOptions = {
   require_execution_note?: boolean;
   /** Template-level setting: submitted task waits for owner/admin review. */
   requires_approval?: boolean;
+  /** Operational standard shown under the task label. */
+  standard?: string;
   /** @deprecated use visibilityRule */
   showWhenFieldId?: string;
   /** @deprecated use visibilityRule */

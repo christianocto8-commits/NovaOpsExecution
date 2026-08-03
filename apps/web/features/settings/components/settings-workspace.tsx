@@ -917,8 +917,9 @@ function StarterPackPanel({ onNotice }: { onNotice: (message: string) => void })
   return (
     <SectionCard title="Starter Pack Operasional">
       <p className="mb-4 text-sm text-slate-500">
-        Pasang checklist Opening, Food Safety, Cleaning, Closing, Field Audit, plus jadwal harian
-        default. Aman dijalankan ulang — yang sudah ada tidak diganti.
+        Pasang checklist Opening, Food Safety, Cleaning, Closing, Field Audit, plus 3 Barista
+        Routine (Opening / Evening / Closing) dan jadwal harian default. Aman dijalankan ulang —
+        yang sudah ada tidak diganti.
       </p>
       <button
         type="button"

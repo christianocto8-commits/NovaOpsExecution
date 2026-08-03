@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.bootstrap.barista_routine_templates import install_barista_routine_templates
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.form_field import FormField
@@ -274,9 +275,21 @@ def install_operational_templates(
     if not outlet_ids and any(spec.get("schedule") for spec in OPERATIONAL_TEMPLATES):
         message_parts.append("jadwal ditunda sampai outlet tersedia")
 
+    barista = install_barista_routine_templates(
+        db,
+        creator=resolved_creator,
+        outlet_ids=outlet_ids,
+    )
+    templates_created.extend(barista.get("templates_created") or [])
+    templates_existing.extend(barista.get("templates_existing") or [])
+    schedules_created.extend(barista.get("schedules_created") or [])
+    schedules_existing.extend(barista.get("schedules_existing") or [])
+
     return {
         "ok": True,
-        "message": "Starter pack terpasang: " + ", ".join(message_parts) + ".",
+        "message": "Starter pack terpasang: " + ", ".join(message_parts) + (
+            f" {barista.get('message')}" if barista.get("message") else ""
+        ),
         "templates_created": templates_created,
         "templates_existing": templates_existing,
         "schedules_created": schedules_created,
