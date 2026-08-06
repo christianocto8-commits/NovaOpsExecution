@@ -105,11 +105,22 @@ class TaskScheduleService:
         return schedule
 
     def delete_schedule(self, schedule_id: int) -> None:
+        from app.models.execution_session import ExecutionSession
+
         schedule = self.get_schedule(schedule_id)
-        self.db.query(Task).filter(Task.schedule_id == schedule_id).update(
-            {Task.schedule_id: None},
-            synchronize_session=False,
-        )
+        task_ids = [
+            task_id
+            for (task_id,) in self.db.query(Task.id)
+            .filter(Task.schedule_id == schedule_id)
+            .all()
+        ]
+        if task_ids:
+            self.db.query(ExecutionSession).filter(
+                ExecutionSession.task_id.in_(task_ids)
+            ).delete(synchronize_session=False)
+            self.db.query(Task).filter(Task.schedule_id == schedule_id).delete(
+                synchronize_session=False
+            )
         self.db.delete(schedule)
         self.db.commit()
 
