@@ -41,4 +41,4 @@ class TaskSchedule(Base):
         nullable=False,
     )
 
-    tasks = relationship("Task", back_populates="schedule")
+    tasks = relationship("Task", back_populates="schedule", passive_deletes=True)
