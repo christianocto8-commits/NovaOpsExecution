@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -22,6 +23,11 @@ router = APIRouter(prefix="/task-schedules", tags=["Task Schedules"])
 
 def _get_actor_id(current_user) -> int:
     return current_user.id
+
+
+def _get_identity_actor_id(db: Session, current_user) -> UUID | None:
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    return identity_user.id if identity_user else None
 
 
 def _has_full_access(db: Session, current_user) -> bool:
@@ -63,7 +69,7 @@ def create_task_schedule(
         db,
         action="schedule.created",
         resource_type="task_schedule",
-        actor_user_id=current_user.id,
+        actor_user_id=_get_identity_actor_id(db, current_user),
         resource_id=str(schedule.id),
         metadata={"title": schedule.title, "recurrence": schedule.recurrence},
     )
@@ -156,7 +162,7 @@ def update_task_schedule(
         db,
         action="schedule.updated",
         resource_type="task_schedule",
-        actor_user_id=current_user.id,
+        actor_user_id=_get_identity_actor_id(db, current_user),
         resource_id=str(schedule_id),
         metadata={"title": schedule.title},
     )
@@ -179,7 +185,7 @@ def delete_task_schedule(
         db,
         action="schedule.deleted",
         resource_type="task_schedule",
-        actor_user_id=current_user.id,
+        actor_user_id=_get_identity_actor_id(db, current_user),
         resource_id=str(schedule_id),
         metadata={"title": title},
     )
