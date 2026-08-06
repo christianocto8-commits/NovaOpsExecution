@@ -1293,6 +1293,25 @@ export function TasksWorkspace() {
              />
            </div>
          ) : null}
+
+         {isOutletWorkspace ? (
+           <div className="pt-2">
+             <TaskGroupedList
+               groups={mobileSections}
+               highlightedTaskId={highlightedTaskId}
+               onOpenTask={handleOpenTask}
+               formTemplates={formTemplates}
+               collapsedGroups={collapsedGroups}
+               onToggleGroup={toggleTaskGroup}
+               onExpandAll={expandAllTaskGroups}
+               onCollapseAll={collapseAllTaskGroups}
+               emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
+               pendingTaskIds={pendingTaskIds}
+               failedTaskIds={failedTaskIds}
+               isOutletRole={isOutletRole}
+             />
+           </div>
+         ) : null}
        </section>
 
       {canCreateTask ? (
