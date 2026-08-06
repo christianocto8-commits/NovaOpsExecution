@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { 
+  CheckCircle, 
+  Clock, 
+  TrendingUp, 
+  AlertTriangle, 
+  Activity 
+} from "lucide-react";
 
 import { useDashboardReports } from "@/features/dashboard/hooks/use-dashboard-reports";
 import { useSettings } from "@/features/settings/hooks/use-settings";
@@ -94,11 +101,13 @@ function MetricCard({
   value,
   description,
   tone = "slate",
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
   description: string;
   tone?: "slate" | "emerald" | "amber" | "blue" | "red";
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   const valueClass = {
     slate: "text-slate-950",
@@ -116,9 +125,24 @@ function MetricCard({
     red: "hover:border-red-300",
   }[tone];
 
+  const iconBgClass = {
+    slate: "bg-slate-50 text-slate-600",
+    emerald: "bg-emerald-50 text-emerald-700",
+    amber: "bg-amber-50 text-amber-700",
+    blue: "bg-blue-50 text-blue-700",
+    red: "bg-red-50 text-red-700",
+  }[tone];
+
   return (
     <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-out cursor-pointer ${hoverBorderClass}`}>
-      <p className="text-sm text-slate-500 font-medium">{label}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500 font-medium">{label}</p>
+        {Icon && (
+          <div className={`rounded-xl p-2.5 transition duration-300 ${iconBgClass}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+      </div>
       <p className={`mt-2 text-3xl font-bold tracking-tight ${valueClass}`}>{value}</p>
       <p className="mt-3 text-xs text-slate-400">{description}</p>
     </div>
@@ -231,19 +255,29 @@ export default function DashboardPage() {
             label="Completion"
             value={`${getComplianceRate(visibleTasks)}%`}
             description="Completed backend tasks."
+            tone="emerald"
+            icon={CheckCircle}
           />
-          <MetricCard label="Open Tasks" value={openCount} description="Need outlet action." tone="amber" />
+          <MetricCard 
+            label="Open Tasks" 
+            value={openCount} 
+            description="Need outlet action." 
+            tone="amber" 
+            icon={Clock}
+          />
           <MetricCard
             label="In Progress"
             value={inProgressCount}
             description="Tasks currently being worked."
             tone="blue"
+            icon={Activity}
           />
           <MetricCard
             label="Needs Action"
             value={priorityQueue.length}
             description="Overdue, pending, high, or critical tasks."
             tone="red"
+            icon={AlertTriangle}
           />
         </section>
 
@@ -310,18 +344,22 @@ export default function DashboardPage() {
               : `${getComplianceRate(visibleTasks)}%`
           }
           description="Live compliance from reports API."
+          tone="emerald"
+          icon={CheckCircle}
         />
         <MetricCard
           label="Open Tasks"
           value={reportsQuery.summary?.open_tasks ?? openCount}
           description="Backend tasks awaiting completion."
           tone="amber"
+          icon={Clock}
         />
         <MetricCard
           label="Overdue"
           value={reportsQuery.summary?.overdue_tasks ?? priorityQueue.length}
           description="Tasks past due date."
           tone="red"
+          icon={AlertTriangle}
         />
         <MetricCard
           label="Completion Rate"
@@ -332,6 +370,7 @@ export default function DashboardPage() {
           }
           description="Completed vs total tasks."
           tone="blue"
+          icon={TrendingUp}
         />
       </section>
 
