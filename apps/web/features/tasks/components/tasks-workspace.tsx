@@ -8,6 +8,8 @@ import { CheckSquare, ChevronDown, ChevronUp, Lock, Search, Square, Trash2, User
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { FieldTaskCard } from "@/features/tasks/components/FieldTaskCard";
+import { TaskFilters } from "@/features/tasks/components/task-filters";
+import { TaskTable } from "@/features/tasks/components/task-table";
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
@@ -19,7 +21,7 @@ import { ChecklistSubmitResultModal,
 import { TaskWeekCalendarStrip } from "@/features/tasks/components/task-week-calendar-strip";
 import type { FormTemplate } from "@/features/forms/types";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
-import { Task } from "@/features/tasks/types";
+import { Task, TaskStatus, type TaskPriorityFilter, type TaskStatusFilter } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
 import { queryKeys } from "@/lib/query/keys";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
@@ -29,7 +31,7 @@ import {
   type BackendUpcomingTaskSchedule,
 } from "@/services/task-schedule.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
-import { taskService, type OutletMember } from "@/services/task.service";
+import { taskService, type BackendTaskStatus, type OutletMember } from "@/services/task.service";
 import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
@@ -595,6 +597,9 @@ export function TasksWorkspace() {
 
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [mobileSearch, setMobileSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("All");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>("All");
+  const [tableView, setTableView] = useState<"grouped" | "table">("grouped");
   const [calendarView, setCalendarView] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date());
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
@@ -693,6 +698,25 @@ export function TasksWorkspace() {
         next.add(taskId);
       }
       return next;
+    });
+  }
+
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: BackendTaskStatus }) =>
+      taskService.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      toast.success("Status task berhasil diperbarui.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal memperbarui status task.");
+    },
+  });
+
+  function updateTaskStatus(id: string, status: TaskStatus) {
+    updateTaskStatusMutation.mutate({
+      id,
+      status: status.toLowerCase() as BackendTaskStatus,
     });
   }
 
@@ -861,16 +885,26 @@ export function TasksWorkspace() {
     const query = mobileSearch.trim().toLowerCase();
     const baseTasks = calendarView ? calendarFilteredTasks : visibleTasks;
 
-    if (!query) return baseTasks;
+    const byStatus =
+      statusFilter === "All"
+        ? baseTasks
+        : baseTasks.filter((task) => task.status === statusFilter);
 
-    return baseTasks.filter((task) => {
+    const byPriority =
+      priorityFilter === "All"
+        ? byStatus
+        : byStatus.filter((task) => task.priority === priorityFilter);
+
+    if (!query) return byPriority;
+
+    return byPriority.filter((task) => {
       const haystack = [task.title, task.outlet, task.formTemplateId ?? "", task.status]
         .join(" ")
         .toLowerCase();
 
       return haystack.includes(query);
     });
-  }, [mobileSearch, visibleTasks, calendarView, calendarFilteredTasks]);
+  }, [mobileSearch, visibleTasks, calendarView, calendarFilteredTasks, statusFilter, priorityFilter]);
 
   const mobileSections = useMemo(
     () => getMobileSections(filteredMobileTasks),
@@ -880,16 +914,26 @@ export function TasksWorkspace() {
   const filteredAdminTasks = useMemo(() => {
     const query = mobileSearch.trim().toLowerCase();
 
-    if (!query) return visibleTasks;
+    const byStatus =
+      statusFilter === "All"
+        ? visibleTasks
+        : visibleTasks.filter((task) => task.status === statusFilter);
 
-    return visibleTasks.filter((task) => {
+    const byPriority =
+      priorityFilter === "All"
+        ? byStatus
+        : byStatus.filter((task) => task.priority === priorityFilter);
+
+    if (!query) return byPriority;
+
+    return byPriority.filter((task) => {
       const haystack = [task.title, task.outlet, task.formTemplateId ?? "", task.status]
         .join(" ")
         .toLowerCase();
 
       return haystack.includes(query);
     });
-  }, [mobileSearch, visibleTasks]);
+  }, [mobileSearch, visibleTasks, statusFilter, priorityFilter]);
 
   const outletTaskGroups = useMemo(
     () => getTasksGroupedByOutlet(filteredAdminTasks),
@@ -1105,45 +1149,51 @@ export function TasksWorkspace() {
       </div>
       ) : null}
 
-      <section className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
-        <div className={`${isOutletWorkspace ? "pb-2" : "border-b border-slate-200 px-3 py-3 sm:px-4"}`}>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-slate-400" />
-            <input
-              value={mobileSearch}
-              onChange={(event) => setMobileSearch(event.target.value)}
-              placeholder={isOutletWorkspace ? "Cari task..." : "Cari task, outlet, atau status"}
-              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-            />
-          </div>
-        </div>
+       <section className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
+         {!isOutletWorkspace ? (
+           <div className="border-b border-slate-200 px-3 py-3 sm:px-4">
+             <TaskFilters
+               query={mobileSearch}
+               statusFilter={statusFilter}
+               priorityFilter={priorityFilter}
+               onQueryChange={setMobileSearch}
+               onStatusFilterChange={setStatusFilter}
+               onPriorityFilterChange={setPriorityFilter}
+             />
+           </div>
+         ) : null}
 
-        {!isOutletWorkspace ? (
-          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
-            <span>{`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setBulkActive((current) => {
-                  if (current) {
-                    setSelectedTaskIds(new Set());
-                  }
-                  return !current;
-                });
-              }}
-              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 font-medium transition-colors ${
-                bulkActive
-                  ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              <CheckSquare className="size-3.5" />
-              {bulkActive ? "Keluar mode" : "Pilih beberapa"}
-            </button>
-          </div>
-        ) : null}
+         {!isOutletWorkspace ? (
+           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
+             <span>{`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}</span>
+             <div className="flex items-center gap-2">
+               <button
+                 type="button"
+                 onClick={() => setTableView("grouped")}
+                 className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
+                   tableView === "grouped"
+                     ? "border-emerald-600 bg-emerald-600 text-white"
+                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                 }`}
+               >
+                 Kelompok
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setTableView("table")}
+                 className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
+                   tableView === "table"
+                     ? "border-emerald-600 bg-emerald-600 text-white"
+                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                 }`}
+               >
+                 Tabel
+               </button>
+             </div>
+           </div>
+         ) : null}
 
-        {bulkActive && !isOutletRole && bulkTargetTaskIds.length > 0 ? (
+         {bulkActive && !isOutletRole && bulkTargetTaskIds.length > 0 ? (
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-4">
             <span className="text-xs font-semibold text-emerald-800">
               {bulkTargetTaskIds.length} task dipilih
@@ -1196,26 +1246,54 @@ export function TasksWorkspace() {
           </div>
         ) : null}
 
-        <div className={isOutletWorkspace ? "pt-2" : "bg-[#F7FAF8] p-3 sm:p-4"}>
-          <TaskGroupedList
-            groups={activeTaskGroups}
-            highlightedTaskId={highlightedTaskId}
-            onOpenTask={handleOpenTask}
-            formTemplates={formTemplates}
-            collapsedGroups={collapsedGroups}
-            onToggleGroup={toggleTaskGroup}
-            onExpandAll={expandAllTaskGroups}
-            onCollapseAll={collapseAllTaskGroups}
-            emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
-            pendingTaskIds={pendingTaskIds}
-            failedTaskIds={failedTaskIds}
-            isOutletRole={isOutletRole}
-            selectionMode={bulkActive && !isOutletRole}
-            selectedTaskIds={selectedTaskIds}
-            onToggleSelect={toggleTaskSelection}
-          />
-        </div>
-      </section>
+         {!isOutletWorkspace && tableView === "table" ? (
+           <div className="bg-[#F7FAF8] p-3 sm:p-4">
+             <TaskTable
+               tasks={filteredAdminTasks}
+               query={mobileSearch}
+               statusFilter={statusFilter}
+               priorityFilter={priorityFilter}
+               onQueryChange={setMobileSearch}
+               onStatusFilterChange={setStatusFilter}
+               onPriorityFilterChange={setPriorityFilter}
+               onSelectTask={handleOpenTask}
+               onEditTask={isOwnerAdminWorkspace ? openEditTask : () => {}}
+               onDeleteTask={
+                 isOwnerAdminWorkspace
+                   ? (id) => {
+                       void deleteTask(id);
+                     }
+                   : () => {}
+               }
+               onStatusChange={(id, status) => {
+                 void updateTaskStatus(id, status);
+               }}
+             />
+           </div>
+         ) : null}
+
+         {!isOutletWorkspace && tableView === "grouped" ? (
+           <div className="bg-[#F7FAF8] p-3 sm:p-4">
+             <TaskGroupedList
+               groups={activeTaskGroups}
+               highlightedTaskId={highlightedTaskId}
+               onOpenTask={handleOpenTask}
+               formTemplates={formTemplates}
+               collapsedGroups={collapsedGroups}
+               onToggleGroup={toggleTaskGroup}
+               onExpandAll={expandAllTaskGroups}
+               onCollapseAll={collapseAllTaskGroups}
+               emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
+               pendingTaskIds={pendingTaskIds}
+               failedTaskIds={failedTaskIds}
+               isOutletRole={isOutletRole}
+               selectionMode={bulkActive && !isOutletRole}
+               selectedTaskIds={selectedTaskIds}
+               onToggleSelect={toggleTaskSelection}
+             />
+           </div>
+         ) : null}
+       </section>
 
       {canCreateTask ? (
         <TaskFormDrawer

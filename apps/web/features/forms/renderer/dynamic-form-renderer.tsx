@@ -10,6 +10,7 @@ import { PhotoFieldInput } from "./photo-field-input";
 import { SignatureFieldInput } from "./signature-field-input";
 import { RatingFieldInput } from "./rating-field-input";
 import { BarcodeFieldInput } from "./barcode-field-input";
+import { GpsFieldInput } from "./gps-field-input";
 
 type DynamicFormRendererProps = {
   fields: FormField[];
@@ -36,6 +37,7 @@ const fieldTypeLabels: Partial<Record<FormField["type"], string>> = {
   money_denomination: "Hitung denom uang",
   money_amount: "Nominal uang",
   responsible_person: "Nama pelaksana",
+  gps: "Lokasi GPS",
 };
 
 type YesNoOption = "Yes" | "No" | "N/A";
@@ -230,13 +232,19 @@ export function DynamicFormRenderer({
                   readOnly={readOnly}
                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
                 />
-              ) : field.type === "barcode" ? (
-                <BarcodeFieldInput
-                  value={value}
-                  readOnly={readOnly}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-              ) : field.type === "responsible_person" ? (
+               ) : field.type === "barcode" ? (
+                 <BarcodeFieldInput
+                   value={value}
+                   readOnly={readOnly}
+                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                 />
+               ) : field.type === "gps" ? (
+                 <GpsFieldInput
+                   value={value}
+                   readOnly={readOnly}
+                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                 />
+               ) : field.type === "responsible_person" ? (
                 <input
                   value={value}
                   disabled={readOnly}

@@ -176,6 +176,8 @@ export function ReportsWorkspace() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingBundle, setIsExportingBundle] = useState(false);
   const [exportingTaskId, setExportingTaskId] = useState<string | null>(null);
+  const [outletFilter, setOutletFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     setActiveTab(resolveManagerTab(searchParams.get("tab")));
@@ -315,6 +317,16 @@ export function ReportsWorkspace() {
           new Date(right.submittedAtRaw).getTime() - new Date(left.submittedAtRaw).getTime()
       ),
     [manualSubmissionRows, periodFilteredTasks]
+  );
+
+  const filteredReportRows = useMemo(
+    () =>
+      reportRows.filter((row) => {
+        if (outletFilter !== "all" && row.outlet !== outletFilter) return false;
+        if (statusFilter !== "all" && row.status !== statusFilter) return false;
+        return true;
+      }),
+    [reportRows, outletFilter, statusFilter]
   );
 
   const clientSummary = useMemo(() => getSummary(reportRows), [reportRows]);
@@ -468,7 +480,7 @@ export function ReportsWorkspace() {
 
   const exportRowRecords = useMemo(
     () =>
-      reportRows.map((row) => ({
+      filteredReportRows.map((row) => ({
         Outlet: row.outlet,
         Task: row.task,
         Form: row.form,
@@ -478,8 +490,8 @@ export function ReportsWorkspace() {
         Operator: row.operator,
         Due: row.due,
         Submitted: row.submittedAt,
-      })),
-    [reportRows]
+       })),
+    [filteredReportRows]
   );
 
   function handleReportCsvExport() {
@@ -702,26 +714,47 @@ export function ReportsWorkspace() {
       {activeTab === "riwayat" ? (
         <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Riwayat kerja</p>
-              <p className="text-xs text-slate-500">
-                Task selesai dan submission My Form dalam {periodDays} hari terakhir.
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Outlet:</span>
+              <select
+                value={outletFilter}
+                onChange={(event) => setOutletFilter(event.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none"
+              >
+                <option value="all">Semua outlet</option>
+                {outletNames.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-400">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none"
+              >
+                <option value="all">Semua status</option>
+                <option value="completed">Selesai</option>
+                <option value="in_progress">Berjalan</option>
+                <option value="pending">Belum mulai</option>
+                <option value="overdue">Terlewat</option>
+              </select>
             </div>
             <ExportMenu
-              disabled={reportRows.length === 0}
+              disabled={filteredReportRows.length === 0}
               onExcelExport={handleReportExcelExport}
               onCsvExport={handleReportCsvExport}
             />
           </div>
 
-          {reportRows.length === 0 ? (
+          {filteredReportRows.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-slate-500">
               Belum ada pekerjaan selesai pada periode ini.
             </div>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {reportRows.map((row) => {
+              {filteredReportRows.map((row) => {
                 const rowTask =
                   row.kind === "task" ? taskById.get(row.id) : undefined;
                 const canExportPdf = Boolean(rowTask && isTaskWorkedOn(rowTask));

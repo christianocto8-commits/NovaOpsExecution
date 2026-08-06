@@ -20,6 +20,7 @@ import { formatTaskSchedule } from "../utils";
 import { PhotoLightbox } from "@/shared/evidence/components/photo-lightbox";
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { taskService, type OutletMember } from "@/services/task.service";
+import { mapBackendTask } from "@/services/task.service";
 import { queryKeys } from "@/lib/query/keys";
 import { useToast } from "@/shared/toast";
 
@@ -77,6 +78,10 @@ function getActivityStyle(type: TaskActivityType) {
     return { icon: UserCheck, className: "border-blue-100 bg-blue-50 text-blue-700" };
   if (type === "evidence_submitted" || type === "draft_saved")
     return { icon: FileText, className: "border-violet-100 bg-violet-50 text-violet-700" };
+  if (type === "review_approved")
+    return { icon: CheckCircle2, className: "border-emerald-100 bg-emerald-50 text-emerald-700" };
+  if (type === "review_rejected")
+    return { icon: X, className: "border-red-100 bg-red-50 text-red-700" };
   return { icon: ClipboardList, className: "border-slate-200 bg-white text-slate-600" };
 }
 
@@ -117,6 +122,14 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
     retry: false,
   });
 
+  const detailQuery = useQuery({
+    queryKey: ["task-detail", task?.id ?? "none"],
+    queryFn: () => taskService.getBackendTask(task!.id),
+    enabled: Boolean(task),
+    retry: false,
+  });
+
+  const detailTask = detailQuery.data ? mapBackendTask(detailQuery.data) : null;
   const assignMutation = useMutation({
     mutationFn: (user: OutletMember) => taskService.assignUser(task!.id, user),
     onSuccess: () => {
@@ -163,7 +176,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
   const hasExecution = Boolean(task.execution);
   const hasDraft = Boolean(task.executionDraft);
   const checklist = task.execution?.checklist;
-  const activities = task.activity ?? [];
+  const activities = detailTask?.activity ?? task.activity ?? [];
 
   return (
     <div

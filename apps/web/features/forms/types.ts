@@ -13,7 +13,8 @@
   | "barcode"
   | "money_denomination"
   | "money_amount"
-  | "responsible_person";
+  | "responsible_person"
+  | "gps";
 
 export type FieldVisibilityOperator =
   "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";

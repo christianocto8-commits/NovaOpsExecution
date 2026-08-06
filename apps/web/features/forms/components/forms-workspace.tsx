@@ -105,6 +105,7 @@ const fieldTypeOptions: Array<{
   { value: "signature", label: "Tanda tangan" },
   { value: "rating", label: "Penilaian bintang" },
   { value: "barcode", label: "Scan barcode / QR" },
+  { value: "gps", label: "Lokasi GPS" },
   { value: "responsible_person", label: "Nama pelaksana" },
 ];
 
@@ -129,6 +130,7 @@ const fieldTypeLabel: Record<FormFieldType, string> = {
   signature: "Tanda tangan",
   rating: "Penilaian bintang",
   barcode: "Scan barcode / QR",
+  gps: "Lokasi GPS",
   money_denomination: "Angka",
   money_amount: "Angka",
   responsible_person: "Nama pelaksana",
@@ -941,7 +943,7 @@ export function FormsWorkspace() {
 
   const requiredItems = selectedTemplate?.fields.filter((field) => field.required).length ?? 0;
   const evidenceItems =
-    selectedTemplate?.fields.filter((field) => ["photo", "signature"].includes(field.type))
+    selectedTemplate?.fields.filter((field) => ["photo", "signature", "gps"].includes(field.type))
       .length ?? 0;
   const templateSettings = selectedTemplate
     ? getTemplateSettings(selectedTemplate.fields)
@@ -1894,11 +1896,11 @@ export function FormsWorkspace() {
                             </span>
                           )}
 
-                          {["photo", "signature"].includes(field.type) ? (
-                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                              Evidence
-                            </span>
-                          ) : null}
+                           {["photo", "signature", "gps"].includes(field.type) ? (
+                             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                               Evidence
+                             </span>
+                           ) : null}
 
                           {field.type === "rating" ? (
                             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">

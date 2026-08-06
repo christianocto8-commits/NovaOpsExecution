@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.scheduler import verify_scheduler_secret
+from app.modules.identity.audit import record_identity_audit_event
 from app.modules.task_schedules.schemas import (
     TaskScheduleCreate,
     TaskScheduleExceptionCreate,
@@ -57,7 +58,17 @@ def create_task_schedule(
 ):
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
-    return service.create_schedule(payload, actor_id=_get_actor_id(current_user))
+    schedule = service.create_schedule(payload, actor_id=_get_actor_id(current_user))
+    record_identity_audit_event(
+        db,
+        action="schedule.created",
+        resource_type="task_schedule",
+        actor_user_id=current_user.id,
+        resource_id=str(schedule.id),
+        metadata={"title": schedule.title, "recurrence": schedule.recurrence},
+    )
+    db.commit()
+    return schedule
 
 
 @router.get("/upcoming", response_model=list[TaskScheduleUpcomingResponse])
@@ -140,7 +151,17 @@ def update_task_schedule(
 ):
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
-    return service.update_schedule(schedule_id, payload)
+    schedule = service.update_schedule(schedule_id, payload)
+    record_identity_audit_event(
+        db,
+        action="schedule.updated",
+        resource_type="task_schedule",
+        actor_user_id=current_user.id,
+        resource_id=str(schedule_id),
+        metadata={"title": schedule.title},
+    )
+    db.commit()
+    return schedule
 
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -151,7 +172,17 @@ def delete_task_schedule(
 ):
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
+    schedule = service.get_schedule(schedule_id)
     service.delete_schedule(schedule_id)
+    record_identity_audit_event(
+        db,
+        action="schedule.deleted",
+        resource_type="task_schedule",
+        actor_user_id=current_user.id,
+        resource_id=str(schedule_id),
+        metadata={"title": schedule.title},
+    )
+    db.commit()
     return None
 
 

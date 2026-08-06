@@ -6,6 +6,7 @@ from sqlalchemy import delete as sa_delete, select, update as sa_update
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.dependencies import get_current_active_user, require_permission
 from app.modules.identity.models import (
     AuditLog,
@@ -420,6 +421,15 @@ def create_user(
 
     created = users.create(user)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="user.created",
+        resource_type="user",
+        actor_user_id=current_user.id,
+        resource_id=str(created.id),
+        metadata={"email": created.email, "role": created.role.slug if created.role else None},
+    )
+    db.commit()
     return created
 
 
@@ -509,6 +519,15 @@ def update_user(
 
     updated = users.update(user)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="user.updated",
+        resource_type="user",
+        actor_user_id=current_user.id,
+        resource_id=str(user.id),
+        metadata={"email": user.email},
+    )
+    db.commit()
     return updated
 
 
@@ -538,6 +557,14 @@ def delete_user(
         .values(actor_user_id=None)
     )
     db.delete(user)
+    record_identity_audit_event(
+        db,
+        action="user.deleted",
+        resource_type="user",
+        actor_user_id=current_user.id,
+        resource_id=str(user_id),
+        metadata={"email": user.email},
+    )
     db.commit()
 
     return MessageResponse(message="User deleted")
