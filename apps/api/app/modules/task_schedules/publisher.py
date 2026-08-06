@@ -213,9 +213,13 @@ class TaskSchedulePublisher:
         except ValueError:
             return True
 
+        # Schedules publish on workspace-local dates, so the exception day must be
+        # compared in the same timezone (UTC can drift a day near midnight WIB).
+        local_date = current.astimezone(self._workspace_timezone()).date()
+
         return (
             self.db.query(TaskScheduleException.id)
-            .filter(TaskScheduleException.date == current.date())
+            .filter(TaskScheduleException.date == local_date)
             .filter(
                 (TaskScheduleException.outlet_id.is_(None))
                 | (TaskScheduleException.outlet_id == outlet_id)

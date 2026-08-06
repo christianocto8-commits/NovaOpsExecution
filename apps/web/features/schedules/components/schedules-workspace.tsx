@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CalendarDays, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarDays, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import { useActiveFormTemplates } from "@/features/forms/hooks/use-form-templates";
 import { TaskFormDrawer } from "@/features/tasks/components/task-form-drawer";
 import { emptyTaskForm } from "@/features/tasks/data/task-form-defaults";
 import type { TaskFormState } from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
+import { useAuth } from "@/hooks/useAuth";
 import { queryKeys } from "@/lib/query/keys";
 import { getIdentityOutlets } from "@/services/identity.service";
 import {
@@ -18,6 +19,11 @@ import {
 } from "@/services/task-schedule.service";
 import { EnterpriseDataTable, type EnterpriseColumn } from "@/shared/data-table";
 import { useLanguage } from "@/shared/i18n";
+import {
+  getServerWorkspaceSnapshot,
+  getWorkspaceSnapshot,
+  subscribeWorkspace,
+} from "@/shared/navigation";
 import { useToast } from "@/shared/toast";
 
 function toScheduleTask(schedule: BackendTaskSchedule, outletNameById: Record<string, string>) {
@@ -62,8 +68,18 @@ export function SchedulesWorkspace() {
   const toast = useToast();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
+  const workspace = useSyncExternalStore(
+    subscribeWorkspace,
+    getWorkspaceSnapshot,
+    getServerWorkspaceSnapshot
+  );
+  const isAreaWorkspace = workspace.mode === "area";
+  const isReadOnly = isAreaWorkspace;
+  const canManageSchedules = hasRole("owner", "admin") && !isAreaWorkspace;
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
+  const [runningNow, setRunningNow] = useState(false);
   const [closedDate, setClosedDate] = useState("");
   const [closedReason, setClosedReason] = useState("");
   const [scheduleForm, setScheduleForm] = useState<TaskFormState>({
@@ -151,6 +167,30 @@ export function SchedulesWorkspace() {
       queryClient.invalidateQueries({ queryKey: ["task-schedule-exceptions"] });
     },
   });
+
+  const runNowMutation = useMutation({
+    mutationFn: () => taskScheduleService.runNow(),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["task-schedules"] });
+      toast.success(
+        `Publish selesai: ${result.tasks_created} task dibuat dari ${result.schedules_published} schedule (${result.skipped_duplicates} duplikat dilewati, ${result.skipped_exceptions} hari exception).`
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memproses schedule sekarang."
+      );
+    },
+  });
+
+  async function runSchedulesNow() {
+    setRunningNow(true);
+    try {
+      await runNowMutation.mutateAsync();
+    } finally {
+      setRunningNow(false);
+    }
+  }
 
   const rows = useMemo(
     () => (schedulesQuery.data ?? []).map((schedule) => toScheduleTask(schedule, outletNameById)),
@@ -264,6 +304,8 @@ export function SchedulesWorkspace() {
       key: "actions",
       header: "Actions",
       render: (row) => {
+        if (!canManageSchedules) return null;
+
         const scheduleId = Number(row.id);
         const schedule = schedulesQuery.data?.find((item) => item.id === scheduleId);
         const isActive = schedule?.is_active ?? true;
@@ -337,6 +379,13 @@ export function SchedulesWorkspace() {
     const schedule = schedulesQuery.data?.find((item) => item.id === scheduleId);
     if (!schedule) return;
 
+    if (schedule.recurrence === "once") {
+      toast.error(
+        "Schedule one-time tidak bisa diedit di menu Schedules. Buat ulang sebagai task sekali jalan atau schedule recurring."
+      );
+      return;
+    }
+
     setEditingScheduleId(scheduleId);
     setScheduleForm(scheduleToFormState(schedule, outletNameById));
     setIsFormOpen(true);
@@ -388,15 +437,35 @@ export function SchedulesWorkspace() {
             <p className="mt-2 max-w-2xl text-sm text-slate-500">{t("schedules.description")}</p>
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateSchedule}
-            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
-          >
-            <Plus className="size-4" />
-            {t("schedules.new")}
-          </button>
+          {canManageSchedules ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void runSchedulesNow()}
+                disabled={runningNow || runNowMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Play className="size-4" />
+                {runningNow || runNowMutation.isPending ? "Memproses..." : "Run publish now"}
+              </button>
+              <button
+                type="button"
+                onClick={openCreateSchedule}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
+              >
+                <Plus className="size-4" />
+                {t("schedules.new")}
+              </button>
+            </div>
+          ) : null}
         </div>
+
+        {isReadOnly ? (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Akun Area Manager hanya bisa melihat schedule. Untuk membuat, mengubah, menghapus,
+            atau memproses publish, login sebagai Owner/Admin.
+          </div>
+        ) : null}
       </section>
 
       {scheduleConflicts.length > 0 ? (
@@ -425,17 +494,20 @@ export function SchedulesWorkspace() {
           <input
             type="date"
             value={closedDate}
+            disabled={isReadOnly}
             onChange={(event) => setClosedDate(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
           />
           <input
             value={closedReason}
+            disabled={isReadOnly}
             onChange={(event) => setClosedReason(event.target.value)}
             placeholder="Reason, e.g. public holiday / store maintenance"
-            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
           />
           <button
             type="button"
+            disabled={isReadOnly || !closedDate}
             onClick={async () => {
               if (!closedDate) return;
               try {
@@ -461,6 +533,7 @@ export function SchedulesWorkspace() {
                 </p>
                 <button
                   type="button"
+                  disabled={isReadOnly}
                   onClick={async () => {
                     try {
                       await deleteExceptionMutation.mutateAsync(exception.id);
@@ -469,7 +542,7 @@ export function SchedulesWorkspace() {
                       toast.error(error instanceof Error ? error.message : "Gagal menghapus exception.");
                     }
                   }}
-                  className="text-xs font-bold text-amber-800"
+                  className="text-xs font-bold text-amber-800 disabled:cursor-not-allowed disabled:text-amber-400"
                 >
                   Remove
                 </button>

@@ -87,7 +87,7 @@ export function TaskFormDrawer({
   useEffect(() => {
     if (!open) return;
 
-    if (isScheduleVariant && form.recurrence === "once") {
+    if (isScheduleVariant && !isEditMode && form.recurrence === "once") {
       onChange({
         ...form,
         recurrence: "daily",
@@ -107,8 +107,6 @@ export function TaskFormDrawer({
         shifts: [],
       });
     }
-    // Only normalize when the drawer opens or recurrence drifts from the intended variant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isScheduleVariant, form.recurrence]);
 
   useEffect(() => {

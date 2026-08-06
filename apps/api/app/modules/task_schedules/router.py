@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,6 +23,23 @@ def _get_actor_id(current_user) -> int:
     return current_user.id
 
 
+def _has_full_access(db: Session, current_user) -> bool:
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if not identity_user:
+        return False
+    _legacy_user, _outlet_ids, full_access = sync_identity_access(db, identity_user)
+    db.commit()
+    return full_access
+
+
+def _require_owner_admin(db: Session, current_user) -> None:
+    if not _has_full_access(db, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owner/admin can manage task schedules",
+        )
+
+
 @router.get("", response_model=list[TaskScheduleResponse])
 def list_task_schedules(
     db: Session = Depends(get_db),
@@ -38,6 +55,7 @@ def create_task_schedule(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     return service.create_schedule(payload, actor_id=_get_actor_id(current_user))
 
@@ -75,6 +93,7 @@ def create_task_schedule_exception(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     return service.create_exception(payload, actor_id=_get_actor_id(current_user))
 
@@ -85,10 +104,21 @@ def delete_task_schedule_exception(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
+    _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     service.delete_exception(exception_id)
     return None
+
+
+@router.post("/run-now", response_model=TaskScheduleProcessResult)
+def run_task_schedules_now(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _require_owner_admin(db, current_user)
+    service = TaskScheduleService(db)
+    result = service.process_due_schedules(force=False)
+    return TaskScheduleProcessResult(**result)
 
 
 @router.get("/{schedule_id}", response_model=TaskScheduleResponse)
@@ -108,6 +138,7 @@ def update_task_schedule(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     return service.update_schedule(schedule_id, payload)
 
@@ -118,6 +149,7 @@ def delete_task_schedule(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     service.delete_schedule(schedule_id)
     return None

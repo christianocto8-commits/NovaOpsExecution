@@ -267,4 +267,17 @@ export const taskScheduleService = {
       method: "POST",
     });
   },
+
+  async runNow() {
+    return api<{
+      schedules_checked: number;
+      schedules_published: number;
+      tasks_created: number;
+      skipped_duplicates: number;
+      skipped_exceptions: number;
+      upcoming_notifications_sent: number;
+    }>("/api/v1/task-schedules/run-now", {
+      method: "POST",
+    });
+  },
 };
