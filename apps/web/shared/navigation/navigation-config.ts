@@ -82,6 +82,7 @@ export const navigationItems: NavigationItem[] = [
     icon: ClipboardCheck,
     requiredPermissions: ["task.read"],
     section: "sop",
+    sidebar: true,
   },
   {
     id: "schedules",
