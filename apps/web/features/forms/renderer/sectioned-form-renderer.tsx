@@ -219,6 +219,8 @@ export function SectionedFormRenderer({
     [visibleFields]
   );
   const showFallbackResponsiblePerson = !responsiblePersonField;
+  const responsiblePersonHighlighted =
+    highlightedFieldIds.includes("__responsible_person__");
   const reconciliation = useMemo(
     () => getMoneyReconciliation(fields, responses),
     [fields, responses]
@@ -242,8 +244,21 @@ export function SectionedFormRenderer({
   return (
     <div className="space-y-3 sm:space-y-4">
       {showFallbackResponsiblePerson ? (
-        <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm sm:rounded-3xl">
-          <div className="border-b border-emerald-100 bg-emerald-50 px-4 py-4 sm:px-5">
+        <section
+          data-form-field-id="__responsible_person__"
+          className={`overflow-hidden rounded-2xl border bg-white shadow-sm sm:rounded-3xl ${
+            responsiblePersonHighlighted
+              ? "border-red-300 ring-2 ring-red-100"
+              : "border-emerald-200"
+          }`}
+        >
+          <div
+            className={`border-b px-4 py-4 sm:px-5 ${
+              responsiblePersonHighlighted
+                ? "border-red-200 bg-red-50"
+                : "border-emerald-100 bg-emerald-50"
+            }`}
+          >
             <p className="text-sm font-bold text-emerald-950">{RESPONSIBLE_PERSON_SECTION}</p>
             <p className="mt-1 text-xs text-emerald-800">Wajib diisi sebelum submit form.</p>
           </div>

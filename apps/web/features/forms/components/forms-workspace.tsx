@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   Copy,
   Eye,
@@ -65,6 +67,11 @@ import {
   formSubmissionService,
 } from "@/services/form-submission.service";
 import { getCurrentPosition, checkGeofencePrecheck } from "@/shared/evidence";
+import {
+  clearManualFormDraft,
+  getManualFormDraft,
+  saveManualFormDraft,
+} from "@/features/forms/utils/manual-form-draft";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { outletService } from "@/services/outlet.service";
 import { useToast } from "@/shared/toast";
@@ -193,6 +200,14 @@ function OutletManualFormsWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [submittedTemplateName, setSubmittedTemplateName] = useState("");
+  const [submittedNeedsApproval, setSubmittedNeedsApproval] = useState(false);
+  const [missingFieldIds, setMissingFieldIds] = useState<string[]>([]);
+  const [submissionAttempted, setSubmissionAttempted] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const latestDraftRef = useRef<{ templateId: string; responses: TaskFormResponses } | null>(
+    null
+  );
+  const autosaveTimerRef = useRef<number | null>(null);
   const submitMutation = useMutation({
     mutationFn: formSubmissionService.submitManualForm,
     onSuccess: async () => {
@@ -209,16 +224,89 @@ function OutletManualFormsWorkspace() {
     const requestedTemplateId = searchParams.get("templateId");
     if (requestedTemplateId) {
       setSelectedTemplateId(requestedTemplateId);
+      const draft = getManualFormDraft(requestedTemplateId);
+      if (draft) {
+        setResponses(draft.responses);
+        setDraftSavedAt(draft.updatedAt);
+      }
       return;
     }
 
     if (!selectedTemplateId && activeTemplates[0]?.id) {
-      setSelectedTemplateId(activeTemplates[0].id);
+      const firstTemplate = activeTemplates[0];
+      setSelectedTemplateId(firstTemplate.id);
+      const draft = getManualFormDraft(firstTemplate.id);
+      if (draft) {
+        setResponses(draft.responses);
+        setDraftSavedAt(draft.updatedAt);
+      }
     }
   }, [activeTemplates, searchParams, selectedTemplateId]);
 
+  useEffect(() => {
+    function flushPendingDraft() {
+      if (latestDraftRef.current) {
+        saveManualFormDraft(
+          latestDraftRef.current.templateId,
+          latestDraftRef.current.responses
+        );
+      }
+    }
+
+    window.addEventListener("pagehide", flushPendingDraft);
+    window.addEventListener("beforeunload", flushPendingDraft);
+
+    return () => {
+      window.removeEventListener("pagehide", flushPendingDraft);
+      window.removeEventListener("beforeunload", flushPendingDraft);
+      flushPendingDraft();
+    };
+  }, []);
+
+  function scheduleManualFormAutosave(templateId: string, nextResponses: TaskFormResponses) {
+    latestDraftRef.current = { templateId, responses: nextResponses };
+
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      saveManualFormDraft(templateId, nextResponses);
+      setDraftSavedAt(new Date().toISOString());
+    }, 600);
+  }
+
+  function handleResponsesChange(nextResponses: TaskFormResponses) {
+    setResponses(nextResponses);
+
+    if (selectedTemplate) {
+      scheduleManualFormAutosave(selectedTemplate.id, nextResponses);
+    }
+
+    if (submissionAttempted) {
+      setMissingFieldIds(
+        getMissingRequiredFields(selectedTemplate?.fields ?? [], nextResponses).map(
+          (field) => field.id
+        )
+      );
+    }
+  }
+
+  function scrollToField(fieldId: string) {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-form-field-id="${fieldId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
   const selectedTemplate =
     activeTemplates.find((template) => template.id === selectedTemplateId) ?? activeTemplates[0];
+
+  const templateSettings = selectedTemplate
+    ? getTemplateSettings(selectedTemplate.fields)
+    : { require_execution_note: true, requires_approval: false };
+  const requiresApproval = Boolean(templateSettings.requires_approval);
 
   async function submitManualForm() {
     if (!selectedTemplate || !user) return;
@@ -232,22 +320,29 @@ function OutletManualFormsWorkspace() {
     const missingRequiredFields = getMissingRequiredFields(selectedTemplate.fields, responses);
 
     if (missingRequiredFields.length > 0) {
-      setNotice(`Lengkapi ${missingRequiredFields.length} field wajib, termasuk nama pelaksana.`);
+      setSubmissionAttempted(true);
+      setMissingFieldIds(missingRequiredFields.map((field) => field.id));
+      setNotice(
+        `Lengkapi ${missingRequiredFields.length} field wajib, termasuk nama pelaksana. Field kurang ditandai merah.`
+      );
+      scrollToField(missingRequiredFields[0].id);
       return;
     }
 
     rememberRecentTemplate(selectedTemplate.id);
 
-    const submitLocation = await getCurrentPosition();
+    const geofenceEnabled = Boolean(settings?.geofence_enabled);
+    const submitLocation =
+      geofenceEnabled || !isOnline ? await getCurrentPosition() : null;
 
-    if (settings?.geofence_enabled) {
+    if (geofenceEnabled) {
       try {
         const currentOutlet = await outletService.getCurrent();
         const geofenceError = checkGeofencePrecheck({
           submitter: submitLocation,
           outletLat: currentOutlet.outlet.latitude,
           outletLon: currentOutlet.outlet.longitude,
-          radiusMeters: settings.geofence_radius_meters ?? 200,
+          radiusMeters: settings?.geofence_radius_meters ?? 200,
         });
 
         if (geofenceError) {
@@ -285,9 +380,17 @@ function OutletManualFormsWorkspace() {
         ]);
 
         setResponses({});
+        clearManualFormDraft(selectedTemplate.id);
+        latestDraftRef.current = null;
+        setDraftSavedAt(null);
+        setSubmissionAttempted(false);
+        setMissingFieldIds([]);
         setSubmittedTemplateName(selectedTemplate.name);
+        setSubmittedNeedsApproval(requiresApproval);
         setNotice(
-          `${selectedTemplate.name} berhasil disubmit untuk ${workspace.outletName ?? "Outlet"}.`
+          requiresApproval
+            ? `${selectedTemplate.name} berhasil disubmit. Menunggu review owner/admin sebelum dianggap selesai.`
+            : `${selectedTemplate.name} berhasil disubmit untuk ${workspace.outletName ?? "Outlet"}.`
         );
         setSuccessModalOpen(true);
         toast.success("Task My Form berhasil disubmit.");
@@ -311,6 +414,11 @@ function OutletManualFormsWorkspace() {
 
       await refreshPendingCount();
       setResponses({});
+      clearManualFormDraft(selectedTemplate.id);
+      latestDraftRef.current = null;
+      setDraftSavedAt(null);
+      setSubmissionAttempted(false);
+      setMissingFieldIds([]);
       setNotice(
         `${selectedTemplate.name} disimpan lokal (${pendingSyncCount + 1} menunggu sinkron).`
       );
@@ -333,6 +441,16 @@ function OutletManualFormsWorkspace() {
           {!isOnline ? (
             <p className="mt-2 text-xs font-semibold text-amber-700">
               {t("forms.manual.offlineHint")}
+            </p>
+          ) : null}
+          {draftSavedAt ? (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-400">
+              <Check className="size-3.5 text-emerald-600" />
+              Draft tersimpan lokal pukul{" "}
+              {new Date(draftSavedAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
           ) : null}
         </div>
@@ -362,8 +480,16 @@ function OutletManualFormsWorkspace() {
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={(template) => {
           setSelectedTemplateId(template.id);
-          setResponses({});
-          setNotice(null);
+          const draft = getManualFormDraft(template.id);
+          setResponses(draft?.responses ?? {});
+          setDraftSavedAt(draft?.updatedAt ?? null);
+          setNotice(
+            draft
+              ? "Draft tersimpan ditemukan dan dimuat ulang."
+              : null
+          );
+          setSubmissionAttempted(false);
+          setMissingFieldIds([]);
           rememberRecentTemplate(template.id);
         }}
       />
@@ -378,7 +504,8 @@ function OutletManualFormsWorkspace() {
         <SectionedFormRenderer
           fields={selectedTemplate.fields}
           responses={responses}
-          onChange={setResponses}
+          onChange={handleResponsesChange}
+          highlightedFieldIds={missingFieldIds}
         />
       ) : null}
 
@@ -396,8 +523,12 @@ function OutletManualFormsWorkspace() {
       <Modal
         open={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
-        title="Submit berhasil"
-        description="Data outlet sudah masuk ke sistem dan report akan ikut diperbarui."
+        title={submittedNeedsApproval ? "Submit masuk antrian review" : "Submit berhasil"}
+        description={
+          submittedNeedsApproval
+            ? "Submission menunggu review owner/admin sebelum dianggap selesai."
+            : "Data outlet sudah masuk ke sistem dan report akan ikut diperbarui."
+        }
         size="sm"
         footer={
           <div className="flex justify-end">
@@ -420,8 +551,9 @@ function OutletManualFormsWorkspace() {
               {submittedTemplateName || "Form"} sudah berhasil disubmit.
             </p>
             <p className="text-sm leading-6 text-slate-500">
-              Hasil submit dari akun outlet akan muncul di halaman report setelah data selesai
-              dimuat ulang.
+              {submittedNeedsApproval
+                ? "Hasil submit dari akun outlet masuk antrian review Evidence / Report dan menunggu keputusan owner/admin."
+                : "Hasil submit dari akun outlet akan muncul di halaman report setelah data selesai dimuat ulang."}
             </p>
           </div>
         </div>
@@ -1239,14 +1371,34 @@ export function FormsWorkspace() {
                           </div>
 
                           {!isAreaWorkspace && !isSystemResponsibleField ? (
-                            <button
-                              type="button"
-                              onClick={() => deleteField(field.id)}
-                              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
-                              aria-label="Delete item"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => reorderField(index, index - 1)}
+                                disabled={index === 0}
+                                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"
+                                aria-label="Pindahkan item ke atas"
+                              >
+                                <ArrowUp className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => reorderField(index, index + 1)}
+                                disabled={index === selectedTemplate.fields.length - 1}
+                                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"
+                                aria-label="Pindahkan item ke bawah"
+                              >
+                                <ArrowDown className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteField(field.id)}
+                                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
+                                aria-label="Delete item"
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </div>
                           ) : null}
                         </div>
 
