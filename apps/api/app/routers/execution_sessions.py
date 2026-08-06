@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -17,6 +18,22 @@ from app.schemas.execution_session import (
 )
 
 router = APIRouter(prefix="/execution-sessions", tags=["Execution Sessions"])
+
+
+def _reject_overdue_task(db: Session, task_id: int | None) -> None:
+    if task_id is None:
+        return
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task is None or task.due_date is None:
+        return
+    due_date = task.due_date
+    if due_date.tzinfo is None:
+        due_date = due_date.replace(tzinfo=timezone.utc)
+    if due_date < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task sudah overdue dan tidak bisa dikerjakan.",
+        )
 
 
 def _is_admin(db: Session, current_user: User) -> bool:
@@ -54,6 +71,7 @@ def create_execution_session(
 ):
     values = payload.model_dump()
     values["submitted_by"] = current_user.id
+    _reject_overdue_task(db, payload.task_id)
     if payload.task_id is not None:
         resolve_task_outlet_access(db, current_user, None, task_id=payload.task_id)
     execution_session = ExecutionSession(**values)
@@ -114,6 +132,7 @@ def update_execution_session(
     updates = payload.model_dump(exclude_unset=True)
     updates.pop("submitted_by", None)
     if "task_id" in updates and updates["task_id"] is not None:
+        _reject_overdue_task(db, updates["task_id"])
         resolve_task_outlet_access(db, current_user, None, task_id=updates["task_id"])
     for key, value in updates.items():
         setattr(execution_session, key, value)

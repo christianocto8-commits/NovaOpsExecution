@@ -22,6 +22,7 @@ import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
 import { resolveAssigneeSelection } from "@/features/tasks/utils/assignee-options";
+import { isTaskExpiredOverdue } from "@/features/tasks/utils/task-inbox";
 import {
   taskService,
   hasValidTaskFormTemplate,
@@ -826,6 +827,11 @@ export function useTaskWorkspace() {
   function openExecution(task: Task) {
     const normalizedTask = normalizeTask(task);
 
+    if (isTaskExpiredOverdue(normalizedTask)) {
+      toast.error("Task sudah lewat due. Hanya admin yang bisa menjadwalkan ulang.");
+      return;
+    }
+
     setSelectedTask(normalizedTask);
     setExecutionForm(normalizedTask.executionDraft ?? emptyTaskExecutionForm);
     setIsExecutionOpen(true);
@@ -839,6 +845,11 @@ export function useTaskWorkspace() {
 
   async function saveExecutionDraft() {
     if (!selectedTask) return;
+
+    if (isTaskPastDue(selectedTask)) {
+      toast.error("Task sudah overdue dan tidak bisa disimpan sebagai draft.");
+      return;
+    }
 
     if (!isBackendTaskId(selectedTask.id)) {
       toast.error("Simpan draft hanya tersedia untuk task backend.");

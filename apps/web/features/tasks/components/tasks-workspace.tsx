@@ -39,7 +39,11 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
-import { isOpenTaskInInbox, isTaskCompleted } from "@/features/tasks/utils/task-inbox";
+import {
+  isOpenTaskInInbox,
+  isTaskCompleted,
+  isTaskExpiredOverdue,
+} from "@/features/tasks/utils/task-inbox";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
 import {
@@ -365,6 +369,8 @@ function MobileTaskRow({
     return dueDate ? dueDate < new Date() && progress < 100 : false;
   })();
 
+  const isLockedOverdue = isOverdue && isTaskExpiredOverdue(task);
+
   const status = (() => {
     if (isTaskCompleted(task)) return 'completed';
     if (task.executionDraft) return 'in_progress';
@@ -411,7 +417,7 @@ function MobileTaskRow({
           formTemplateName={task.formTemplateName}
           checklistCount={task.checklistFieldCount}
           checklistPreview={task.checklistPreview}
-          lockedReason={task.lockedReason}
+          lockedReason={isLockedOverdue ? "Task sudah lewat due. Hanya admin yang bisa menjadwalkan ulang." : task.lockedReason}
           isFollowUp={task.priority?.toLowerCase() === "high"}
         />
       </div>
@@ -994,6 +1000,11 @@ export function TasksWorkspace() {
       window.setTimeout(() => {
         setHighlightedTaskId(null);
       }, 2500);
+      return;
+    }
+
+    if (isOutletRole && isTaskExpiredOverdue(task)) {
+      toast.error("Task sudah lewat due. Hanya admin yang bisa menjadwalkan ulang.");
       return;
     }
 

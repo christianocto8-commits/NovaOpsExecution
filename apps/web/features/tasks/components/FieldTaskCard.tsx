@@ -89,7 +89,7 @@ export function FieldTaskCard({
           {dueTime}
         </span>
         {isOverdue ? <span className="font-semibold text-red-600">Overdue</span> : null}
-        {isUpcoming ? (
+        {isUpcoming || isOverdue ? (
           <span className="inline-flex items-center gap-1 text-slate-600">
             <Lock className="h-3 w-3" /> Locked
           </span>
