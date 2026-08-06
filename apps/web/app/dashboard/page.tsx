@@ -107,11 +107,42 @@ function MetricCard({
     red: "text-red-700",
   }[tone];
 
+  const hoverBorderClass = {
+    slate: "hover:border-slate-300",
+    emerald: "hover:border-emerald-300",
+    amber: "hover:border-amber-300",
+    blue: "hover:border-blue-300",
+    red: "hover:border-red-300",
+  }[tone];
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-2 text-3xl font-semibold ${valueClass}`}>{value}</p>
-      <p className="mt-3 text-xs text-slate-500">{description}</p>
+    <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-out cursor-pointer ${hoverBorderClass}`}>
+      <p className="text-sm text-slate-500 font-medium">{label}</p>
+      <p className={`mt-2 text-3xl font-bold tracking-tight ${valueClass}`}>{value}</p>
+      <p className="mt-3 text-xs text-slate-400">{description}</p>
+    </div>
+  );
+}
+
+function TaskSkeleton() {
+  return (
+    <div className="mt-5 space-y-4 animate-pulse">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex flex-col gap-3 py-4 border-b border-slate-100 last:border-b-0 md:grid md:grid-cols-[1fr_160px_120px] md:gap-3 md:space-y-0">
+          <div className="space-y-2">
+            <div className="h-4 w-2/3 rounded bg-slate-200" />
+            <div className="h-3 w-1/3 rounded bg-slate-100" />
+          </div>
+          <div className="flex gap-4 md:block space-y-1">
+            <div className="h-3 w-12 rounded bg-slate-100" />
+            <div className="h-4 w-16 rounded bg-slate-200" />
+          </div>
+          <div className="flex gap-4 md:block space-y-1">
+            <div className="h-3 w-12 rounded bg-slate-100" />
+            <div className="h-4 w-16 rounded bg-slate-200" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -250,9 +281,7 @@ export default function DashboardPage() {
           </div>
 
           {tasksQuery.isLoading ? (
-            <div className="mt-5 rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">
-              Loading task data...
-            </div>
+            <TaskSkeleton />
           ) : (
             <PriorityQueue tasks={priorityQueue} outletMode />
           )}
@@ -343,7 +372,7 @@ export default function DashboardPage() {
             <Link
               key={item.outlet}
               href="/dashboard/reports?tab=riwayat"
-              className="min-w-[140px] shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-300 hover:bg-white"
+              className="min-w-[140px] shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-400 hover:bg-white hover:-translate-y-1 hover:shadow-md duration-300 ease-out"
             >
               <p className="truncate text-sm font-bold text-slate-950">{item.outlet}</p>
               <p className="mt-2 text-2xl font-bold text-emerald-700">{item.progress}%</p>
@@ -395,9 +424,7 @@ export default function DashboardPage() {
         </div>
 
         {tasksQuery.isLoading ? (
-          <div className="mt-5 rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">
-            Loading task data...
-          </div>
+          <TaskSkeleton />
         ) : (
           <PriorityQueue tasks={priorityQueue} />
         )}
@@ -424,26 +451,35 @@ export default function DashboardPage() {
               No synced outlet task progress yet.
             </div>
           ) : (
-            outletProgress.map((item) => (
-              <article key={item.outlet} className="rounded-2xl border border-slate-200 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-950">{item.outlet}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.completed} completed / {item.total} total
-                    </p>
-                  </div>
-                  <p className="text-sm font-bold text-emerald-700">{item.progress}%</p>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-emerald-700"
-                    style={{ width: `${item.progress}%` }}
-                  />
-                </div>
-                <p className="mt-3 text-xs text-slate-500">{item.open} task still open.</p>
-              </article>
-            ))
+             outletProgress.map((item) => (
+               <article key={item.outlet} className="rounded-2xl border border-slate-200 p-5 bg-white transition hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 duration-300 ease-out cursor-pointer">
+                 <div className="flex items-start justify-between gap-3">
+                   <div>
+                     <p className="font-bold text-slate-950 text-base">{item.outlet}</p>
+                     <p className="mt-1 text-xs text-slate-400">
+                       {item.completed} completed / {item.total} total
+                     </p>
+                   </div>
+                   <div className="flex flex-col items-end gap-1">
+                     <span className="text-base font-bold text-emerald-700">{item.progress}%</span>
+                     {item.progress === 100 ? (
+                       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Completed</span>
+                     ) : (
+                       <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">In Progress</span>
+                     )}
+                   </div>
+                 </div>
+                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                   <div
+                     className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-700 transition-all duration-500 ease-out"
+                     style={{ width: `${item.progress}%` }}
+                   />
+                 </div>
+                 <p className="mt-3 text-xs text-slate-500 font-medium">
+                   {item.open > 0 ? `${item.open} task${item.open > 1 ? 's' : ''} still open.` : 'All tasks completed!'}
+                 </p>
+               </article>
+             ))
           )}
         </div>
       </section>

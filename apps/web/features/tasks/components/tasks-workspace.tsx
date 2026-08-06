@@ -272,7 +272,7 @@ function mapUpcomingSchedule(item: BackendUpcomingTaskSchedule): Task {
   return {
     id: item.id,
     title: item.shift ? `${item.title} (${item.shift})` : item.title,
-    outlet: `Outlet ${item.outlet_id}`,
+    outlet: item.outlet_ref || `Outlet ${item.outlet_id}`,
     outletId: String(item.outlet_id),
     status: "Pending",
     priority,
@@ -282,7 +282,7 @@ function mapUpcomingSchedule(item: BackendUpcomingTaskSchedule): Task {
     formTemplateId: item.form_template_id ? String(item.form_template_id) : undefined,
     recurrence: item.recurrence,
     shifts: item.shift ? [item.shift] : [],
-    targetOutlets: [`Outlet ${item.outlet_id}`],
+    targetOutlets: [item.outlet_ref || `Outlet ${item.outlet_id}`],
     targetOutletIds: [String(item.outlet_id)],
     autoPublish: true,
     dueTime: publishLabel,
@@ -729,7 +729,7 @@ export function TasksWorkspace() {
   const upcomingSchedulesQuery = useQuery({
     queryKey: ["task-schedules", "upcoming", workspace.mode, workspace.outletId],
     queryFn: () => taskScheduleService.listUpcoming(),
-    enabled: isOutletWorkspace || isAreaWorkspace,
+    enabled: isOutletWorkspace || isAreaWorkspace || isOwnerAdminWorkspace,
     retry: false,
   });
   const upcomingTasks = useMemo(
@@ -843,8 +843,8 @@ export function TasksWorkspace() {
   }, [isOutletWorkspace, tasks, workspace]);
 
   const workspaceTasks = useMemo(
-    () => (isOutletWorkspace || isAreaWorkspace ? [...upcomingTasks, ...outletScopedTasks] : outletScopedTasks),
-    [isAreaWorkspace, isOutletWorkspace, outletScopedTasks, upcomingTasks]
+    () => [...upcomingTasks, ...outletScopedTasks],
+    [outletScopedTasks, upcomingTasks]
   );
 
   const openTasks = useMemo(
