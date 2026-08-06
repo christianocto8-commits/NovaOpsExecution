@@ -40,6 +40,8 @@ export type BackendTask = {
   verified_at: string | null;
   approved_by: number | null;
   approved_at: string | null;
+  rejected_at?: string | null;
+  review_note?: string | null;
   schedule_id: number | null;
   shift: string | null;
   recurrence: "daily" | "weekly" | "monthly" | "once" | null;
@@ -147,6 +149,7 @@ function parseSourceFormTemplateId(task: BackendTask) {
 
 function deriveReviewStatus(task: BackendTask): TaskReviewStatus | undefined {
   if (task.approved_at) return "approved";
+  if (task.rejected_at) return "rejected";
   if (task.status === "completed") return "pending_review";
   return undefined;
 }
@@ -195,7 +198,8 @@ export function mapBackendTask(task: BackendTask): Task {
           formResponses: {},
           completedAt: task.completed_at ?? task.updated_at,
           reviewStatus,
-          reviewedAt: task.approved_at ?? undefined,
+          reviewedAt: task.rejected_at ?? task.approved_at ?? undefined,
+          reviewNote: task.review_note ?? undefined,
         }
       : undefined,
     recurrence,

@@ -121,6 +121,7 @@ class TaskScheduleExceptionResponse(BaseModel):
     outlet_id: int | None
     created_by: int | None
     created_at: datetime
+    cancelled_tasks: int | None = None
 
     model_config = {"from_attributes": True}
 

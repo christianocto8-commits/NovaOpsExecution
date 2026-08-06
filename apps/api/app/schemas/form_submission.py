@@ -38,6 +38,7 @@ class FormSubmissionCreate(BaseModel):
     status: str = "submitted"
     score: Optional[float] = None
     responsible_person_name: Optional[str] = None
+    client_ref: Optional[str] = None
     answers: list[FormAnswerCreate] = Field(default_factory=list)
 
 
@@ -61,4 +62,8 @@ class FormSubmissionResponse(BaseModel):
 
 class FormSubmissionReviewUpdate(BaseModel):
     review: Literal["approved", "rejected"]
+    note: Optional[str] = None
+
+
+class FormSubmissionReopenUpdate(BaseModel):
     note: Optional[str] = None

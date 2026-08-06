@@ -6,6 +6,7 @@ export const OFFLINE_STORES = {
   FORM_TEMPLATES: "form_templates",
   LOCAL_DRAFTS: "local_drafts",
   EVIDENCE_BLOBS: "evidence_blobs",
+  EVIDENCE_URLS: "evidence_urls",
   MUTATION_QUEUE: "mutation_queue",
 } as const;
 
@@ -39,6 +40,10 @@ function openDatabase(): Promise<IDBDatabase> {
 
         if (!db.objectStoreNames.contains(OFFLINE_STORES.EVIDENCE_BLOBS)) {
           db.createObjectStore(OFFLINE_STORES.EVIDENCE_BLOBS, { keyPath: "id" });
+        }
+
+        if (!db.objectStoreNames.contains(OFFLINE_STORES.EVIDENCE_URLS)) {
+          db.createObjectStore(OFFLINE_STORES.EVIDENCE_URLS, { keyPath: "id" });
         }
 
         if (!db.objectStoreNames.contains(OFFLINE_STORES.MUTATION_QUEUE)) {

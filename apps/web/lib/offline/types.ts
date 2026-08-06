@@ -20,6 +20,7 @@ export type QueuedMutation = {
   retryCount?: number;
   lastAttemptAt?: string;
   label?: string;
+  submissionKey?: string;
 };
 
 export type EvidenceBlobRecord = {

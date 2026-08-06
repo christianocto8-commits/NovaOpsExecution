@@ -82,6 +82,7 @@ export function SchedulesWorkspace() {
   const [runningNow, setRunningNow] = useState(false);
   const [closedDate, setClosedDate] = useState("");
   const [closedReason, setClosedReason] = useState("");
+  const [closedOutletId, setClosedOutletId] = useState<string>("");
   const [scheduleForm, setScheduleForm] = useState<TaskFormState>({
     ...emptyTaskForm,
     recurrence: "daily",
@@ -155,6 +156,7 @@ export function SchedulesWorkspace() {
       taskScheduleService.createException({
         date: closedDate,
         reason: closedReason.trim() || "Store closed",
+        outlet_id: closedOutletId ? Number(closedOutletId) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-schedule-exceptions"] });
@@ -505,6 +507,19 @@ export function SchedulesWorkspace() {
             placeholder="Reason, e.g. public holiday / store maintenance"
             className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
           />
+          <select
+            value={closedOutletId}
+            disabled={isReadOnly}
+            onChange={(event) => setClosedOutletId(event.target.value)}
+            className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
+          >
+            <option value="">Semua outlet</option>
+            {(outletsQuery.data ?? []).map((outlet) => (
+              <option key={outlet.id} value={String(outlet.id)}>
+                {outlet.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             disabled={isReadOnly || !closedDate}
@@ -514,6 +529,7 @@ export function SchedulesWorkspace() {
                 await createExceptionMutation.mutateAsync();
                 setClosedDate("");
                 setClosedReason("");
+                setClosedOutletId("");
                 toast.success("Exception schedule disimpan.");
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Gagal menyimpan exception.");

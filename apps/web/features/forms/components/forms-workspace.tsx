@@ -397,13 +397,23 @@ function OutletManualFormsWorkspace() {
         return;
       }
 
+      const mutationId = createLocalId();
+
+      const submissionKey = JSON.stringify({
+        t: payload.form_template_id,
+        o: payload.outlet_id,
+        a: payload.answers,
+      });
+
       await enqueueMutation({
-        id: createLocalId(),
+        id: mutationId,
         type: "FORM_SUBMIT",
         taskId: `form:${selectedTemplate.id}`,
         label: selectedTemplate.name,
+        submissionKey,
         payload: {
           ...payload,
+          client_ref: mutationId,
           latitude: submitLocation?.latitude ?? null,
           longitude: submitLocation?.longitude ?? null,
           accuracy_m: submitLocation?.accuracy_m ?? null,

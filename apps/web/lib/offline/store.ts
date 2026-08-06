@@ -109,6 +109,22 @@ export async function deleteEvidenceBlob(id: string) {
   await withStore(OFFLINE_STORES.EVIDENCE_BLOBS, "readwrite", (store) => store.delete(id));
 }
 
+export async function getEvidenceUrlCache(offlineId: string): Promise<string | null> {
+  const record = await withStore<{ id: string; url: string } | undefined>(
+    OFFLINE_STORES.EVIDENCE_URLS,
+    "readonly",
+    (store) => store.get(offlineId)
+  );
+
+  return record?.url ?? null;
+}
+
+export async function setEvidenceUrlCache(offlineId: string, url: string) {
+  await withStore(OFFLINE_STORES.EVIDENCE_URLS, "readwrite", (store) =>
+    store.put({ id: offlineId, url })
+  );
+}
+
 export async function getAllMutations(): Promise<QueuedMutation[]> {
   return getAllFromStore<QueuedMutation>(OFFLINE_STORES.MUTATION_QUEUE);
 }
@@ -162,6 +178,22 @@ export async function removePendingMutationsForTask(taskId: string, type?: Queue
 export async function enqueueMutation(mutation: QueuedMutation) {
   if (mutation.type === "EXECUTION_SUBMIT") {
     await removePendingMutationsForTask(mutation.taskId, "EXECUTION_SUBMIT");
+  }
+
+  if (mutation.type === "EXECUTION_DRAFT") {
+    await removePendingMutationsForTask(mutation.taskId, "EXECUTION_DRAFT");
+  }
+
+  if (mutation.type === "FORM_SUBMIT" && mutation.submissionKey) {
+    const pending = await getPendingMutations();
+    const duplicates = pending.filter(
+      (item) =>
+        item.type === "FORM_SUBMIT" &&
+        item.submissionKey === mutation.submissionKey &&
+        item.id !== mutation.id
+    );
+
+    await Promise.all(duplicates.map((item) => deleteMutation(item.id)));
   }
 
   await withStore(OFFLINE_STORES.MUTATION_QUEUE, "readwrite", (store) => store.put(mutation));

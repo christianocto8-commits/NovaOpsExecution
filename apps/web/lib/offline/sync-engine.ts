@@ -98,14 +98,22 @@ async function uploadEvidenceBlob(blob: Blob, fileName: string): Promise<Evidenc
 }
 
 async function resolveOfflineEvidenceUrl(offlineUrl: string): Promise<string> {
-  const { getEvidenceBlob } = await import("@/lib/offline/store");
-  const record = await getEvidenceBlob(getOfflineEvidenceId(offlineUrl));
+  const { getEvidenceBlob, getEvidenceUrlCache, setEvidenceUrlCache } = await import(
+    "@/lib/offline/store"
+  );
+
+  const offlineId = getOfflineEvidenceId(offlineUrl);
+  const cached = await getEvidenceUrlCache(offlineId);
+  if (cached) return cached;
+
+  const record = await getEvidenceBlob(offlineId);
 
   if (!record) {
     throw new Error("Bukti offline tidak ditemukan.");
   }
 
   const uploaded = await uploadEvidenceBlob(record.blob, record.fileName);
+  await setEvidenceUrlCache(offlineId, uploaded.url);
 
   return uploaded.url;
 }
@@ -222,7 +230,9 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
   );
 
   const existingSessionId =
-    typeof payload.existingSessionId === "number" ? payload.existingSessionId : null;
+    typeof payload.existingSessionId === "number"
+      ? payload.existingSessionId
+      : await findExistingDraftSessionId(mutation.taskId);
 
   if (existingSessionId) {
     await deleteExecutionSession(existingSessionId);
@@ -275,6 +285,7 @@ async function processFormSubmit(mutation: QueuedMutation) {
       typeof payload.responsible_person_name === "string"
         ? payload.responsible_person_name
         : null,
+    client_ref: mutation.id,
     answers,
   });
   await deleteResolvedOfflineEvidence(payload);

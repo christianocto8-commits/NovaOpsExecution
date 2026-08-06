@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from calendar import day_name
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
+from app.models.task_comment import TaskComment
 from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
 from app.models.task_schedule_exception import TaskScheduleException
@@ -159,6 +160,9 @@ class TaskSchedulePublisher:
 
         if schedule.recurrence == "once":
             for outlet_ref in outlet_ids:
+                if self._is_exception_day(outlet_ref, current):
+                    skipped_by_exception += 1
+                    continue
                 if self._task_exists(schedule, outlet_ref, None, current, force=force):
                     skipped += 1
                     continue
@@ -264,7 +268,12 @@ class TaskSchedulePublisher:
                 func.extract("month", Task.created_at) == current.month,
             )
         else:
-            query = query.filter(func.date(Task.created_at) == current.date())
+            tz = self._workspace_timezone()
+            local_date = current.astimezone(tz)
+            local_midnight = datetime.combine(local_date.date(), time.min, tzinfo=tz)
+            start_utc = local_midnight.astimezone(timezone.utc)
+            end_utc = (local_midnight + timedelta(days=1)).astimezone(timezone.utc)
+            query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
 
         return query.first() is not None
 

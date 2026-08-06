@@ -46,6 +46,8 @@ EVENT_PREF_KEYS = {
     "task_overdue": "task_overdue_enabled",
     "task_due_soon": "task_upcoming_enabled",
     "task_completed": "task_completed_enabled",
+    "task_review_approved": "task_completed_enabled",
+    "task_review_rejected": "task_completed_enabled",
     "checklist_failed": "checklist_failed_enabled",
 }
 
@@ -221,6 +223,74 @@ def notify_task_recipient(
         db,
         identity_user_id=identity_user_id,
         body=f"{subject}. {body}",
+    )
+
+
+def notify_task_reviewed(
+    db: Session,
+    *,
+    task: Task,
+    approved: bool,
+    note: str | None = None,
+) -> None:
+    legacy_user_id = task.assigned_to
+    identity_user_id = resolve_identity_user_id(db, legacy_user_id)
+
+    if not identity_user_id:
+        return
+
+    event_type = "task_review_approved" if approved else "task_review_rejected"
+    if not _event_allowed(db, identity_user_id, event_type):
+        return
+
+    identity_outlet = _resolve_identity_outlet(db, task.outlet_id)
+    outlet_label = identity_outlet.name if identity_outlet else f"Outlet {task.outlet_id}"
+
+    if approved:
+        subject = f"Task disetujui: {task.title}"
+        body = f'Task "{task.title}" di {outlet_label} telah disetujui.'
+    else:
+        subject = f"Task perlu diperbaiki: {task.title}"
+        body = (
+            f'Task "{task.title}" di {outlet_label} ditolak review.'
+            + (f" Alasan: {note}" if note else " Silakan perbaiki dan submit ulang.")
+        )
+
+    payload = {
+        "task_id": task.id,
+        "task_title": task.title,
+        "outlet_id": task.outlet_id,
+        "event_type": event_type,
+    }
+
+    NotificationService(db).create_event(
+        NotificationEventCreate(
+            event_type=event_type,
+            source_module="tasks",
+            source_entity_type="task",
+            source_entity_id=str(task.id),
+            recipient_user_id=identity_user_id,
+            channel=NotificationChannel.in_app,
+            subject=subject,
+            body=body,
+            payload_json=payload,
+        )
+    )
+
+    if _channel_allowed(db, identity_user_id, "push"):
+        PushNotificationService(db).send_to_user(
+            identity_user_id,
+            title=subject,
+            body=body,
+            url=f"/dashboard/tasks?taskId={task.id}",
+            data=payload,
+        )
+
+    _send_email_if_enabled(
+        db,
+        identity_user_id=identity_user_id,
+        subject=subject,
+        body=body,
     )
 
 

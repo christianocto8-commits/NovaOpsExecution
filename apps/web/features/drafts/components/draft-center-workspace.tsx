@@ -16,12 +16,14 @@ import {
 } from "@/services/execution-session.service";
 import { taskService } from "@/services/task.service";
 import { useAuth } from "@/hooks/useAuth";
+import { getAllLocalDrafts, deleteLocalDraft } from "@/lib/offline/store";
+import type { LocalDraft } from "@/lib/offline/types";
 
 type DraftCenterMode = "operational" | "content";
 
 type OperationalDraft = {
   id: string;
-  sessionId: number;
+  sessionId: number | null;
   taskId: string;
   title: string;
   outlet: string;
@@ -29,6 +31,7 @@ type OperationalDraft = {
   formName: string;
   progress: string;
   updatedAt: string;
+  isLocal: boolean;
 };
 
 type ContentDraft = {
@@ -85,8 +88,39 @@ function buildOperationalDrafts(
         formName: formNameById.get(formTemplateId) ?? (formTemplateId || "No Form"),
         progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
         updatedAt: formatUpdatedAt(session.submitted_at),
+        isLocal: false,
       };
     });
+}
+
+function buildLocalOperationalDrafts(
+  drafts: LocalDraft[],
+  taskTitleById: Map<string, string>,
+  taskOutletById: Map<string, string>,
+  taskFormTemplateById: Map<string, string>,
+  formNameById: Map<string, string>,
+  formFieldCountById: Map<string, number>
+): OperationalDraft[] {
+  return drafts.map((draft) => {
+    const formTemplateId = taskFormTemplateById.get(draft.taskId) ?? "";
+    const totalFields = formFieldCountById.get(formTemplateId) ?? 0;
+    const answeredCount = Object.values(draft.answersJson ?? {}).filter(
+      (value) => typeof value === "string" && value.trim()
+    ).length;
+
+    return {
+      id: `LOCAL-DRAFT-${draft.taskId}`,
+      sessionId: null,
+      taskId: draft.taskId,
+      title: taskTitleById.get(draft.taskId) ?? `Task ${draft.taskId}`,
+      outlet: taskOutletById.get(draft.taskId) ?? "Outlet",
+      operatorName: "Outlet Operator",
+      formName: formNameById.get(formTemplateId) ?? (formTemplateId || "No Form"),
+      progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
+      updatedAt: formatUpdatedAt(draft.updatedAt),
+      isLocal: true,
+    };
+  });
 }
 
 function OperationalDraftCard({
@@ -218,6 +252,12 @@ export function DraftCenterWorkspace() {
     retry: false,
   });
 
+  const localDraftsQuery = useQuery({
+    queryKey: ["local-drafts"],
+    queryFn: getAllLocalDrafts,
+    staleTime: 0,
+  });
+
   const deleteDraftMutation = useMutation({
     mutationFn: deleteExecutionSession,
     onSuccess: () => {
@@ -238,19 +278,42 @@ export function DraftCenterWorkspace() {
     const templates = templatesQuery.data ?? [];
     const taskTitleById = new Map(tasks.map((task) => [task.id, task.title]));
     const taskOutletById = new Map(tasks.map((task) => [task.id, task.outlet]));
+    const taskFormTemplateById = new Map(
+      tasks
+        .map((task) => [task.id, task.formTemplateId ?? ""] as const)
+        .filter((entry) => entry[1])
+    );
     const formNameById = new Map(templates.map((template) => [template.id, template.name]));
     const formFieldCountById = new Map(
       templates.map((template) => [template.id, template.fields.length])
     );
 
-    return buildOperationalDrafts(
+    const serverDrafts = buildOperationalDrafts(
       executionDraftsQuery.data ?? [],
       taskTitleById,
       taskOutletById,
       formNameById,
       formFieldCountById
     );
-  }, [executionDraftsQuery.data, tasksQuery.data, templatesQuery.data]);
+    const localDrafts = buildLocalOperationalDrafts(
+      localDraftsQuery.data ?? [],
+      taskTitleById,
+      taskOutletById,
+      taskFormTemplateById,
+      formNameById,
+      formFieldCountById
+    );
+    const combined = [...serverDrafts, ...localDrafts];
+
+    // When the backend task list is available, drop drafts whose task no longer
+    // exists (deleted/cancelled) so the "Lanjutkan" link never points nowhere.
+    if (tasksQuery.isSuccess) {
+      const liveTaskIds = new Set(tasks.map((task) => task.id));
+      return combined.filter((draft) => liveTaskIds.has(draft.taskId));
+    }
+
+    return combined;
+  }, [executionDraftsQuery.data, localDraftsQuery.data, tasksQuery.data, templatesQuery.data]);
 
   const contentDrafts = useMemo<ContentDraft[]>(() => {
     return (templatesQuery.data ?? [])
@@ -304,7 +367,12 @@ export function DraftCenterWorkspace() {
     if (!confirmed) return;
 
     try {
-      await deleteDraftMutation.mutateAsync(draft.sessionId);
+      if (draft.isLocal) {
+        await deleteLocalDraft(draft.taskId);
+        queryClient.invalidateQueries({ queryKey: ["local-drafts"] });
+      } else {
+        await deleteDraftMutation.mutateAsync(draft.sessionId as number);
+      }
       toast.success("Draft eksekusi dihapus.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gagal menghapus draft.";

@@ -27,6 +27,7 @@ export type FormSubmissionCreatePayload = {
   status?: string;
   score?: number | null;
   responsible_person_name?: string | null;
+  client_ref?: string | null;
   answers: FormSubmissionAnswerPayload[];
 };
 
@@ -160,6 +161,13 @@ export const formSubmissionService = {
     return api<FormSubmissionResponse>(`/api/v1/form-submissions/${submissionId}/review`, {
       method: "PATCH",
       body: JSON.stringify({ review, note: note ?? null }),
+    });
+  },
+
+  async reopen(submissionId: number, note?: string) {
+    return api<FormSubmissionResponse>(`/api/v1/form-submissions/${submissionId}/reopen`, {
+      method: "POST",
+      body: JSON.stringify({ note: note ?? null }),
     });
   },
 

@@ -274,6 +274,14 @@ export function EvidenceReviewHub({
     },
   });
 
+  const reopenMutation = useMutation({
+    mutationFn: (submissionId: number) => formSubmissionService.reopen(submissionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form-submissions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() });
+    },
+  });
+
   const scopedTasks = useMemo(
     () => filterTasksForWorkspace(tasks, workspace).filter(isTaskWorkedOn),
     [tasks, workspace]
@@ -358,7 +366,13 @@ export function EvidenceReviewHub({
     reviewMutation.mutate({ taskId: item.taskId, review });
   }
 
-  const isReviewing = reviewMutation.isPending || submissionReviewMutation.isPending;
+  const isReviewing = reviewMutation.isPending || submissionReviewMutation.isPending || reopenMutation.isPending;
+
+  function reopenSubmission(item: ReviewEvidenceItem) {
+    if (item.entityType === "submission" && item.submissionId != null) {
+      reopenMutation.mutate(item.submissionId);
+    }
+  }
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -561,6 +575,17 @@ export function EvidenceReviewHub({
                 >
                   <XCircle className="size-4" />
                   {t("evidence.reject")}
+                </button>
+              </div>
+            ) : activeItem.reviewStatus === "rejected" && activeItem.entityType === "submission" ? (
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 px-4 py-4">
+                <button
+                  type="button"
+                  onClick={() => reopenSubmission(activeItem)}
+                  disabled={isReviewing}
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  Reopen submission
                 </button>
               </div>
             ) : null}

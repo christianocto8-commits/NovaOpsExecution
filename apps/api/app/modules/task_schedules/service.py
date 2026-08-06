@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, time, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.task import Task
+from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
 from app.models.task_schedule_exception import TaskScheduleException
 from app.modules.task_schedules.publisher import TaskSchedulePublisher
@@ -131,9 +133,58 @@ class TaskScheduleService:
             created_by=actor_id,
         )
         self.db.add(exception)
+        self.db.flush()
+
+        cancelled = self._cancel_published_tasks_for_exception(payload, actor_id)
+
         self.db.commit()
         self.db.refresh(exception)
+        setattr(exception, "cancelled_tasks", cancelled)
         return exception
+
+    def _cancel_published_tasks_for_exception(
+        self,
+        payload: TaskScheduleExceptionCreate,
+        actor_id: int,
+    ) -> int:
+        """Re-actively cancel open tasks already published for the exception date/outlet
+        so they leave inboxes instead of silently queuing work on a closed day."""
+        tz = self.publisher._workspace_timezone()
+        local_midnight = datetime.combine(payload.date, time.min, tzinfo=tz)
+        start_utc = local_midnight.astimezone(timezone.utc)
+        end_utc = (local_midnight + timedelta(days=1)).astimezone(timezone.utc)
+
+        outlet_id = None
+        if payload.outlet_id is not None:
+            try:
+                outlet_id = resolve_legacy_outlet_id(self.db, str(payload.outlet_id))
+            except ValueError:
+                return 0
+
+        query = self.db.query(Task).filter(
+            Task.schedule_id.isnot(None),
+            Task.status == "open",
+            Task.created_at >= start_utc,
+            Task.created_at < end_utc,
+        )
+        if outlet_id is not None:
+            query = query.filter(Task.outlet_id == outlet_id)
+
+        tasks = query.all()
+        cancelled = 0
+        for task in tasks:
+            task.status = "cancelled"
+            self.db.add(
+                TaskComment(
+                    task_id=task.id,
+                    user_id=actor_id,
+                    comment=f"Auto-cancelled by schedule exception: {payload.reason.strip()}",
+                    event_type="cancelled",
+                    new_value="cancelled",
+                )
+            )
+            cancelled += 1
+        return cancelled
 
     def delete_exception(self, exception_id: int) -> None:
         exception = (

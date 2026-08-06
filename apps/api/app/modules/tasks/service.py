@@ -15,6 +15,7 @@ from app.modules.notifications.task_notifications import (
     notify_checklist_failure_supervisors,
     notify_task_incoming_recipients,
     notify_task_completed_supervisors,
+    notify_task_reviewed,
     notify_task_recipient,
     resolve_identity_user_id,
 )
@@ -529,6 +530,9 @@ class TaskService:
             task.status = "completed"
             task.completed_at = datetime.now(timezone.utc)
 
+        task.rejected_at = None
+        task.review_note = None
+
         self.repo.create_comment(
             TaskComment(
                 task_id=task.id,
@@ -749,12 +753,16 @@ class TaskService:
             task.status = "completed"
             task.approved_by = actor_id
             task.approved_at = datetime.now(timezone.utc)
+            task.rejected_at = None
+            task.review_note = None
             if task.completed_at is None:
                 task.completed_at = task.approved_at
         else:
             task.status = "in_progress"
             task.approved_by = None
             task.approved_at = None
+            task.rejected_at = datetime.now(timezone.utc)
+            task.review_note = payload.note
 
         self.repo.create_comment(
             TaskComment(
@@ -769,6 +777,17 @@ class TaskService:
 
         self.db.commit()
         self.db.refresh(task)
+
+        try:
+            notify_task_reviewed(
+                self.db,
+                task=task,
+                approved=approved,
+                note=payload.note,
+            )
+        except Exception:
+            pass
+
         return task
 
     def _is_task_overdue(self, task: Task, *, now: datetime | None = None) -> bool:

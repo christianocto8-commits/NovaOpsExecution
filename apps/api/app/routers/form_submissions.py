@@ -14,7 +14,13 @@ from app.models.outlet import Outlet
 from app.models.user import User
 from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.models import Role, User as IdentityUser
-from app.modules.identity.permissions import ADMIN_ROLE, OWNER_ROLE
+from app.modules.identity.permissions import (
+    ADMIN_ROLE,
+    AREA_MANAGER_ROLE,
+    DISTRICT_MANAGER_ROLE,
+    OWNER_ROLE,
+    REGIONAL_MANAGER_ROLE,
+)
 from app.modules.finance_handoff.api import (
     create_finance_deposit_from_form_submission,
     notify_finance_deposit_submitted,
@@ -23,7 +29,12 @@ from app.modules.notifications.models import NotificationChannel
 from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.modules.tasks.identity_bridge import get_identity_user_by_email, sync_identity_access
-from app.schemas.form_submission import FormSubmissionCreate, FormSubmissionResponse, FormSubmissionReviewUpdate
+from app.schemas.form_submission import (
+    FormSubmissionCreate,
+    FormSubmissionReopenUpdate,
+    FormSubmissionResponse,
+    FormSubmissionReviewUpdate,
+)
 from app.services.checklist_scoring import score_checklist
 from app.services.field_visibility import validate_conditional_required_fields
 from app.services.webhook_dispatcher import dispatch_webhook_event
@@ -102,6 +113,27 @@ def ensure_form_submission_outlet_access(
         )
 
 
+REVIEW_MANAGER_ROLES = {
+    REGIONAL_MANAGER_ROLE,
+    DISTRICT_MANAGER_ROLE,
+    AREA_MANAGER_ROLE,
+}
+
+
+def can_review_form_submissions(db: Session, current_user: User, outlet_id: int) -> bool:
+    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
+
+    if full_access:
+        return True
+
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    role_slug = identity_user.role.slug if identity_user and identity_user.role else ""
+    if role_slug in REVIEW_MANAGER_ROLES and outlet_id in (outlet_ids or []):
+        return True
+
+    return False
+
+
 def notify_owner_admin_form_submitted(
     db: Session,
     *,
@@ -170,6 +202,21 @@ def create_form_submission(
     current_user: User = Depends(get_current_user),
 ):
     ensure_form_submission_outlet_access(db, current_user, payload.outlet_id)
+
+    if payload.client_ref:
+        existing = (
+            db.query(FormSubmission)
+            .filter(FormSubmission.client_ref == payload.client_ref)
+            .first()
+        )
+        if existing:
+            existing_with_answers = (
+                db.query(FormSubmission)
+                .options(joinedload(FormSubmission.answers))
+                .filter(FormSubmission.id == existing.id)
+                .first()
+            )
+            return existing_with_answers
 
     responses = {
         str(answer.form_field_id): (
@@ -372,11 +419,10 @@ def review_form_submission(
     if submission is None:
         raise HTTPException(status_code=404, detail="Form submission not found")
 
-    outlet_ids, full_access = resolve_form_submission_scope(db, current_user)
-    if not full_access:
+    if not can_review_form_submissions(db, current_user, submission.outlet_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only owner/admin can review form submissions",
+            detail="Only owner/admin or the managing area/district/regional manager can review form submissions",
         )
 
     submission.status = payload.review
@@ -417,6 +463,79 @@ def review_form_submission(
                 "status": submission.status,
                 "review_note": payload.note,
                 "reviewed_by": current_user.id,
+            },
+        )
+    except Exception:
+        pass
+
+    db.commit()
+    db.refresh(submission)
+    return build_form_submission_response(db, submission)
+
+
+@router.post("/{submission_id}/reopen", response_model=FormSubmissionResponse)
+def reopen_form_submission(
+    submission_id: int,
+    payload: FormSubmissionReopenUpdate | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = (
+        db.query(FormSubmission)
+        .options(joinedload(FormSubmission.answers))
+        .filter(FormSubmission.id == submission_id)
+        .first()
+    )
+
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Form submission not found")
+
+    if submission.status not in {"rejected", "approved"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only rejected or approved submissions can be reopened",
+        )
+
+    ensure_form_submission_outlet_access(db, current_user, submission.outlet_id)
+
+    previous_status = submission.status
+    submission.status = "submitted"
+    submission.reviewed_by = None
+    submission.reviewed_at = None
+    db.add(submission)
+    db.flush()
+
+    try:
+        record_identity_audit_event(
+            db,
+            action="form_submission_reopened",
+            resource_type="form_submission",
+            actor_user_id=None,
+            resource_id=str(submission.id),
+            metadata={
+                "submission_id": submission.id,
+                "outlet_id": submission.outlet_id,
+                "form_template_id": submission.form_template_id,
+                "previous_status": previous_status,
+                "note": payload.note if payload else None,
+                "reopened_by_legacy_user_id": current_user.id,
+            },
+        )
+    except Exception:
+        pass
+
+    try:
+        dispatch_webhook_event(
+            db,
+            event_type="form.reopened",
+            outlet_id=submission.outlet_id,
+            payload={
+                "submission_id": submission.id,
+                "form_template_id": submission.form_template_id,
+                "outlet_id": submission.outlet_id,
+                "status": submission.status,
+                "review_note": payload.note if payload else None,
+                "reopened_by": current_user.id,
             },
         )
     except Exception:

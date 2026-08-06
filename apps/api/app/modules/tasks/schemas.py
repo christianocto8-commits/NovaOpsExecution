@@ -157,6 +157,9 @@ class TaskResponse(BaseModel):
     approved_by: int | None
     approved_at: datetime | None
 
+    rejected_at: datetime | None = None
+    review_note: str | None = None
+
     capa_root_cause: str | None = None
     capa_before_evidence_url: str | None = None
     capa_after_evidence_url: str | None = None

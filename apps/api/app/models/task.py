@@ -32,6 +32,9 @@ class Task(Base):
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    review_note = Column(Text, nullable=True)
+
     capa_root_cause = Column(Text, nullable=True)
     capa_before_evidence_url = Column(String(500), nullable=True)
     capa_after_evidence_url = Column(String(500), nullable=True)

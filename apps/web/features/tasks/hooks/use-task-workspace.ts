@@ -214,6 +214,9 @@ function parseEvidenceGallery(value: string): EvidenceItem[] {
 }
 
 function isPhotoUrl(url: string) {
+  if (url.startsWith("offline://")) {
+    return true;
+  }
   return /uploads\/evidence|evidence-uploads|\.(jpg|jpeg|png|webp|heic)/i.test(url);
 }
 
@@ -240,12 +243,40 @@ function hasAnyFormResponse(formResponses: TaskExecutionForm["formResponses"]) {
   return Object.values(formResponses).some((value) => String(value ?? "").trim().length > 0);
 }
 
+function hasSignatureEvidence(
+  evidenceText: string,
+  formResponses: TaskExecutionForm["formResponses"],
+  templateFields?: FormField[]
+) {
+  const signatureFieldIds = new Set(
+    (templateFields ?? []).filter((field) => field.type === "signature").map((field) => field.id)
+  );
+
+  const hasFilledSignatureField = Object.entries(formResponses).some(([fieldId, value]) => {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) return false;
+
+    if (signatureFieldIds.size > 0) {
+      return signatureFieldIds.has(fieldId);
+    }
+
+    return /signature|data:image/i.test(trimmed) || trimmed.startsWith("offline://");
+  });
+
+  if (hasFilledSignatureField) return true;
+
+  const galleryItems = parseEvidenceGallery(evidenceText);
+  return galleryItems.some((item) => /signature|data:image/i.test(item.url));
+}
+
 function validateExecutionSubmit(
   form: TaskExecutionForm,
   settings?: {
     photo_required_by_default?: boolean;
     evidence_required?: boolean;
-  } | null
+    signature_required_by_default?: boolean;
+  } | null,
+  templateFields?: FormField[]
 ) {
   if (
     settings?.photo_required_by_default &&
@@ -262,6 +293,13 @@ function validateExecutionSubmit(
     if (!hasEvidence) {
       return "Evidence atau catatan wajib diisi.";
     }
+  }
+
+  if (
+    settings?.signature_required_by_default &&
+    !hasSignatureEvidence(form.evidenceText, form.formResponses, templateFields)
+  ) {
+    return "Tanda tangan wajib diisi.";
   }
 
   return null;
@@ -955,7 +993,7 @@ export function useTaskWorkspace() {
       return;
     }
 
-    const validationError = validateExecutionSubmit(executionForm, settings);
+    const validationError = validateExecutionSubmit(executionForm, settings, templateFields);
     if (validationError) {
       toast.error(validationError);
       return;
