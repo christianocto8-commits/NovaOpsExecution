@@ -18,6 +18,7 @@ import { getReportSummary } from "@/features/reports/reports-api";
 import {
   countWorkedTasksForOutlet,
   exportOutletWorkReportPdf,
+  exportSingleTaskWorkReportPdf,
   filterWorkedTasksForOutlet,
   isTaskWorkedOn,
 } from "@/features/reports/utils/task-work-report-pdf";
@@ -172,6 +173,7 @@ export function ReportsWorkspace() {
   const [historySelection, setHistorySelection] = useState<HistoryDetailSelection | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingBundle, setIsExportingBundle] = useState(false);
+  const [exportingTaskId, setExportingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(resolveManagerTab(searchParams.get("tab")));
@@ -374,6 +376,24 @@ export function ReportsWorkspace() {
     }
 
     openTrackingDetail(row.id);
+  }
+
+  async function handleTaskPdfExport(row: ReportRow) {
+    if (row.kind === "form") return;
+
+    const task = taskById.get(row.id);
+    if (!task || !isTaskWorkedOn(task)) return;
+
+    setExportingTaskId(row.id);
+
+    try {
+      await exportSingleTaskWorkReportPdf(task, formTemplates);
+      toast.success("Laporan PDF berhasil diunduh.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat laporan PDF.");
+    } finally {
+      setExportingTaskId(null);
+    }
   }
 
   async function handleOutletWorkExport(outlet: string) {
@@ -646,43 +666,64 @@ export function ReportsWorkspace() {
             </div>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {reportRows.map((row) => (
-                <li key={row.id}>
-                  <button
-                    type="button"
-                    onClick={() => openReportRow(row)}
-                    className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50"
-                  >
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span
-                        className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${
-                          row.kind === "form"
-                            ? "bg-blue-50 text-blue-700"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}
+              {reportRows.map((row) => {
+                const rowTask =
+                  row.kind === "task" ? taskById.get(row.id) : undefined;
+                const canExportPdf = Boolean(rowTask && isTaskWorkedOn(rowTask));
+
+                return (
+                  <li key={row.id}>
+                    <div className="flex min-h-[64px] items-center gap-2 px-4 py-3.5">
+                      <button
+                        type="button"
+                        onClick={() => openReportRow(row)}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:bg-slate-50"
                       >
-                        {row.kind === "form" ? (
-                          <FileText className="size-4" />
-                        ) : (
-                          <CheckCircle2 className="size-4" />
-                        )}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-950">{row.task}</p>
-                        <p className="mt-0.5 truncate text-xs text-slate-500">
-                          {row.outlet}
-                          {row.kind === "form" ? " · My Form" : ""}
-                          {" · "}
-                          {row.submittedAt}
-                        </p>
-                      </div>
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                              row.kind === "form"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {row.kind === "form" ? (
+                              <FileText className="size-4" />
+                            ) : (
+                              <CheckCircle2 className="size-4" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-950">{row.task}</p>
+                            <p className="mt-0.5 truncate text-xs text-slate-500">
+                              {row.outlet}
+                              {row.kind === "form" ? " · My Form" : ""}
+                              {" · "}
+                              {row.submittedAt}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                          Selesai
+                        </span>
+                      </button>
+
+                      {canExportPdf ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleTaskPdfExport(row)}
+                          disabled={exportingTaskId === row.id}
+                          title="Download PDF per task"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <Download className="size-4" />
+                          {exportingTaskId === row.id ? "Menyiapkan..." : "Export PDF"}
+                        </button>
+                      ) : null}
                     </div>
-                    <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
-                      Selesai
-                    </span>
-                  </button>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
