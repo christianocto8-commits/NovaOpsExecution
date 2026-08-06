@@ -613,6 +613,7 @@ export function TasksWorkspace() {
   );
   const [bulkActive, setBulkActive] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
+  const [taskViewTab, setTaskViewTab] = useState<"active" | "upcoming">("active");
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -847,9 +848,26 @@ export function TasksWorkspace() {
     [outletScopedTasks, upcomingTasks]
   );
 
-  const openTasks = useMemo(
+  const allWorkspaceOpenTasks = useMemo(
     () => workspaceTasks.filter((task) => task.isUpcoming || isOpenTaskInInbox(task)),
     [workspaceTasks]
+  );
+
+  const activeCount = useMemo(
+    () => allWorkspaceOpenTasks.filter((t) => !t.isUpcoming).length,
+    [allWorkspaceOpenTasks]
+  );
+
+  const upcomingCount = useMemo(
+    () => allWorkspaceOpenTasks.filter((t) => t.isUpcoming).length,
+    [allWorkspaceOpenTasks]
+  );
+
+  const openTasks = useMemo(
+    () => allWorkspaceOpenTasks.filter((task) => 
+      taskViewTab === "active" ? !task.isUpcoming : task.isUpcoming
+    ),
+    [allWorkspaceOpenTasks, taskViewTab]
   );
 
   const visibleTasks = useMemo(() => {
@@ -1159,6 +1177,31 @@ export function TasksWorkspace() {
         </div>
       </div>
       ) : null}
+
+      <div className="flex border border-slate-200 bg-white rounded-2xl p-1 gap-1 shadow-sm max-w-md w-full">
+        <button
+          type="button"
+          onClick={() => setTaskViewTab("active")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
+            taskViewTab === "active"
+              ? "bg-[#274733] text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {isOutletRole ? "Task Aktif" : "Semua Task Aktif"} ({activeCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTaskViewTab("upcoming")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
+            taskViewTab === "upcoming"
+              ? "bg-[#274733] text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Jadwal Mendatang ({upcomingCount})
+        </button>
+      </div>
 
        <section className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
          {!isOutletWorkspace ? (

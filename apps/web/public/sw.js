@@ -1,7 +1,7 @@
-// NovaOps Service Worker — v4 (Fase 2: Background Sync + Offline Queue)
+// NovaOps Service Worker — v5 (Fase 2: Background Sync + Offline Queue)
 
-const SHELL_CACHE = "novaops-shell-v5";
-const STATIC_CACHE = "novaops-static-v5";
+const SHELL_CACHE = "novaops-shell-v6";
+const STATIC_CACHE = "novaops-static-v6";
 const SYNC_TAG = "novaops-background-sync";
 const DB_NAME = "novaops-offline-db";
 const STORE_QUEUE = "sync-queue";
