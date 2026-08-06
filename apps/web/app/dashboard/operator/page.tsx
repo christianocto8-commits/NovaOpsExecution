@@ -21,6 +21,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { TaskSkeleton } from "@/shared/skeleton/skeleton";
 
 function isDueToday(task: Task) {
   if (!task.due) return false;
@@ -193,7 +194,7 @@ export default function OperatorHomePage() {
         </div>
 
         {tasksQuery.isLoading ? (
-          <p className="text-sm text-slate-500">{t("operator.loadingTasks")}</p>
+          <TaskSkeleton />
         ) : queue.length === 0 ? (
           <p className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">
             {t("operator.emptyQueue")}
