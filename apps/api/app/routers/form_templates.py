@@ -400,8 +400,6 @@ def delete_form_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(_resolve_form_actor),
 ):
-    del current_user
-
     exists = (
         db.query(FormTemplate.id)
         .filter(FormTemplate.id == form_template_id)
