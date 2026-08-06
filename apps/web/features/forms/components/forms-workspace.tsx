@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,13 +11,12 @@ import {
   Eye,
   GripVertical,
   History,
-  PanelRightOpen,
   Plus,
   Save,
   Search,
   Settings2,
   Trash2,
-  X,
+  MoreVertical,
 } from "lucide-react";
 
 import {
@@ -55,6 +54,8 @@ import { queryKeys } from "@/lib/query/keys";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { useLanguage } from "@/shared/i18n";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
+import { usePopup } from "@/shared/popup";
+import { useClickOutside, useEscapeKey } from "@/shared/hooks";
 
 import {
   buildFormSubmissionCreatePayload,
@@ -585,7 +586,6 @@ export function FormsWorkspace() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [advancedEditorOpen, setAdvancedEditorOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewResponses, setPreviewResponses] = useState<TaskFormResponses>({});
@@ -595,6 +595,14 @@ export function FormsWorkspace() {
   const [versionsError, setVersionsError] = useState<string | null>(null);
   const [restoringVersionId, setRestoringVersionId] = useState<number | null>(null);
   const toast = useToast();
+
+  const { isPopupOpen, togglePopup, closePopup } = usePopup();
+  const MORE_MENU_ID = "forms-workspace-more-actions";
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuOpen = isPopupOpen(MORE_MENU_ID);
+  const closeMoreMenu = useCallback(() => closePopup(MORE_MENU_ID), [closePopup]);
+  useClickOutside(moreMenuRef, closeMoreMenu, { enabled: moreMenuOpen });
+  useEscapeKey(closeMoreMenu, moreMenuOpen);
 
   const saveMutation = useMutation({
     mutationFn: async (template: FormTemplate) => {
@@ -774,7 +782,6 @@ export function FormsWorkspace() {
 
     setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
     setSelectedTemplateId(newTemplate.id);
-    setEditorOpen(true);
   }
 
   function updateSelectedTemplate(updates: Partial<FormTemplate>) {
@@ -994,48 +1001,74 @@ export function FormsWorkspace() {
               {t("forms.admin.newForm")}
             </button>
 
-            <button
-              type="button"
-              onClick={() => void openVersionHistory()}
-              disabled={
-                !hasSelectedTemplate ||
-                !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
-                versionsLoading
-              }
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-            >
-              <History className="size-4" />
-              {t("forms.admin.versionHistory")}
-            </button>
+            <div ref={moreMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => togglePopup(MORE_MENU_ID)}
+                disabled={!hasSelectedTemplate}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-3 text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"
+                aria-label="More actions"
+              >
+                <MoreVertical className="size-4" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => void duplicateSelectedTemplate()}
-              disabled={
-                !hasSelectedTemplate ||
-                !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
-                duplicateMutation.isPending
-              }
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-            >
-              <Copy className="size-4" />
-              {duplicateMutation.isPending
-                ? t("forms.admin.duplicating")
-                : t("forms.admin.duplicate")}
-            </button>
+              {moreMenuOpen ? (
+                <div className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMoreMenu();
+                      void openVersionHistory();
+                    }}
+                    disabled={
+                      !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
+                      versionsLoading
+                    }
+                    className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <History className="size-4" />
+                      {t("forms.admin.versionHistory")}
+                    </span>
+                  </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setPreviewResponses({});
-                setPreviewOpen(true);
-              }}
-              disabled={!hasSelectedTemplate}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-            >
-              <Eye className="size-4" />
-              {t("forms.admin.preview")}
-            </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMoreMenu();
+                      void duplicateSelectedTemplate();
+                    }}
+                    disabled={
+                      !isPersistedTemplateId(selectedTemplate?.id ?? "") ||
+                      duplicateMutation.isPending
+                    }
+                    className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Copy className="size-4" />
+                      {duplicateMutation.isPending
+                        ? t("forms.admin.duplicating")
+                        : t("forms.admin.duplicate")}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMoreMenu();
+                      setPreviewResponses({});
+                      setPreviewOpen(true);
+                    }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Eye className="size-4" />
+                      {t("forms.admin.preview")}
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
             <button
               type="button"
@@ -1119,7 +1152,6 @@ export function FormsWorkspace() {
                 type="button"
                 onClick={() => {
                   setSelectedTemplateId(template.id);
-                  setEditorOpen(true);
                 }}
                 className={[
                   "w-full rounded-xl border p-3 text-left transition",
@@ -1137,7 +1169,7 @@ export function FormsWorkspace() {
           </div>
         </aside>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 bg-white">
           {!hasSelectedTemplate ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 p-8 text-center">
               <p className="text-lg font-semibold text-slate-900">Belum ada form template</p>
@@ -1159,124 +1191,64 @@ export function FormsWorkspace() {
               ) : null}
             </div>
           ) : (
-            <div className="flex min-h-[320px] flex-col justify-between gap-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Selected template
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-950">
-                  {selectedTemplate.name}
-                </h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                  {selectedTemplate.description || "Tidak ada deskripsi."}
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Items</p>
-                    <p className="mt-1 text-xl font-bold text-slate-950">
-                      {selectedTemplate.fields.length}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Required</p>
-                    <p className="mt-1 text-xl font-bold text-slate-950">{requiredItems}</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Evidence</p>
-                    <p className="mt-1 text-xl font-bold text-slate-950">{evidenceItems}</p>
-                  </div>
+            <div className="flex min-h-[320px] flex-col">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Template Workspace
+                  </p>
+                  <input
+                    value={selectedTemplate.name}
+                    readOnly={isAreaWorkspace}
+                    onChange={(event) =>
+                      updateSelectedTemplate({
+                        name: event.target.value,
+                      })
+                    }
+                    className="mt-1 w-full border-0 bg-transparent p-0 text-lg font-semibold text-slate-950 outline-none"
+                  />
+                  <textarea
+                    value={selectedTemplate.description}
+                    readOnly={isAreaWorkspace}
+                    onChange={(event) =>
+                      updateSelectedTemplate({
+                        description: event.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="mt-1 w-full resize-none border-0 bg-transparent p-0 text-sm text-slate-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  {!isAreaWorkspace ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={addField}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                      >
+                        <Plus className="size-4" />
+                        Add Item
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void deleteSelectedTemplate()}
+                        disabled={templates.length <= 1 || deleteMutation.isPending}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setEditorOpen(true)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 sm:w-fit"
-              >
-                <PanelRightOpen className="size-4" />
-                Open template editor
-              </button>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {hasSelectedTemplate && editorOpen ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/45">
-          <button
-            type="button"
-            aria-label="Close template editor"
-            className="absolute inset-0 hidden cursor-default sm:block"
-            onClick={() => setEditorOpen(false)}
-          />
-
-          <div className="relative z-10 flex h-dvh w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-5xl sm:rounded-l-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Template Workspace
-                </p>
-                <input
-                  value={selectedTemplate.name}
-                  readOnly={isAreaWorkspace}
-                  onChange={(event) =>
-                    updateSelectedTemplate({
-                      name: event.target.value,
-                    })
-                  }
-                  className="mt-1 w-full border-0 bg-transparent p-0 text-lg font-semibold text-slate-950 outline-none"
-                />
-                <textarea
-                  value={selectedTemplate.description}
-                  readOnly={isAreaWorkspace}
-                  onChange={(event) =>
-                    updateSelectedTemplate({
-                      description: event.target.value,
-                    })
-                  }
-                  rows={2}
-                  className="mt-1 w-full resize-none border-0 bg-transparent p-0 text-sm text-slate-500 outline-none"
-                />
-              </div>
-
-              <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                {!isAreaWorkspace ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={addField}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                    >
-                      <Plus className="size-4" />
-                      Add Item
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => void deleteSelectedTemplate()}
-                      disabled={templates.length <= 1 || deleteMutation.isPending}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-                    >
-                      <Trash2 className="size-4" />
-                      Delete
-                    </button>
-                  </>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setEditorOpen(false)}
-                  className="flex size-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  aria-label="Close template editor"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <div className="order-2 p-4">
-                <div className="space-y-3">
+              <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="p-4">
+                  <div className="space-y-3">
                   {selectedTemplate.fields.map((field, index) => {
                     const isSystemResponsibleField = isResponsiblePersonField(field);
 
@@ -1876,7 +1848,7 @@ export function FormsWorkspace() {
                 </div>
               </div>
 
-              <aside className="order-1 border-b border-slate-200 bg-slate-50/70 p-4">
+              <aside className="border-t border-slate-200 bg-slate-50/70 p-4 lg:border-l lg:border-t-0">
                 {!hasSelectedTemplate ? (
                   <p className="text-sm text-slate-500">
                     Pilih atau buat template untuk mengatur field dan publish status.
@@ -2041,10 +2013,11 @@ export function FormsWorkspace() {
                   </>
                 )}
               </aside>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          )}
+        </section>
+      </div>
 
       <EnterpriseDataTable
         title={t("forms.admin.tableTitle")}
@@ -2054,7 +2027,6 @@ export function FormsWorkspace() {
         getRowId={(form) => form.id}
         onRowClick={(form) => {
           setSelectedTemplateId(form.id);
-          setEditorOpen(true);
         }}
       />
 
