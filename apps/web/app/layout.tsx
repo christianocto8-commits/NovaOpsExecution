@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Montserrat } from "next/font/google";
 
 import { AppProvider } from "@/providers/AppProvider";
 import { ConfirmationProvider } from "@/shared/confirmation";
@@ -8,10 +8,10 @@ import { ToastProvider } from "@/shared/toast";
 import "./globals.css";
 import "./print.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-plus-jakarta",
-  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-montserrat",
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
   display: "swap",
 });
 
@@ -48,7 +48,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={plusJakarta.variable}>
+    <html lang="en" className={montserrat.variable}>
       <body className="font-sans antialiased">
         <AppProvider>
           <ToastProvider>

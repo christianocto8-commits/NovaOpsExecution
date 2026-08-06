@@ -26,7 +26,7 @@
   --color-accent-karamel: var(--accent-karamel);
   --color-accent-kopi: var(--accent-kopi);
   --color-accent-cokelat-tua: var(--accent-cokelat-tua);
-  --font-sans: var(--font-plus-jakarta), sans-serif;
+  --font-sans: var(--font-montserrat), sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -43,7 +43,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-plus-jakarta), Arial, Helvetica, sans-serif;
+  font-family: var(--font-montserrat), Arial, Helvetica, sans-serif;
 }
 
 img,
