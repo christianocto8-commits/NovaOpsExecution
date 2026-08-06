@@ -34,6 +34,8 @@ import {
 import { formTemplateService } from "@/services/form-template.service";
 import { downloadAuditBundle } from "@/services/reports.service";
 import { taskService } from "@/services/task.service";
+import { ExportMenu } from "@/shared/export";
+import { exportToCsv, exportToExcel } from "@/shared/export/utils";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import {
   getServerWorkspaceSnapshot,
@@ -464,6 +466,47 @@ export function ReportsWorkspace() {
     }
   }
 
+  const exportRowRecords = useMemo(
+    () =>
+      reportRows.map((row) => ({
+        Outlet: row.outlet,
+        Task: row.task,
+        Form: row.form,
+        Status: row.status,
+        Progress: row.progress,
+        Score: row.score,
+        Operator: row.operator,
+        Due: row.due,
+        Submitted: row.submittedAt,
+      })),
+    [reportRows]
+  );
+
+  function handleReportCsvExport() {
+    if (reportRows.length === 0) {
+      toast.error("Belum ada data untuk diexport.");
+      return;
+    }
+    exportToCsv({
+      fileName: `novaops-report-${periodDays}hari`,
+      rows: exportRowRecords,
+    });
+    toast.success("Laporan CSV berhasil diunduh.");
+  }
+
+  function handleReportExcelExport() {
+    if (reportRows.length === 0) {
+      toast.error("Belum ada data untuk diexport.");
+      return;
+    }
+    exportToExcel({
+      fileName: `novaops-report-${periodDays}hari`,
+      sheetName: "Report",
+      rows: exportRowRecords,
+    });
+    toast.success("Laporan Excel berhasil diunduh.");
+  }
+
   const periodControls = (
     <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
       <button
@@ -528,6 +571,11 @@ export function ReportsWorkspace() {
           <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
             {completedHistory.length} selesai
           </span>
+          <ExportMenu
+            disabled={exportRowRecords.length === 0}
+            onExcelExport={handleReportExcelExport}
+            onCsvExport={handleReportCsvExport}
+          />
         </div>
 
         {completedHistory.length === 0 ? (
@@ -653,11 +701,18 @@ export function ReportsWorkspace() {
 
       {activeTab === "riwayat" ? (
         <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-950">Riwayat kerja</p>
-            <p className="text-xs text-slate-500">
-              Task selesai dan submission My Form dalam {periodDays} hari terakhir.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Riwayat kerja</p>
+              <p className="text-xs text-slate-500">
+                Task selesai dan submission My Form dalam {periodDays} hari terakhir.
+              </p>
+            </div>
+            <ExportMenu
+              disabled={reportRows.length === 0}
+              onExcelExport={handleReportExcelExport}
+              onCsvExport={handleReportCsvExport}
+            />
           </div>
 
           {reportRows.length === 0 ? (

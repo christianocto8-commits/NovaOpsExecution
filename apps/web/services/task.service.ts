@@ -16,6 +16,16 @@ export type OutletMember = {
   role_name: string | null;
 };
 
+export type TaskAssignmentResponse = {
+  id: number;
+  task_id: number;
+  user_id: number;
+  assigned_by: number | null;
+  role: string;
+  created_at: string;
+  user?: OutletMember | null;
+};
+
 export type BackendTaskStatus = "open" | "in_progress" | "blocked" | "completed" | "cancelled";
 export type BackendTaskPriority = "low" | "medium" | "high" | "urgent";
 
@@ -275,6 +285,37 @@ export const taskService = {
   async listOutletMembers(outletId: string) {
     return api<OutletMember[]>("/api/v1/tasks/outlet-members", {
       headers: { "X-Outlet-Id": outletId },
+    });
+  },
+
+  async listAssignments(taskId: string) {
+    return api<TaskAssignmentResponse[]>(`/api/v1/tasks/${taskId}/assignments`);
+  },
+
+  async assignUser(taskId: string, user: OutletMember) {
+    return api<TaskAssignmentResponse>(`/api/v1/tasks/${taskId}/assignments`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: user.id, role: "assignee" }),
+    });
+  },
+
+  async removeAssignment(taskId: string, assignmentId: number) {
+    return api<void>(`/api/v1/tasks/${taskId}/assignments/${assignmentId}`, {
+      method: "DELETE",
+    });
+  },
+
+  async bulkAssign(taskIds: string[], userId: number) {
+    return api<{ assigned: number }>("/api/v1/tasks/bulk-assign", {
+      method: "POST",
+      body: JSON.stringify({ task_ids: taskIds.map(Number), user_id: userId }),
+    });
+  },
+
+  async bulkDelete(taskIds: string[]) {
+    return api<{ deleted: number }>("/api/v1/tasks/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ task_ids: taskIds.map(Number) }),
     });
   },
 

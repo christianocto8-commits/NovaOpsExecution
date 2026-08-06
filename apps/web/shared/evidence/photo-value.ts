@@ -3,6 +3,7 @@ export type PhotoFieldValue = {
   latitude?: number;
   longitude?: number;
   accuracy_m?: number;
+  captured_at?: number;
 };
 
 function coercePhoto(parsed: Partial<PhotoFieldValue> | unknown): PhotoFieldValue | null {
@@ -16,6 +17,7 @@ function coercePhoto(parsed: Partial<PhotoFieldValue> | unknown): PhotoFieldValu
     latitude: typeof candidate.latitude === "number" ? candidate.latitude : undefined,
     longitude: typeof candidate.longitude === "number" ? candidate.longitude : undefined,
     accuracy_m: typeof candidate.accuracy_m === "number" ? candidate.accuracy_m : undefined,
+    captured_at: typeof candidate.captured_at === "number" ? candidate.captured_at : undefined,
   };
 }
 
@@ -67,7 +69,8 @@ export function serializePhotoFieldValue(value: PhotoFieldValue) {
   if (
     value.latitude == null &&
     value.longitude == null &&
-    value.accuracy_m == null
+    value.accuracy_m == null &&
+    value.captured_at == null
   ) {
     return value.url;
   }

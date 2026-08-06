@@ -47,6 +47,7 @@ class SettingsResponse(BaseModel):
     gps_watermark: bool = True
     geofence_enabled: bool = False
     geofence_radius_meters: int = 200
+    photo_freshness_minutes: int = 0
     audit_retention_days: int = 180
     login_history_visible: bool = True
     template_history_visible: bool = True
@@ -142,6 +143,7 @@ class SettingsUpdate(BaseModel):
     gps_watermark: bool | None = None
     geofence_enabled: bool | None = None
     geofence_radius_meters: int | None = None
+    photo_freshness_minutes: int | None = None
     audit_retention_days: int | None = None
     login_history_visible: bool | None = None
     template_history_visible: bool | None = None

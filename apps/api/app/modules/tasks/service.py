@@ -950,6 +950,93 @@ class TaskService:
         task = self.get_task(task_id, outlet_id)
         return self.repo.list_assignments(task.id)
 
+    def bulk_assign(
+        self,
+        task_ids: list[int],
+        user_id: int,
+        actor_id: int,
+        outlet_ids: list[int] | None,
+    ) -> int:
+        count = 0
+        for task_id in task_ids:
+            task = self.repo.get_any_by_id(task_id)
+            if not task or task.status != "open":
+                continue
+            if outlet_ids is not None and task.outlet_id not in outlet_ids:
+                continue
+
+            user = self.repo.get_outlet_member(task.outlet_id, user_id)
+            if not user:
+                continue
+            if self.repo.get_assignment_by_user(task.id, user_id):
+                continue
+
+            self.repo.create_assignment(
+                TaskAssignment(
+                    task_id=task.id,
+                    user_id=user_id,
+                    assigned_by=actor_id,
+                    role="assignee",
+                )
+            )
+            if not task.assigned_to:
+                task.assigned_to = user_id
+
+            self.repo.create_comment(
+                TaskComment(
+                    task_id=task.id,
+                    user_id=actor_id,
+                    comment="User assigned to task (bulk)",
+                    event_type="assigned",
+                    new_value=str(user_id),
+                )
+            )
+            notify_task_recipient(
+                self.db,
+                task=task,
+                event_type="task_assigned",
+                subject=f"Task ditugaskan: {task.title}",
+                body=f'Anda ditugaskan untuk menyelesaikan task "{task.title}".',
+                recipient_legacy_user_id=user_id,
+            )
+            count += 1
+
+        self.db.commit()
+        return count
+
+    def bulk_delete(
+        self,
+        task_ids: list[int],
+        actor_id: int,
+        outlet_ids: list[int] | None,
+    ) -> int:
+        from app.models.execution_session import ExecutionSession
+
+        count = 0
+        for task_id in task_ids:
+            task = self.repo.get_any_by_id(task_id)
+            if not task:
+                continue
+            if outlet_ids is not None and task.outlet_id not in outlet_ids:
+                continue
+
+            self.db.query(ExecutionSession).filter(ExecutionSession.task_id == task_id).delete()
+
+            self.repo.create_comment(
+                TaskComment(
+                    task_id=task.id,
+                    user_id=actor_id,
+                    comment="Task deleted via bulk action",
+                    event_type="deleted",
+                    new_value="deleted",
+                )
+            )
+            self.repo.delete(task)
+            count += 1
+
+        self.db.commit()
+        return count
+
     def assign_user(
         self,
         task_id: int,

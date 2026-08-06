@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   CheckCircle2,
@@ -9,14 +9,19 @@ import {
   MapPin,
   StickyNote,
   UserCheck,
+  UserPlus,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Task, TaskActivityType, TaskEvidenceType } from "../types";
 import { formatTaskSchedule } from "../utils";
 import { PhotoLightbox } from "@/shared/evidence/components/photo-lightbox";
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
+import { taskService, type OutletMember } from "@/services/task.service";
+import { queryKeys } from "@/lib/query/keys";
+import { useToast } from "@/shared/toast";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
@@ -95,6 +100,53 @@ function EvidencePhotoPreview({ src, alt }: { src: string; alt: string }) {
 export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetailDrawerProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const outletMembersQuery = useQuery({
+    queryKey: ["task-outlet-members", task?.outletId ?? "none"],
+    queryFn: () => taskService.listOutletMembers(task!.outletId!),
+    enabled: Boolean(task?.outletId),
+    retry: false,
+  });
+
+  const assignmentsQuery = useQuery({
+    queryKey: ["task-assignments", task?.id ?? "none"],
+    queryFn: () => taskService.listAssignments(task!.id),
+    enabled: Boolean(task),
+    retry: false,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: (user: OutletMember) => taskService.assignUser(task!.id, user),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-assignments", task?.id ?? "none"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      toast.success("Task berhasil ditugaskan.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menugaskan task.");
+    },
+  });
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: (assignmentId: number) => taskService.removeAssignment(task!.id, assignmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-assignments", task?.id ?? "none"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      toast.success("Penugasan dihapus.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus penugasan.");
+    },
+  });
+
+  const assignedUserId = task?.assignedToId;
+  const assignments = assignmentsQuery.data ?? [];
+  const outletMembers = outletMembersQuery.data ?? [];
+  const activeAssignee = assignments.find((assignment) => assignment.user_id === assignedUserId);
+  const canReassign = !task?.execution && task?.status !== "Completed" && task?.status !== "Cancelled";
+
   const photoEvidence = useMemo(
     () =>
       (task?.execution?.evidence ?? [])
@@ -150,7 +202,55 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assignee</p>
-                <p className="mt-1 font-medium text-slate-900">{task.assignee || "Unassigned"}</p>
+                <p className="mt-1 font-medium text-slate-900">
+                  {(activeAssignee?.user?.name ?? task.assignee) || "Unassigned"}
+                </p>
+                {canReassign ? (
+                  <div className="mt-3">
+                    <select
+                      value={assignedUserId ?? ""}
+                      disabled={assignMutation.isPending || outletMembersQuery.isLoading}
+                      onChange={(event) => {
+                        const userId = Number(event.target.value);
+                        if (!userId) return;
+                        const member = outletMembers.find((item) => item.id === userId);
+                        if (member) assignMutation.mutate(member);
+                      }}
+                      className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
+                    >
+                      <option value="">Pilih penanggung jawab...</option>
+                      {outletMembers.map((member) => (
+                        <option key={member.id} value={String(member.id)}>
+                          {member.name} {member.id === assignedUserId ? "(current)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {assignments.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {assignments.map((assignment) => (
+                          <span
+                            key={assignment.id}
+                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700"
+                          >
+                            <UserPlus className="size-3" />
+                            {assignment.user?.name ?? `User ${assignment.user_id}`}
+                            {assignment.user_id === assignedUserId ? (
+                              <button
+                                type="button"
+                                disabled={removeAssignmentMutation.isPending}
+                                onClick={() => removeAssignmentMutation.mutate(assignment.id)}
+                                className="ml-1 rounded-full px-1 text-blue-500 hover:bg-blue-100 disabled:opacity-50"
+                                aria-label="Remove assignment"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
@@ -196,7 +296,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Operator</p>
                   <p className="mt-1 font-medium text-slate-900">
-                    {task.execution?.operatorName} · {task.execution?.operatorPosition}
+                    {task.execution?.operatorName} � {task.execution?.operatorPosition}
                   </p>
                   {task.execution?.completedAt ? (
                     <p className="mt-2 text-xs text-slate-500">Submitted {task.execution.completedAt}</p>

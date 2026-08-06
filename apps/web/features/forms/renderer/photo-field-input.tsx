@@ -124,6 +124,7 @@ export function PhotoFieldInput({
       latitude: uploaded.latitude ?? prepared.geolocation?.latitude,
       longitude: uploaded.longitude ?? prepared.geolocation?.longitude,
       accuracy_m: uploaded.accuracy_m ?? prepared.geolocation?.accuracy_m,
+      captured_at: Date.now(),
     };
   }
 

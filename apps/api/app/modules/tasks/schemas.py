@@ -80,6 +80,15 @@ class TaskAssignmentCreate(BaseModel):
     role: str = Field(default="assignee", max_length=50)
 
 
+class TaskBulkAssign(BaseModel):
+    task_ids: list[int] = Field(min_length=1)
+    user_id: int
+
+
+class TaskBulkDelete(BaseModel):
+    task_ids: list[int] = Field(min_length=1)
+
+
 class OutletMemberResponse(BaseModel):
     id: int
     name: str

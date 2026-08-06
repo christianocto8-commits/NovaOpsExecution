@@ -14,6 +14,8 @@ from app.modules.tasks.schemas import (
     CorrectiveActionReject,
     TaskAssignmentCreate,
     TaskAssignmentResponse,
+    TaskBulkAssign,
+    TaskBulkDelete,
     TaskCommentCreate,
     TaskCommentResponse,
     TaskCreate,
@@ -43,8 +45,22 @@ from app.modules.tasks.serializers import (
 )
 from app.modules.tasks.service import TaskService
 from app.repositories.outlet_repository import OutletRepository
+from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+
+def ensure_can_reassign_tasks(db: Session, full_access: bool) -> None:
+    """Enforce the manager_can_reassign_tasks setting: when disabled, only
+    owner/admin (full access) may assign or remove task assignments."""
+    if full_access:
+        return
+
+    if not get_workspace_settings(db).manager_can_reassign_tasks:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task reassignment is disabled by workspace settings",
+        )
 
 
 def ensure_outlet_access(db: Session, user_id: int, outlet_id: int):
@@ -262,6 +278,46 @@ def list_outlet_members(
     ]
 
 
+@router.post("/bulk-assign")
+def bulk_assign_tasks(
+    payload: TaskBulkAssign,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    ensure_can_reassign_tasks(db, full_access)
+    service = TaskService(db)
+    assigned = service.bulk_assign(
+        task_ids=payload.task_ids,
+        user_id=payload.user_id,
+        actor_id=actor_id,
+        outlet_ids=None if full_access else outlet_ids,
+    )
+    return {"assigned": assigned}
+
+
+@router.post("/bulk-delete")
+def bulk_delete_tasks(
+    payload: TaskBulkDelete,
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    _x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
+    )
+    service = TaskService(db)
+    deleted = service.bulk_delete(
+        task_ids=payload.task_ids,
+        actor_id=actor_id,
+        outlet_ids=None if full_access else outlet_ids,
+    )
+    return {"deleted": deleted}
+
+
 @router.get("/{task_id}", response_model=TaskDetailResponse)
 def get_task(
     task_id: int,
@@ -476,9 +532,10 @@ def assign_task_user(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+    x_outlet_id, actor_id, _outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_can_reassign_tasks(db, full_access)
     service = TaskService(db)
     return service.assign_user(
         task_id=task_id,
@@ -496,9 +553,10 @@ def remove_task_assignment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+    x_outlet_id, actor_id, _outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_can_reassign_tasks(db, full_access)
     service = TaskService(db)
     service.remove_assignment(
         task_id=task_id,

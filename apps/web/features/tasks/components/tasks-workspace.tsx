@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Lock, Search } from "lucide-react";
+import { CheckSquare, ChevronDown, ChevronUp, Lock, Search, Square, Trash2, UserPlus } from "lucide-react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { FieldTaskCard } from "@/features/tasks/components/FieldTaskCard";
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
@@ -29,6 +29,8 @@ import {
   type BackendUpcomingTaskSchedule,
 } from "@/services/task-schedule.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
+import { taskService, type OutletMember } from "@/services/task.service";
+import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
   getWorkspaceSnapshot,
@@ -54,16 +56,16 @@ type MobileTaskSection = {
 const TASK_SECTION_COLLAPSE_KEY = "novaops_task_section_collapsed";
 
 function getDefaultSectionCollapsed(sectionId: string, taskCount: number, isOutletRole = false) {
+  if (sectionId === "overdue" || sectionId === "today") {
+    return false;
+  }
+
   if (isOutletRole) {
     if (sectionId === "completed") {
       return taskCount > 8;
     }
 
-    return false;
-  }
-
-  if (sectionId === "overdue" || sectionId === "today") {
-    return false;
+    return sectionId === "upcoming" || sectionId === "later";
   }
 
   if (sectionId === "due-this-week") {
@@ -323,11 +325,11 @@ function getMobileSections(tasks: Task[]) {
   });
 
   return [
-    { id: "upcoming", title: "Upcoming", tasks: upcoming },
-    { id: "overdue", title: `${overdue.length} Overdue`, tasks: overdue },
     { id: "today", title: "Today", tasks: today },
+    { id: "overdue", title: `${overdue.length} Overdue`, tasks: overdue },
     { id: "due-this-week", title: "Due This Week", tasks: thisWeek },
     { id: "later", title: "Later", tasks: later },
+    { id: "upcoming", title: "Upcoming", tasks: upcoming },
   ].filter((section) => section.tasks.length > 0);
 }
 
@@ -338,6 +340,9 @@ function MobileTaskRow({
   formTemplates,
   isPendingSync,
   isFailedSync,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   task: Task;
   highlighted: boolean;
@@ -345,6 +350,9 @@ function MobileTaskRow({
   formTemplates: FormTemplate[];
   isPendingSync?: boolean;
   isFailedSync?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
 }) {
   const progress = getTaskExecutionProgressPercentage(task, formTemplates);
   const draftProgress = getTaskDraftProgress(task, formTemplates);
@@ -365,27 +373,46 @@ function MobileTaskRow({
   const priority = (task.priority?.toLowerCase() === 'high' ? 'high' : 'medium') as 'low' | 'medium' | 'high';
 
   return (
-    <div className={`px-3 py-2 ${highlighted ? "bg-emerald-50" : "bg-white"}`}>
-      <FieldTaskCard
-        taskId={task.id}
-        title={task.title}
-        description={task.description?.trim()}
-        status={status}
-        dueTime={formatMobileTime(task)}
-        priority={priority}
-        onClick={onOpen}
-        progress={progress}
-        draftProgress={draftProgress?.percentage}
-        isUpcoming={isUpcoming}
-        isOverdue={isOverdue}
-        isPendingSync={isPendingSync}
-        isFailedSync={isFailedSync}
-        formTemplateName={task.formTemplateName}
-        checklistCount={task.checklistFieldCount}
-        checklistPreview={task.checklistPreview}
-        lockedReason={task.lockedReason}
-        isFollowUp={task.priority?.toLowerCase() === "high"}
-      />
+    <div className={`flex items-stretch px-3 py-2 ${highlighted ? "bg-emerald-50" : "bg-white"}`}>
+      {selectable ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleSelect?.(task.id);
+          }}
+          className="mr-2 flex items-center"
+          aria-label={selected ? "Deselect task" : "Select task"}
+        >
+          {selected ? (
+            <CheckSquare className="size-5 text-emerald-700" />
+          ) : (
+            <Square className="size-5 text-slate-400" />
+          )}
+        </button>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <FieldTaskCard
+          taskId={task.id}
+          title={task.title}
+          description={task.description?.trim()}
+          status={status}
+          dueTime={formatMobileTime(task)}
+          priority={priority}
+          onClick={onOpen}
+          progress={progress}
+          draftProgress={draftProgress?.percentage}
+          isUpcoming={isUpcoming}
+          isOverdue={isOverdue}
+          isPendingSync={isPendingSync}
+          isFailedSync={isFailedSync}
+          formTemplateName={task.formTemplateName}
+          checklistCount={task.checklistFieldCount}
+          checklistPreview={task.checklistPreview}
+          lockedReason={task.lockedReason}
+          isFollowUp={task.priority?.toLowerCase() === "high"}
+        />
+      </div>
     </div>
   );
 }
@@ -399,6 +426,9 @@ function CollapsibleTaskSection({
   onToggle,
   pendingTaskIds,
   failedTaskIds,
+  selectable = false,
+  selectedTaskIds,
+  onToggleSelect,
 }: {
   section: MobileTaskSection;
   highlightedTaskId: string | null;
@@ -408,6 +438,9 @@ function CollapsibleTaskSection({
   onToggle: () => void;
   pendingTaskIds: Set<string>;
   failedTaskIds: Set<string>;
+  selectable?: boolean;
+  selectedTaskIds?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -443,6 +476,9 @@ function CollapsibleTaskSection({
               formTemplates={formTemplates}
               isPendingSync={pendingTaskIds.has(task.id)}
               isFailedSync={failedTaskIds.has(task.id)}
+              selectable={selectable}
+              selected={selectedTaskIds?.has(task.id) ?? false}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>
@@ -464,6 +500,9 @@ function TaskGroupedList({
   pendingTaskIds,
   failedTaskIds,
   isOutletRole = false,
+  selectionMode = false,
+  selectedTaskIds,
+  onToggleSelect,
 }: {
   groups: MobileTaskSection[];
   highlightedTaskId: string | null;
@@ -477,6 +516,9 @@ function TaskGroupedList({
   pendingTaskIds: Set<string>;
   failedTaskIds: Set<string>;
   isOutletRole?: boolean;
+  selectionMode?: boolean;
+  selectedTaskIds?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
 }) {
   if (groups.length === 0) {
     return (
@@ -488,7 +530,7 @@ function TaskGroupedList({
 
   return (
     <div className="space-y-3">
-      {!isOutletRole && groups.length > 1 ? (
+      {groups.length > 1 ? (
         <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -507,50 +549,31 @@ function TaskGroupedList({
         </div>
       ) : null}
 
-      {isOutletRole
-        ? groups.map((section) => (
-            <div key={section.id} className="space-y-2">
-              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {section.title}
-                <span className="ml-2 tabular-nums text-slate-400">{section.tasks.length}</span>
-              </p>
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                {section.tasks.map((task) => (
-                  <MobileTaskRow
-                    key={task.id}
-                    task={task}
-                    highlighted={highlightedTaskId === task.id}
-                    onOpen={() => onOpenTask(task)}
-                    formTemplates={formTemplates}
-                    isPendingSync={pendingTaskIds.has(task.id)}
-                    isFailedSync={failedTaskIds.has(task.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))
-        : groups.map((section) => {
-            const defaultCollapsed = getDefaultSectionCollapsed(
-              section.id,
-              section.tasks.length,
-              isOutletRole
-            );
-            const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
+      {groups.map((section) => {
+        const defaultCollapsed = getDefaultSectionCollapsed(
+          section.id,
+          section.tasks.length,
+          isOutletRole
+        );
+        const collapsed = collapsedGroups[section.id] ?? defaultCollapsed;
 
-            return (
-              <CollapsibleTaskSection
-                key={section.id}
-                section={section}
-                highlightedTaskId={highlightedTaskId}
-                onOpenTask={onOpenTask}
-                formTemplates={formTemplates}
-                collapsed={collapsed}
-                onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
-                pendingTaskIds={pendingTaskIds}
-                failedTaskIds={failedTaskIds}
-              />
-            );
-          })}
+        return (
+          <CollapsibleTaskSection
+            key={section.id}
+            section={section}
+            highlightedTaskId={highlightedTaskId}
+            onOpenTask={onOpenTask}
+            formTemplates={formTemplates}
+            collapsed={collapsed}
+            onToggle={() => onToggleGroup(section.id, defaultCollapsed)}
+            pendingTaskIds={pendingTaskIds}
+            failedTaskIds={failedTaskIds}
+            selectable={selectionMode}
+            selectedTaskIds={selectedTaskIds}
+            onToggleSelect={onToggleSelect}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -577,6 +600,10 @@ export function TasksWorkspace() {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
     readStoredCollapseState()
   );
+  const [bulkActive, setBulkActive] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
   const {
     tasks,
@@ -618,6 +645,56 @@ export function TasksWorkspace() {
   const isOutletRole = isOutletWorkspace;
   const isOwnerAdminWorkspace = !isOutletWorkspace && !isAreaWorkspace;
   const canCreateTask = isOwnerAdminWorkspace;
+
+  const bulkTargetTaskIds = useMemo(() => {
+    const ids = Array.from(selectedTaskIds);
+    return ids.length > 0 && !isOutletRole ? ids : [];
+  }, [isOutletRole, selectedTaskIds]);
+
+  const bulkMembersQuery = useQuery({
+    queryKey: ["tasks", "bulk-members"],
+    queryFn: () => taskService.listOutletMembers(""),
+    enabled: bulkTargetTaskIds.length > 0,
+    retry: false,
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: (user: OutletMember) => taskService.bulkAssign(bulkTargetTaskIds, user.id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      setSelectedTaskIds(new Set());
+      setBulkActive(false);
+      toast.success(`${result.assigned} task berhasil ditugaskan.`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menugaskan task terpilih.");
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => taskService.bulkDelete(bulkTargetTaskIds),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+      setSelectedTaskIds(new Set());
+      setBulkActive(false);
+      toast.success(`${result.deleted} task dihapus.`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus task terpilih.");
+    },
+  });
+
+  function toggleTaskSelection(taskId: string) {
+    setSelectedTaskIds((current) => {
+      const next = new Set(current);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }
 
   const upcomingSchedulesQuery = useQuery({
     queryKey: ["task-schedules", "upcoming", workspace.mode, workspace.outletId],
@@ -1042,8 +1119,80 @@ export function TasksWorkspace() {
         </div>
 
         {!isOutletWorkspace ? (
-          <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
-            {`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
+            <span>{`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setBulkActive((current) => {
+                  if (current) {
+                    setSelectedTaskIds(new Set());
+                  }
+                  return !current;
+                });
+              }}
+              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 font-medium transition-colors ${
+                bulkActive
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <CheckSquare className="size-3.5" />
+              {bulkActive ? "Keluar mode" : "Pilih beberapa"}
+            </button>
+          </div>
+        ) : null}
+
+        {bulkActive && !isOutletRole && bulkTargetTaskIds.length > 0 ? (
+          <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-4">
+            <span className="text-xs font-semibold text-emerald-800">
+              {bulkTargetTaskIds.length} task dipilih
+            </span>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {bulkMembersQuery.data && bulkMembersQuery.data.length > 0 ? (
+                <select
+                  value=""
+                  onChange={(event) => {
+                    const member = bulkMembersQuery.data?.find(
+                      (item) => String(item.id) === event.target.value
+                    );
+                    if (member) {
+                      bulkAssignMutation.mutate(member);
+                    }
+                  }}
+                  className="rounded-lg border border-emerald-300 bg-white px-2 py-1 text-xs text-slate-700 outline-none"
+                >
+                  <option value="">Assign ke…</option>
+                  {bulkMembersQuery.data.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(`Hapus ${bulkTargetTaskIds.length} task terpilih?`)) {
+                    bulkDeleteMutation.mutate();
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:border-red-300 disabled:opacity-50"
+              >
+                <Trash2 className="size-3.5" />
+                Hapus
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTaskIds(new Set());
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:border-slate-300"
+              >
+                Batal
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -1061,6 +1210,9 @@ export function TasksWorkspace() {
             pendingTaskIds={pendingTaskIds}
             failedTaskIds={failedTaskIds}
             isOutletRole={isOutletRole}
+            selectionMode={bulkActive && !isOutletRole}
+            selectedTaskIds={selectedTaskIds}
+            onToggleSelect={toggleTaskSelection}
           />
         </div>
       </section>

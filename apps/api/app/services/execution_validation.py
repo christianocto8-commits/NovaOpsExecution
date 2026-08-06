@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -120,6 +121,20 @@ def validate_task_execution_answers(
                 detail="Bukti foto wajib diunggah.",
             )
 
+    freshness_minutes = getattr(settings, "photo_freshness_minutes", 0) or 0
+    if freshness_minutes > 0:
+        stale_captured_at = _oldest_photo_captured_at(answers_json)
+        if stale_captured_at is not None:
+            age_minutes = int((datetime.now(timezone.utc) - stale_captured_at).total_seconds() // 60)
+            if age_minutes > freshness_minutes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Foto harus diambil dalam {freshness_minutes} menit sebelum submit "
+                        f"(foto saat ini {age_minutes} menit). Ambil ulang foto terkini."
+                    ),
+                )
+
     if getattr(settings, "signature_required_by_default", False):
         has_signature = _has_signature_evidence(answers_json, evidence_urls)
         if not has_signature:
@@ -127,6 +142,38 @@ def validate_task_execution_answers(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Tanda tangan wajib diisi.",
             )
+
+
+def _oldest_photo_captured_at(answers_json: dict) -> datetime | None:
+    """Return the oldest captured_at (epoch ms) found across photo field values, or None."""
+    candidates: list[datetime] = []
+
+    def _scan(value: Any) -> None:
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if not (trimmed.startswith("{") or trimmed.startswith("[")):
+                return
+            try:
+                parsed = json.loads(trimmed)
+            except json.JSONDecodeError:
+                return
+            _scan(parsed)
+            return
+        if isinstance(value, dict):
+            captured_at = value.get("captured_at")
+            if isinstance(captured_at, (int, float)) and captured_at > 0:
+                candidates.append(datetime.fromtimestamp(captured_at / 1000, tz=timezone.utc))
+            for nested in value.values():
+                _scan(nested)
+            return
+        if isinstance(value, list):
+            for nested in value:
+                _scan(nested)
+
+    _scan(answers_json.get("responses"))
+    _scan(answers_json.get("evidence"))
+
+    return min(candidates, default=None)
 
 
 def _has_signature_evidence(answers_json: dict, evidence_urls: list[str]) -> bool:
