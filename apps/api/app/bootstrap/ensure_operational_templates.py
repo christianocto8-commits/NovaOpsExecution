@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.bootstrap.barista_routine_templates import install_barista_routine_templates
+from app.bootstrap.seed_tombstones import was_seed_deleted
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.form_field import FormField
@@ -240,6 +241,9 @@ def install_operational_templates(
             template = existing
             templates_existing.append(spec["title"])
             _normalize_legacy_money_fields(db, template)
+        elif was_seed_deleted(db, action="form_template.deleted", title=spec["title"]):
+            templates_existing.append(spec["title"])
+            continue
         else:
             template = FormTemplate(
                 title=spec["title"],
@@ -267,6 +271,9 @@ def install_operational_templates(
             select(TaskSchedule).where(TaskSchedule.title == schedule_title)
         )
         if existing_schedule:
+            schedules_existing.append(schedule_title)
+            continue
+        if was_seed_deleted(db, action="schedule.deleted", title=schedule_title):
             schedules_existing.append(schedule_title)
             continue
 

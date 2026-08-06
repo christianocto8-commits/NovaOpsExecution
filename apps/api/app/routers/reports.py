@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func, true
+from sqlalchemy import func, or_, true
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -72,6 +72,20 @@ def _completion_rate(completed: int, total: int) -> int:
     if total == 0:
         return 0
     return round((completed / total) * 100)
+
+
+def _task_overdue_filter(now: datetime) -> ColumnElement[bool]:
+    """Overdue = past due, not completed, and not manually cancelled.
+
+    Auto-expired tasks (status cancelled + expired_at set) still count as
+    overdue, matching the frontend's isTaskExpiredOverdue semantics.
+    """
+    return (
+        Task.due_date.isnot(None),
+        Task.due_date < now,
+        Task.status != "completed",
+        or_(Task.status != "cancelled", Task.expired_at.isnot(None)),
+    )
 
 
 def _task_outlet_scope(
@@ -143,12 +157,7 @@ def _build_report_summary(
     )
     overdue_tasks = (
         db.query(func.count(Task.id))
-        .filter(
-            outlet_scope,
-            Task.due_date.isnot(None),
-            Task.due_date < now,
-            Task.status != "completed",
-        )
+        .filter(outlet_scope, *_task_overdue_filter(now))
         .scalar()
         or 0
     )
@@ -251,6 +260,7 @@ def get_report_trends(
                 Task.due_date >= day_start,
                 Task.due_date < day_end,
                 Task.status != "completed",
+                or_(Task.status != "cancelled", Task.expired_at.isnot(None)),
             )
             .scalar()
             or 0
@@ -325,9 +335,7 @@ def get_outlet_reports(
             db.query(func.count(Task.id))
             .filter(
                 Task.outlet_id == outlet.id,
-                Task.due_date.isnot(None),
-                Task.due_date < now,
-                Task.status != "completed",
+                *_task_overdue_filter(now),
             )
             .scalar()
             or 0
@@ -395,9 +403,7 @@ def get_outlet_benchmarks(
             db.query(func.count(Task.id))
             .filter(
                 Task.outlet_id == outlet.id,
-                Task.due_date.isnot(None),
-                Task.due_date < now,
-                Task.status != "completed",
+                *_task_overdue_filter(now),
             )
             .scalar()
             or 0

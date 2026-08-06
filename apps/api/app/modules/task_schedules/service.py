@@ -106,6 +106,10 @@ class TaskScheduleService:
 
     def delete_schedule(self, schedule_id: int) -> None:
         schedule = self.get_schedule(schedule_id)
+        self.db.query(Task).filter(Task.schedule_id == schedule_id).update(
+            {Task.schedule_id: None},
+            synchronize_session=False,
+        )
         self.db.delete(schedule)
         self.db.commit()
 

@@ -25,6 +25,7 @@ class Task(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
+    expired_at = Column(DateTime(timezone=True), nullable=True)
 
     schedule_id = Column(Integer, ForeignKey("task_schedules.id"), nullable=True, index=True)
     shift = Column(String(50), nullable=True)

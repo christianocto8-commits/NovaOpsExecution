@@ -997,6 +997,8 @@ def install_barista_routine_templates(
     from app.models.form_template import FormTemplate
     from app.models.task_schedule import TaskSchedule
 
+    from app.bootstrap.seed_tombstones import was_seed_deleted
+
     if creator is None:
         return {
             "ok": False,
@@ -1025,6 +1027,9 @@ def install_barista_routine_templates(
             )
             if field_count == 0:
                 _create_fields(db, template.id, spec["fields"])
+        elif was_seed_deleted(db, action="form_template.deleted", title=spec["title"]):
+            templates_existing.append(spec["title"])
+            continue
         else:
             template = FormTemplate(
                 title=spec["title"],
@@ -1047,6 +1052,9 @@ def install_barista_routine_templates(
             select(TaskSchedule).where(TaskSchedule.title == schedule_title)
         )
         if existing_schedule:
+            schedules_existing.append(schedule_title)
+            continue
+        if was_seed_deleted(db, action="schedule.deleted", title=schedule_title):
             schedules_existing.append(schedule_title)
             continue
 

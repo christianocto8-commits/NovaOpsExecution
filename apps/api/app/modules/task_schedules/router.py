@@ -173,6 +173,7 @@ def delete_task_schedule(
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     schedule = service.get_schedule(schedule_id)
+    title = schedule.title
     service.delete_schedule(schedule_id)
     record_identity_audit_event(
         db,
@@ -180,7 +181,7 @@ def delete_task_schedule(
         resource_type="task_schedule",
         actor_user_id=current_user.id,
         resource_id=str(schedule_id),
-        metadata={"title": schedule.title},
+        metadata={"title": title},
     )
     db.commit()
     return None

@@ -175,6 +175,7 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
         if due_date and due_date + timedelta(minutes=60) <= now:
             previous_status = task.status
             task.status = "cancelled"
+            task.expired_at = now
             db.add(
                 TaskComment(
                     task_id=task.id,

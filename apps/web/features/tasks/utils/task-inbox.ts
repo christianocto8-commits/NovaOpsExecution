@@ -22,7 +22,17 @@ export function isTaskCompleted(task: Task) {
 }
 
 export function isTaskExpiredOverdue(task: Task) {
-  if (String(task.backendStatus ?? "").toLowerCase() !== "cancelled") {
+  if (isTaskCompleted(task)) {
+    return false;
+  }
+
+  const backendStatus = String(task.backendStatus ?? "").toLowerCase();
+
+  if (task.expiredAt) {
+    return true;
+  }
+
+  if (backendStatus === "cancelled") {
     return false;
   }
 

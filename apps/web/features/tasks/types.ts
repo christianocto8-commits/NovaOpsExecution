@@ -137,6 +137,7 @@ export type Task = {
   sourceType?: string;
   sourceId?: string;
   backendStatus?: "open" | "in_progress" | "blocked" | "completed" | "cancelled";
+  expiredAt?: string;
   verifiedAt?: string;
   approvedAt?: string;
   capaRootCause?: string;

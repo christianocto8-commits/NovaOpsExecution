@@ -16,10 +16,12 @@ from app.models.form_template import FormTemplate
 from app.models.form_template_version import FormTemplateVersion
 from app.models.task_schedule import TaskSchedule
 from app.models.user import User
+from app.modules.identity.audit import record_identity_audit_event
 from app.modules.identity.models import User as IdentityUser
 from app.modules.identity.security import decode_access_token
 from app.modules.tasks.identity_bridge import (
     get_default_identity_outlet,
+    get_identity_user_by_email,
     get_or_create_legacy_outlet,
     sync_legacy_user,
 )
@@ -408,6 +410,22 @@ def delete_form_template(
     if not exists:
         raise HTTPException(status_code=404, detail="Form template not found")
 
+    form_template = (
+        db.query(FormTemplate.title)
+        .filter(FormTemplate.id == form_template_id)
+        .first()
+    )
+    title = form_template.title if form_template else None
+
     _delete_form_template_tree(db, form_template_id)
+    identity_user = get_identity_user_by_email(db, current_user.email) if current_user.email else None
+    record_identity_audit_event(
+        db,
+        action="form_template.deleted",
+        resource_type="form_template",
+        actor_user_id=identity_user.id if identity_user else None,
+        resource_id=str(form_template_id),
+        metadata={"title": title},
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

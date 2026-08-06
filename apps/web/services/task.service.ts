@@ -50,6 +50,7 @@ export type BackendTask = {
   due_date: string | null;
   completed_at: string | null;
   verified_at: string | null;
+  expired_at?: string | null;
   approved_by: number | null;
   approved_at: string | null;
   rejected_at?: string | null;
@@ -215,6 +216,7 @@ export function mapBackendTask(task: BackendTask): Task {
     sourceType: task.source_type ?? undefined,
     sourceId: task.source_id != null ? String(task.source_id) : undefined,
     backendStatus: task.status,
+    expiredAt: task.expired_at ?? undefined,
     verifiedAt: task.verified_at ?? undefined,
     approvedAt: task.approved_at ?? undefined,
     capaRootCause: task.capa_root_cause ?? undefined,
