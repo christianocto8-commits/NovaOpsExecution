@@ -403,6 +403,30 @@ def _as_float(value: str | None) -> float:
         return 0.0
 
 
+def _extract_evidence_urls_from_value(value: str) -> list[str]:
+    trimmed = value.strip()
+    if not trimmed:
+        return []
+
+    if trimmed.startswith("["):
+        try:
+            parsed = json.loads(trimmed)
+        except json.JSONDecodeError:
+            return [trimmed]
+
+        if not isinstance(parsed, list):
+            return [trimmed]
+
+        urls: list[str] = []
+        for item in parsed:
+            url = item.get("url") if isinstance(item, dict) else None
+            if isinstance(url, str) and url.strip():
+                urls.append(url.strip())
+        return urls
+
+    return [trimmed]
+
+
 def create_finance_deposit_from_form_submission(
     db: Session,
     *,
@@ -438,9 +462,9 @@ def create_finance_deposit_from_form_submission(
         if label:
             values[label] = value
         if answer.evidence_url:
-            evidence_urls.append(answer.evidence_url)
+            evidence_urls.extend(_extract_evidence_urls_from_value(str(answer.evidence_url)))
         if "evidence" in label and value:
-            evidence_urls.append(value)
+            evidence_urls.extend(_extract_evidence_urls_from_value(value))
 
     expected_cash = _as_float(values.get("expected cash"))
     actual_cash = _as_float(values.get("actual cash"))

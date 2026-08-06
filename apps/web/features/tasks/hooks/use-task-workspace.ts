@@ -17,7 +17,7 @@ import {
 import type { FormField } from "@/features/forms/types";
 import { createTaskEvidence, detectEvidenceType } from "@/shared/files";
 import { EvidenceItem, getCurrentPosition } from "@/shared/evidence";
-import { parsePhotoFieldValue } from "@/shared/evidence/photo-value";
+import { parsePhotoFieldValues } from "@/shared/evidence/photo-value";
 import { queryKeys } from "@/lib/query/keys";
 import { createLocalId } from "@/lib/local-id";
 import { enrichTaskFormOutlets } from "@/features/tasks/utils/enrich-task-form-outlets";
@@ -222,8 +222,8 @@ function hasPhotoInFormResponses(formResponses: TaskExecutionForm["formResponses
     const trimmed = String(value ?? "").trim();
     if (!trimmed) return false;
 
-    const photoValue = parsePhotoFieldValue(trimmed);
-    if (photoValue?.url && isPhotoUrl(photoValue.url)) return true;
+    const photoValues = parsePhotoFieldValues(trimmed);
+    if (photoValues.some((photo) => photo.url && isPhotoUrl(photo.url))) return true;
 
     return isPhotoUrl(trimmed);
   });

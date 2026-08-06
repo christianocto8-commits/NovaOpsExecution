@@ -1,14 +1,14 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, MapPin, Trash2, Upload } from "lucide-react";
+import { Camera, ImageIcon, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import {
   getOfflineEvidenceBlobUrl,
   isOfflineEvidenceUrl,
 } from "@/lib/offline/offline-evidence";
-import { getPhotoDisplayUrl, parsePhotoFieldValue, serializePhotoFieldValue } from "@/shared/evidence/photo-value";
+import { getPhotoDisplayUrl, parsePhotoFieldValues, serializePhotoFieldValues } from "@/shared/evidence/photo-value";
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
@@ -28,6 +28,32 @@ function isMobileDevice() {
   return /android|iphone|ipad|ipod|mobile/.test(userAgent) || window.matchMedia("(pointer: coarse)").matches;
 }
 
+function LocationLabel({
+  latitude,
+  longitude,
+}: {
+  latitude?: number;
+  longitude?: number;
+}) {
+  if (latitude == null || longitude == null) return null;
+
+  const label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+  return (
+    <div className="flex items-center gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
+      <MapPin className="size-3.5 shrink-0 text-emerald-700" />
+      <a
+        href={`https://maps.google.com/?q=${latitude},${longitude}`}
+        target="_blank"
+        rel="noreferrer"
+        className="truncate font-medium text-emerald-700 hover:text-emerald-800"
+      >
+        {label}
+      </a>
+    </div>
+  );
+}
+
 export function PhotoFieldInput({
   value,
   readOnly = false,
@@ -42,18 +68,20 @@ export function PhotoFieldInput({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
 
-  const parsedValue = useMemo(() => parsePhotoFieldValue(value), [value]);
-  const displayUrlValue = parsedValue?.url ?? value;
+  const parsedValues = useMemo(() => parsePhotoFieldValues(value), [value]);
+  const singleUrlValue = parsedValues[0]?.url ?? "";
+  const isVideo = mediaMode === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(singleUrlValue);
+  const isMultiPhoto = mediaMode !== "video" && parsedValues.length > 1;
 
   useEffect(() => {
-    if (!displayUrlValue || !isOfflineEvidenceUrl(displayUrlValue)) {
+    if (!singleUrlValue || !isOfflineEvidenceUrl(singleUrlValue)) {
       return;
     }
 
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    void getOfflineEvidenceBlobUrl(displayUrlValue).then((blobUrl) => {
+    void getOfflineEvidenceBlobUrl(singleUrlValue).then((blobUrl) => {
       if (cancelled) {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         return;
@@ -70,42 +98,50 @@ export function PhotoFieldInput({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [displayUrlValue]);
+  }, [singleUrlValue]);
 
   const resolvedDisplayUrl = useMemo(() => {
-    if (!displayUrlValue) return "";
-    if (isOfflineEvidenceUrl(displayUrlValue)) return offlineBlobUrl ?? "";
-    return displayUrlValue;
-  }, [displayUrlValue, offlineBlobUrl]);
+    if (!singleUrlValue) return "";
+    if (isOfflineEvidenceUrl(singleUrlValue)) return offlineBlobUrl ?? "";
+    return singleUrlValue;
+  }, [singleUrlValue, offlineBlobUrl]);
   const authenticatedDisplayUrl = useEvidenceDisplayUrl(resolvedDisplayUrl);
   const displayUrl = authenticatedDisplayUrl || resolvedDisplayUrl;
 
+  async function uploadFile(file: File) {
+    const prepared = await prepareEvidenceFile(file, {
+      timestampWatermark: settings?.timestamp_watermark ?? true,
+      captureGps: settings?.gps_watermark ?? true,
+      timezone: settings?.timezone ?? "Asia/Jakarta",
+      outletName,
+    });
+    const uploaded = await uploadEvidenceFile(prepared.file, {
+      geolocation: prepared.geolocation,
+    });
+
+    return {
+      url: uploaded.url,
+      latitude: uploaded.latitude ?? prepared.geolocation?.latitude,
+      longitude: uploaded.longitude ?? prepared.geolocation?.longitude,
+      accuracy_m: uploaded.accuracy_m ?? prepared.geolocation?.accuracy_m,
+    };
+  }
+
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
 
     setIsUploading(true);
     setUploadError(null);
 
     try {
-      const prepared = await prepareEvidenceFile(file, {
-        timestampWatermark: settings?.timestamp_watermark ?? true,
-        captureGps: settings?.gps_watermark ?? true,
-        timezone: settings?.timezone ?? "Asia/Jakarta",
-        outletName,
-      });
-      const uploaded = await uploadEvidenceFile(prepared.file, {
-        geolocation: prepared.geolocation,
-      });
+      const uploadedPhotos = [];
 
-      onChange(
-        serializePhotoFieldValue({
-          url: uploaded.url,
-          latitude: uploaded.latitude ?? prepared.geolocation?.latitude,
-          longitude: uploaded.longitude ?? prepared.geolocation?.longitude,
-          accuracy_m: uploaded.accuracy_m ?? prepared.geolocation?.accuracy_m,
-        })
-      );
+      for (const file of files) {
+        uploadedPhotos.push(await uploadFile(file));
+      }
+
+      onChange(serializePhotoFieldValues([...parsedValues, ...uploadedPhotos]));
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Upload foto gagal.");
     } finally {
@@ -120,54 +156,72 @@ export function PhotoFieldInput({
     fileInputRef.current?.click();
   }
 
-  const locationLabel =
-    parsedValue?.latitude != null && parsedValue.longitude != null
-      ? `${parsedValue.latitude.toFixed(5)}, ${parsedValue.longitude.toFixed(5)}`
-      : null;
+  function removePhoto(index: number) {
+    const next = parsedValues.filter((_, i) => i !== index);
+    onChange(serializePhotoFieldValues(next));
+  }
 
-  const isVideo = mediaMode === "video" || /\.(mp4|webm|mov)(\?|$)/i.test(displayUrlValue);
+  function renderThumbnail(photo: (typeof parsedValues)[number], index: number) {
+    return (
+      <div
+        key={photo.url}
+        className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+      >
+        <div className="aspect-video w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getPhotoDisplayUrl(photo.url)}
+            alt={`Foto bukti ${index + 1}`}
+            className="h-full w-full object-cover"
+          />
+        </div>
+
+        <LocationLabel latitude={photo.latitude} longitude={photo.longitude} />
+
+        {!readOnly ? (
+          <button
+            type="button"
+            onClick={() => removePhoto(index)}
+            aria-label="Hapus foto"
+            className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-red-600"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
-      {value ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-          <div className="aspect-video max-h-56 w-full">
-            {isVideo ? (
+      {parsedValues.length > 0 ? (
+        isVideo ? (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <div className="aspect-video max-h-56 w-full">
               <video src={displayUrl} controls className="h-full w-full object-cover" />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={displayUrl} alt="Foto bukti" className="h-full w-full object-cover" />
-            )}
+            </div>
+
+            <LocationLabel latitude={parsedValues[0].latitude} longitude={parsedValues[0].longitude} />
+
+            {!readOnly ? (
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
+                <p className="text-xs text-slate-500">Foto sudah terunggah</p>
+                <button
+                  type="button"
+                  onClick={() => onChange("")}
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="size-3.5" />
+                  Hapus
+                </button>
+              </div>
+            ) : null}
           </div>
-
-          {locationLabel ? (
-            <div className="flex items-center gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-600">
-              <MapPin className="size-3.5 shrink-0 text-emerald-700" />
-              <a
-                href={`https://maps.google.com/?q=${parsedValue?.latitude},${parsedValue?.longitude}`}
-                target="_blank"
-                rel="noreferrer"
-                className="truncate font-medium text-emerald-700 hover:text-emerald-800"
-              >
-                {locationLabel}
-              </a>
-            </div>
-          ) : null}
-
-          {!readOnly ? (
-            <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
-              <p className="text-xs text-slate-500">Foto sudah terunggah</p>
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="size-3.5" />
-                Hapus
-              </button>
-            </div>
-          ) : null}
-        </div>
+        ) : (
+          <div className={`grid gap-3 ${isMultiPhoto ? "grid-cols-2" : ""}`}>
+            {parsedValues.map(renderThumbnail)}
+          </div>
+        )
       ) : (
         <button
           type="button"
@@ -198,26 +252,27 @@ export function PhotoFieldInput({
               ? "MP4, WEBM, atau MOV"
               : mobileMode
                 ? "Kamera HP akan terbuka"
-                : "Pilih file gambar dari perangkat"}
+                : "Pilih satu atau lebih foto"}
           </span>
         </button>
       )}
 
-      {!readOnly && value ? (
+      {!readOnly && parsedValues.length > 0 && !isVideo ? (
         <button
           type="button"
           disabled={isUploading}
           onClick={openPicker}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          <Upload className="size-4" />
-          Ganti foto
+          {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          Tambah foto
         </button>
       ) : null}
 
       <input
         ref={fileInputRef}
         type="file"
+        multiple={mediaMode !== "video"}
         accept={mediaMode === "video" ? "video/mp4,video/webm,video/quicktime,video/*" : "image/*"}
         capture={mobileMode && mediaMode === "photo" ? "environment" : undefined}
         onChange={handleFileChange}

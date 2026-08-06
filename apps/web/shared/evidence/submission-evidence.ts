@@ -4,7 +4,7 @@ import { buildApiUrl } from "@/lib/api-url";
 import { isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 
 import type { EvidenceItem } from "./types";
-import { getPhotoDisplayUrl, parsePhotoFieldValue } from "./photo-value";
+import { getPhotoDisplayUrl, parsePhotoFieldValue, parsePhotoFieldValues } from "./photo-value";
 
 function isPhotoUrl(url: string) {
   return /uploads\/evidence|evidence-uploads|\.(jpg|jpeg|png|webp|heic|heif|mp4|webm|mov)(\?|$)/i.test(url);
@@ -146,17 +146,20 @@ export function collectSubmissionEvidenceItems(args: {
 
     if (!rawUrl) return;
 
-    const photoValue = parsePhotoFieldValue(rawUrl);
-    const url = photoValue?.url ?? getPhotoDisplayUrl(rawUrl);
-    if (!url || !isPhotoUrl(url)) return;
+    const photoValues = parsePhotoFieldValues(rawUrl);
 
-    add({
-      id: `submission-${answer.form_field_id}`,
-      url,
-      caption: `Form field ${answer.form_field_id}`,
-      latitude: photoValue?.latitude,
-      longitude: photoValue?.longitude,
-      accuracy_m: photoValue?.accuracy_m,
+    photoValues.forEach((photoValue, index) => {
+      const url = photoValue?.url ?? getPhotoDisplayUrl(rawUrl);
+      if (!url || !isPhotoUrl(url)) return;
+
+      add({
+        id: `submission-${answer.form_field_id}-${index}`,
+        url,
+        caption: `Form field ${answer.form_field_id}`,
+        latitude: photoValue?.latitude,
+        longitude: photoValue?.longitude,
+        accuracy_m: photoValue?.accuracy_m,
+      });
     });
   });
 
@@ -178,17 +181,20 @@ export function collectSubmissionEvidenceItems(args: {
     const trimmed = String(value ?? "").trim();
     if (!trimmed) return;
 
-    const photoValue = parsePhotoFieldValue(trimmed);
-    const url = photoValue?.url ?? getPhotoDisplayUrl(trimmed);
-    if (!url || !isPhotoUrl(url)) return;
+    const photoValues = parsePhotoFieldValues(trimmed);
 
-    add({
-      id: `form-${fieldId}`,
-      url,
-      caption: `Form field ${fieldId}`,
-      latitude: photoValue?.latitude,
-      longitude: photoValue?.longitude,
-      accuracy_m: photoValue?.accuracy_m,
+    photoValues.forEach((photoValue, index) => {
+      const url = photoValue?.url ?? getPhotoDisplayUrl(trimmed);
+      if (!url || !isPhotoUrl(url)) return;
+
+      add({
+        id: `form-${fieldId}-${index}`,
+        url,
+        caption: `Form field ${fieldId}`,
+        latitude: photoValue?.latitude,
+        longitude: photoValue?.longitude,
+        accuracy_m: photoValue?.accuracy_m,
+      });
     });
   });
 

@@ -10,31 +10,47 @@ from app.services.workspace_settings import get_workspace_settings
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 
 
-def _extract_url_from_value(value: object) -> str | None:
+def _extract_urls_from_value(value: object) -> list[str]:
     if isinstance(value, str):
         trimmed = value.strip()
         if not trimmed:
-            return None
+            return []
+
+        if trimmed.startswith("["):
+            try:
+                parsed = json.loads(trimmed)
+            except json.JSONDecodeError:
+                return [trimmed]
+
+            if not isinstance(parsed, list):
+                return [trimmed]
+
+            urls: list[str] = []
+            for item in parsed:
+                url = item.get("url") if isinstance(item, dict) else None
+                if isinstance(url, str) and url.strip():
+                    urls.append(url.strip())
+            return urls
 
         if trimmed.startswith("{"):
             try:
                 parsed = json.loads(trimmed)
             except json.JSONDecodeError:
-                return trimmed
+                return [trimmed]
 
             if isinstance(parsed, dict):
                 url = parsed.get("url")
                 if isinstance(url, str) and url.strip():
-                    return url.strip()
+                    return [url.strip()]
 
-        return trimmed
+        return [trimmed]
 
     if isinstance(value, dict):
         url = value.get("url")
         if isinstance(url, str) and url.strip():
-            return url.strip()
+            return [url.strip()]
 
-    return None
+    return []
 
 
 def extract_evidence_urls(answers_json: dict[str, Any]) -> list[str]:
@@ -61,9 +77,7 @@ def extract_evidence_urls(answers_json: dict[str, Any]) -> list[str]:
     responses = answers_json.get("responses")
     if isinstance(responses, dict):
         for value in responses.values():
-            url = _extract_url_from_value(value)
-            if url:
-                urls.append(url)
+            urls.extend(_extract_urls_from_value(value))
 
     return urls
 

@@ -8,6 +8,7 @@ import {
   parseMoneyDenomination,
 } from "@/features/forms/utils/money";
 import { getResponsiblePersonValue } from "@/features/forms/utils/system-fields";
+import { getPhotoDisplayUrl } from "@/shared/evidence/photo-value";
 import type { TaskFormResponses } from "@/features/tasks/types";
 
 export type FormSubmissionAnswerPayload = {
@@ -89,7 +90,7 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
         return {
           form_field_id: fieldId,
           answer_text: raw || null,
-          evidence_url: raw || null,
+          evidence_url: raw ? getPhotoDisplayUrl(raw) : null,
         };
       }
 
