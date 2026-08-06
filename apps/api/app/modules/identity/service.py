@@ -87,27 +87,7 @@ class AuthService:
     def authenticate(self, *, identifier: str, password: str) -> User:
         user = self.users.find_by_identifier(identifier)
 
-        if user and user.locked_until and user.locked_until > datetime.now(UTC):
-            record_identity_audit_event(
-                self.db,
-                action="login_blocked_account_locked",
-                resource_type="auth_session",
-                actor_user_id=user.id,
-                resource_id=str(user.id),
-                metadata={"identifier": identifier.strip().lower()},
-            )
-            self.db.commit()
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail="Account temporarily locked due to failed login attempts",
-            )
-
         if not user or not verify_password(password, user.password_hash):
-            if user:
-                user.failed_login_count = int(user.failed_login_count or 0) + 1
-                if user.failed_login_count >= 5:
-                    user.locked_until = datetime.now(UTC) + timedelta(minutes=15)
-                self.db.add(user)
             record_identity_audit_event(
                 self.db,
                 action="login_failed",
@@ -155,10 +135,6 @@ class AuthService:
                 detail="User account is inactive",
             )
 
-        user.failed_login_count = 0
-        user.locked_until = None
-        self.db.add(user)
-        self.db.flush()
         return user
 
     def build_access_claims(self, user: User) -> dict:
