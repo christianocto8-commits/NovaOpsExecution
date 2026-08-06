@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, time, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.outlet import Outlet
 from app.models.task import Task
 from app.models.task_comment import TaskComment
 from app.models.task_schedule import TaskSchedule
@@ -246,6 +247,8 @@ class TaskScheduleService:
                 if not all_outlets and outlet_id not in allowed_outlets:
                     continue
 
+                outlet_name = self._get_outlet_name(outlet_id)
+
                 items.append(
                     TaskScheduleUpcomingResponse(
                         id=f"UPCOMING-{schedule.id}-{outlet_id}-{shift or 'all'}-{publish_at.isoformat()}",
@@ -257,12 +260,16 @@ class TaskScheduleService:
                         recurrence=schedule.recurrence,
                         shift=shift,
                         outlet_id=outlet_id,
-                        outlet_ref=outlet_ref,
+                        outlet_ref=outlet_name or outlet_ref,
                         publish_at=publish_at,
                     )
                 )
 
         return items
+
+    def _get_outlet_name(self, outlet_id: int) -> str | None:
+        outlet = self.db.query(Outlet).filter(Outlet.id == outlet_id).first()
+        return outlet.name if outlet else None
 
     def _validate_payload(self, payload: TaskScheduleCreate) -> None:
         if payload.recurrence == "once":
