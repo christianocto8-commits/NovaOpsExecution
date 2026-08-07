@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -8,6 +9,10 @@ from collections import defaultdict, deque
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+logger = logging.getLogger("novaops.http")
+
+SLOW_REQUEST_THRESHOLD_MS = int(os.environ.get("SLOW_REQUEST_THRESHOLD_MS", "2000"))
 
 
 class LoginRateLimiter:
@@ -57,6 +62,8 @@ def _client_key(request: Request) -> str:
 
 class HttpSecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
+        start_time = time.monotonic()
+
         if request.method == "POST" and request.url.path == "/api/v1/auth/login":
             allowed, retry_after = login_rate_limiter.allow(_client_key(request))
             if not allowed:
@@ -76,6 +83,17 @@ class HttpSecurityMiddleware(BaseHTTPMiddleware):
                 )
 
         response = await call_next(request)
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+
+        if elapsed_ms >= SLOW_REQUEST_THRESHOLD_MS:
+            logger.warning(
+                "Slow request: %s %s took %.0fms (status %s)",
+                request.method,
+                request.url.path,
+                elapsed_ms,
+                response.status_code,
+            )
+
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
