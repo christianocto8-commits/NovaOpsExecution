@@ -731,6 +731,8 @@ export function TasksWorkspace() {
     queryKey: ["task-schedules", "upcoming", workspace.mode, workspace.outletId],
     queryFn: () => taskScheduleService.listUpcoming(),
     enabled: isOutletWorkspace || isAreaWorkspace || isOwnerAdminWorkspace,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: false,
   });
   const upcomingTasks = useMemo(

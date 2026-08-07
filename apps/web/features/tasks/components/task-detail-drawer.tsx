@@ -303,17 +303,15 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                           >
                             <UserPlus className="size-3" />
                             {assignment.user?.name ?? `User ${assignment.user_id}`}
-                            {assignment.user_id === assignedUserId ? (
-                              <button
-                                type="button"
-                                disabled={removeAssignmentMutation.isPending}
-                                onClick={() => removeAssignmentMutation.mutate(assignment.id)}
-                                className="ml-1 rounded-full px-1 text-blue-500 hover:bg-blue-100 disabled:opacity-50"
-                                aria-label="Remove assignment"
-                              >
-                                <X className="size-3" />
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              disabled={removeAssignmentMutation.isPending}
+                              onClick={() => removeAssignmentMutation.mutate(assignment.id)}
+                              className="ml-1 rounded-full px-1 text-blue-500 hover:bg-blue-100 disabled:opacity-50"
+                              aria-label="Remove assignment"
+                            >
+                              <X className="size-3" />
+                            </button>
                           </span>
                         ))}
                       </div>

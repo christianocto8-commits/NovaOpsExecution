@@ -70,6 +70,8 @@ export function getStatusClass(status: string) {
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "In Progress":
       return "border-blue-200 bg-blue-50 text-blue-700";
+    case "Cancelled":
+      return "border-red-200 bg-red-50 text-red-700";
     default:
       return "border-slate-200 bg-slate-50 text-slate-700";
   }

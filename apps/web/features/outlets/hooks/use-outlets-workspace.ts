@@ -45,7 +45,7 @@ function mapIdentityOperator(operator: IdentityOutletOperator): OutletOperator {
     outletId: operator.outlet_id,
     name: operator.name,
     position: operator.position as OutletOperator["position"],
-    pin: operator.pin,
+    pin: "",
     active: operator.is_active,
   };
 }
@@ -343,15 +343,22 @@ export function useOutletsWorkspace() {
       setError("");
 
       if (editingOperatorId) {
+        const payload: {
+          outlet_id: string;
+          name: string;
+          position: string;
+          pin?: string;
+          is_active: boolean;
+        } = {
+          outlet_id: operatorForm.outletId,
+          name: operatorForm.name,
+          position: operatorForm.position,
+          is_active: operatorForm.active,
+        };
+        if (operatorForm.pin.trim()) payload.pin = operatorForm.pin;
         await updateOperatorMutation.mutateAsync({
           operatorId: editingOperatorId,
-          payload: {
-            outlet_id: operatorForm.outletId,
-            name: operatorForm.name,
-            position: operatorForm.position,
-            pin: operatorForm.pin,
-            is_active: operatorForm.active,
-          },
+          payload,
         });
       } else {
         await createOperatorMutation.mutateAsync({

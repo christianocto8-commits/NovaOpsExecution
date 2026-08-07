@@ -336,8 +336,9 @@ def bulk_delete_tasks(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
-        db, current_user, x_outlet_id
+    ensure_task_permission(db, current_user, "execution.submit")
+    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id, task_id=task_id
     )
     ensure_task_permission(db, current_user, "task.delete")
     service = TaskService(db)

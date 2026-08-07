@@ -54,7 +54,7 @@ def _require_owner_admin(db: Session, current_user) -> None:
 def _scoped_schedules(db: Session, current_user, service: TaskScheduleService) -> list:
     identity_user = get_identity_user_by_email(db, current_user.email)
     if not identity_user:
-        return service.list_schedules()
+        return []
 
     accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
     if full_access:
@@ -160,18 +160,19 @@ def list_task_schedule_exceptions(
     exceptions = service.list_exceptions()
 
     identity_user = get_identity_user_by_email(db, current_user.email)
-    if identity_user:
-        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
-        if not full_access:
-            accessible_legacy_ids = {
-                _legacy_outlet_id_for(db, outlet.code) for outlet in accessible_outlets
-            }
-            accessible_legacy_ids.discard(None)
-            exceptions = [
-                exception
-                for exception in exceptions
-                if exception.outlet_id is None or exception.outlet_id in accessible_legacy_ids
-            ]
+    if not identity_user:
+        return []
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    if not full_access:
+        accessible_legacy_ids = {
+            _legacy_outlet_id_for(db, outlet.code) for outlet in accessible_outlets
+        }
+        accessible_legacy_ids.discard(None)
+        exceptions = [
+            exception
+            for exception in exceptions
+            if exception.outlet_id is None or exception.outlet_id in accessible_legacy_ids
+        ]
 
     return exceptions
 
@@ -229,6 +230,14 @@ def run_task_schedules_now(
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
     result = service.process_due_schedules(force=False)
+    record_identity_audit_event(
+        db,
+        action="schedule.run_now",
+        resource_type="task_schedule",
+        actor_user_id=_get_identity_actor_id(db, current_user),
+        metadata={"published": result.get("schedules_published", 0), "created": result.get("tasks_created", 0)},
+    )
+    db.commit()
     return TaskScheduleProcessResult(**result)
 
 
@@ -242,21 +251,25 @@ def get_task_schedule(
     schedule = service.get_schedule(schedule_id)
 
     identity_user = get_identity_user_by_email(db, current_user.email)
-    if identity_user:
-        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
-        if not full_access:
-            accessible_codes = {
-                (outlet.code or "").strip().upper() for outlet in accessible_outlets
-            }
-            allowed = not schedule.outlet_ids_json or any(
-                _outlet_code_matches(db, outlet_ref) in accessible_codes
-                for outlet_ref in schedule.outlet_ids_json
+    if not identity_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no access to this schedule",
+        )
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    if not full_access:
+        accessible_codes = {
+            (outlet.code or "").strip().upper() for outlet in accessible_outlets
+        }
+        allowed = not schedule.outlet_ids_json or any(
+            _outlet_code_matches(db, outlet_ref) in accessible_codes
+            for outlet_ref in schedule.outlet_ids_json
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no access to this schedule",
             )
-            if not allowed:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="User has no access to this schedule",
-                )
 
     return schedule
 
@@ -315,4 +328,16 @@ def process_task_schedules(
     verify_scheduler_secret(x_scheduler_secret)
     service = TaskScheduleService(db)
     result = service.process_due_schedules(force=force)
+    record_identity_audit_event(
+        db,
+        action="schedule.processed",
+        resource_type="task_schedule",
+        actor_user_id=None,
+        metadata={
+            "force": force,
+            "published": result.get("schedules_published", 0),
+            "created": result.get("tasks_created", 0),
+        },
+    )
+    db.commit()
     return TaskScheduleProcessResult(**result)

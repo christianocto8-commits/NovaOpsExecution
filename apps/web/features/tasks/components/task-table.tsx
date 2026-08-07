@@ -34,6 +34,7 @@ function buildTaskFilterDefinitions(tasks: Task[]) {
         { label: "Pending", value: "Pending" },
         { label: "In Progress", value: "In Progress" },
         { label: "Completed", value: "Completed" },
+        { label: "Cancelled", value: "Cancelled" },
       ],
     },
     {
@@ -126,6 +127,7 @@ export function TaskTable({
           <option>Pending</option>
           <option>In Progress</option>
           <option>Completed</option>
+          <option>Cancelled</option>
         </select>
       ),
     },
