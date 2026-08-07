@@ -18,7 +18,6 @@ import {
 import { EvidenceGallery } from "@/shared/evidence";
 import {
   collectSubmissionEvidenceItems,
-  hiddenMediaFieldIds,
 } from "@/shared/evidence/submission-evidence";
 import { TaskPdfExportButton } from "@/features/reports/components/task-pdf-export-button";
 import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
@@ -278,8 +277,6 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
       resolvedSelection.kind === "task" ? resolvedSelection.task.execution?.evidence : undefined,
   });
 
-  const suppressedMediaFieldIds = hiddenMediaFieldIds(responses, evidenceItems);
-
   const title =
     resolvedSelection.kind === "task"
       ? resolvedSelection.task.title
@@ -400,7 +397,6 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
               responses={responses}
               onChange={() => undefined}
               readOnly
-              hiddenFieldIds={suppressedMediaFieldIds}
             />
           ) : templateQuery.isLoading ? (
             <p className="text-sm text-slate-500">Loading form fields…</p>
@@ -409,7 +405,15 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
           {evidenceItems.length > 0 ? (
             <section>
               <p className="mb-3 text-sm font-bold text-slate-800">Evidence</p>
-              <EvidenceGallery value={evidenceItems} onChange={() => undefined} readOnly />
+              <EvidenceGallery
+                value={evidenceItems.filter(
+                  (item) =>
+                    !item.id.startsWith("form-") &&
+                    !item.id.startsWith("submission-")
+                )}
+                onChange={() => undefined}
+                readOnly
+              />
             </section>
           ) : null}
 
