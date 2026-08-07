@@ -86,7 +86,7 @@ class TaskSchedulePublisher:
                 continue
 
             created, skipped, skipped_by_exception = self._publish_schedule(schedule, current, force=force)
-            if created > 0 or force:
+            if created > 0 or skipped > 0 or force:
                 schedule.last_published_at = current
                 if schedule.recurrence == "once":
                     schedule.is_active = False

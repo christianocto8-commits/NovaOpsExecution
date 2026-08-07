@@ -1,9 +1,58 @@
-import type { Task, TaskExecution, TaskExecutionForm } from "@/features/tasks/types";
+import type { Task, TaskExecution, TaskExecutionForm, ChecklistScore } from "@/features/tasks/types";
 import type { ExecutionSessionResponse } from "@/services/execution-session.service";
 import type { HistoryDetailSelection } from "@/features/history/components/history-detail-drawer";
 import { buildTaskEvidenceFromText } from "@/shared/evidence/submission-evidence";
 
-function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution | null {
+function parseChecklistScore(value: unknown): ChecklistScore | undefined {
+  if (!value || typeof value !== "object") return undefined;
+
+  const payload = value as Record<string, unknown>;
+  const failedItems = Array.isArray(payload.failed_items)
+    ? payload.failed_items
+        .filter(
+          (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+        )
+        .map((item) => ({
+          field_id: Number(item.field_id),
+          label: String(item.label || "Checklist Item"),
+          value: String(item.value ?? ""),
+          reason: String(item.reason || "Validation failed"),
+          critical: Boolean(item.critical),
+        }))
+    : [];
+
+  const criticalFailures = Array.isArray(payload.critical_failures)
+    ? payload.critical_failures
+        .filter(
+          (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+        )
+        .map((item) => ({
+          field_id: Number(item.field_id),
+          label: String(item.label || "Checklist Item"),
+          value: String(item.value ?? ""),
+          reason: String(item.reason || "Critical validation failed"),
+        }))
+    : failedItems.filter((item) => item.critical);
+
+  const status = payload.status;
+  if (status !== "pass" && status !== "attention" && status !== "fail") {
+    return undefined;
+  }
+
+  return {
+    score: typeof payload.score === "number" ? payload.score : Number(payload.score ?? 0),
+    passed_count: typeof payload.passed_count === "number" ? payload.passed_count : 0,
+    failed_count:
+      typeof payload.failed_count === "number" ? payload.failed_count : failedItems.length,
+    total_scorable: typeof payload.total_scorable === "number" ? payload.total_scorable : 0,
+    na_count: typeof payload.na_count === "number" ? payload.na_count : 0,
+    failed_items: failedItems,
+    critical_failures: criticalFailures,
+    status,
+  };
+}
+
+export function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution | null {
   const payload = session.answers_json;
 
   if (!payload || typeof payload !== "object") return null;
@@ -31,6 +80,7 @@ function parseExecutionSession(session: ExecutionSessionResponse): TaskExecution
       ])
     ),
     completedAt: submittedAt,
+    checklist: parseChecklistScore(payload._checklist),
   };
 }
 

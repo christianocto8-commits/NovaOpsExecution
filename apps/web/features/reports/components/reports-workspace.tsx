@@ -89,7 +89,7 @@ function getReportStatus(task: Task): ReportStatus {
   return "pending";
 }
 
-function toReportRow(task: Task): ReportRow {
+function toReportRow(task: Task, templateName?: string): ReportRow {
   const progress = getTaskProgress(task);
   const submittedAtRaw =
     task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due ?? "";
@@ -98,7 +98,7 @@ function toReportRow(task: Task): ReportRow {
     id: task.id,
     outlet: task.outlet,
     task: task.title,
-    form: task.formTemplateId ?? "-",
+    form: templateName || task.formTemplateName || task.formTemplateId || "-",
     status: getReportStatus(task),
     progress,
     score: progress,
@@ -312,11 +312,19 @@ export function ReportsWorkspace() {
 
   const reportRows = useMemo(
     () =>
-      [...periodFilteredTasks.map(toReportRow), ...manualSubmissionRows].sort(
+      [
+        ...periodFilteredTasks.map((task) =>
+          toReportRow(
+            task,
+            task.formTemplateId ? templateNameByStringId.get(task.formTemplateId) : undefined
+          )
+        ),
+        ...manualSubmissionRows,
+      ].sort(
         (left, right) =>
           new Date(right.submittedAtRaw).getTime() - new Date(left.submittedAtRaw).getTime()
       ),
-    [manualSubmissionRows, periodFilteredTasks]
+    [manualSubmissionRows, periodFilteredTasks, templateNameByStringId]
   );
 
   const filteredReportRows = useMemo(

@@ -23,6 +23,8 @@ import { taskService, type OutletMember } from "@/services/task.service";
 import { mapBackendTask } from "@/services/task.service";
 import { queryKeys } from "@/lib/query/keys";
 import { useToast } from "@/shared/toast";
+import { getExecutionSessions } from "@/services/execution-session.service";
+import { parseExecutionSession } from "@/features/history/utils/execution-session-history";
 
 type TaskDetailDrawerProps = {
   task: Task | null;
@@ -154,29 +156,81 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
     },
   });
 
-  const assignedUserId = task?.assignedToId;
+  const currentTask = detailTask ?? task;
+  const fallbackTaskId = currentTask ? Number(currentTask.id) : undefined;
+  const shouldLoadFallbackSession =
+    currentTask &&
+    (currentTask.status === "Completed" || currentTask.backendStatus === "completed" || currentTask.execution?.reviewStatus) &&
+    !Object.values(currentTask.execution?.formResponses ?? {}).some((value) =>
+      String(value ?? "").trim()
+    );
+
+  const fallbackSessionQuery = useQuery({
+    queryKey: ["task-detail-execution-session", fallbackTaskId ?? "none"],
+    queryFn: () =>
+      getExecutionSessions({
+        taskId: fallbackTaskId!,
+        status: "completed",
+      }),
+    enabled:
+      Boolean(shouldLoadFallbackSession) &&
+      fallbackTaskId != null &&
+      !Number.isNaN(fallbackTaskId),
+    retry: false,
+  });
+
+  const resolvedTask = useMemo(() => {
+    const baseTask = detailTask ?? task;
+    if (!baseTask) return null;
+
+    const hasResponses = Object.values(baseTask.execution?.formResponses ?? {}).some(
+      (value) => String(value ?? "").trim()
+    );
+    if (hasResponses) return baseTask;
+
+    const fallbackSession = (fallbackSessionQuery.data ?? []).sort(
+      (first, second) => second.id - first.id
+    )[0];
+
+    if (fallbackSession) {
+      const parsedExecution = parseExecutionSession(fallbackSession);
+      if (parsedExecution) {
+        return {
+          ...baseTask,
+          execution: {
+            ...(baseTask.execution ?? parsedExecution),
+            ...parsedExecution,
+          },
+        };
+      }
+    }
+
+    return baseTask;
+  }, [detailTask, task, fallbackSessionQuery.data]);
+
+  const assignedUserId = resolvedTask?.assignedToId;
   const assignments = assignmentsQuery.data ?? [];
   const outletMembers = outletMembersQuery.data ?? [];
   const activeAssignee = assignments.find((assignment) => assignment.user_id === assignedUserId);
-  const canReassign = !task?.execution && task?.status !== "Completed" && task?.status !== "Cancelled";
+  const canReassign = !resolvedTask?.execution && resolvedTask?.status !== "Completed" && resolvedTask?.status !== "Cancelled";
 
   const photoEvidence = useMemo(
     () =>
-      (task?.execution?.evidence ?? [])
+      (resolvedTask?.execution?.evidence ?? [])
         .filter((evidence) => evidence.type === "photo" && evidence.value)
         .map((evidence) => ({
           url: evidence.value,
           caption: evidence.label ?? "Evidence photo",
         })),
-    [task?.execution?.evidence]
+    [resolvedTask?.execution?.evidence]
   );
 
-  if (!task) return null;
+  if (!resolvedTask) return null;
 
-  const hasExecution = Boolean(task.execution);
-  const hasDraft = Boolean(task.executionDraft);
-  const checklist = task.execution?.checklist;
-  const activities = detailTask?.activity ?? task.activity ?? [];
+  const hasExecution = Boolean(resolvedTask.execution);
+  const hasDraft = Boolean(resolvedTask.executionDraft);
+  const checklist = resolvedTask.execution?.checklist;
+  const activities = detailTask?.activity ?? resolvedTask.activity ?? [];
 
   return (
     <div
@@ -190,8 +244,8 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
         <div className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Task Detail</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">{task.title}</h2>
-            <p className="mt-1 text-sm text-slate-500">{task.outlet}</p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-950">{resolvedTask.title}</h2>
+            <p className="mt-1 text-sm text-slate-500">{resolvedTask.outlet}</p>
           </div>
           <button
             type="button"
@@ -205,18 +259,18 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap gap-2">
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(task.status)}`}>
-                {task.status}
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(resolvedTask.status)}`}>
+                {resolvedTask.status}
               </span>
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getPriorityClass(task.priority)}`}>
-                {task.priority}
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getPriorityClass(resolvedTask.priority)}`}>
+                {resolvedTask.priority}
               </span>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assignee</p>
                 <p className="mt-1 font-medium text-slate-900">
-                  {(activeAssignee?.user?.name ?? task.assignee) || "Unassigned"}
+                  {(activeAssignee?.user?.name ?? resolvedTask.assignee) || "Unassigned"}
                 </p>
                 {canReassign ? (
                   <div className="mt-3">
@@ -267,22 +321,22 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
-                <p className="mt-1 font-medium text-slate-900">{task.due || "No due date"}</p>
+                <p className="mt-1 font-medium text-slate-900">{resolvedTask.due || "No due date"}</p>
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
-                <p className="mt-1 font-medium text-slate-900">{formatTaskSchedule(task)}</p>
+                <p className="mt-1 font-medium text-slate-900">{formatTaskSchedule(resolvedTask)}</p>
               </div>
             </div>
-            {task.description ? (
-              <p className="mt-4 text-sm leading-6 text-slate-600">{task.description}</p>
+            {resolvedTask.description ? (
+              <p className="mt-4 text-sm leading-6 text-slate-600">{resolvedTask.description}</p>
             ) : null}
             {onEdit || onDelete ? (
               <div className="mt-4 flex flex-wrap gap-3">
                 {onEdit ? (
                   <button
                     type="button"
-                    onClick={() => onEdit(task)}
+                    onClick={() => onEdit(resolvedTask)}
                     className="rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
                   >
                     Edit Task
@@ -291,7 +345,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                 {onDelete ? (
                   <button
                     type="button"
-                    onClick={() => onDelete(task)}
+                    onClick={() => onDelete(resolvedTask)}
                     className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100"
                   >
                     Delete Task
@@ -309,18 +363,18 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Operator</p>
                   <p className="mt-1 font-medium text-slate-900">
-                    {task.execution?.operatorName} � {task.execution?.operatorPosition}
+                    {resolvedTask.execution?.operatorName} &bull; {resolvedTask.execution?.operatorPosition}
                   </p>
-                  {task.execution?.completedAt ? (
-                    <p className="mt-2 text-xs text-slate-500">Submitted {task.execution.completedAt}</p>
+                  {resolvedTask.execution?.completedAt ? (
+                    <p className="mt-2 text-xs text-slate-500">Submitted {resolvedTask.execution.completedAt}</p>
                   ) : null}
-                  {task.execution?.note ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{task.execution.note}</p>
+                  {resolvedTask.execution?.note ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{resolvedTask.execution.note}</p>
                   ) : null}
                 </div>
 
                 <div className="space-y-3">
-                  {(task.execution?.evidence ?? []).map((evidence) => {
+                  {(resolvedTask.execution?.evidence ?? []).map((evidence) => {
                     const evidenceStyle = getEvidenceStyle(evidence.type);
                     const EvidenceIcon = evidenceStyle.icon;
                     const isUrl = /^https?:\/\//i.test(evidence.value);
