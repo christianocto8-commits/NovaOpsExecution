@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,6 +23,12 @@ def get_activity_feed(
     scoped_outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
+
+    if outlet_id is not None and not full_access and (not outlet_ids or outlet_id not in outlet_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no access to this outlet's activity feed",
+        )
 
     effective_outlet_id = outlet_id if outlet_id is not None else scoped_outlet_id
 
