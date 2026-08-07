@@ -5,7 +5,11 @@ type ExportExcelParams<T extends Record<string, string | number>> = {
 };
 
 function escapeHtml(value: string | number) {
-  return String(value)
+  let text = String(value);
+  if (/^[=+\-@]/.test(text)) {
+    text = `'${text}`;
+  }
+  return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")

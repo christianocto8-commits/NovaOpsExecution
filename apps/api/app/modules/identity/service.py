@@ -1,5 +1,7 @@
 import re
 import secrets
+import threading
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -26,6 +28,31 @@ from app.modules.identity.security import (
 from app.services.email_service import EmailService
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.services.workspace_settings import get_workspace_settings
+
+MAX_OTP_ATTEMPTS_PER_CHALLENGE = 5
+
+
+class _OtpAttemptTracker:
+    def __init__(self, max_attempts: int = MAX_OTP_ATTEMPTS_PER_CHALLENGE) -> None:
+        self.max_attempts = max_attempts
+        self._counts: dict[str, int] = defaultdict(int)
+        self._lock = threading.Lock()
+
+    def remaining(self, challenge_id: str) -> int:
+        with self._lock:
+            return max(0, self.max_attempts - self._counts[challenge_id])
+
+    def register_failure(self, challenge_id: str) -> int:
+        with self._lock:
+            self._counts[challenge_id] += 1
+            return self._counts[challenge_id]
+
+    def discard(self, challenge_id: str) -> None:
+        with self._lock:
+            self._counts.pop(challenge_id, None)
+
+
+otp_attempt_tracker = _OtpAttemptTracker()
 
 
 def build_device_label(user_agent: str | None) -> str:
@@ -319,7 +346,6 @@ class AuthService:
             not challenge
             or challenge.consumed_at is not None
             or challenge.expires_at <= now
-            or challenge.code_hash != hash_token(code)
         ):
             record_identity_audit_event(
                 self.db,
@@ -331,7 +357,29 @@ class AuthService:
             self.db.commit()
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP code")
 
+        if otp_attempt_tracker.remaining(str(challenge.id)) <= 0:
+            challenge.consumed_at = now
+            self.db.add(challenge)
+            self.db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many OTP attempts. Please request a new code.",
+            )
+
+        if challenge.code_hash != hash_token(code):
+            otp_attempt_tracker.register_failure(str(challenge.id))
+            record_identity_audit_event(
+                self.db,
+                action="otp_failed",
+                resource_type="auth_session",
+                resource_id=str(challenge_id),
+                metadata={"ip_address": ip_address, "user_agent": user_agent},
+            )
+            self.db.commit()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP code")
+
         challenge.consumed_at = now
+        otp_attempt_tracker.discard(str(challenge.id))
         self.db.add(challenge)
         self.db.flush()
 

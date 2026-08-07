@@ -156,6 +156,13 @@ def get_settings() -> Settings:
     ):
         raise ValueError("JWT_SECRET_KEY must be set to a strong value in production.")
 
+    if environment != "local" and (
+        not jwt_secret_key
+        or jwt_secret_key == "novaops-development-secret-key"
+        or len(jwt_secret_key) < 32
+    ):
+        raise ValueError("JWT_SECRET_KEY must be set to a strong value outside local environment.")
+
     return Settings(
         environment=environment,
         database_url=database_url,

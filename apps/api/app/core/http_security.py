@@ -42,6 +42,10 @@ login_rate_limiter = LoginRateLimiter(
     limit=int(os.environ.get("LOGIN_RATE_LIMIT_PER_MINUTE", "10")),
 )
 
+otp_rate_limiter = LoginRateLimiter(
+    limit=int(os.environ.get("OTP_RATE_LIMIT_PER_MINUTE", "5")),
+)
+
 
 def _client_key(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "")
@@ -59,6 +63,15 @@ class HttpSecurityMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "Too many login attempts. Try again later."},
+                    headers={"Retry-After": str(retry_after)},
+                )
+
+        if request.method == "POST" and request.url.path == "/api/v1/auth/verify-otp":
+            allowed, retry_after = otp_rate_limiter.allow(_client_key(request))
+            if not allowed:
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many OTP attempts. Try again later."},
                     headers={"Retry-After": str(retry_after)},
                 )
 

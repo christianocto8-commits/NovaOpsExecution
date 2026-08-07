@@ -156,29 +156,59 @@ function MetricCard({
 
 function PriorityQueue({ tasks, outletMode }: { tasks: Task[]; outletMode?: boolean }) {
   return (
-    <div className="mt-5 divide-y divide-slate-100">
+    <div className="mt-4 space-y-3">
       {tasks.length > 0 ? (
-        tasks.map((task) => (
-          <div key={task.id} className="space-y-3 border-b border-slate-100 py-4 last:border-b-0 md:grid md:grid-cols-[1fr_160px_120px] md:gap-3 md:space-y-0">
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-950">{task.title}</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {outletMode ? "" : `${task.outlet} - `}
-                Due {formatTaskDue(task.due)}
-              </p>
-            </div>
-            <div className="flex items-center justify-between gap-3 md:block">
-              <div>
-                <p className="text-xs text-slate-400">Status</p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">{getStatusLabel(task)}</p>
+        tasks.map((task) => {
+          const status = getStatusLabel(task);
+          const isTaskOverdue = status === "Overdue";
+
+          let priorityColor = "bg-slate-50 text-slate-700 border-slate-100";
+          if (task.priority === "Critical") {
+            priorityColor = "bg-red-50 text-red-700 border-red-100";
+          } else if (task.priority === "High") {
+            priorityColor = "bg-amber-50 text-amber-700 border-amber-100";
+          }
+
+          let statusColor = "bg-slate-100 text-slate-700";
+          if (isTaskOverdue) {
+            statusColor = "bg-red-100 text-red-800";
+          } else if (task.status === "Pending") {
+            statusColor = "bg-amber-100 text-amber-800";
+          } else if (task.status === "In Progress") {
+            statusColor = "bg-blue-100 text-blue-800";
+          }
+
+          return (
+            <div
+              key={task.id}
+              className="group flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/30 p-4 transition-all duration-200 hover:border-slate-200 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0 space-y-1">
+                <p className="font-bold text-slate-900 group-hover:text-emerald-950 transition-colors">
+                  {task.title}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  {!outletMode && (
+                    <>
+                      <span className="font-medium text-slate-700">{task.outlet}</span>
+                      <span>&bull;</span>
+                    </>
+                  )}
+                  <span>Due {formatTaskDue(task.due)}</span>
+                </div>
               </div>
-              <div className="text-right md:text-left">
-                <p className="text-xs text-slate-400">Urgency</p>
-                <p className="mt-1 text-sm font-semibold text-slate-800">{task.priority}</p>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${statusColor}`}>
+                  {status}
+                </span>
+                <span className={`rounded-lg border px-2.5 py-0.5 text-xs font-semibold ${priorityColor}`}>
+                  {task.priority}
+                </span>
               </div>
             </div>
-          </div>
-        ))
+          );
+        })
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
           No urgent task data right now.

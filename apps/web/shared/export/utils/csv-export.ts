@@ -3,6 +3,14 @@
   rows: T[];
 };
 
+function sanitizeCsvCell(value: string | number): string {
+  let text = String(value ?? "");
+  if (/^[=+\-@]/.test(text)) {
+    text = `'${text}`;
+  }
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function exportToCsv<T extends Record<string, string | number>>(
   paramsOrRows: ExportCsvParams<T> | T[],
   legacyFileName?: string
@@ -19,7 +27,7 @@ export function exportToCsv<T extends Record<string, string | number>>(
   const csv = [
     headers.join(","),
     ...rows.map((row) =>
-      headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(",")
+      headers.map((header) => sanitizeCsvCell(row[header] ?? "")).join(",")
     ),
   ].join("\n");
 

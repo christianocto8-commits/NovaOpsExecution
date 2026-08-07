@@ -350,7 +350,7 @@ def list_login_devices(
 
 @router.get("/devices/all", response_model=list[LoginDeviceSessionResponse])
 def list_all_login_devices(
-    current_user: User = Depends(require_permission("user.read")),
+    current_user: User = Depends(require_permission("user.delete")),
     current_session_id: UUID | None = Depends(get_current_session_id),
     db: Session = Depends(get_db),
 ) -> list[LoginDeviceSessionResponse]:

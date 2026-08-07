@@ -674,6 +674,7 @@ def change_own_password(
     validate_password_policy(payload.new_password)
     current_user.password_hash = hash_password(payload.new_password)
     current_user.password_changed_at = datetime.now(UTC)
+    RefreshTokenRepository(db).revoke_all_for_user(current_user.id)
     db.add(current_user)
     db.commit()
     record_identity_audit_event(
@@ -700,10 +701,26 @@ def list_operators(
 ):
     operators = OutletOperatorRepository(db)
 
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    if full_access:
+        if outlet_id:
+            return operators.list_by_outlet(outlet_id)
+        return operators.list()
+
+    accessible_ids = {outlet.id for outlet in accessible_outlets}
     if outlet_id:
+        if outlet_id not in accessible_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no access to this outlet's operators",
+            )
         return operators.list_by_outlet(outlet_id)
 
-    return operators.list()
+    return [
+        operator
+        for operator in operators.list()
+        if operator.outlet_id in accessible_ids
+    ]
 
 
 @router.post("/operators", response_model=OutletOperatorRead, status_code=status.HTTP_201_CREATED)
