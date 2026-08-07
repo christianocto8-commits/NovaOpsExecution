@@ -529,7 +529,10 @@ export function OutletTaskExecutionDrawer({
 
                 {templateSettings.require_execution_note ? (
                   <div className="mt-4">
-                    <label className="text-sm font-bold text-slate-950">{t("execution.note")}</label>
+                    <label className="text-sm font-bold text-slate-950">
+                      {t("execution.note")}
+                      <span className="ml-1 text-red-500">*</span>
+                    </label>
                     <textarea
                       value={form.note}
                       onChange={(event) => updateForm({ ...form, note: event.target.value })}

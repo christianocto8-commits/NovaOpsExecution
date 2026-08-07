@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormField } from "@/features/forms/types";
 import { getVisibleFields } from "@/features/forms/utils/field-visibility";
@@ -108,7 +108,10 @@ export function DynamicFormRenderer({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <label className="text-sm font-bold text-slate-800">{field.label}</label>
+                <label className="text-sm font-bold text-slate-800">
+                  {field.label}
+                  {field.required && <span className="ml-1 text-red-500">*</span>}
+                </label>
                 {field.options?.standard ? (
                   <p className="mt-1 text-xs font-medium text-emerald-800/80">
                     Standard: {field.options.standard}

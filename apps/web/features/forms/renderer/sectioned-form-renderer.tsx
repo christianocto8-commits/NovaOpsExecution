@@ -263,7 +263,10 @@ export function SectionedFormRenderer({
             <p className="mt-1 text-xs text-emerald-800">Wajib diisi sebelum submit form.</p>
           </div>
           <div className="p-4">
-            <label className="text-sm font-bold text-slate-800">{RESPONSIBLE_PERSON_FIELD_LABEL}</label>
+            <label className="text-sm font-bold text-slate-800">
+              {RESPONSIBLE_PERSON_FIELD_LABEL}
+              <span className="ml-1 text-red-500">*</span>
+            </label>
             <input
               value={responses[RESPONSIBLE_PERSON_RESPONSE_KEY] ?? ""}
               disabled={readOnly}
