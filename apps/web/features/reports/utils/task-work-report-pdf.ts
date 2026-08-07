@@ -107,8 +107,16 @@ function formatResponseValue(value: string | undefined, field?: FormField) {
   }
 
   if (field?.type === "yes_no") {
-    if (value === "yes") return "Ya";
-    if (value === "no") return "Tidak";
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "yes" || normalized === "ya" || normalized === "true" || normalized === "1") {
+      return "Ya";
+    }
+    if (normalized === "no" || normalized === "tidak" || normalized === "false" || normalized === "0") {
+      return "Tidak";
+    }
+    if (normalized === "n/a" || normalized === "na" || normalized === "tidak berlaku") {
+      return "Tidak Berlaku";
+    }
   }
 
   if (field?.type === "money_denomination") {

@@ -162,6 +162,7 @@ ROLE_PERMISSION_MAP = {
         "task.execute",
         "form.read",
         "form.submit",
+        "execution.submit",
         "workflow.read",
         "notification.read",
         "incident.read",
