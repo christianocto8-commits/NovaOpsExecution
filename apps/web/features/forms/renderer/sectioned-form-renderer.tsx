@@ -48,22 +48,6 @@ function getSectionTitle(field: FormField) {
 
   if (rawSection.trim()) return rawSection;
 
-  if (field.type === "photo" || field.type === "video" || field.type === "signature") {
-    return "Evidence & Sign Off";
-  }
-
-  if (field.type === "money_denomination") {
-    return "Penghitungan Setoran";
-  }
-
-  if (field.type === "money_amount") {
-    return "Laporan Penjualan";
-  }
-
-  if (field.type === "responsible_person") {
-    return "Pelaksana Tugas";
-  }
-
   return "General Checklist";
 }
 
