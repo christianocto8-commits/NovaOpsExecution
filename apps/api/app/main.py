@@ -1,11 +1,15 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException
 
 from app.api.v1.router import api_router
 from app.bootstrap.ensure_online_admin import ensure_online_admin
 from app.bootstrap.ensure_operational_templates import ensure_operational_templates
+from app.core.error_codes import ErrorCode, http_error_code_to_enum
 from app.db.session import SessionLocal
 from app.modules.identity.management_api import ensure_system_roles_and_permissions
 from app.core.config import get_settings
@@ -64,6 +68,30 @@ dynamic forms, workflow approvals, reports, notifications, RBAC, and audit logs.
         },
     ],
 )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "code": http_error_code_to_enum(exc.status_code),
+        },
+        headers=getattr(exc, "headers", None),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Validation failed",
+            "code": ErrorCode.VALIDATION_ERROR,
+            "errors": exc.errors(),
+        },
+    )
 
 app.add_middleware(
     CORSMiddleware,
