@@ -5,17 +5,11 @@ import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { ExportMenu } from "@/shared/export/components";
 import { exportToCsv, exportToExcel, exportToPdf } from "@/shared/export/utils";
 
-import { Task, TaskPriorityFilter, TaskStatus, TaskStatusFilter } from "../types";
+import { Task, TaskStatus } from "../types";
 import { getPriorityClass, getStatusClass } from "../utils";
 
 type TaskTableProps = {
   tasks: Task[];
-  query: string;
-  statusFilter: TaskStatusFilter;
-  priorityFilter: TaskPriorityFilter;
-  onQueryChange: (value: string) => void;
-  onStatusFilterChange: (value: TaskStatusFilter) => void;
-  onPriorityFilterChange: (value: TaskPriorityFilter) => void;
   onSelectTask: (task: Task) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
@@ -79,8 +73,7 @@ export function TaskTable({
   onEditTask,
   onDeleteTask,
   onStatusChange,
-}: TaskTableProps) {
-  const filterDefinitions = useMemo(() => buildTaskFilterDefinitions(tasks), [tasks]);
+}: TaskTableProps) {  const filterDefinitions = useMemo(() => buildTaskFilterDefinitions(tasks), [tasks]);
 
   const columns: EnterpriseColumn<Task>[] = [
     {

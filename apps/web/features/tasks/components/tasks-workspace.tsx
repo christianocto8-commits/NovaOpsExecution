@@ -1304,12 +1304,6 @@ export function TasksWorkspace() {
            <div className="bg-[#F7FAF8] p-3 sm:p-4">
              <TaskTable
                tasks={filteredAdminTasks}
-               query={mobileSearch}
-               statusFilter={statusFilter}
-               priorityFilter={priorityFilter}
-               onQueryChange={setMobileSearch}
-               onStatusFilterChange={setStatusFilter}
-               onPriorityFilterChange={setPriorityFilter}
                onSelectTask={handleOpenTask}
                onEditTask={isOwnerAdminWorkspace ? openEditTask : () => {}}
                onDeleteTask={

@@ -817,12 +817,24 @@ def delete_operator(
 
     return MessageResponse(message="Operator deleted")
 
+def _legacy_outlet_id_for_code(db: Session, outlet_code: str) -> int | None:
+    from app.models.outlet import Outlet as LegacyOutlet
+
+    legacy_outlet = (
+        db.query(LegacyOutlet)
+        .filter(LegacyOutlet.code == (outlet_code or "").strip().upper())
+        .first()
+    )
+    return legacy_outlet.id if legacy_outlet else None
+
+
 @router.get("/outlets/metrics", response_model=list[OutletMetricsRead])
 def list_outlet_metrics(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("outlet.read")),
 ):
-    outlets = OutletRepository(db).list()
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    outlet_rows = OutletRepository(db).list() if full_access else list(accessible_outlets)
     operators = OutletOperatorRepository(db).list()
 
     active_operator_count_by_outlet: dict[UUID, int] = {}
@@ -835,14 +847,39 @@ def list_outlet_metrics(
             active_operator_count_by_outlet.get(operator.outlet_id, 0) + 1
         )
 
+    from app.models.task import Task
+
+    open_counts: dict[int, int] = {}
+    completed_today_counts: dict[int, int] = {}
+
+    started_at = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    task_rows = db.execute(
+        select(
+            Task.outlet_id,
+            Task.status,
+            Task.completed_at,
+        ).order_by(Task.id.asc())
+    ).all()
+
+    for task_outlet_id, task_status, completed_at in task_rows:
+        if task_status in {"open", "in_progress", "blocked"}:
+            open_counts.setdefault(task_outlet_id, 0)
+            open_counts[task_outlet_id] += 1
+        if task_status == "completed" and completed_at is not None and completed_at >= started_at:
+            completed_today_counts.setdefault(task_outlet_id, 0)
+            completed_today_counts[task_outlet_id] += 1
+
     return [
         OutletMetricsRead(
             outlet_id=outlet.id,
-            open_tasks=0,
-            completed_today=0,
+            open_tasks=open_counts.get(_legacy_outlet_id_for_code(db, outlet.code) or -1, 0),
+            completed_today=completed_today_counts.get(
+                _legacy_outlet_id_for_code(db, outlet.code) or -1, 0
+            ),
             compliance=0,
             last_audit=None,
             active_operators=active_operator_count_by_outlet.get(outlet.id, 0),
         )
-        for outlet in outlets
+        for outlet in outlet_rows
     ]

@@ -14,7 +14,6 @@ import {
   enrichTasksWithCompletedSessions,
   resolveTaskSubmissionSelection,
 } from "@/features/history/utils/execution-session-history";
-import { getReportSummary } from "@/features/reports/reports-api";
 import {
   countWorkedTasksForOutlet,
   exportOutletWorkReportPdf,
@@ -195,12 +194,6 @@ export function ReportsWorkspace() {
     queryKey: queryKeys.sop.tasks(),
     queryFn: taskService.listAll,
     retry: false,
-  });
-  const reportSummaryQuery = useQuery({
-    queryKey: ["reports", "summary", workspace.outletId ?? workspace.mode],
-    queryFn: getReportSummary,
-    retry: false,
-    enabled: !isOutletWorkspace,
   });
   const formTemplatesQuery = useQuery({
     queryKey: queryKeys.sop.formTemplates(),
@@ -668,13 +661,11 @@ export function ReportsWorkspace() {
         </button>
       </div>
 
-      {tasksQuery.isError || reportSummaryQuery.isError ? (
+      {tasksQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {tasksQuery.error instanceof Error
             ? tasksQuery.error.message
-            : reportSummaryQuery.error instanceof Error
-              ? reportSummaryQuery.error.message
-              : "Gagal memuat laporan."}
+            : "Gagal memuat laporan."}
         </div>
       ) : null}
 
@@ -739,8 +730,6 @@ export function ReportsWorkspace() {
               >
                 <option value="all">Semua status</option>
                 <option value="completed">Selesai</option>
-                <option value="in_progress">Berjalan</option>
-                <option value="pending">Belum mulai</option>
                 <option value="overdue">Terlewat</option>
               </select>
             </div>

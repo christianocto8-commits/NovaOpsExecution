@@ -16,7 +16,11 @@ from app.modules.task_schedules.schemas import (
     TaskScheduleUpdate,
 )
 from app.modules.task_schedules.service import TaskScheduleService
-from app.modules.tasks.identity_bridge import get_identity_user_by_email, sync_identity_access
+from app.modules.tasks.identity_bridge import (
+    get_accessible_identity_outlets,
+    get_identity_user_by_email,
+    sync_identity_access,
+)
 
 router = APIRouter(prefix="/task-schedules", tags=["Task Schedules"])
 
@@ -47,13 +51,66 @@ def _require_owner_admin(db: Session, current_user) -> None:
         )
 
 
+def _scoped_schedules(db: Session, current_user, service: TaskScheduleService) -> list:
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if not identity_user:
+        return service.list_schedules()
+
+    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    if full_access:
+        return service.list_schedules()
+
+    accessible_codes = {
+        (outlet.code or "").strip().upper()
+        for outlet in accessible_outlets
+    }
+    return [
+        schedule
+        for schedule in service.list_schedules()
+        if not schedule.outlet_ids_json
+        or any(
+            _outlet_code_matches(db, outlet_ref) in accessible_codes
+            for outlet_ref in schedule.outlet_ids_json
+        )
+    ]
+
+
+def _outlet_code_matches(db: Session, outlet_ref: str) -> str:
+    from app.modules.tasks.identity_bridge import get_identity_outlet
+
+    try:
+        identity_outlet = get_identity_outlet(db, UUID(outlet_ref))
+    except (TypeError, ValueError):
+        return ""
+    return (identity_outlet.code or "").strip().upper() if identity_outlet else ""
+
+
+def _legacy_outlet_id_for(db: Session, outlet_code: str) -> int | None:
+    from app.models.outlet import Outlet as LegacyOutlet
+    from app.modules.identity.models import Outlet as IdentityOutlet
+
+    identity_outlet = (
+        db.query(IdentityOutlet)
+        .filter(IdentityOutlet.code == (outlet_code or "").strip().upper())
+        .first()
+    )
+    if not identity_outlet:
+        return None
+    legacy_outlet = (
+        db.query(LegacyOutlet)
+        .filter(LegacyOutlet.code == identity_outlet.code.strip().upper())
+        .first()
+    )
+    return legacy_outlet.id if legacy_outlet else None
+
+
 @router.get("", response_model=list[TaskScheduleResponse])
 def list_task_schedules(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     service = TaskScheduleService(db)
-    return service.list_schedules()
+    return _scoped_schedules(db, current_user, service)
 
 
 @router.post("", response_model=TaskScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -99,9 +156,24 @@ def list_task_schedule_exceptions(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    del current_user
     service = TaskScheduleService(db)
-    return service.list_exceptions()
+    exceptions = service.list_exceptions()
+
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if identity_user:
+        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+        if not full_access:
+            accessible_legacy_ids = {
+                _legacy_outlet_id_for(db, outlet.code) for outlet in accessible_outlets
+            }
+            accessible_legacy_ids.discard(None)
+            exceptions = [
+                exception
+                for exception in exceptions
+                if exception.outlet_id is None or exception.outlet_id in accessible_legacy_ids
+            ]
+
+    return exceptions
 
 
 @router.post("/exceptions", response_model=TaskScheduleExceptionResponse, status_code=status.HTTP_201_CREATED)
@@ -167,7 +239,26 @@ def get_task_schedule(
     current_user=Depends(get_current_user),
 ):
     service = TaskScheduleService(db)
-    return service.get_schedule(schedule_id)
+    schedule = service.get_schedule(schedule_id)
+
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if identity_user:
+        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+        if not full_access:
+            accessible_codes = {
+                (outlet.code or "").strip().upper() for outlet in accessible_outlets
+            }
+            allowed = not schedule.outlet_ids_json or any(
+                _outlet_code_matches(db, outlet_ref) in accessible_codes
+                for outlet_ref in schedule.outlet_ids_json
+            )
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User has no access to this schedule",
+                )
+
+    return schedule
 
 
 @router.patch("/{schedule_id}", response_model=TaskScheduleResponse)

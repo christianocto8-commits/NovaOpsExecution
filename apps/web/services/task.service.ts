@@ -278,6 +278,12 @@ function eventTypeToActivityType(eventType: string): TaskActivityType {
   if (eventType === "review_approved") return "review_approved";
   if (eventType === "review_rejected") return "review_rejected";
   if (eventType === "completed" || eventType === "task.completed") return "completed";
+  if (eventType === "deleted" || eventType === "task.deleted") return "updated";
+  if (eventType === "status_changed") return "updated";
+  if (eventType === "checklist.failed") return "evidence_submitted";
+  if (eventType === "capa_evidence") return "evidence_submitted";
+  if (eventType === "capa_verified") return "review_approved";
+  if (eventType === "capa_rejected") return "review_rejected";
   return "created";
 }
 
