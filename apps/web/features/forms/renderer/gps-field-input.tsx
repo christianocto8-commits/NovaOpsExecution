@@ -37,17 +37,16 @@ export function GpsFieldInput({ value, readOnly, onChange }: GpsFieldInputProps)
         setIsCapturing(false);
         toast.success("Lokasi GPS berhasil dicatat.");
       },
-      (error) => {
-        setIsCapturing(false);
-        const denied =
-          error.code === error.PERMISSION_DENIED ||
-          (error.code as number) === 1;
-        toast.error(
-          denied
-            ? "Akses GPS ditolak. Izinkan akses lokasi untuk mencatat koordinat."
-            : "Gagal menangkap lokasi GPS."
-        );
-      },
+       (error) => {
+         setIsCapturing(false);
+         const isDenied =
+           error.code === GeolocationPositionError.PERMISSION_DENIED;
+         toast.error(
+           isDenied
+             ? "Akses GPS ditolak. Izinkan akses lokasi untuk mencatat koordinat."
+             : "Gagal menangkap lokasi GPS."
+         );
+       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, [onChange, toast]);
