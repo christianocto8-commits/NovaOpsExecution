@@ -87,7 +87,7 @@ class TestGetAccessibleIdentityOutlets:
         assert full_access is False
         assert len(result) == 2
 
-    def test_crew_user_returns_assigned_and_personal(self):
+    def test_crew_user_returns_only_default_outlet(self):
         db = MagicMock()
         outlet_a = _make_outlet("O001")
         outlet_b = _make_outlet("O002")
@@ -96,7 +96,8 @@ class TestGetAccessibleIdentityOutlets:
         result, full_access = get_accessible_identity_outlets(db, user)
 
         assert full_access is False
-        assert len(result) == 2
+        assert len(result) == 1
+        assert result[0] == outlet_b
 
     def test_finance_head_office_gets_all_outlets(self):
         db = MagicMock()

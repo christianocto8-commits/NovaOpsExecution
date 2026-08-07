@@ -14,7 +14,7 @@ _firebase_lock = threading.Lock()
 def is_fcm_client_configured() -> bool:
     """True when a real google-services.json is present (not just the example file)."""
     services_file = _web_and_android_app / "google-services.json"
-    example_file = WEB_ANDROID_APP / "google-services.json.example"
+    example_file = _web_and_android_app / "google-services.json.example"
 
     if not services_file.is_file():
         return False

@@ -20,7 +20,7 @@ def test_fcm_detects_real_google_services(tmp_path, monkeypatch):
     example.write_text('{"project_info":{"project_id":"example"}}', encoding="utf-8")
 
     monkeypatch.setattr(
-        "app.modules.integrations.fcm.WEB_ANDROID_APP",
+        "app.modules.integrations.fcm._web_and_android_app",
         app_dir,
     )
 
