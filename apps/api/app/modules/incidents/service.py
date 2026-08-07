@@ -57,7 +57,8 @@ class IncidentService:
         statement = select(Incident).options(selectinload(Incident.follow_ups))
         allowed = accessible_outlet_ids(self.db, user)
         if allowed is not None:
-            statement = statement.where(Incident.outlet_id.in_(allowed) if allowed else Incident.id.is_(None))
+            if allowed:
+                statement = statement.where(Incident.outlet_id.in_(allowed))
         if outlet_id:
             ensure_outlet_access(self.db, user, outlet_id)
             statement = statement.where(Incident.outlet_id == outlet_id)
