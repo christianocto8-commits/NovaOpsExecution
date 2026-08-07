@@ -380,49 +380,78 @@ export default function DashboardPage() {
             <p className="text-sm font-semibold text-slate-950">Outlet Score Snapshot</p>
             <p className="mt-1 text-xs text-slate-500">Compliance score by outlet from live task data.</p>
           </div>
-          <Link href="/dashboard/compliance" className="text-sm font-bold text-emerald-700">
-            Full compliance →
+          <Link href="/dashboard/compliance" className="text-sm font-bold text-emerald-700 hover:text-emerald-800 transition-colors">
+            Full compliance &rarr;
           </Link>
         </div>
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-          {outletProgress.slice(0, 8).map((item) => (
-            <Link
-              key={item.outlet}
-              href="/dashboard/reports?tab=riwayat"
-              className="min-w-[140px] shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-400 hover:bg-white hover:-translate-y-1 hover:shadow-md duration-300 ease-out"
-            >
-              <p className="truncate text-sm font-bold text-slate-950">{item.outlet}</p>
-              <p className="mt-2 text-2xl font-bold text-emerald-700">{item.progress}%</p>
-              <p className="mt-1 text-xs text-slate-500">{item.open} open</p>
-            </Link>
-          ))}
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {outletProgress.slice(0, 8).map((item) => {
+            const score = item.progress;
+            let toneClass = "border-emerald-100 bg-gradient-to-br from-emerald-50/40 to-emerald-50/10 text-emerald-700 hover:border-emerald-400";
+            let textClass = "text-emerald-700";
+            let badgeBg = "bg-emerald-100/60 text-emerald-800";
+
+            if (score < 50) {
+              toneClass = "border-red-100 bg-gradient-to-br from-red-50/40 to-red-50/10 text-red-700 hover:border-red-400";
+              textClass = "text-red-700";
+              badgeBg = "bg-red-100/60 text-red-800";
+            } else if (score < 85) {
+              toneClass = "border-amber-100 bg-gradient-to-br from-amber-50/40 to-amber-50/10 text-amber-700 hover:border-amber-400";
+              textClass = "text-amber-700";
+              badgeBg = "bg-amber-100/60 text-amber-800";
+            }
+
+            return (
+              <Link
+                key={item.outlet}
+                href="/dashboard/reports?tab=riwayat"
+                className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${toneClass}`}
+              >
+                <div>
+                  <span className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badgeBg}`}>
+                    Score
+                  </span>
+                  <p className="mt-2 truncate text-sm font-bold text-slate-900">{item.outlet}</p>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between gap-2">
+                  <p className={`text-2xl font-extrabold tracking-tight ${textClass}`}>{score}%</p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {item.open} open
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-2">Quick Actions:</span>
           <Link
             href="/dashboard/compliance"
-            className="rounded-full bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition-colors"
           >
-            Compliance
+            Compliance Panel
           </Link>
           <Link
             href="/dashboard/reports"
-            className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100/80 transition-colors"
           >
-            Reports
+            Reports Hub
           </Link>
           {capaEnabled ? (
             <Link
               href="/dashboard/corrective-actions"
-              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100/80 transition-colors"
             >
-              CAPA
+              CAPA Hub
             </Link>
           ) : null}
           <Link
             href="/dashboard/reports?tab=bukti"
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            Review Bukti
+            Review Evidence
           </Link>
         </div>
       </section>
