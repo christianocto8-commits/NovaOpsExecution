@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 from app.core.config import get_settings
 
-API_ROOT = Path(__file__).resolve().parents[3]
-WEB_ANDROID_APP = API_ROOT.parent / "web" / "android" / "app"
+_api_root = Path(__file__).resolve().parents[3]
+_web_and_android_app = _api_root.parent / "web" / "android" / "app"
+_firebase_lock = threading.Lock()
 
 
 def is_fcm_client_configured() -> bool:
     """True when a real google-services.json is present (not just the example file)."""
-    services_file = WEB_ANDROID_APP / "google-services.json"
+    services_file = _web_and_android_app / "google-services.json"
     example_file = WEB_ANDROID_APP / "google-services.json.example"
 
     if not services_file.is_file():
@@ -78,12 +80,13 @@ def send_fcm_to_tokens(
         result["failed"] = len(tokens)
         return result
 
-    if not firebase_admin._apps:
-        try:
-            firebase_admin.initialize_app(credentials.Certificate(_load_firebase_credentials()))
-        except Exception:
-            result["failed"] = len(tokens)
-            return result
+    with _firebase_lock:
+        if not firebase_admin._apps:
+            try:
+                firebase_admin.initialize_app(credentials.Certificate(_load_firebase_credentials()))
+            except Exception:
+                result["failed"] = len(tokens)
+                return result
 
     payload_data = {"url": url or "/dashboard/tasks", **(data or {})}
 

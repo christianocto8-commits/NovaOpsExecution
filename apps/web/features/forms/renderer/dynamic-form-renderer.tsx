@@ -4,13 +4,14 @@ import { FormField } from "@/features/forms/types";
 import { getVisibleFields } from "@/features/forms/utils/field-visibility";
 import { TaskFormResponses } from "@/features/tasks/types";
 
+import { GpsFieldInput } from "./gps-field-input";
+import { BarcodeFieldInput } from "./barcode-field-input";
+import { RatingFieldInput } from "./rating-field-input";
+import { SignatureFieldInput } from "./signature-field-input";
 import { MoneyAmountField } from "./money-amount-field";
 import { MoneyDenominationField } from "./money-denomination-field";
 import { PhotoFieldInput } from "./photo-field-input";
-import { SignatureFieldInput } from "./signature-field-input";
-import { RatingFieldInput } from "./rating-field-input";
-import { BarcodeFieldInput } from "./barcode-field-input";
-import { GpsFieldInput } from "./gps-field-input";
+import { FormErrorBoundary } from "./form-error-boundary";
 
 type DynamicFormRendererProps = {
   fields: FormField[];
@@ -92,7 +93,8 @@ export function DynamicFormRenderer({
   }
 
   return (
-    <div className="space-y-4">
+    <FormErrorBoundary>
+      <div className="space-y-4">
       {visibleFields.map((field) => {
         const value = responses[field.id] ?? "";
         const isHighlighted = highlightedFieldIds.includes(field.id);
@@ -269,5 +271,6 @@ export function DynamicFormRenderer({
         );
       })}
     </div>
+    </FormErrorBoundary>
   );
 }
