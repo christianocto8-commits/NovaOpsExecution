@@ -136,6 +136,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
     mutationFn: (user: OutletMember) => taskService.assignUser(task!.id, user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-assignments", task?.id ?? "none"] });
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id ?? "none"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
       toast.success("Task berhasil ditugaskan.");
     },
@@ -148,6 +149,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
     mutationFn: (assignmentId: number) => taskService.removeAssignment(task!.id, assignmentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-assignments", task?.id ?? "none"] });
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id ?? "none"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
       toast.success("Penugasan dihapus.");
     },

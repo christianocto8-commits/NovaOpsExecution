@@ -39,8 +39,11 @@ export function GpsFieldInput({ value, readOnly, onChange }: GpsFieldInputProps)
       },
       (error) => {
         setIsCapturing(false);
+        const denied =
+          error.code === error.PERMISSION_DENIED ||
+          (error.code as number) === 1;
         toast.error(
-          error.message === "User denied Geolocation"
+          denied
             ? "Akses GPS ditolak. Izinkan akses lokasi untuk mencatat koordinat."
             : "Gagal menangkap lokasi GPS."
         );

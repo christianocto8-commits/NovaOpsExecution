@@ -112,7 +112,17 @@ def create_task_schedule_exception(
 ):
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
-    return service.create_exception(payload, actor_id=_get_actor_id(current_user))
+    exception = service.create_exception(payload, actor_id=_get_actor_id(current_user))
+    record_identity_audit_event(
+        db,
+        action="schedule_exception.created",
+        resource_type="task_schedule_exception",
+        actor_user_id=_get_identity_actor_id(db, current_user),
+        resource_id=str(exception.id),
+        metadata={"outlet_id": exception.outlet_id, "date": exception.date.isoformat() if exception.date else None},
+    )
+    db.commit()
+    return exception
 
 
 @router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -123,7 +133,19 @@ def delete_task_schedule_exception(
 ):
     _require_owner_admin(db, current_user)
     service = TaskScheduleService(db)
+    exception = service.get_exception(exception_id)
+    outlet_id = exception.outlet_id if exception else None
+    date = exception.date.isoformat() if exception and exception.date else None
     service.delete_exception(exception_id)
+    record_identity_audit_event(
+        db,
+        action="schedule_exception.deleted",
+        resource_type="task_schedule_exception",
+        actor_user_id=_get_identity_actor_id(db, current_user),
+        resource_id=str(exception_id),
+        metadata={"outlet_id": outlet_id, "date": date},
+    )
+    db.commit()
     return None
 
 

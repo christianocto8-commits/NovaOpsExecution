@@ -170,7 +170,17 @@ def sync_system_roles(
     current_user: User = Depends(require_permission("user.edit")),
 ):
     del current_user
-    return ensure_system_roles_and_permissions(db)
+    result = ensure_system_roles_and_permissions(db)
+    db.commit()
+    record_identity_audit_event(
+        db,
+        action="role.sync_system",
+        resource_type="role",
+        resource_id="system",
+        metadata={"roles": [role.slug for role in result]},
+    )
+    db.commit()
+    return result
 
 
 @router.get("/permissions", response_model=list[PermissionRead])
@@ -214,6 +224,15 @@ def update_role_permissions(
     db.add(role)
     db.commit()
     db.refresh(role)
+    record_identity_audit_event(
+        db,
+        action="role.permissions.updated",
+        resource_type="role",
+        actor_user_id=current_user.id,
+        resource_id=str(role.id),
+        metadata={"role": role.slug, "permission_codes": requested_codes},
+    )
+    db.commit()
 
     return role
 
@@ -276,6 +295,16 @@ def create_outlet(
 
     created = outlets.create(outlet)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="outlet.created",
+        resource_type="outlet",
+        actor_user_id=current_user.id,
+        organization_id=organization.id,
+        resource_id=str(created.id),
+        metadata={"code": created.code, "name": created.name},
+    )
+    db.commit()
     return created
 
 
@@ -327,6 +356,17 @@ def update_outlet(
 
     updated = outlets.update(outlet)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="outlet.updated",
+        resource_type="outlet",
+        actor_user_id=current_user.id,
+        organization_id=outlet.organization_id,
+        outlet_id=outlet.id,
+        resource_id=str(outlet.id),
+        metadata={"code": outlet.code, "name": outlet.name},
+    )
+    db.commit()
     return updated
 
 
@@ -347,6 +387,16 @@ def delete_outlet(
         db.add(linked_user)
 
     db.delete(outlet)
+    db.commit()
+    record_identity_audit_event(
+        db,
+        action="outlet.deleted",
+        resource_type="outlet",
+        actor_user_id=current_user.id,
+        organization_id=outlet.organization_id,
+        resource_id=str(outlet.id),
+        metadata={"code": outlet.code, "name": outlet.name},
+    )
     db.commit()
 
     return MessageResponse(message="Outlet deleted")
@@ -626,6 +676,15 @@ def change_own_password(
     current_user.password_changed_at = datetime.now(UTC)
     db.add(current_user)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="password.changed",
+        resource_type="user",
+        actor_user_id=current_user.id,
+        resource_id=str(current_user.id),
+        metadata={"email": current_user.email},
+    )
+    db.commit()
 
     return MessageResponse(message="Password updated")
 
@@ -669,6 +728,16 @@ def create_operator(
 
     created = OutletOperatorRepository(db).create(operator)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="operator.created",
+        resource_type="outlet_operator",
+        actor_user_id=current_user.id,
+        outlet_id=operator.outlet_id,
+        resource_id=str(created.id),
+        metadata={"name": created.name, "position": created.position},
+    )
+    db.commit()
     return created
 
 
@@ -708,6 +777,16 @@ def update_operator(
 
     updated = operators.update(operator)
     db.commit()
+    record_identity_audit_event(
+        db,
+        action="operator.updated",
+        resource_type="outlet_operator",
+        actor_user_id=current_user.id,
+        outlet_id=operator.outlet_id,
+        resource_id=str(operator.id),
+        metadata={"name": operator.name, "position": operator.position},
+    )
+    db.commit()
     return updated
 
 
@@ -724,6 +803,16 @@ def delete_operator(
         raise HTTPException(status_code=404, detail="Operator not found")
 
     db.delete(operator)
+    db.commit()
+    record_identity_audit_event(
+        db,
+        action="operator.deleted",
+        resource_type="outlet_operator",
+        actor_user_id=current_user.id,
+        outlet_id=operator.outlet_id,
+        resource_id=str(operator.id),
+        metadata={"name": operator.name, "position": operator.position},
+    )
     db.commit()
 
     return MessageResponse(message="Operator deleted")

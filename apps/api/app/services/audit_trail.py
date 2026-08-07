@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -82,6 +83,15 @@ def _security_summary(action: str, metadata: dict) -> str:
         return f"Admin eliminasi perangkat{f': {device}' if device else ''}"
 
     return action.replace("_", " ").title()
+
+
+def _identity_outlet_for_legacy(db: Session, legacy_outlet_id: int) -> Outlet | None:
+    from app.modules.identity.models import Outlet as IdentityOutlet
+
+    legacy_outlet = db.query(Outlet).filter(Outlet.id == legacy_outlet_id).first()
+    if not legacy_outlet:
+        return None
+    return db.query(IdentityOutlet).filter(IdentityOutlet.code == legacy_outlet.code.strip().upper()).first()
 
 
 def list_audit_events(
@@ -339,6 +349,32 @@ def list_audit_events(
             .filter(IdentityAuditLog.created_at >= since)
             .order_by(IdentityAuditLog.created_at.desc())
         )
+
+        scoped_identity_outlet_ids: set[str] | None = None
+        if all_outlets:
+            scoped_identity_outlet_ids = None
+        else:
+            if outlet_id is not None:
+                identity_outlet = _identity_outlet_for_legacy(db, outlet_id)
+                scoped_identity_outlet_ids = {str(identity_outlet.id)} if identity_outlet else set()
+            elif outlet_ids:
+                mapped = set()
+                for legacy_outlet_id in outlet_ids:
+                    identity_legacy_outlet = _identity_outlet_for_legacy(db, legacy_outlet_id)
+                    if identity_legacy_outlet:
+                        mapped.add(str(identity_legacy_outlet.id))
+                scoped_identity_outlet_ids = mapped
+            else:
+                scoped_identity_outlet_ids = None
+
+        if scoped_identity_outlet_ids is not None:
+            identity_query = identity_query.filter(
+                IdentityAuditLog.outlet_id.in_(
+                    [UUID(outlet_uuid) for outlet_uuid in scoped_identity_outlet_ids]
+                )
+            ) if scoped_identity_outlet_ids else identity_query.filter(
+                IdentityAuditLog.outlet_id.is_(None)
+            )
 
         identity_rows = identity_query.all()
         actor_ids = {row.actor_user_id for row in identity_rows if row.actor_user_id}

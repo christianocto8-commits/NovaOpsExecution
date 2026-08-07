@@ -135,6 +135,13 @@ function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
   return "Pending";
 }
 
+export function toBackendStatus(status: TaskStatus): BackendTaskStatus {
+  if (status === "Completed") return "completed";
+  if (status === "Cancelled") return "cancelled";
+  if (status === "In Progress") return "in_progress";
+  return "open";
+}
+
 function toBackendPriority(priority: TaskPriority): BackendTaskPriority {
   if (priority === "Critical") return "urgent";
   if (priority === "High") return "high";

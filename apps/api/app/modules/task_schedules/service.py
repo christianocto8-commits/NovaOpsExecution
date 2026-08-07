@@ -95,6 +95,8 @@ class TaskScheduleService:
         for key, value in update_data.items():
             setattr(schedule, key, value)
 
+        self._validate_recurrence_payload(schedule)
+
         schedule.next_publish_at = (
             publish_at
             if schedule.recurrence == "once" and publish_at
@@ -202,6 +204,13 @@ class TaskScheduleService:
             cancelled += 1
         return cancelled
 
+    def get_exception(self, exception_id: int) -> TaskScheduleException | None:
+        return (
+            self.db.query(TaskScheduleException)
+            .filter(TaskScheduleException.id == exception_id)
+            .first()
+        )
+
     def delete_exception(self, exception_id: int) -> None:
         exception = (
             self.db.query(TaskScheduleException)
@@ -301,6 +310,18 @@ class TaskScheduleService:
 
         if payload.assigned_to:
             self._validate_assignee(payload.assigned_to, payload.outlet_ids)
+
+    def _validate_recurrence_payload(self, schedule: TaskSchedule) -> None:
+        if schedule.recurrence == "weekly" and not schedule.weekly_publish_day:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="weekly_publish_day is required for weekly schedules",
+            )
+        if schedule.recurrence == "monthly" and not schedule.monthly_publish_day:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="monthly_publish_day is required for monthly schedules",
+            )
 
     def _validate_assignee(self, assigned_to: int, outlet_ids: list[str]) -> None:
         repo = TaskRepository(self.db)

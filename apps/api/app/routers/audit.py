@@ -27,6 +27,14 @@ def get_audit_events(
         db, current_user, x_outlet_id
     )
 
+    if outlet_id is not None and not full_access and (not outlet_ids or outlet_id not in outlet_ids):
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no access to this outlet's audit events",
+        )
+
     effective_outlet_id = outlet_id if outlet_id is not None else scoped_outlet_id
 
     rows, total = list_audit_events(

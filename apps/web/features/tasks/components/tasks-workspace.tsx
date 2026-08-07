@@ -31,7 +31,7 @@ import {
   type BackendUpcomingTaskSchedule,
 } from "@/services/task-schedule.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
-import { taskService, type BackendTaskStatus, type OutletMember } from "@/services/task.service";
+import { taskService, toBackendStatus, type BackendTaskStatus, type OutletMember } from "@/services/task.service";
 import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
@@ -723,7 +723,7 @@ export function TasksWorkspace() {
   function updateTaskStatus(id: string, status: TaskStatus) {
     updateTaskStatusMutation.mutate({
       id,
-      status: status.toLowerCase() as BackendTaskStatus,
+      status: toBackendStatus(status),
     });
   }
 

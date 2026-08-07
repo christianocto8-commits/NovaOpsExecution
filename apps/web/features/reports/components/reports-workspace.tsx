@@ -337,14 +337,8 @@ export function ReportsWorkspace() {
     [reportRows, outletFilter, statusFilter]
   );
 
-  const clientSummary = useMemo(() => getSummary(reportRows), [reportRows]);
-  const backendSummary = reportSummaryQuery.data;
-  const summary = {
-    completed: backendSummary?.completed_items ?? clientSummary.completed,
-    inProgress: backendSummary?.open_tasks ?? clientSummary.inProgress,
-    overdue: backendSummary?.overdue_tasks ?? clientSummary.overdue,
-    averageProgress: backendSummary?.completion_rate ?? clientSummary.averageProgress,
-  };
+  const clientSummary = useMemo(() => getSummary(filteredReportRows), [filteredReportRows]);
+  const summary = clientSummary;
 
   const outletNames = useMemo(
     () => Array.from(new Set(scopedTasks.map((task) => task.outlet).filter(Boolean))).sort(),
@@ -419,7 +413,7 @@ export function ReportsWorkspace() {
   }
 
   async function handleOutletWorkExport(outlet: string) {
-    const workedTasks = filterWorkedTasksForOutlet(enrichedScopedTasks, outlet);
+    const workedTasks = filterWorkedTasksForOutlet(periodFilteredTasks, outlet);
 
     try {
       setIsExportingPdf(true);
@@ -438,7 +432,8 @@ export function ReportsWorkspace() {
   }
 
   function handleRegulatorPacketExport() {
-    if (reportRows.length === 0) {
+    const rows = filteredReportRows;
+    if (rows.length === 0) {
       toast.error("Belum ada data untuk compliance packet.");
       return;
     }
@@ -448,14 +443,14 @@ export function ReportsWorkspace() {
         periodLabel: `${periodDays} hari terakhir`,
         outletLabel: workspace.outletName ?? "Semua outlet",
         summary: {
-          total: reportRows.length,
+          total: rows.length,
           completed: summary.completed,
           inProgress: summary.inProgress,
           overdue: summary.overdue,
           averageProgress: summary.averageProgress,
           averageScore: summary.averageProgress,
         },
-        rows: reportRows.map((row) => ({
+        rows: rows.map((row) => ({
           id: row.id,
           outlet: row.outlet,
           task: row.task,
@@ -503,7 +498,7 @@ export function ReportsWorkspace() {
   );
 
   function handleReportCsvExport() {
-    if (reportRows.length === 0) {
+    if (filteredReportRows.length === 0) {
       toast.error("Belum ada data untuk diexport.");
       return;
     }
@@ -515,7 +510,7 @@ export function ReportsWorkspace() {
   }
 
   function handleReportExcelExport() {
-    if (reportRows.length === 0) {
+    if (filteredReportRows.length === 0) {
       toast.error("Belum ada data untuk diexport.");
       return;
     }
@@ -851,7 +846,7 @@ export function ReportsWorkspace() {
                 </div>
               ) : (
                 outletNames.map((outlet) => {
-                  const workedCount = countWorkedTasksForOutlet(enrichedScopedTasks, outlet);
+                  const workedCount = countWorkedTasksForOutlet(periodFilteredTasks, outlet);
 
                   return (
                     <div

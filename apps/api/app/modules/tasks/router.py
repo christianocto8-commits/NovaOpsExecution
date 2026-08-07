@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.permissions import has_permission
 from app.core.scheduler import verify_scheduler_secret
 from app.models.task import Task
 from app.modules.identity.models import User as IdentityUser
@@ -48,6 +49,33 @@ from app.repositories.outlet_repository import OutletRepository
 from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+
+def ensure_task_permission(db: Session, current_user, permission: str) -> None:
+    """Gate task mutations behind the identity permission system.
+
+    Falls back to the legacy role grant when no identity user is bridged,
+    treating Owner (full access) as universally authorized.
+    """
+    identity_user = get_identity_user_by_email(db, current_user.email)
+    if identity_user is not None and identity_user.role is not None:
+        codes = {permission_obj.code for permission_obj in identity_user.role.permissions}
+        wildcard = f"{permission.split('.')[0]}.*"
+        if permission in codes or wildcard in codes or "*" in codes:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing permission: {permission}",
+        )
+
+    role_name = (current_user.role.name if current_user.role else "") or ""
+    if role_name == "Owner" or has_permission(role_name, permission):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Missing permission: {permission}",
+    )
 
 
 def ensure_can_reassign_tasks(db: Session, full_access: bool) -> None:
@@ -227,6 +255,7 @@ def create_task(
                 detail="Select an outlet before creating a task",
             )
         x_outlet_id = outlet_ids[0]
+    ensure_task_permission(db, current_user, "task.create")
     service = TaskService(db)
     task = service.create_task(payload=payload, outlet_id=x_outlet_id, actor_id=actor_id)
     return build_task_response(db, task)
@@ -289,6 +318,7 @@ def bulk_assign_tasks(
         db, current_user, x_outlet_id
     )
     ensure_can_reassign_tasks(db, full_access)
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     assigned = service.bulk_assign(
         task_ids=payload.task_ids,
@@ -309,6 +339,7 @@ def bulk_delete_tasks(
     _x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
+    ensure_task_permission(db, current_user, "task.delete")
     service = TaskService(db)
     deleted = service.bulk_delete(
         task_ids=payload.task_ids,
@@ -344,6 +375,7 @@ def update_task(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     task = service.update_task(
         task_id=task_id,
@@ -365,6 +397,7 @@ def update_task_status(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
     task = service.update_status(
@@ -415,6 +448,7 @@ def review_task(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     task = service.review_task(
         task_id=task_id,
@@ -435,6 +469,7 @@ def verify_task(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     task = service.verify_task(
         task_id=task_id,
@@ -455,6 +490,7 @@ def update_corrective_action_evidence(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     task = service.update_corrective_action_evidence(
         task_id=task_id,
@@ -476,6 +512,7 @@ def reject_corrective_action(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     task = service.reject_corrective_action(
         task_id=task_id,
@@ -497,6 +534,7 @@ def add_task_comment(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.read")
     service = TaskService(db)
     return service.add_comment(
         task_id=task_id,
@@ -536,6 +574,7 @@ def assign_task_user(
         db, current_user, x_outlet_id, task_id=task_id
     )
     ensure_can_reassign_tasks(db, full_access)
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     return service.assign_user(
         task_id=task_id,
@@ -557,6 +596,7 @@ def remove_task_assignment(
         db, current_user, x_outlet_id, task_id=task_id
     )
     ensure_can_reassign_tasks(db, full_access)
+    ensure_task_permission(db, current_user, "task.edit")
     service = TaskService(db)
     service.remove_assignment(
         task_id=task_id,
@@ -577,6 +617,7 @@ def delete_task(
     x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.delete")
     service = TaskService(db)
     service.delete_task(task_id=task_id, outlet_id=x_outlet_id)
     return None

@@ -95,6 +95,19 @@ export function SchedulesWorkspace() {
     setNowMs(Date.now());
   }, []);
 
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+
+  const WEEKDAY_LABELS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  const WEEKDAY_TO_INDEX: Record<string, number> = {
+    monday: 0,
+    tuesday: 1,
+    wednesday: 2,
+    thursday: 3,
+    friday: 4,
+    saturday: 5,
+    sunday: 6,
+  };
+
   const schedulesQuery = useQuery({
     queryKey: ["task-schedules"],
     queryFn: () => taskScheduleService.list(),
@@ -252,6 +265,71 @@ export function SchedulesWorkspace() {
       ).length,
     [scheduleExceptions, upcomingPreview]
   );
+
+  const calendarGrid = useMemo(() => {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    base.setDate(1);
+    base.setMonth(base.getMonth() + calendarMonthOffset);
+
+    const year = base.getFullYear();
+    const month = base.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+
+    interface DayCell {
+      date: string;
+      dayNumber: number;
+      schedules: BackendTaskSchedule[];
+      isException: boolean;
+    }
+    const cells: DayCell[] = [];
+
+    for (let offset = 0; offset < firstWeekday; offset++) {
+      cells.push({
+        date: "",
+        dayNumber: 0,
+        schedules: [],
+        isException: false,
+      });
+    }
+
+    const activeSchedules = (schedulesQuery.data ?? []).filter(
+      (schedule) => schedule.is_active
+    );
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const weekdayIndex = (date.getDay() + 6) % 7;
+      const isException = scheduleExceptions.some(
+        (exception) => exception.date === dateKey
+      );
+
+      const daySchedules = activeSchedules.filter((schedule) => {
+        if (schedule.one_time_due_at) {
+          return schedule.one_time_due_at.slice(0, 10) === dateKey;
+        }
+        if (schedule.recurrence === "daily") return true;
+        if (schedule.recurrence === "weekly") {
+          return WEEKDAY_TO_INDEX[schedule.weekly_publish_day ?? "sunday"] === weekdayIndex;
+        }
+        if (schedule.recurrence === "monthly") {
+          return (schedule.monthly_publish_day ?? 1) === day;
+        }
+        return false;
+      });
+
+      cells.push({
+        date: dateKey,
+        dayNumber: day,
+        schedules: daySchedules,
+        isException,
+      });
+    }
+
+    return cells;
+  }, [calendarMonthOffset, scheduleExceptions, schedulesQuery.data]);
 
   const columns: EnterpriseColumn<(typeof rows)[number]>[] = [
     {
@@ -614,11 +692,98 @@ export function SchedulesWorkspace() {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-5 text-emerald-700" />
+            <div>
+              <p className="text-sm font-bold text-slate-950">Kalender jadwal berulang</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Recurring public day per tanggal untuk schedule aktif (harian, mingguan, bulanan, sekali).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCalendarMonthOffset((offset) => offset - 1)}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            >
+              {"<"}
+            </button>
+            <span className="min-w-[9rem] text-center text-sm font-bold text-slate-700">
+              {new Date(
+                new Date().getFullYear(),
+                new Date().getMonth() + calendarMonthOffset,
+                1
+              ).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCalendarMonthOffset((offset) => offset + 1)}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            >
+              {">"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
+          {WEEKDAY_LABELS.map((label) => (
+            <div key={label} className="bg-slate-100 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+              {label}
+            </div>
+          ))}
+          {calendarGrid.map((cell, index) => (
+            <div
+              key={`${cell.date || "blank"}-${index}`}
+              className={`min-h-[7rem] bg-white p-2 ${
+                cell.isException ? "bg-amber-50" : ""
+              }`}
+            >
+              {cell.dayNumber ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs font-bold ${
+                        cell.isException ? "text-amber-700" : "text-slate-700"
+                      }`}
+                    >
+                      {cell.dayNumber}
+                    </span>
+                    {cell.isException ? (
+                      <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+                        Closed
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {cell.schedules.map((schedule) => (
+                      <div
+                        key={schedule.id}
+                        className="truncate rounded-lg bg-emerald-50 px-1.5 py-1 text-[10px] font-semibold text-emerald-800"
+                        title={schedule.title}
+                      >
+                        {schedule.publish_time || schedule.due_time} · {schedule.title}
+                      </div>
+                    ))}
+                    {cell.schedules.length === 0 && !cell.isException ? (
+                      <p className="text-[10px] text-slate-300">&nbsp;</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-slate-300">&nbsp;</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <CalendarClock className="size-4 text-emerald-700" />
           {t("schedules.tableTitle")}
         </div>
-
         <EnterpriseDataTable
           columns={columns}
           data={rows}
