@@ -228,7 +228,7 @@ export function NotificationTemplatesPanel({ workflowId }: NotificationTemplates
         </button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
             <tr>
