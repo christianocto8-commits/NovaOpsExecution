@@ -557,6 +557,7 @@ export function ReportsWorkspace() {
       ...periodFilteredTasks.filter(isTaskWorkedOn).map((task) => ({
         id: `task-${task.id}`,
         title: task.title,
+        status: getReportStatus(task),
         completedAt: task.execution?.completedAt ?? task.activity?.[0]?.timestamp ?? task.due,
         kind: "task" as const,
         taskId: task.id,
@@ -631,8 +632,14 @@ export function ReportsWorkspace() {
                       {getDateLabel(item.completedAt)}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
-                    Selesai
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      item.kind === "form"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : getReportStatusClass(item.status)
+                    }`}
+                  >
+                    {item.kind === "form" ? "Selesai" : getReportStatusLabel(item.status)}
                   </span>
                 </button>
               </li>
