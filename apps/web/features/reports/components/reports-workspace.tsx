@@ -81,6 +81,20 @@ function getTaskProgress(task: Task) {
   return 0;
 }
 
+function getReportStatusLabel(status: ReportStatus) {
+  if (status === "completed") return "Selesai";
+  if (status === "in_progress") return "Sedang dikerjakan";
+  if (status === "overdue") return "Terlewat";
+  return "Menunggu";
+}
+
+function getReportStatusClass(status: ReportStatus) {
+  if (status === "completed") return "bg-emerald-50 text-emerald-800";
+  if (status === "in_progress") return "bg-blue-50 text-blue-800";
+  if (status === "overdue") return "bg-red-50 text-red-700";
+  return "bg-slate-100 text-slate-600";
+}
+
 function getReportStatus(task: Task): ReportStatus {
   if (isTaskExpiredOverdue(task)) return "overdue";
   if (isTaskCompleted(task) || task.execution?.completedAt) return "completed";
@@ -764,11 +778,17 @@ export function ReportsWorkspace() {
                             className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${
                               row.kind === "form"
                                 ? "bg-blue-50 text-blue-700"
-                                : "bg-emerald-50 text-emerald-700"
+                                : row.status === "overdue"
+                                  ? "bg-red-50 text-red-600"
+                                  : row.status === "in_progress"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "bg-emerald-50 text-emerald-700"
                             }`}
                           >
                             {row.kind === "form" ? (
                               <FileText className="size-4" />
+                            ) : row.status === "overdue" ? (
+                              <CheckCircle2 className="size-4" />
                             ) : (
                               <CheckCircle2 className="size-4" />
                             )}
@@ -783,8 +803,12 @@ export function ReportsWorkspace() {
                             </p>
                           </div>
                         </div>
-                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
-                          Selesai
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${getReportStatusClass(
+                            row.status
+                          )}`}
+                        >
+                          {getReportStatusLabel(row.status)}
                         </span>
                       </button>
 

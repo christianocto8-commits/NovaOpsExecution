@@ -34,10 +34,14 @@ export async function registerNativePushIfAvailable() {
   if (typeof window === "undefined") return false;
 
   try {
-    const { Capacitor } = await import("@capacitor/core");
+    const { Capacitor, registerPlugin } = await import("@capacitor/core");
     if (!Capacitor.isNativePlatform()) return false;
 
-    const { PushNotifications } = await import("@capacitor/push-notifications");
+    const PushNotifications = registerPlugin<{
+      addListener: (event: string, cb: (payload: any) => void) => Promise<unknown>;
+      requestPermissions: () => Promise<{ receive?: string }>;
+      register: () => Promise<void>;
+    }>("PushNotifications");
     const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android";
 
     await PushNotifications.addListener("registration", (event) => {

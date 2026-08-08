@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep the thermal printer Capacitor plugin and its underlying printer library
+# (called via reflection / inner device connection paths).
+-keep class com.malik12tree.bluetooth_print.** { *; }
+-dontwarn com.malik12tree.bluetooth_print.**

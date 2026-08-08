@@ -7,8 +7,8 @@ android {
         applicationId "com.novaops.execution"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("NOVAOPS_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("NOVAOPS_VERSION_NAME") ?: "1.0.0"
+        versionCode Integer.parseInt(System.getenv("NOVAOPS_VERSION_CODE") ?: "1")
+        versionName (System.getenv("NOVAOPS_VERSION_NAME") ?: "1.0.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,14 +16,23 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    def keystorePropertiesFile = rootProject.file("keystore.properties")
+    def keystoreProperties = new Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }
     signingConfigs {
         release {
             def keystorePath = System.getenv("NOVAOPS_ANDROID_KEYSTORE")
             if (keystorePath) {
                 storeFile file(keystorePath)
-                storePassword System.getenv("NOVAOPS_ANDROID_STORE_PASSWORD")
-                keyAlias System.getenv("NOVAOPS_ANDROID_KEY_ALIAS")
-                keyPassword System.getenv("NOVAOPS_ANDROID_KEY_PASSWORD")
+            } else if (keystoreProperties.getProperty("storeFile")) {
+                storeFile rootProject.file(keystoreProperties.getProperty("storeFile"))
+            }
+            if (storeFile != null) {
+                storePassword System.getenv("NOVAOPS_ANDROID_STORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
+                keyAlias System.getenv("NOVAOPS_ANDROID_KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
+                keyPassword System.getenv("NOVAOPS_ANDROID_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
             }
         }
     }
