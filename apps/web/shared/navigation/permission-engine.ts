@@ -30,6 +30,8 @@ const outletNavigationItemIds = new Set([
   "training",
   "settings",
   "more",
+  "food-prep",
+  "haccp",
 ]);
 
 const outletVisibleNavigationItemIds = new Set([
@@ -44,6 +46,8 @@ const outletVisibleNavigationItemIds = new Set([
   "corrective-actions",
   "training",
   "announcements",
+  "food-prep",
+  "haccp",
 ]);
 
 const areaManagerVisibleNavigationItemIds = new Set([
@@ -58,6 +62,8 @@ const areaManagerVisibleNavigationItemIds = new Set([
   "exceptions",
   "corrective-actions",
   "modules",
+  "food-prep",
+  "haccp",
 ]);
 
 const areaManagerNavigationItemIds = new Set([
@@ -86,6 +92,8 @@ const areaManagerNavigationItemIds = new Set([
   "training",
   "workflows",
   "modules",
+  "food-prep",
+  "haccp",
 ]);
 
 const financeNavigationItemIds = new Set(["finance", "finance-handoff", "notifications"]);
@@ -165,6 +173,8 @@ export function getNavigationForPermissions(
       "notifications",
       "announcements",
       "settings",
+      "food-prep",
+      "haccp",
     ];
     return [...visibleItems].sort(
       (left, right) => outletOrder.indexOf(left.id) - outletOrder.indexOf(right.id)

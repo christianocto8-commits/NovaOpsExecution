@@ -7,7 +7,9 @@ import {
   GraduationCap,
   LogOut,
   Megaphone,
+  Sandwich,
   Settings,
+  ShieldCheck,
   Siren,
   Wrench,
 } from "lucide-react";
@@ -80,6 +82,20 @@ export default function OutletMorePage() {
       bodyKey: "more.link.trainingBody",
       icon: GraduationCap,
       tone: "bg-violet-50 text-violet-700",
+    },
+    {
+      href: "/dashboard/food-prep",
+      titleKey: "more.link.foodPrep",
+      bodyKey: "more.link.foodPrepBody",
+      icon: Sandwich,
+      tone: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      href: "/dashboard/haccp",
+      titleKey: "more.link.haccp",
+      bodyKey: "more.link.haccpBody",
+      icon: ShieldCheck,
+      tone: "bg-teal-50 text-teal-700",
     },
     {
       href: "/dashboard/notifications",
