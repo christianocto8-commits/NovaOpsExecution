@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { Camera, ImageIcon, Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import {
@@ -12,6 +12,7 @@ import { getPhotoDisplayUrl, parsePhotoFieldValues, serializePhotoFieldValues } 
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
+import { PhotoAnnotationEditor } from "./photo-annotation-editor";
 
 type PhotoFieldInputProps = {
   value: string;
@@ -67,6 +68,7 @@ export function PhotoFieldInput({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
+  const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
 
   const parsedValues = useMemo(() => parsePhotoFieldValues(value), [value]);
   const singleUrlValue = parsedValues[0]?.url ?? "";
@@ -162,6 +164,12 @@ export function PhotoFieldInput({
     onChange(serializePhotoFieldValues(next));
   }
 
+  function handleAnnotationSaved(index: number, url: string) {
+    const next = parsedValues.map((photo, i) => (i === index ? { ...photo, url } : photo));
+    onChange(serializePhotoFieldValues(next));
+    setAnnotatingIndex(null);
+  }
+
   function renderThumbnail(photo: (typeof parsedValues)[number], index: number) {
     return (
       <div
@@ -180,14 +188,25 @@ export function PhotoFieldInput({
         <LocationLabel latitude={photo.latitude} longitude={photo.longitude} />
 
         {!readOnly ? (
-          <button
-            type="button"
-            onClick={() => removePhoto(index)}
-            aria-label="Hapus foto"
-            className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-red-600"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
+          <div className="absolute right-2 top-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setAnnotatingIndex(index)}
+              aria-label="Edit foto"
+              title="Anotasi foto"
+              className="inline-flex size-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-emerald-600"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => removePhoto(index)}
+              aria-label="Hapus foto"
+              className="inline-flex size-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-red-600"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
         ) : null}
       </div>
     );
@@ -196,8 +215,7 @@ export function PhotoFieldInput({
   return (
     <div className="space-y-3">
       {parsedValues.length > 0 ? (
-        isVideo ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+        isVideo ? (          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
             <div className="aspect-video max-h-56 w-full">
               <video src={displayUrl} controls className="h-full w-full object-cover" />
             </div>
@@ -281,7 +299,51 @@ export function PhotoFieldInput({
       />
 
       {uploadError ? <p className="text-xs text-red-600">{uploadError}</p> : null}
+
+      {annotatingIndex != null && parsedValues[annotatingIndex] ? (
+        <AnnotationOverlay
+          photo={parsedValues[annotatingIndex]}
+          index={annotatingIndex}
+          onSave={handleAnnotationSaved}
+          onClose={() => setAnnotatingIndex(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function AnnotationOverlay({
+  photo,
+  index,
+  onSave,
+  onClose,
+}: {
+  photo: { url: string };
+  index: number;
+  onSave: (index: number, url: string) => void;
+  onClose: () => void;
+}) {
+  const resolvedDisplayUrl = useEvidenceDisplayUrl(getPhotoDisplayUrl(photo.url));
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOfflineEvidenceUrl(getPhotoDisplayUrl(photo.url))) {
+      void getOfflineEvidenceBlobUrl(getPhotoDisplayUrl(photo.url)).then((blobUrl) => {
+        if (blobUrl) setSrc(blobUrl);
+      });
+      return;
+    }
+    setSrc(resolvedDisplayUrl);
+  }, [photo.url, resolvedDisplayUrl]);
+
+  if (!src) return null;
+
+  return (
+    <PhotoAnnotationEditor
+      src={src}
+      onSave={(url) => onSave(index, url)}
+      onClose={onClose}
+    />
   );
 }
 
