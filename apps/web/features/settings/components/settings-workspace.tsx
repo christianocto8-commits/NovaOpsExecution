@@ -1551,19 +1551,19 @@ export function SettingsWorkspace() {
 
   return (
     <main className={mobileDashboardMainClass}>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("settings.ownerEyebrow")}</p>
-          <h1 className="text-2xl font-semibold text-slate-950">{t("settings.ownerTitle")}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("settings.ownerDescription")}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{t("settings.ownerTitle")}</h1>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{t("settings.ownerDescription")}</p>
         </div>
         <button
           type="button"
           onClick={() => void handleSave()}
           disabled={isSaving}
-          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-          style={{ backgroundColor: "var(--brand-primary)" }}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
+          <Save className="h-4 w-4" />
           {isSaving ? t("common.saving") : t("common.saveSettings")}
         </button>
       </div>
@@ -1584,13 +1584,19 @@ export function SettingsWorkspace() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (
-          <MetricCard key={card.label} label={card.label} value={card.value} />
+          <div
+            key={card.label}
+            className="rounded-xl border border-[#E7ECE9] bg-white px-4 py-3 shadow-sm"
+          >
+            <div className="truncate text-xs font-medium text-slate-500">{card.label}</div>
+            <div className="mt-0.5 truncate text-base font-semibold text-slate-900">{card.value}</div>
+          </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1">
+      <div className="inline-flex flex-wrap gap-2 rounded-2xl border border-[#E7ECE9] bg-white p-1.5 shadow-sm">
         {(
           [
             ["org", t("settings.organization")],
@@ -1602,9 +1608,10 @@ export function SettingsWorkspace() {
             key={tab}
             type="button"
             onClick={() => setSettingsTab(tab)}
-            className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition sm:px-4 ${
+            aria-pressed={settingsTab === tab}
+            className={`shrink-0 flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-6 ${
               settingsTab === tab
-                ? "bg-emerald-700 text-white"
+                ? "bg-[var(--brand-primary)] text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
