@@ -31,20 +31,25 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Build Next.js Static Export
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
+
+      - name: Build Offline Capacitor Bundle + Sync
         working-directory: ./apps/web
         env:
           CAPACITOR_ENV: production
+          CAPACITOR_OFFLINE: 1
           NEXT_TELEMETRY_DISABLED: 1
-        run: npm run build
+        run: node scripts/release-offline-android.mjs
 
-      - name: Sync Capacitor Web Assets
-        working-directory: ./apps/web
-        run: npx cap sync android
-
-      - name: Build Android APK (Debug & Unsigned Release)
+      - name: Build Android APK (Debug)
         working-directory: ./apps/web/android
         run: |
           chmod +x gradlew

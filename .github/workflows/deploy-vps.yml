@@ -93,6 +93,67 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
+
+      - name: Prepare release signing key
+        shell: bash
+        env:
+          NOVAOPS_ANDROID_KEYSTORE_B64: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/android"
+          if [ -z "${NOVAOPS_ANDROID_KEYSTORE_B64:-}" ]; then
+            echo "Keystore secret kosong — lanjut deploy web/backend tanpa APK release."
+            exit 0
+          fi
+          echo "$NOVAOPS_ANDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/android/release.jks"
+
+      - name: Build offline Capacitor bundle + sync
+        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        working-directory: apps/web
+        env:
+          CAPACITOR_ENV: production
+          CAPACITOR_OFFLINE: 1
+          NEXT_TELEMETRY_DISABLED: 1
+        run: node scripts/release-offline-android.mjs
+
+      - name: Build signed release APK
+        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        working-directory: apps/web/android
+        env:
+          NOVAOPS_ANDROID_KEYSTORE: ${{ runner.temp }}/android/release.jks
+          NOVAOPS_ANDROID_KEY_ALIAS: ${{ secrets.NOVAOPS_ANDROID_KEY_ALIAS }}
+          NOVAOPS_ANDROID_STORE_PASSWORD: ${{ secrets.NOVAOPS_ANDROID_STORE_PASSWORD }}
+          NOVAOPS_ANDROID_KEY_PASSWORD: ${{ secrets.NOVAOPS_ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Stage APK into web public downloads
+        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        shell: bash
+        run: |
+          APK="apps/web/android/app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "$APK" ]]; then
+            echo "::error::Release APK tidak ditemukan setelah build."
+            exit 1
+          fi
+          mkdir -p apps/web/public/downloads
+          cp "$APK" apps/web/public/downloads/NovaOps-Outlet-MatePad.apk
+          ls -la apps/web/public/downloads
+
       - name: Fast deploy live to VPS
         shell: bash
         run: |
