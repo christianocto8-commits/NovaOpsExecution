@@ -34,7 +34,7 @@ import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { TaskSkeleton } from "@/shared/skeleton/skeleton";
 
 function isOverdue(task: Task) {
-  if (!task.due || task.status === "Completed") return false;
+  if (!task.due || task.status === "Completed" || task.status === "Cancelled") return false;
   const dueDate = new Date(task.due);
   return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
 }

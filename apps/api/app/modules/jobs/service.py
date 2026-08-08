@@ -28,6 +28,10 @@ class SchedulerJobService:
                 "task_schedules",
                 lambda: TaskScheduleService(self.db).process_due_schedules(),
             ),
+            "schedule_orphan_cleanup": self._run_and_record(
+                "schedule_orphan_cleanup",
+                lambda: TaskScheduleService(self.db).cancel_orphan_schedule_tasks(),
+            ),
             "overdue_alerts": self._run_and_record(
                 "overdue_alerts",
                 lambda: process_overdue_task_alerts(self.db),

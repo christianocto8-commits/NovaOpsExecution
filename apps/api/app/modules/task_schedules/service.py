@@ -127,6 +127,69 @@ class TaskScheduleService:
         self.db.delete(schedule)
         self.db.commit()
 
+    def cancel_orphan_schedule_tasks(
+        self,
+        *,
+        limit: int | None = 200,
+        actor_id: int | None = None,
+    ) -> dict[str, int]:
+        """Cancel tasks stranded by schedules that no longer exist.
+
+        Older builds deleted a schedule by detaching its published tasks
+        (``schedule_id = NULL``), leaving them as permanent overdue items in
+        outlet inboxes. Newer builds hard-delete the tasks on schedule delete,
+        so this sweep only targets leftovers: tasks that were auto-published
+        from a schedule (identifiable by their creation comment) but whose
+        schedule row is gone or no longer referenced. Idempotent — safe to run
+        on every scheduler tick.
+        """
+        from sqlalchemy import or_
+
+        active_statuses = ["open", "in_progress", "blocked"]
+        schedule_ids_query = self.db.query(TaskSchedule.id)
+
+        orphan_query = (
+            self.db.query(Task.id)
+            .join(TaskComment, TaskComment.task_id == Task.id)
+            .filter(
+                Task.status.in_(active_statuses),
+                TaskComment.event_type == "created",
+                TaskComment.comment == "Task auto-published from schedule",
+                or_(
+                    Task.schedule_id.is_(None),
+                    Task.schedule_id.notin_(schedule_ids_query),
+                ),
+            )
+        )
+        orphan_ids = [
+            task_id
+            for (task_id,) in (
+                orphan_query.limit(limit).all() if limit is not None else orphan_query.all()
+            )
+        ]
+
+        cancelled = 0
+        for task_id in orphan_ids:
+            task = self.db.get(Task, task_id)
+            if not task or task.status not in active_statuses:
+                continue
+
+            task.status = "cancelled"
+            task.expired_at = None
+            self.db.add(
+                TaskComment(
+                    task_id=task.id,
+                    user_id=actor_id if actor_id is not None else task.created_by,
+                    comment="Auto-cancelled: schedule yang menerbitkan task ini sudah dihapus.",
+                    event_type="cancelled",
+                    new_value="cancelled",
+                )
+            )
+            cancelled += 1
+
+        self.db.commit()
+        return {"checked": len(orphan_ids), "cancelled": cancelled}
+
     def process_due_schedules(self, schedule_id: int | None = None, force: bool = False) -> dict[str, int]:
         return self.publisher.process_due_schedules(schedule_id=schedule_id, force=force)
 
