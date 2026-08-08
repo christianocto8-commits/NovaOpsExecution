@@ -25,6 +25,8 @@ from app.modules.webhooks.api import router as webhooks_router
 from app.modules.integrations.api import router as integrations_router
 from app.modules.incidents.api import router as incidents_router
 from app.modules.iot.api import router as iot_router
+from app.modules.food_prep.api import router as food_prep_router
+from app.modules.haccp.api import router as haccp_router
 from app.modules.jobs.router import router as jobs_router
 from app.modules.lms.api import router as lms_router
 from app.modules.ops_suite.api import router as ops_suite_router
@@ -69,6 +71,8 @@ api_router.include_router(webhooks_router)
 api_router.include_router(integrations_router)
 api_router.include_router(incidents_router)
 api_router.include_router(iot_router)
+api_router.include_router(food_prep_router)
+api_router.include_router(haccp_router)
 api_router.include_router(jobs_router)
 api_router.include_router(lms_router)
 api_router.include_router(ops_suite_router)

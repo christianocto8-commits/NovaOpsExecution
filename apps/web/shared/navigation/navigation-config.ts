@@ -24,11 +24,13 @@ import {
   Smartphone,
   Store,
   ShieldAlert,
+  ShieldCheck,
   Thermometer,
   GraduationCap,
   MoreHorizontal,
   Users,
   Wrench,
+  Sandwich,
 } from "lucide-react";
 
 export type NavigationItem = {
@@ -124,6 +126,24 @@ export const navigationItems: NavigationItem[] = [
     requiredPermissions: ["incident.read"],
     section: "sop",
     // Keep for outlet More + manager Modules; hide from primary sidebar.
+    sidebar: false,
+  },
+  {
+    id: "food-prep",
+    label: "Food Prep Labeling",
+    href: "/dashboard/food-prep",
+    icon: Sandwich,
+    requiredPermissions: ["task.execute"],
+    section: "sop",
+    sidebar: false,
+  },
+  {
+    id: "haccp",
+    label: "HACCP Log",
+    href: "/dashboard/haccp",
+    icon: ShieldCheck,
+    requiredPermissions: ["task.execute"],
+    section: "sop",
     sidebar: false,
   },
   {
