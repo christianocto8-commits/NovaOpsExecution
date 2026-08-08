@@ -25,6 +25,7 @@ import {
 } from "@/features/settings/settings-api";
 import { uploadBulkImport, type BulkImportResponse } from "@/features/settings/bulk-import-api";
 import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
+import { AppVersionPanel } from "@/features/settings/components/app-version-panel";
 import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
 import { NotificationPreferencesPanel } from "@/features/settings/components/notification-preferences-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
@@ -1289,6 +1290,7 @@ function OutletSettingsWorkspace({
           {notice}
         </div>
       ) : null}
+      <AppVersionPanel />
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <MetricCard label="Role" value="Outlet" />
         <MetricCard label="Submit" value="Auto complete" />
@@ -1583,6 +1585,8 @@ export function SettingsWorkspace() {
           {notice}
         </div>
       ) : null}
+
+      <AppVersionPanel />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (

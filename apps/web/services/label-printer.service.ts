@@ -60,53 +60,36 @@ function standardizeCategory(category?: string) {
 function buildLabelContent(data: LabelPrintData) {
   const printer = CapacitorThermalPrinter.begin();
 
-  printer
-    .align("center")
-    .font("B")
-    .text(`${data.outletName ?? "NOVAOPS OUTLET"}\n`)
-    .bold()
-    .doubleHeight()
-    .doubleWidth()
-    .text("FOOD PREP\n");
-
-  printer.bold(false).doubleHeight(false).doubleWidth(false).font("B");
-
-  printer.align("center").lineSpacing(1).inverse().text("DISCARD BY\n");
-
-  printer
-    .align("center")
-    .bold()
-    .inverse()
-    .doubleHeight()
-    .text(formatTimestamp(data.discardAt) + "\n")
-    .doubleHeight(false)
-    .inverse(false)
-    .bold(false);
-
-  printer.align("center").lineSpacing(2).text("\n" + data.itemName.toUpperCase() + "\n");
-
-  printer.align("left").font("B").lineSpacing(2);
+  printer.clearFormatting();
 
   const quantityLine = data.quantityText
     ? `${data.quantityText}${data.unit ? ` ${data.unit}` : ""}`
     : null;
 
-  if (quantityLine) {
-    printer.text(`JUMLAH: ${quantityLine}\n`);
-  }
-  printer.text(`KATEGORI: ${standardizeCategory(data.category)}\n`);
-  printer.text(`DIBUAT: ${formatTimestamp(data.preparedAt)}\n`);
-  printer.text(`DIBUANG: ${formatTimestamp(data.discardAt)}\n`);
-  if (data.shelfHours != null) {
-    printer.text(`SHELF LIFE: ${data.shelfHours} JAM\n`);
-  }
+  const lines = [
+    "================================",
+    `        ${(data.outletName ?? "NOVAOPS OUTLET").toUpperCase()}`,
+    "           FOOD PREP",
+    "================================",
+    "        *** DISCARD BY ***",
+    `        ${formatTimestamp(data.discardAt)}`,
+    "--------------------------------",
+    `        ${data.itemName.toUpperCase()}`,
+    "--------------------------------",
+    quantityLine ? `JUMLAH   : ${quantityLine}` : null,
+    `KATEGORI : ${standardizeCategory(data.category)}`,
+    `DIBUAT   : ${formatTimestamp(data.preparedAt)}`,
+    `DIBUANG  : ${formatTimestamp(data.discardAt)}`,
+    data.shelfHours != null ? `EXPIRED  : ${data.shelfHours} JAM` : null,
+    data.batchCode ? "--------------------------------" : null,
+    data.batchCode ? `BATCH    : ${data.batchCode}` : null,
+    "================================",
+    "       NOVA OPS EXECUTION",
+    "================================",
+    "\n\n\n",
+  ].filter(Boolean);
 
-  if (data.batchCode) {
-    printer.align("center").lineSpacing(4).text("\n" + data.batchCode + "\n");
-    printer.barcode("CODE128", data.batchCode);
-  }
-
-  printer.align("center").text("\nNOVA OPS EXECUTION\n");
+  printer.text(lines.join("\n"));
   printer.feedCutPaper(true);
 
   return printer;

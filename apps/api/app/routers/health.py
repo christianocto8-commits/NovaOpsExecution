@@ -22,3 +22,14 @@ def database_health_check(db: Session = Depends(get_db)):
         "status": "ok",
         "database": "connected"
     }
+
+
+@router.get("/app-version")
+def app_version_check():
+    return {
+        "latestVersionName": "1.0.1",
+        "latestVersionCode": 2,
+        "required": False,
+        "downloadUrl": "https://nova-ops.cloud/downloads/NovaOps-Outlet-MatePad.apk",
+        "releaseNotes": "Perbaikan format cetak printer thermal, optimasi layar tablet Huawei MatePad 11.5S, dan kestabilan sync offline."
+    }
