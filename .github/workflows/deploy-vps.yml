@@ -20,6 +20,7 @@ jobs:
 
     env:
       NOVAOPS_VPS_HOST: ${{ secrets.NOVAOPS_VPS_HOST }}
+      HAS_ANDROID_KEYSTORE: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 }}
 
     steps:
       - name: Checkout code
@@ -103,7 +104,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Accept Android SDK licenses
-        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        if: ${{ env.HAS_ANDROID_KEYSTORE != '' }}
         run: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
@@ -121,7 +122,7 @@ jobs:
           echo "$NOVAOPS_ANDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/android/release.jks"
 
       - name: Build offline Capacitor bundle + sync
-        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        if: ${{ env.HAS_ANDROID_KEYSTORE != '' }}
         working-directory: apps/web
         env:
           CAPACITOR_ENV: production
@@ -130,7 +131,7 @@ jobs:
         run: node scripts/release-offline-android.mjs
 
       - name: Build signed release APK
-        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        if: ${{ env.HAS_ANDROID_KEYSTORE != '' }}
         working-directory: apps/web/android
         env:
           NOVAOPS_ANDROID_KEYSTORE: ${{ runner.temp }}/android/release.jks
@@ -142,7 +143,7 @@ jobs:
           ./gradlew assembleRelease --no-daemon
 
       - name: Stage APK into web public downloads
-        if: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 != '' }}
+        if: ${{ env.HAS_ANDROID_KEYSTORE != '' }}
         shell: bash
         run: |
           APK="apps/web/android/app/build/outputs/apk/release/app-release.apk"
