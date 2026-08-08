@@ -85,6 +85,7 @@ type OwnerAdminState = {
   auto_corrective_action: boolean;
   corrective_action_sla_hours: number;
   photo_required_by_default: boolean;
+  photo_freshness_minutes: number;
   max_upload_mb: number;
   timestamp_watermark: boolean;
   gps_watermark: boolean;
@@ -129,6 +130,7 @@ const defaults: OwnerAdminState = {
   auto_corrective_action: WORKSPACE_SETTINGS_DEFAULTS.auto_corrective_action,
   corrective_action_sla_hours: WORKSPACE_SETTINGS_DEFAULTS.corrective_action_sla_hours,
   photo_required_by_default: WORKSPACE_SETTINGS_DEFAULTS.photo_required_by_default,
+  photo_freshness_minutes: WORKSPACE_SETTINGS_DEFAULTS.photo_freshness_minutes,
   max_upload_mb: WORKSPACE_SETTINGS_DEFAULTS.max_upload_mb,
   timestamp_watermark: WORKSPACE_SETTINGS_DEFAULTS.timestamp_watermark,
   gps_watermark: WORKSPACE_SETTINGS_DEFAULTS.gps_watermark,
@@ -185,6 +187,9 @@ function buildOwnerAdminState(settings?: Partial<SettingsResponse> | null): Owne
     ),
     photo_required_by_default: Boolean(
       settings?.photo_required_by_default ?? defaults.photo_required_by_default
+    ),
+    photo_freshness_minutes: Number(
+      settings?.photo_freshness_minutes ?? defaults.photo_freshness_minutes
     ),
     max_upload_mb: Number(settings?.max_upload_mb ?? defaults.max_upload_mb),
     timestamp_watermark: Boolean(settings?.timestamp_watermark ?? defaults.timestamp_watermark),
@@ -1818,6 +1823,16 @@ export function SettingsWorkspace() {
                     />
                   }
                 />
+                <EnterpriseField label="Photo freshness (menit)">
+                  <EnterpriseInput
+                    type="number"
+                    value={state.photo_freshness_minutes}
+                    onChange={(event) =>
+                      update("photo_freshness_minutes", Number(event.target.value || 0))
+                    }
+                    disabled={!state.photo_required_by_default}
+                  />
+                </EnterpriseField>
                 <ActionCard
                   title="Geofence enforcement"
                   description="Wajibkan crew berada di radius outlet saat submit checklist. Pastikan koordinat outlet sudah diisi."

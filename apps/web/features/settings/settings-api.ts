@@ -41,6 +41,7 @@ export type SettingsResponse = {
   critical_escalation: boolean;
   corrective_action_sla_hours: number;
   photo_required_by_default: boolean;
+  photo_freshness_minutes: number;
   max_upload_mb: number;
   timestamp_watermark: boolean;
   gps_watermark: boolean;
@@ -107,6 +108,7 @@ export const WORKSPACE_SETTINGS_DEFAULTS: SettingsResponse = {
   critical_escalation: true,
   corrective_action_sla_hours: 24,
   photo_required_by_default: true,
+  photo_freshness_minutes: 0,
   max_upload_mb: 10,
   timestamp_watermark: true,
   gps_watermark: true,
