@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, CircleAlert, Clock, Plus, Trash2, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, Clock, Plus, Printer, Trash2, X } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getIdentityOutlets, type IdentityOutlet } from "@/services/identity.service";
@@ -22,6 +22,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { useToast } from "@/shared/toast";
+import { LabelPrintModal } from "@/features/printing/components/label-print-modal";
 
 const CATEGORIES = ["raw", "prepared", "dairy", "bakery", "beverage", "cold_chain", "other"];
 
@@ -59,6 +60,7 @@ function FoodPrepPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [outletFilter, setOutletFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [printLabel, setPrintLabel] = useState<FoodPrepLabel | null>(null);
   const [form, setForm] = useState<FoodPrepLabelPayload>({
     outlet_id: auth.user?.outlet_access.outlet_id ?? "",
     item_name: "",
@@ -407,6 +409,16 @@ function FoodPrepPageContent() {
                     {label.status !== "discarded" && label.status !== "expired" ? (
                       <button
                         type="button"
+                        onClick={() => setPrintLabel(label)}
+                        title="Cetak label"
+                        className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-emerald-600"
+                      >
+                        <Printer className="size-4" />
+                      </button>
+                    ) : null}
+                    {label.status !== "discarded" && label.status !== "expired" ? (
+                      <button
+                        type="button"
                         onClick={() => discardMutation.mutate(label.id)}
                         title="Tandai dibuang"
                         className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600"
@@ -469,6 +481,22 @@ function FoodPrepPageContent() {
           ))
         )}
       </section>
+
+      {printLabel ? (
+        <LabelPrintModal
+          label={{
+            itemName: printLabel.item_name,
+            category: printLabel.category,
+            batchCode: printLabel.batch_code,
+            quantityText: printLabel.quantity_text,
+            unit: printLabel.unit,
+            preparedAt: printLabel.prepared_at,
+            discardAt: printLabel.discard_at,
+            shelfHours: printLabel.shelf_hours,
+          }}
+          onClose={() => setPrintLabel(null)}
+        />
+      ) : null}
     </main>
   );
 }
