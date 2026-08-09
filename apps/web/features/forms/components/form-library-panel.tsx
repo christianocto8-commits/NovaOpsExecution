@@ -194,7 +194,7 @@ export function FormLibraryPanel({
                     key={`recent-${template.id}`}
                     type="button"
                     onClick={() => onSelectTemplate?.(template)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    className={`max-w-full truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
                       selectedTemplateId === template.id
                         ? "bg-emerald-700 text-white"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"

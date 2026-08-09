@@ -368,14 +368,14 @@ export default function ExceptionDashboardPage() {
               <div key={item.id} className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2 py-1 text-xs font-bold ${severityClass[item.severity]}`}>
+                    <span className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs font-bold ${severityClass[item.severity]}`}>
                       {item.severity}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
                       {typeLabels[item.type]}
                     </span>
                     {item.score != null ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                      <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
                         Score {item.score}%
                       </span>
                     ) : null}
@@ -384,7 +384,7 @@ export default function ExceptionDashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     {item.outlet} • Due {formatDate(item.due)}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">{item.summary}</p>
+                  <p className="mt-1 break-words text-sm text-slate-600">{item.summary}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button

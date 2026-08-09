@@ -394,11 +394,11 @@ function FoodPrepPageContent() {
                     <h3 className="truncate text-sm font-semibold text-slate-900">
                       {label.item_name}
                     </h3>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge(label.status)}`}>
+                    <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge(label.status)}`}>
                       {label.status.replace("_", " ")}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 truncate text-xs text-slate-500">
                     {label.category.replace("_", " ")}
                     {label.batch_code ? ` · ${label.batch_code}` : ""}
                     {label.quantity_text ? ` · ${label.quantity_text}${label.unit ? ` ${label.unit}` : ""}` : ""}

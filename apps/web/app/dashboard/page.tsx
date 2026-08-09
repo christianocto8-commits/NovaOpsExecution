@@ -199,10 +199,10 @@ function PriorityQueue({ tasks, outletMode }: { tasks: Task[]; outletMode?: bool
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${statusColor}`}>
+                <span className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold ${statusColor}`}>
                   {status}
                 </span>
-                <span className={`rounded-lg border px-2.5 py-0.5 text-xs font-semibold ${priorityColor}`}>
+                <span className={`whitespace-nowrap rounded-lg border px-2.5 py-0.5 text-xs font-semibold ${priorityColor}`}>
                   {task.priority}
                 </span>
               </div>

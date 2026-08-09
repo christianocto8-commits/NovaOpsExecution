@@ -627,13 +627,13 @@ export function ReportsWorkspace() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-950">{item.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
                       {item.kind === "form" ? "My Form · " : ""}
                       {getDateLabel(item.completedAt)}
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
                       item.kind === "form"
                         ? "bg-emerald-50 text-emerald-800"
                         : getReportStatusClass(item.status)
@@ -811,7 +811,7 @@ export function ReportsWorkspace() {
                           </div>
                         </div>
                         <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${getReportStatusClass(
+                          className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${getReportStatusClass(
                             row.status
                           )}`}
                         >

@@ -115,15 +115,15 @@ function IncomingReportRow({
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <div className="text-right">
+        <div className="min-w-0 text-right">
           <p className="text-sm font-semibold text-slate-950">
             Rp {formatMoney(deposit.deposit_amount)}
           </p>
-          <p className={`text-xs font-semibold ${isDiscrepancy ? "text-red-600" : "text-emerald-700"}`}>
+          <p className={`break-words text-xs font-semibold ${isDiscrepancy ? "text-red-600" : "text-emerald-700"}`}>
             Selisih {formatMoney(deposit.variance_amount)}
           </p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
+        <span className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
           {statusLabel(deposit.status)}
         </span>
       </div>
@@ -353,7 +353,7 @@ export function FinanceDashboard() {
                         {deposit.business_date} · {deposit.shift_name}
                       </p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
+                    <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
                       {statusLabel(deposit.status)}
                     </span>
                   </div>

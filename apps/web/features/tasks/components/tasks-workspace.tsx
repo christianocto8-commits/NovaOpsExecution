@@ -1184,7 +1184,7 @@ export function TasksWorkspace() {
         <button
           type="button"
           onClick={() => setTaskViewTab("active")}
-          className={`flex-1 text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
+          className={`flex-1 whitespace-nowrap text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
             taskViewTab === "active"
               ? "bg-[#274733] text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50"
@@ -1195,7 +1195,7 @@ export function TasksWorkspace() {
         <button
           type="button"
           onClick={() => setTaskViewTab("upcoming")}
-          className={`flex-1 text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
+          className={`flex-1 whitespace-nowrap text-center py-2 text-xs font-bold rounded-xl transition duration-200 ${
             taskViewTab === "upcoming"
               ? "bg-[#274733] text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-50"
