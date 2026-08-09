@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -29,10 +29,15 @@ def _reject_overdue_task(db: Session, task_id: int | None) -> None:
     due_date = task.due_date
     if due_date.tzinfo is None:
         due_date = due_date.replace(tzinfo=timezone.utc)
-    if due_date < datetime.now(timezone.utc):
+    now = datetime.now(timezone.utc)
+    # Grace period of 60 minutes past the due date before a task is considered
+    # expired. Once expired_at is set (or 60 minutes have elapsed), submission
+    # is rejected so the rule matches overdue_alerts.process_overdue_task_alerts.
+    is_expired = (task.expired_at is not None) or (due_date + timedelta(minutes=60) <= now)
+    if is_expired:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Task sudah overdue dan tidak bisa dikerjakan.",
+            detail="Task sudah melewati batas waktu pengerjaan (60 menit setelah due) dan tidak bisa dikerjakan.",
         )
 
 

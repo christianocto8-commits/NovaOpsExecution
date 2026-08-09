@@ -4,7 +4,6 @@ from calendar import day_name
 from datetime import datetime, timedelta, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
@@ -258,13 +257,22 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "once":
             query = query.filter(Task.schedule_id == schedule.id)
         elif schedule.recurrence == "weekly":
-            week_start = current.date() - timedelta(days=current.weekday())
-            query = query.filter(func.date(Task.created_at) >= week_start)
+            tz = self._workspace_timezone()
+            local_current = current.astimezone(tz)
+            week_start = local_current.date() - timedelta(days=local_current.weekday())
+            start_utc = datetime.combine(week_start, time.min, tzinfo=tz).astimezone(timezone.utc)
+            end_utc = (start_utc + timedelta(days=7))
+            query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
         elif schedule.recurrence == "monthly":
-            query = query.filter(
-                func.extract("year", Task.created_at) == current.year,
-                func.extract("month", Task.created_at) == current.month,
-            )
+            tz = self._workspace_timezone()
+            local_current = current.astimezone(tz)
+            local_year = local_current.year
+            local_month = local_current.month
+            start_utc = datetime(local_year, local_month, 1, tzinfo=tz).astimezone(timezone.utc)
+            end_month = 1 if local_month == 12 else local_month + 1
+            end_year = local_year + 1 if local_month == 12 else local_year
+            end_utc = datetime(end_year, end_month, 1, tzinfo=tz).astimezone(timezone.utc)
+            query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
         else:
             tz = self._workspace_timezone()
             local_date = current.astimezone(tz)

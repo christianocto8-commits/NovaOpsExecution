@@ -13,6 +13,7 @@ from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNE
 from app.modules.notifications.models import NotificationDelivery, NotificationEvent
 from app.modules.notifications.task_notifications import notify_task_recipient, resolve_identity_user_id
 from app.services.webhook_dispatcher import dispatch_webhook_event
+from app.services.workspace_settings import get_workspace_settings
 
 OVERDUE_ESCALATION_MINUTES = (15, 30, 60)
 
@@ -143,6 +144,10 @@ def _process_escalation_rules(
 
 
 def process_overdue_task_alerts(db: Session) -> dict[str, int]:
+    settings = get_workspace_settings(db)
+    if not settings.overdue_alerts:
+        return {"overdue_tasks": 0, "alerts_created": 0, "skipped": 0, "expired_tasks": 0}
+
     now = datetime.now(timezone.utc)
     overdue_tasks = (
         db.query(Task)

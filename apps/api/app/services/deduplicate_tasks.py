@@ -3,6 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
+from app.services.timezones import now_local
 
 
 def deduplicate_existing_schedule_tasks(db: Session) -> dict[str, int]:
@@ -20,9 +21,10 @@ def deduplicate_existing_schedule_tasks(db: Session) -> dict[str, int]:
 
     cancelled_count = 0
 
+    tz = now_local(db).tzinfo
     for task in completed_tasks:
-        created_date = task.created_at.date() if task.created_at else datetime.now(timezone.utc).date()
-        start_of_day = datetime.combine(created_date, time.min, tzinfo=timezone.utc)
+        created_date = task.created_at.astimezone(tz).date() if task.created_at else now_local(db).date()
+        start_of_day = datetime.combine(created_date, time.min, tzinfo=tz)
         end_of_day = start_of_day + datetime.resolution * 86400
 
         duplicates = (

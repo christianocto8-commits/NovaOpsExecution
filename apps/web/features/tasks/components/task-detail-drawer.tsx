@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Task, TaskActivityType, TaskEvidenceType } from "../types";
-import { formatTaskSchedule } from "../utils";
+import { formatTaskSchedule, formatTaskDue } from "../utils";
 import { PhotoLightbox } from "@/shared/evidence/components/photo-lightbox";
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { taskService, type OutletMember } from "@/services/task.service";
@@ -333,7 +333,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
                 <p className="mt-1 font-medium text-slate-900">
-                  {resolvedTask.due || "No due date"}
+                  {resolvedTask.due ? formatTaskDue(resolvedTask.due) : "No due date"}
                 </p>
               </div>
               <div className="sm:col-span-2">
