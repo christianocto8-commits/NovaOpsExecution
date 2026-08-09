@@ -86,7 +86,9 @@ def resolve_form_submission_scope(
     identity_user = get_identity_user_by_email(db, current_user.email)
 
     if identity_user:
-        _legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        _legacy_user, outlet_ids, full_access = sync_identity_access(
+            db, identity_user, include_head_office_full_access=False
+        )
         db.commit()
         return outlet_ids, full_access
 

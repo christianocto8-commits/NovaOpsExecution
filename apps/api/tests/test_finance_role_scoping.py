@@ -51,3 +51,36 @@ def test_finance_outlet_uses_assigned_outlets_only():
 
     assert full_access is False
     assert accessible == assigned
+
+
+def test_finance_head_office_no_full_access_for_operational_tasks():
+    db = SimpleNamespace(query=lambda *_args, **_kwargs: _Query([]))
+    user = SimpleNamespace(
+        role=SimpleNamespace(slug="finance_head_office"),
+        assigned_outlets=[],
+        outlet_id=None,
+        outlet=None,
+    )
+
+    accessible, full_access = get_accessible_identity_outlets(
+        db, user, include_head_office_full_access=False
+    )
+
+    assert full_access is False
+    assert accessible == []
+
+
+def test_finance_head_office_keeps_full_access_for_finance_context():
+    outlets = [SimpleNamespace(id=uuid4(), code="A"), SimpleNamespace(id=uuid4(), code="B")]
+    db = SimpleNamespace(query=lambda *_args, **_kwargs: _Query(outlets))
+    user = SimpleNamespace(
+        role=SimpleNamespace(slug="finance_head_office"),
+        assigned_outlets=[],
+        outlet_id=None,
+        outlet=None,
+    )
+
+    accessible, full_access = get_accessible_identity_outlets(db, user)
+
+    assert full_access is True
+    assert accessible == outlets

@@ -139,7 +139,9 @@ def resolve_task_outlet_access(
         identity_user = get_identity_user_by_email(db, current_user.email)
 
         if identity_user:
-            legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+            legacy_user, outlet_ids, full_access = sync_identity_access(
+                db, identity_user, include_head_office_full_access=False
+            )
             db.commit()
             actor_id = legacy_user.id
 
@@ -186,7 +188,9 @@ def resolve_task_outlet_access(
                 detail="Outlet is not connected to task engine",
             )
 
-        accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+        accessible_outlets, full_access = get_accessible_identity_outlets(
+            db, identity_user, include_head_office_full_access=False
+        )
         accessible_ids = {outlet.id for outlet in accessible_outlets}
         if not full_access and identity_outlet.id not in accessible_ids:
             raise HTTPException(
@@ -203,7 +207,9 @@ def resolve_task_outlet_access(
 
     identity_user = get_identity_user_by_email(db, current_user.email)
     if identity_user:
-        legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        legacy_user, outlet_ids, full_access = sync_identity_access(
+            db, identity_user, include_head_office_full_access=False
+        )
         db.commit()
         actor_id = legacy_user.id
         try:

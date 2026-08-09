@@ -38,7 +38,9 @@ def _has_full_access(db: Session, current_user) -> bool:
     identity_user = get_identity_user_by_email(db, current_user.email)
     if not identity_user:
         return False
-    _legacy_user, _outlet_ids, full_access = sync_identity_access(db, identity_user)
+    _legacy_user, _outlet_ids, full_access = sync_identity_access(
+        db, identity_user, include_head_office_full_access=False
+    )
     db.commit()
     return full_access
 
@@ -56,7 +58,9 @@ def _scoped_schedules(db: Session, current_user, service: TaskScheduleService) -
     if not identity_user:
         return []
 
-    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    accessible_outlets, full_access = get_accessible_identity_outlets(
+        db, identity_user, include_head_office_full_access=False
+    )
     if full_access:
         return service.list_schedules()
 
@@ -141,7 +145,9 @@ def list_upcoming_task_schedules(
 ):
     identity_user = get_identity_user_by_email(db, current_user.email)
     if identity_user:
-        _legacy_user, outlet_ids, full_access = sync_identity_access(db, identity_user)
+        _legacy_user, outlet_ids, full_access = sync_identity_access(
+            db, identity_user, include_head_office_full_access=False
+        )
         db.commit()
     else:
         outlet_ids = []
@@ -162,7 +168,9 @@ def list_task_schedule_exceptions(
     identity_user = get_identity_user_by_email(db, current_user.email)
     if not identity_user:
         return []
-    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    accessible_outlets, full_access = get_accessible_identity_outlets(
+        db, identity_user, include_head_office_full_access=False
+    )
     if not full_access:
         accessible_legacy_ids = {
             _legacy_outlet_id_for(db, outlet.code) for outlet in accessible_outlets
@@ -256,7 +264,9 @@ def get_task_schedule(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User has no access to this schedule",
         )
-    accessible_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+    accessible_outlets, full_access = get_accessible_identity_outlets(
+        db, identity_user, include_head_office_full_access=False
+    )
     if not full_access:
         accessible_codes = {
             (outlet.code or "").strip().upper() for outlet in accessible_outlets

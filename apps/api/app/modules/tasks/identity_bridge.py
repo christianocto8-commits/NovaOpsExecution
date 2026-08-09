@@ -147,10 +147,21 @@ def get_default_identity_outlet(identity_user: IdentityUser) -> IdentityOutlet |
     return None
 
 
-def get_accessible_identity_outlets(db: Session, identity_user: IdentityUser) -> tuple[list[IdentityOutlet], bool]:
+def get_accessible_identity_outlets(
+    db: Session,
+    identity_user: IdentityUser,
+    *,
+    include_head_office_full_access: bool = True,
+) -> tuple[list[IdentityOutlet], bool]:
     role_slug = identity_user.role.slug if identity_user.role else ""
 
-    if role_slug in {"owner", "admin", "finance_head_office"}:
+    if role_slug in {"owner", "admin"}:
+        return db.query(IdentityOutlet).order_by(IdentityOutlet.code.asc()).all(), True
+
+    if (
+        role_slug == "finance_head_office"
+        and include_head_office_full_access
+    ):
         return db.query(IdentityOutlet).order_by(IdentityOutlet.code.asc()).all(), True
 
     if role_slug in {"regional_manager", "district_manager", "area_manager"}:
@@ -184,8 +195,17 @@ def get_accessible_identity_outlets(db: Session, identity_user: IdentityUser) ->
     return ([outlet] if outlet else []), False
 
 
-def sync_identity_access(db: Session, identity_user: IdentityUser) -> tuple[User, list[int], bool]:
-    identity_outlets, full_access = get_accessible_identity_outlets(db, identity_user)
+def sync_identity_access(
+    db: Session,
+    identity_user: IdentityUser,
+    *,
+    include_head_office_full_access: bool = True,
+) -> tuple[User, list[int], bool]:
+    identity_outlets, full_access = get_accessible_identity_outlets(
+        db,
+        identity_user,
+        include_head_office_full_access=include_head_office_full_access,
+    )
     legacy_outlets = [get_or_create_legacy_outlet(db, outlet) for outlet in identity_outlets]
     primary_outlet = legacy_outlets[0] if legacy_outlets else None
     legacy_user = sync_legacy_user(db, identity_user, primary_outlet)

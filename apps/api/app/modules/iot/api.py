@@ -54,7 +54,9 @@ def _accessible_outlet_ids_for_user(
     db: Session,
     current_user: IdentityUser,
 ) -> tuple[set[UUID] | None, bool]:
-    outlets, full_access = get_accessible_identity_outlets(db, current_user)
+    outlets, full_access = get_accessible_identity_outlets(
+        db, current_user, include_head_office_full_access=False
+    )
     if full_access:
         return None, True
     return {outlet.id for outlet in outlets}, False

@@ -109,6 +109,18 @@ class TestGetAccessibleIdentityOutlets:
 
         assert full_access is True
 
+    def test_finance_head_office_restricted_for_operational_context(self):
+        user = _make_user("finance_head_office")
+
+        result, full_access = get_accessible_identity_outlets(
+            db=MagicMock(),
+            identity_user=user,
+            include_head_office_full_access=False,
+        )
+
+        assert full_access is False
+        assert result == []
+
     def test_district_manager_without_assignments_returns_empty(self):
         db = MagicMock()
         user = _make_user("district_manager", district_id=None)
