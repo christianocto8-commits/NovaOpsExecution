@@ -73,7 +73,9 @@ function getWorkspaceRoleFromSlug(roleSlug: string): NovaRole {
   if (roleSlug === "area_manager") return "AREA_MANAGER";
   if (roleSlug === "outlet") return "OUTLET";
   if (roleSlug === "finance" || roleSlug === "finance_head_office") return "FINANCE";
-  return "OWNER_ADMIN";
+  if (roleSlug === "admin") return "OWNER_ADMIN";
+  if (roleSlug === "owner") return "OWNER_ADMIN";
+  return "OUTLET";
 }
 
 function getWorkspaceOutletContext(currentUser: AuthUser) {

@@ -88,6 +88,8 @@ DEFAULT_PERMISSIONS = [
     "finance.submit",
     "finance.review",
     "finance.export",
+
+    "settings.manage",
 ]
 
 ROLE_PERMISSION_MAP = {

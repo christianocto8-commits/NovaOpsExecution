@@ -113,7 +113,7 @@ def resolve_user_outlet_access(
     return None, []
 
 
-def ensure_system_roles_and_permissions(db: Session) -> list[Role]:
+def ensure_system_roles_and_permissions(db: Session, *, overwrite: bool = True) -> list[Role]:
     permissions_by_code = {permission.code: permission for permission in PermissionRepository(db).list()}
     for code in sorted({code for codes in ROLE_PERMISSION_MAP.values() for code in codes}):
         if code not in permissions_by_code:
@@ -140,11 +140,19 @@ def ensure_system_roles_and_permissions(db: Session) -> list[Role]:
             db.flush()
         elif role.name != desired_name:
             role.name = desired_name
-        role.permissions = [
+
+        desired_permissions = [
             permissions_by_code[code]
             for code in ROLE_PERMISSION_MAP.get(slug, [])
             if code in permissions_by_code
         ]
+        if overwrite:
+            role.permissions = desired_permissions
+        else:
+            existing_codes = {permission.code for permission in role.permissions}
+            role.permissions = list(role.permissions) + [
+                permission for permission in desired_permissions if permission.code not in existing_codes
+            ]
         db.add(role)
         synced_roles.append(role)
 

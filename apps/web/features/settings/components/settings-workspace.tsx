@@ -1366,18 +1366,24 @@ function AreaManagerSettingsWorkspace({
   notice,
   setNotice,
   t,
+  roleLabel = "Area Manager",
+  description,
 }: {
   settings?: SettingsResponse;
   notice: string | null;
   setNotice: (message: string | null) => void;
   t: (key: string) => string;
+  roleLabel?: string;
+  description?: string;
 }) {
   return (
     <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">{t("settings.areaEyebrow")}</p>
         <h1 className="text-2xl font-semibold text-slate-950">{t("settings.areaTitle")}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t("settings.areaDescription")}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {description ?? t("settings.areaDescription")}
+        </p>
       </div>
       {notice ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
@@ -1385,7 +1391,7 @@ function AreaManagerSettingsWorkspace({
         </div>
       ) : null}
       <div className="grid gap-4 xl:grid-cols-4">
-        <MetricCard label="Role" value="Area Manager" />
+        <MetricCard label="Role" value={roleLabel} />
         <MetricCard
           label="Digest"
           value={settings?.digest_frequency ?? defaults.digest_frequency}
@@ -1540,13 +1546,20 @@ export function SettingsWorkspace() {
     );
   }
 
-  if (workspace.mode === "area") {
+  if (workspace.mode === "area" || workspace.mode === "regional" || workspace.mode === "district") {
+    const roleLabel =
+      workspace.mode === "regional"
+        ? "Regional Manager"
+        : workspace.mode === "district"
+          ? "District Manager"
+          : "Area Manager";
     return (
       <AreaManagerSettingsWorkspace
         settings={settings}
         notice={notice}
         setNotice={setNotice}
         t={t}
+        roleLabel={roleLabel}
       />
     );
   }

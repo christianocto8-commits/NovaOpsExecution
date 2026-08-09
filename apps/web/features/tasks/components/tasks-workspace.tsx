@@ -679,8 +679,12 @@ export function TasksWorkspace() {
   const isOutletWorkspace = workspace.mode === "outlet";
   const isAreaWorkspace = workspace.mode === "area";
   const isOutletRole = isOutletWorkspace;
-  const isOwnerAdminWorkspace = !isOutletWorkspace && !isAreaWorkspace;
+  const isOwnerAdminWorkspace =
+    workspace.mode === "enterprise" ||
+    workspace.mode === "regional" ||
+    workspace.mode === "district";
   const canCreateTask = isOwnerAdminWorkspace;
+  const canDeleteTask = workspace.mode === "enterprise";
 
   const bulkTargetTaskIds = useMemo(() => {
     const ids = Array.from(selectedTaskIds);
@@ -1317,19 +1321,21 @@ export function TasksWorkspace() {
                   ))}
                 </select>
               ) : null}
-              <button
-                type="button"
-                disabled={bulkDeleteMutation.isPending}
-                onClick={() => {
-                  if (window.confirm(`Hapus ${bulkTargetTaskIds.length} task terpilih?`)) {
-                    bulkDeleteMutation.mutate();
-                  }
-                }}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:border-red-300 disabled:opacity-50"
-              >
-                <Trash2 className="size-3.5" />
-                Hapus
-              </button>
+              {canDeleteTask ? (
+                <button
+                  type="button"
+                  disabled={bulkDeleteMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Hapus ${bulkTargetTaskIds.length} task terpilih?`)) {
+                      bulkDeleteMutation.mutate();
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:border-red-300 disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" />
+                  Hapus
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -1350,7 +1356,7 @@ export function TasksWorkspace() {
               onSelectTask={handleOpenTask}
               onEditTask={isOwnerAdminWorkspace ? openEditTask : () => {}}
               onDeleteTask={
-                isOwnerAdminWorkspace
+                canDeleteTask
                   ? (id) => {
                       void deleteTask(id);
                     }

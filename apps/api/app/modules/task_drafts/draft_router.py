@@ -10,6 +10,7 @@ from app.modules.task_drafts.draft_schemas import (
     TaskDraftUpdate,
 )
 from app.modules.task_drafts.draft_service import TaskDraftService
+from app.modules.tasks.router import ensure_task_permission
 from app.repositories.outlet_repository import OutletRepository
 
 router = APIRouter(prefix="/task-drafts", tags=["Task Drafts"])
@@ -105,6 +106,7 @@ def publish_task_draft(
     current_user=Depends(get_current_user),
 ):
     ensure_outlet_access(db, current_user.id, x_outlet_id)
+    ensure_task_permission(db, current_user, "task.create")
     service = TaskDraftService(db)
 
     task = service.publish_draft(

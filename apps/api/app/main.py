@@ -113,7 +113,7 @@ def bootstrap_online_admin() -> None:
     try:
         db = SessionLocal()
         try:
-            ensure_system_roles_and_permissions(db)
+            ensure_system_roles_and_permissions(db, overwrite=False)
             db.commit()
             logger.info("Synced system roles and permissions.")
         except Exception:

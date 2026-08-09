@@ -50,6 +50,14 @@ from app.services.workspace_settings import get_workspace_settings
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
+LEGACY_PERMISSION_ALIASES = {
+    "task.read": ["task.view"],
+    "task.create": ["builder.create"],
+    "task.edit": ["task.assign", "task.close"],
+    "task.delete": ["task.close"],
+    "task.execute": ["execution.start", "execution.submit"],
+}
+
 
 def ensure_task_permission(db: Session, current_user, permission: str) -> None:
     """Gate task mutations behind the identity permission system.
@@ -69,7 +77,14 @@ def ensure_task_permission(db: Session, current_user, permission: str) -> None:
         )
 
     role_name = (current_user.role.name if current_user.role else "") or ""
-    if role_name == "Owner" or has_permission(role_name, permission):
+    if role_name == "Owner":
+        return
+
+    legacy_grants = LEGACY_PERMISSION_ALIASES.get(permission, [])
+    if legacy_grants and any(has_permission(role_name, grant) for grant in legacy_grants):
+        return
+
+    if has_permission(role_name, permission):
         return
 
     raise HTTPException(
@@ -228,6 +243,7 @@ def list_tasks(
     x_outlet_id, _actor_id, outlet_ids, full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id
     )
+    ensure_task_permission(db, current_user, "task.read")
     service = TaskService(db)
     tasks = service.list_tasks(
         outlet_id=x_outlet_id,
@@ -292,6 +308,7 @@ def list_outlet_members(
         if full_access or not outlet_ids or len(outlet_ids) != 1:
             return []
         x_outlet_id = outlet_ids[0]
+    ensure_task_permission(db, current_user, "task.read")
     service = TaskService(db)
 
     members = service.list_outlet_members(outlet_id=x_outlet_id)
@@ -336,9 +353,8 @@ def bulk_delete_tasks(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_task_permission(db, current_user, "execution.submit")
-    x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
-        db, current_user, x_outlet_id, task_id=task_id
+    x_outlet_id, actor_id, outlet_ids, full_access = resolve_task_outlet_access(
+        db, current_user, x_outlet_id
     )
     ensure_task_permission(db, current_user, "task.delete")
     service = TaskService(db)
@@ -360,6 +376,7 @@ def get_task(
     x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.read")
     service = TaskService(db)
     task = service.get_task(task_id=task_id, outlet_id=x_outlet_id)
     return build_task_detail_response(db, task)
@@ -422,6 +439,7 @@ def submit_task_execution(
     x_outlet_id, actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.execute")
     service = TaskService(db)
     identity_user = get_identity_user_by_email(db, current_user.email)
     task, checklist_result, corrective_task = service.submit_execution(
@@ -555,6 +573,7 @@ def list_task_assignments(
     x_outlet_id, _actor_id, _outlet_ids, _full_access = resolve_task_outlet_access(
         db, current_user, x_outlet_id, task_id=task_id
     )
+    ensure_task_permission(db, current_user, "task.read")
     service = TaskService(db)
     return service.list_assignments(task_id=task_id, outlet_id=x_outlet_id)
 
