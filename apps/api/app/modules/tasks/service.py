@@ -106,6 +106,12 @@ class TaskService:
                     detail="Assigned user is not an active member of this outlet",
                 )
 
+        if payload.due_date is not None and payload.due_date <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="due_date must be in the future",
+            )
+
         task = Task(
             title=payload.title,
             description=payload.description,
@@ -416,6 +422,12 @@ class TaskService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Task is already closed",
+            )
+
+        if task.expired_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task expired after 60 minutes past the due date and can no longer be submitted.",
             )
 
         workspace_settings = get_workspace_settings(self.db)

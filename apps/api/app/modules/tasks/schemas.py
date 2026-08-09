@@ -178,8 +178,10 @@ class TaskResponse(BaseModel):
     schedule_id: int | None = None
     shift: str | None = None
     recurrence: str | None = None
+    publish_time: str | None = None
     due_time: str | None = None
     weekly_publish_day: str | None = None
+    monthly_publish_day: int | None = None
     auto_publish: bool | None = None
 
     created_at: datetime

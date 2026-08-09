@@ -6,7 +6,9 @@ import { ExportMenu } from "@/shared/export/components";
 import { exportToCsv, exportToExcel, exportToPdf } from "@/shared/export/utils";
 
 import { Task, TaskStatus } from "../types";
+import { isTaskOverdue } from "../utils/task-inbox";
 import { getPriorityClass, getStatusClass } from "../utils";
+import { formatTaskSchedule } from "../utils";
 
 type TaskTableProps = {
   tasks: Task[];
@@ -15,6 +17,27 @@ type TaskTableProps = {
   onDeleteTask: (id: string) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
 };
+
+const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
+  open: ["in_progress", "blocked", "cancelled"],
+  in_progress: ["blocked", "completed", "cancelled"],
+  blocked: ["open", "in_progress", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+function toFrontendStatus(status: string): TaskStatus {
+  if (status === "completed") return "Completed";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "in_progress" || status === "blocked") return "In Progress";
+  return "Pending";
+}
+
+function getNextStatusOptions(task: Task): TaskStatus[] {
+  const current = task.backendStatus ?? "open";
+  const next = ALLOWED_STATUS_TRANSITIONS[current] ?? [];
+  return [...new Set([toFrontendStatus(current), ...next.map(toFrontendStatus)])];
+}
 
 function buildTaskFilterDefinitions(tasks: Task[]) {
   const outletNames = [...new Set(tasks.map((task) => task.outlet).filter(Boolean))].sort();
@@ -125,10 +148,9 @@ export function TaskTable({
             task.status
           )}`}
         >
-          <option>Pending</option>
-          <option>In Progress</option>
-          <option>Completed</option>
-          <option>Cancelled</option>
+          {getNextStatusOptions(task).map((status) => (
+            <option key={status}>{status}</option>
+          ))}
         </select>
       ),
     },
@@ -136,6 +158,21 @@ export function TaskTable({
       key: "due",
       header: "Due",
       sortable: true,
+      render: (task) => {
+        const isOverdue = Boolean(task.expiredAt) || isTaskOverdue(task);
+        return (
+          <span
+            className={
+              isOverdue
+                ? "rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-700"
+                : "text-sm text-slate-700"
+            }
+            title={task.due}
+          >
+            {formatTaskSchedule(task)}
+          </span>
+        );
+      },
     },
   ];
 

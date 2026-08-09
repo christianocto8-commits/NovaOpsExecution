@@ -58,8 +58,10 @@ export type BackendTask = {
   schedule_id: number | null;
   shift: string | null;
   recurrence: "daily" | "weekly" | "monthly" | "once" | null;
+  publish_time: string | null;
   due_time: string | null;
   weekly_publish_day: string | null;
+  monthly_publish_day: number | null;
   auto_publish: boolean | null;
   capa_root_cause?: string | null;
   capa_before_evidence_url?: string | null;
@@ -249,7 +251,9 @@ export function mapBackendTask(task: BackendTask): Task {
     targetOutletIds: [String(task.outlet_id)],
     autoPublish: task.auto_publish ?? false,
     dueTime: task.due_time ?? (formatDueDate(task.due_date).slice(11, 16) || "09:00"),
+    publishTime: task.publish_time ?? undefined,
     weeklyPublishDay: (task.weekly_publish_day as Task["weeklyPublishDay"]) ?? "sunday",
+    monthlyPublishDay: task.monthly_publish_day ?? undefined,
     activity:
       task.comments && task.comments.length > 0
         ? task.comments.map(commentToActivity)

@@ -173,37 +173,39 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
             )
 
         if due_date and due_date + timedelta(minutes=60) <= now:
-            previous_status = task.status
-            if previous_status not in {"completed", "cancelled"}:
-                task.expired_at = now
-                db.add(
-                    TaskComment(
-                        task_id=task.id,
-                        user_id=task.created_by,
-                        comment="Task expired 60 minutes after overdue and moved to overdue report.",
-                        event_type="overdue_expired",
-                        previous_value=previous_status,
-                        new_value=previous_status,
+            if task.expired_at is None:
+                previous_status = task.status
+                if previous_status not in {"completed", "cancelled"}:
+                    task.expired_at = now
+                    db.add(
+                        TaskComment(
+                            task_id=task.id,
+                            user_id=task.created_by,
+                            comment="Task expired 60 minutes after overdue and moved to overdue report.",
+                            event_type="overdue_expired",
+                            previous_value=previous_status,
+                            new_value=previous_status,
+                        )
                     )
-                )
-            expired_tasks += 1
 
-            try:
-                dispatch_webhook_event(
-                    db,
-                    event_type="task.overdue",
-                    outlet_id=task.outlet_id,
-                    payload={
-                        "task_id": task.id,
-                        "task_title": task.title,
-                        "outlet_id": task.outlet_id,
-                        "due_date": task.due_date.isoformat() if task.due_date else None,
-                        "status": task.status,
-                        "expired_after_minutes": 60,
-                    },
-                )
-            except Exception:
-                pass
+                try:
+                    dispatch_webhook_event(
+                        db,
+                        event_type="task.overdue",
+                        outlet_id=task.outlet_id,
+                        payload={
+                            "task_id": task.id,
+                            "task_title": task.title,
+                            "outlet_id": task.outlet_id,
+                            "due_date": task.due_date.isoformat() if task.due_date else None,
+                            "status": task.status,
+                            "expired_after_minutes": 60,
+                        },
+                    )
+                except Exception:
+                    pass
+
+            expired_tasks += 1
             continue
 
         recipients = _get_task_recipients(db, task)

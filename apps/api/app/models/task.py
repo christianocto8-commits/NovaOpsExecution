@@ -74,12 +74,20 @@ class Task(Base):
         return self.schedule.recurrence if self.schedule else None
 
     @property
+    def publish_time(self):
+        return self.schedule.publish_time if self.schedule else None
+
+    @property
     def due_time(self):
         return self.schedule.due_time if self.schedule else None
 
     @property
     def weekly_publish_day(self):
         return self.schedule.weekly_publish_day if self.schedule else None
+
+    @property
+    def monthly_publish_day(self):
+        return self.schedule.monthly_publish_day if self.schedule else None
 
     @property
     def auto_publish(self):

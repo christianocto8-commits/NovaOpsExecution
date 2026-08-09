@@ -23,7 +23,7 @@ import {
 } from "@/features/reports/utils/task-work-report-pdf";
 import { exportRegulatorReportPacketPdf } from "@/features/reports/utils/regulator-report-packet";
 import type { Task } from "@/features/tasks/types";
-import { isTaskCompleted, isTaskExpiredOverdue } from "@/features/tasks/utils/task-inbox";
+import { isTaskCompleted, isTaskOverdue } from "@/features/tasks/utils/task-inbox";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
 import {
@@ -75,7 +75,7 @@ function getDateLabel(value: string) {
 }
 
 function getTaskProgress(task: Task) {
-  if (isTaskExpiredOverdue(task)) return 0;
+  if (isTaskOverdue(task)) return 0;
   if (isTaskCompleted(task) || task.execution?.completedAt) return 100;
   if (task.status === "In Progress") return 50;
   return 0;
@@ -96,7 +96,7 @@ function getReportStatusClass(status: ReportStatus) {
 }
 
 function getReportStatus(task: Task): ReportStatus {
-  if (isTaskExpiredOverdue(task)) return "overdue";
+  if (isTaskOverdue(task)) return "overdue";
   if (isTaskCompleted(task) || task.execution?.completedAt) return "completed";
   if (task.status === "In Progress") return "in_progress";
   return "pending";

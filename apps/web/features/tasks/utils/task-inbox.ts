@@ -28,9 +28,20 @@ export function isTaskExpiredOverdue(task: Task) {
 
   const backendStatus = String(task.backendStatus ?? "").toLowerCase();
 
-  if (task.expiredAt) {
-    return true;
+  if (backendStatus === "cancelled") {
+    return false;
   }
+
+  return Boolean(task.expiredAt);
+}
+
+/** Task past its due date and not completed/cancelled (regardless of expiry). */
+export function isTaskOverdue(task: Task) {
+  if (isTaskCompleted(task)) {
+    return false;
+  }
+
+  const backendStatus = String(task.backendStatus ?? "").toLowerCase();
 
   if (backendStatus === "cancelled") {
     return false;
@@ -55,7 +66,5 @@ export function isOpenTaskInInbox(task: Task) {
 
 /** Tasks with a submitted result — shown in Reports / PDF export. */
 export function isTaskWorkedOn(task: Task) {
-  return (
-    isTaskCompleted(task) || Boolean(task.execution?.completedAt) || isTaskExpiredOverdue(task)
-  );
+  return isTaskCompleted(task) || Boolean(task.execution?.completedAt) || isTaskOverdue(task);
 }
