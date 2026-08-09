@@ -54,7 +54,6 @@ LEGACY_PERMISSION_ALIASES = {
     "task.read": ["task.view"],
     "task.create": ["builder.create"],
     "task.edit": ["task.assign", "task.close"],
-    "task.delete": ["task.close"],
     "task.execute": ["execution.start", "execution.submit"],
 }
 
@@ -645,5 +644,10 @@ def delete_task(
     )
     ensure_task_permission(db, current_user, "task.delete")
     service = TaskService(db)
-    service.delete_task(task_id=task_id, outlet_id=x_outlet_id)
+    service.delete_task(
+        task_id=task_id,
+        outlet_id=x_outlet_id,
+        actor_id=_actor_id,
+        actor_name=getattr(current_user, "name", None),
+    )
     return None

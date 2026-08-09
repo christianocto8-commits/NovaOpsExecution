@@ -1153,10 +1153,29 @@ class TaskService:
 
         self.db.commit()
 
-    def delete_task(self, task_id: int, outlet_id: int) -> None:
+    def delete_task(self, task_id: int, outlet_id: int, actor_id: int | None = None, actor_name: str | None = None) -> None:
         from app.models.execution_session import ExecutionSession
 
         task = self.get_task(task_id, outlet_id)
+
+        if task.status not in ("open", "draft", "closed", "rejected"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete task in '{task.status}' status",
+            )
+
         self.db.query(ExecutionSession).filter(ExecutionSession.task_id == task_id).delete()
         self.repo.delete(task)
         self.db.commit()
+
+        record_activity_event(
+            self.db,
+            action="task_deleted",
+            summary=f"Task #{task_id} deleted (status was '{task.status}')",
+            outlet_id=outlet_id,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            resource_type="task",
+            resource_id=str(task_id),
+            metadata={"previous_status": task.status},
+        )
