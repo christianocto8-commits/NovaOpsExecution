@@ -163,6 +163,7 @@ jobs:
           ./scripts/deploy-vps-ci-fast.sh
 
       - name: Verify production health
+        if: ${{ env.HAS_VPS_KEY != '' }}
         shell: bash
         run: |
           curl -fsS https://nova-ops.cloud/api/v1/health

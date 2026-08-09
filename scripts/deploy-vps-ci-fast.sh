@@ -7,7 +7,7 @@ API_DIR="$ROOT/apps/api"
 REMOTE_ROOT="${NOVAOPS_REMOTE_ROOT:-/opt/NovaOpsExecution}"
 VPS_HOST="${NOVAOPS_VPS_HOST:-root@103.247.10.145}"
 SSH_KEY="${NOVAOPS_VPS_SSH_KEY:-${HOME}/.ssh/novaops_vps_ed25519}"
-SSH_ARGS=(-i "$SSH_KEY" -o IdentitiesOnly=yes)
+SSH_ARGS=(-i "$SSH_KEY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
 STAMP="$(date +%Y%m%d%H%M%S)"
 TMP_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/novaops-fast-deploy-${STAMP}"
 
