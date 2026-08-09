@@ -131,8 +131,29 @@ class TaskSchedulePublisher:
         if schedule.recurrence == "once":
             return bool(schedule.next_publish_at and schedule.next_publish_at <= current)
 
-        local_current = current.astimezone(self._workspace_timezone())
+        tz = self._workspace_timezone()
+        local_current = current.astimezone(tz)
         publish_time = self._schedule_publish_time(schedule)
+
+        # Guard 1: If already published today (same local date), skip.
+        if schedule.last_published_at is not None:
+            local_last = schedule.last_published_at.astimezone(tz)
+            if local_last.date() == local_current.date():
+                return False
+
+        # Guard 2: Only publish within a window after publish_time.
+        # e.g. publish_time="08:00" → window 08:00–22:00 (14h).
+        # This prevents an 08:00 schedule from firing at 23:55.
+        try:
+            pub_h, pub_m = [int(p) for p in publish_time.split(":")]
+        except (TypeError, ValueError):
+            pub_h, pub_m = 9, 0
+
+        publish_dt = local_current.replace(hour=pub_h, minute=pub_m, second=0, microsecond=0)
+        window_end = publish_dt + timedelta(hours=14)
+        if not (publish_dt <= local_current < window_end):
+            return False
+
         return should_publish_recurring(
             recurrence=schedule.recurrence,
             publish_time=publish_time,
