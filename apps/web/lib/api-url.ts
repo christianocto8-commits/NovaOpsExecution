@@ -83,10 +83,18 @@ export function resolveApiUrl() {
 }
 
 export function isLocalDevEnvironment() {
+  // Explicit API URL (Android APK build) means we are not in local dev, even
+  // though the Capacitor webview reports hostname "localhost".
+  if (configuredApiUrl()) return false;
   return isBrowserLocalDev() || isLocalSplitDev();
 }
 
 export function resolveApiDisplayUrl() {
+  const explicitlyConfigured = configuredApiUrl();
+  if (explicitlyConfigured) {
+    return explicitlyConfigured;
+  }
+
   if (typeof window !== "undefined" && shouldUseRelativeApi()) {
     return `${window.location.origin} → API ${configuredApiUrl() || "http://127.0.0.1:8000"}`;
   }
@@ -96,6 +104,15 @@ export function resolveApiDisplayUrl() {
 }
 
 export function buildApiUrl(endpoint: string) {
+  // Explicit API URL (set at build time for the Android APK) always wins,
+  // matching resolveApiUrl(). In a Capacitor webview the hostname is
+  // "localhost", which must NOT be misdetected as local dev (that would
+  // produce a relative URL with no backend behind it).
+  const explicitlyConfigured = configuredApiUrl();
+  if (explicitlyConfigured) {
+    return `${explicitlyConfigured}${endpoint}`;
+  }
+
   if (shouldUseRelativeApi()) {
     return endpoint;
   }

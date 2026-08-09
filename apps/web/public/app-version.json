@@ -1,7 +1,7 @@
 {
-  "latestVersionName": "1.0.3",
-  "latestVersionCode": 4,
+  "latestVersionName": "1.0.4",
+  "latestVersionCode": 5,
   "required": false,
   "downloadUrl": "https://nova-ops.cloud/downloads/NovaOps-Outlet-MatePad.apk",
-  "releaseNotes": "Pembaruan otomatis aplikasi tablet: perbaikan pipeline build dan pengujian agar rilis stabil serta penyempurnaan tampilan."
+  "releaseNotes": "Perbaikan koneksi backend pada aplikasi tablet sehingga task dapat dikirim (submit) dengan normal."
 }
