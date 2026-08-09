@@ -644,6 +644,7 @@ export function useTaskWorkspace() {
       total: tasks.length,
       pending: tasks.filter((task: Task) => task.status === "Pending").length,
       inProgress: tasks.filter((task: Task) => task.status === "In Progress").length,
+      blocked: tasks.filter((task: Task) => task.status === "Blocked").length,
       completed: tasks.filter((task: Task) => task.status === "Completed").length,
     };
   }, [tasks]);

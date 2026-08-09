@@ -29,7 +29,8 @@ const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
 function toFrontendStatus(status: string): TaskStatus {
   if (status === "completed") return "Completed";
   if (status === "cancelled") return "Cancelled";
-  if (status === "in_progress" || status === "blocked") return "In Progress";
+  if (status === "blocked") return "Blocked";
+  if (status === "in_progress") return "In Progress";
   return "Pending";
 }
 
@@ -56,6 +57,7 @@ function buildTaskFilterDefinitions(tasks: Task[]) {
       options: [
         { label: "Pending", value: "Pending" },
         { label: "In Progress", value: "In Progress" },
+        { label: "Blocked", value: "Blocked" },
         { label: "Completed", value: "Completed" },
         { label: "Cancelled", value: "Cancelled" },
       ],

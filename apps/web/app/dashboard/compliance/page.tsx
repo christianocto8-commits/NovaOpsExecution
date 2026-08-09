@@ -39,7 +39,7 @@ type ComplianceRow = {
   district: string;
   task: string;
   priority: string;
-  status: "Completed" | "In Progress" | "Pending" | "Overdue" | "Cancelled";
+  status: "Completed" | "In Progress" | "Blocked" | "Pending" | "Overdue" | "Cancelled";
   completion: number;
   due: string;
   assignee: string;
@@ -133,6 +133,7 @@ function groupByStatus(rows: ComplianceRow[]) {
   const statuses: ComplianceRow["status"][] = [
     "Completed",
     "In Progress",
+    "Blocked",
     "Pending",
     "Overdue",
     "Cancelled",

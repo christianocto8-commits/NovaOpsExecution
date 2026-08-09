@@ -133,13 +133,15 @@ export function hasResolvableBackendFormTemplate(task: {
 function toFrontendStatus(status: BackendTaskStatus): TaskStatus {
   if (status === "completed") return "Completed";
   if (status === "cancelled") return "Cancelled";
-  if (status === "in_progress" || status === "blocked") return "In Progress";
+  if (status === "blocked") return "Blocked";
+  if (status === "in_progress") return "In Progress";
   return "Pending";
 }
 
 export function toBackendStatus(status: TaskStatus): BackendTaskStatus {
   if (status === "Completed") return "completed";
   if (status === "Cancelled") return "cancelled";
+  if (status === "Blocked") return "blocked";
   if (status === "In Progress") return "in_progress";
   return "open";
 }

@@ -35,7 +35,7 @@ type TaskFormDrawerProps = {
   onSubmit: () => void;
 };
 
-const statuses: TaskStatus[] = ["Pending", "In Progress", "Completed"];
+const statuses: TaskStatus[] = ["Pending", "In Progress", "Blocked", "Completed"];
 const priorities: TaskPriority[] = ["Low", "Medium", "High", "Critical"];
 const recurrences: Array<{ value: TaskRecurrence; label: string }> = [
   { value: "once", label: "One-time task" },
