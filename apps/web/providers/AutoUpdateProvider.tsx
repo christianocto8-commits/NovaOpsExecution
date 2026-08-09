@@ -15,8 +15,8 @@ export type VersionInfo = {
 };
 
 export const CURRENT_APP_VERSION = {
-  versionName: "1.0.2",
-  versionCode: 3,
+  versionName: "1.0.3",
+  versionCode: 4,
 };
 
 type AutoUpdateContextType = {
