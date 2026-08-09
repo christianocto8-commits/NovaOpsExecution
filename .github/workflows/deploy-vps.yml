@@ -44,8 +44,8 @@ jobs:
           NOVAOPS_VPS_SSH_KEY_VALUE: ${{ secrets.NOVAOPS_VPS_SSH_KEY }}
         run: |
           if [ -z "$NOVAOPS_VPS_SSH_KEY_VALUE" ]; then
-            echo "::error::Secret NOVAOPS_VPS_SSH_KEY belum diisi."
-            exit 1
+            echo "Secret NOVAOPS_VPS_SSH_KEY belum diisi di GitHub Secrets — lewati deploy SSH ke VPS."
+            exit 0
           fi
           mkdir -p "$HOME/.ssh"
           KEY_PATH="$HOME/.ssh/novaops_vps_ed25519"

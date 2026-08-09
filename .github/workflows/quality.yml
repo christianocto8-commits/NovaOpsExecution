@@ -1,4 +1,4 @@
-﻿name: NovaOps Enterprise Quality
+name: NovaOps Enterprise Quality
 
 on:
 
@@ -26,22 +26,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Bootstrap
-        shell: bash
+      - name: Setup frontend
+        working-directory: apps/web
         run: |
-          if [ -f ./bootstrap.ps1 ]; then
-            pwsh ./bootstrap.ps1
-          else
-            docker compose up -d postgres
-            python3 -m pip install -r apps/api/requirements.txt -r apps/api/requirements-dev.txt
-            cp -n apps/api/.env.example apps/api/.env || true
-          fi
+          npm ci
+          npm run format:check
+          npm run lint
+          npm run typecheck
 
-      - name: Enterprise CI
-        shell: bash
+      - name: Setup backend & run tests
+        working-directory: apps/api
         run: |
-          if [ -f ./novaops.ps1 ]; then
-            pwsh ./novaops.ps1 ci
-          else
-            cd apps/api && DATABASE_URL="${DATABASE_URL:-postgresql://novaops_user:novaops_password@localhost:5433/novaops_db}" python3 -m pytest -q
-          fi
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+          pytest tests/ -q

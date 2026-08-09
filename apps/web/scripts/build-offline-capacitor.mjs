@@ -38,7 +38,12 @@ if (existsSync(apiDir)) {
 try {
   console.log("Building static export (output: export)...");
   const buildEnv = { ...process.env, NEXT_CONFIG_FILE: "next.config.mobile.ts" };
-  const result = spawnSync("npx", ["next", "build"], { stdio: "inherit", shell: true, cwd: root, env: buildEnv });
+  const result = spawnSync("npx", ["next", "build", "-c", "next.config.mobile.ts"], {
+    stdio: "inherit",
+    shell: true,
+    cwd: root,
+    env: buildEnv,
+  });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
