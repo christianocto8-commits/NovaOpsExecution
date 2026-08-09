@@ -84,6 +84,12 @@ def _recipient_already_notified(
     event_type: str,
     recipient_legacy_user_id: int,
 ) -> bool:
+    # In-app / push / email notifications are identity-based: they require the
+    # recipient to be mapped to an IdentityUser. A legacy-only recipient (no
+    # IdentityUser mapping) is therefore never directly reachable here, so we
+    # treat them as already-notified to avoid dispatching duplicate/no-op
+    # notifications every scheduler tick. Overdue escalation is still surfaced
+    # to external systems via the "task.overdue_escalation" webhook.
     recipient_identity_id = resolve_identity_user_id(db, recipient_legacy_user_id)
     if not recipient_identity_id:
         return True
@@ -118,6 +124,27 @@ def _process_escalation_rules(
             continue
 
         event_type = f"task_overdue_escalation_{level}m"
+
+        # Webhook signal so external notifiers are reached even when task
+        # recipients are not yet mapped to an IdentityUser (legacy-only).
+        try:
+            dispatch_webhook_event(
+                db,
+                event_type="task.overdue_escalation",
+                outlet_id=task.outlet_id,
+                payload={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "outlet_id": task.outlet_id,
+                    "due_date": task.due_date.isoformat() if task.due_date else None,
+                    "status": task.status,
+                    "minutes_overdue": minutes_overdue,
+                    "escalation_level_minutes": level,
+                },
+            )
+        except Exception:
+            pass
+
         for recipient_legacy_id in recipients:
             if _recipient_already_notified(
                 db,

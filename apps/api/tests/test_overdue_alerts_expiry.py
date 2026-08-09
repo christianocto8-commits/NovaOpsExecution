@@ -74,9 +74,11 @@ def test_expired_at_set_only_once_and_no_duplicate_comments(db: Session):
     try:
         assert task.expired_at is None
 
-        process_overdue_task_alerts(db)
+        first_result = process_overdue_task_alerts(db)
         db.refresh(task)
         assert task.expired_at is not None
+        # Escalation notifications should be dispatched for mapped recipients.
+        assert first_result["alerts_created"] > 0
 
         expired_comments_after_first = (
             db.query(TaskComment)
