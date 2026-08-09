@@ -21,6 +21,7 @@ jobs:
     env:
       NOVAOPS_VPS_HOST: ${{ secrets.NOVAOPS_VPS_HOST }}
       HAS_ANDROID_KEYSTORE: ${{ secrets.NOVAOPS_ANDROID_KEYSTORE_B64 }}
+      HAS_VPS_KEY: ${{ secrets.NOVAOPS_VPS_SSH_KEY }}
 
     steps:
       - name: Checkout code
@@ -39,14 +40,11 @@ jobs:
           python-version: "3.12"
 
       - name: Prepare SSH key
+        if: ${{ env.HAS_VPS_KEY != '' }}
         shell: bash
         env:
           NOVAOPS_VPS_SSH_KEY_VALUE: ${{ secrets.NOVAOPS_VPS_SSH_KEY }}
         run: |
-          if [ -z "$NOVAOPS_VPS_SSH_KEY_VALUE" ]; then
-            echo "Secret NOVAOPS_VPS_SSH_KEY belum diisi di GitHub Secrets — lewati deploy SSH ke VPS."
-            exit 0
-          fi
           mkdir -p "$HOME/.ssh"
           KEY_PATH="$HOME/.ssh/novaops_vps_ed25519"
           export KEY_PATH
@@ -158,6 +156,7 @@ jobs:
           ls -la apps/web/public/downloads
 
       - name: Fast deploy live to VPS
+        if: ${{ env.HAS_VPS_KEY != '' }}
         shell: bash
         run: |
           chmod +x ./scripts/deploy-vps-ci-fast.sh
