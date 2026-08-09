@@ -16,7 +16,6 @@ jobs:
   deploy:
     name: Deploy to NovaOps VPS
     runs-on: ubuntu-latest
-    environment: production
 
     env:
       NOVAOPS_VPS_HOST: ${{ secrets.NOVAOPS_VPS_HOST }}

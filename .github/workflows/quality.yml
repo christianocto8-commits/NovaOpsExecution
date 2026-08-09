@@ -14,6 +14,28 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: novaops
+          POSTGRES_USER: novaops
+          POSTGRES_PASSWORD: novaops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U novaops"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://novaops:novaops@localhost:5432/novaops
+      BOOTSTRAP_ADMIN_ENABLED: "true"
+      BOOTSTRAP_ADMIN_EMAIL: admin@novaops.com
+      BOOTSTRAP_ADMIN_USERNAME: admin
+      BOOTSTRAP_ADMIN_PASSWORD: admin123
+
     steps:
 
       - uses: actions/checkout@v4
@@ -21,6 +43,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
 
       - uses: actions/setup-python@v5
         with:
@@ -41,4 +65,6 @@ jobs:
           sudo apt-get install -y pkg-config libxml2-dev libxslt1-dev libxmlsec1-dev xmlsec1
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+          alembic upgrade head
+          python -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin()"
           pytest tests/ -q
