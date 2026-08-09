@@ -6,12 +6,19 @@ from sqlalchemy.orm import Session
 
 from app.bootstrap.ensure_online_admin import ensure_online_admin
 from app.core.database import SessionLocal
+from app.core.http_security import login_rate_limiter, otp_rate_limiter
 from app.main import app
 
 
 @pytest.fixture(scope="session", autouse=True)
 def bootstrap_admin() -> None:
     ensure_online_admin()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiters() -> None:
+    login_rate_limiter.clear()
+    otp_rate_limiter.clear()
 
 
 @pytest.fixture(scope="module")
