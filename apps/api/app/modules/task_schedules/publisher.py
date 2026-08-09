@@ -241,9 +241,6 @@ class TaskSchedulePublisher:
         *,
         force: bool,
     ) -> bool:
-        if force:
-            return False
-
         try:
             outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
         except ValueError:
@@ -252,6 +249,7 @@ class TaskSchedulePublisher:
         query = self.db.query(Task.id).filter(
             Task.schedule_id == schedule.id,
             Task.outlet_id == outlet_id,
+            Task.status != "cancelled",
         )
 
         if shift:
@@ -275,7 +273,11 @@ class TaskSchedulePublisher:
             end_utc = (local_midnight + timedelta(days=1)).astimezone(timezone.utc)
             query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
 
-        return query.first() is not None
+        exists = query.first() is not None
+        if exists and not force:
+            return True
+
+        return exists
 
     def _create_task(
         self,

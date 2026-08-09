@@ -524,6 +524,26 @@ class TaskService:
             task.status = "completed"
             task.completed_at = datetime.now(timezone.utc)
 
+            if task.schedule_id:
+                created_date = task.created_at.date() if task.created_at else datetime.now(timezone.utc).date()
+                start_of_day = datetime.combine(created_date, time.min, tzinfo=timezone.utc)
+                end_of_day = start_of_day + timedelta(days=1)
+                siblings = (
+                    self.db.query(Task)
+                    .filter(
+                        Task.schedule_id == task.schedule_id,
+                        Task.outlet_id == task.outlet_id,
+                        Task.id != task.id,
+                        Task.status.in_(["open", "in_progress"]),
+                        Task.created_at >= start_of_day,
+                        Task.created_at < end_of_day,
+                    )
+                    .all()
+                )
+                for sibling in siblings:
+                    sibling.status = "cancelled"
+                    sibling.description = (sibling.description or "") + f" [Auto-cancelled: Duplicate of completed task #{task.id}]"
+
         task.rejected_at = None
         task.review_note = None
 
