@@ -38,7 +38,10 @@ export async function registerNativePushIfAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
 
     const PushNotifications = registerPlugin<{
-      addListener: (event: string, cb: (payload: any) => void) => Promise<unknown>;
+      addListener: (
+        event: string,
+        cb: (payload: { value?: string; title?: string; body?: string }) => void
+      ) => Promise<unknown>;
       requestPermissions: () => Promise<{ receive?: string }>;
       register: () => Promise<void>;
     }>("PushNotifications");
