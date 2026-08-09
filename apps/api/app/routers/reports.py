@@ -116,6 +116,14 @@ def _form_submission_outlet_scope(
     return true()
 
 
+def _valid_task_filter() -> ColumnElement[bool]:
+    """Filter out manually or auto-cancelled duplicate tasks.
+
+    Only include active tasks, completed tasks, or auto-expired tasks.
+    """
+    return or_(Task.status != "cancelled", Task.expired_at.isnot(None))
+
+
 def _build_report_summary(
     db: Session,
     *,
@@ -131,7 +139,12 @@ def _build_report_summary(
         outlet_id, outlet_ids, full_access
     )
 
-    task_total = db.query(func.count(Task.id)).filter(outlet_scope).scalar() or 0
+    task_total = (
+        db.query(func.count(Task.id))
+        .filter(outlet_scope, _valid_task_filter())
+        .scalar()
+        or 0
+    )
     task_completed = (
         db.query(func.count(Task.id))
         .filter(outlet_scope, Task.status == "completed")
@@ -269,6 +282,7 @@ def get_report_trends(
             db.query(func.count(Task.id))
             .filter(
                 outlet_scope,
+                _valid_task_filter(),
                 Task.created_at >= day_start,
                 Task.created_at < day_end,
             )
@@ -313,7 +327,12 @@ def get_outlet_reports(
     reports: list[OutletReport] = []
 
     for outlet in outlets:
-        task_total = db.query(func.count(Task.id)).filter(Task.outlet_id == outlet.id).scalar() or 0
+        task_total = (
+            db.query(func.count(Task.id))
+            .filter(Task.outlet_id == outlet.id, _valid_task_filter())
+            .scalar()
+            or 0
+        )
         task_completed = (
             db.query(func.count(Task.id))
             .filter(Task.outlet_id == outlet.id, Task.status == "completed")
