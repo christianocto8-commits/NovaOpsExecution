@@ -91,6 +91,8 @@ jobs:
       - name: Install backend dependencies
         working-directory: apps/api
         run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxml2-dev libxslt1-dev libxmlsec1-dev xmlsec1
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
