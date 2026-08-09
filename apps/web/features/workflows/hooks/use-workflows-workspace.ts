@@ -89,7 +89,7 @@ export function useWorkflowsWorkspace() {
   const metrics = useMemo(() => getWorkflowMetrics(workflows), [workflows]);
   const selectedWorkflow = useMemo(
     () => workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null,
-    [selectedWorkflowId, workflows],
+    [selectedWorkflowId, workflows]
   );
   const setSelectedWorkflow = useCallback((workflow: WorkflowDefinition | null) => {
     setSelectedWorkflowId(workflow?.id ?? null);
@@ -99,7 +99,6 @@ export function useWorkflowsWorkspace() {
     mutations.createWorkflow.isPending ||
     mutations.updateWorkflow.isPending ||
     mutations.deleteWorkflow.isPending;
-
 
   function openCreateWorkflow() {
     setEditingWorkflow(null);
@@ -153,7 +152,7 @@ export function useWorkflowsWorkspace() {
 
   async function deleteWorkflow(workflow: WorkflowDefinition) {
     const confirmed = window.confirm(
-      `Delete workflow "${workflow.name}"?\n\nThis action cannot be undone.`,
+      `Delete workflow "${workflow.name}"?\n\nThis action cannot be undone.`
     );
 
     if (!confirmed) return;
@@ -191,6 +190,3 @@ export function useWorkflowsWorkspace() {
     deleteWorkflow,
   };
 }
-
-
-

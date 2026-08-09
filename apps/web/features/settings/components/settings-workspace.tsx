@@ -1556,8 +1556,12 @@ export function SettingsWorkspace() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-emerald-700">{t("settings.ownerEyebrow")}</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{t("settings.ownerTitle")}</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{t("settings.ownerDescription")}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+            {t("settings.ownerTitle")}
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
+            {t("settings.ownerDescription")}
+          </p>
         </div>
         <button
           type="button"
@@ -1595,7 +1599,9 @@ export function SettingsWorkspace() {
             className="rounded-xl border border-[#E7ECE9] bg-white px-4 py-3 shadow-sm"
           >
             <div className="truncate text-xs font-medium text-slate-500">{card.label}</div>
-            <div className="mt-0.5 truncate text-base font-semibold text-slate-900">{card.value}</div>
+            <div className="mt-0.5 truncate text-base font-semibold text-slate-900">
+              {card.value}
+            </div>
           </div>
         ))}
       </div>

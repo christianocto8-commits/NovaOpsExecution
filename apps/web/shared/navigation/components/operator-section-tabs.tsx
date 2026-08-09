@@ -12,7 +12,12 @@ const allTabs = [
   { id: "home", href: "/dashboard/operator", icon: Home, labelKey: "operator.tab.home" },
   { id: "tasks", href: "/dashboard/tasks", icon: ClipboardCheck, labelKey: "operator.tab.tasks" },
   { id: "forms", href: "/dashboard/forms", icon: FileText, labelKey: "operator.tab.forms" },
-  { id: "capa", href: "/dashboard/corrective-actions", icon: Wrench, labelKey: "operator.tab.capa" },
+  {
+    id: "capa",
+    href: "/dashboard/corrective-actions",
+    icon: Wrench,
+    labelKey: "operator.tab.capa",
+  },
 ] as const;
 
 type OperatorSectionTabsProps = {

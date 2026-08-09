@@ -19,10 +19,7 @@ export async function GET() {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { status: "error", upstream: response.status },
-        { status: 502 }
-      );
+      return NextResponse.json({ status: "error", upstream: response.status }, { status: 502 });
     }
 
     const payload = await response.json();

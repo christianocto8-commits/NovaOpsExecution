@@ -1,5 +1,8 @@
 import type { FormField } from "@/features/forms/types";
-import { getResponsiblePersonField, isResponsiblePersonField } from "@/features/forms/utils/system-fields";
+import {
+  getResponsiblePersonField,
+  isResponsiblePersonField,
+} from "@/features/forms/utils/system-fields";
 
 export type FormTemplateSettings = {
   require_execution_note: boolean;
@@ -18,9 +21,13 @@ export function getTemplateSettings(fields: FormField[]): FormTemplateSettings {
 
   return {
     require_execution_note:
-      requireExecutionNote === undefined ? DEFAULT_TEMPLATE_SETTINGS.require_execution_note : requireExecutionNote,
+      requireExecutionNote === undefined
+        ? DEFAULT_TEMPLATE_SETTINGS.require_execution_note
+        : requireExecutionNote,
     requires_approval:
-      requiresApproval === undefined ? DEFAULT_TEMPLATE_SETTINGS.requires_approval : requiresApproval,
+      requiresApproval === undefined
+        ? DEFAULT_TEMPLATE_SETTINGS.requires_approval
+        : requiresApproval,
   };
 }
 
@@ -44,7 +51,10 @@ export function setTemplateRequireExecutionNote(
   });
 }
 
-export function setTemplateRequiresApproval(fields: FormField[], requiresApproval: boolean): FormField[] {
+export function setTemplateRequiresApproval(
+  fields: FormField[],
+  requiresApproval: boolean
+): FormField[] {
   return fields.map((field) => {
     if (!isResponsiblePersonField(field)) {
       return field;

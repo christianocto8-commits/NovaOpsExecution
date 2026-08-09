@@ -4,11 +4,12 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImageIcon, Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useSettings } from "@/features/settings/hooks/use-settings";
+import { getOfflineEvidenceBlobUrl, isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 import {
-  getOfflineEvidenceBlobUrl,
-  isOfflineEvidenceUrl,
-} from "@/lib/offline/offline-evidence";
-import { getPhotoDisplayUrl, parsePhotoFieldValues, serializePhotoFieldValues } from "@/shared/evidence/photo-value";
+  getPhotoDisplayUrl,
+  parsePhotoFieldValues,
+  serializePhotoFieldValues,
+} from "@/shared/evidence/photo-value";
 import { useEvidenceDisplayUrl } from "@/shared/evidence/hooks/use-evidence-display-url";
 import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
@@ -26,16 +27,13 @@ function isMobileDevice() {
   if (typeof window === "undefined") return false;
 
   const userAgent = window.navigator.userAgent.toLowerCase();
-  return /android|iphone|ipad|ipod|mobile/.test(userAgent) || window.matchMedia("(pointer: coarse)").matches;
+  return (
+    /android|iphone|ipad|ipod|mobile/.test(userAgent) ||
+    window.matchMedia("(pointer: coarse)").matches
+  );
 }
 
-function LocationLabel({
-  latitude,
-  longitude,
-}: {
-  latitude?: number;
-  longitude?: number;
-}) {
+function LocationLabel({ latitude, longitude }: { latitude?: number; longitude?: number }) {
   if (latitude == null || longitude == null) return null;
 
   const label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
@@ -215,12 +213,16 @@ export function PhotoFieldInput({
   return (
     <div className="space-y-3">
       {parsedValues.length > 0 ? (
-        isVideo ? (          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+        isVideo ? (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
             <div className="aspect-video max-h-56 w-full">
               <video src={displayUrl} controls className="h-full w-full object-cover" />
             </div>
 
-            <LocationLabel latitude={parsedValues[0].latitude} longitude={parsedValues[0].longitude} />
+            <LocationLabel
+              latitude={parsedValues[0].latitude}
+              longitude={parsedValues[0].longitude}
+            />
 
             {!readOnly ? (
               <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
@@ -338,13 +340,7 @@ function AnnotationOverlay({
 
   if (!src) return null;
 
-  return (
-    <PhotoAnnotationEditor
-      src={src}
-      onSave={(url) => onSave(index, url)}
-      onClose={onClose}
-    />
-  );
+  return <PhotoAnnotationEditor src={src} onSave={(url) => onSave(index, url)} onClose={onClose} />;
 }
 
 export { getPhotoDisplayUrl };

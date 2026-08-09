@@ -64,7 +64,9 @@ export function FieldTaskCard({
         ) : null}
       </div>
 
-      {description ? <p className="mb-3 line-clamp-2 text-sm text-slate-600">{description}</p> : null}
+      {description ? (
+        <p className="mb-3 line-clamp-2 text-sm text-slate-600">{description}</p>
+      ) : null}
 
       {formTemplateName || checklistCount ? (
         <p className="mb-2 text-xs font-medium text-emerald-700">

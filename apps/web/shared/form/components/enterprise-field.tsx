@@ -16,9 +16,13 @@ export function EnterpriseField({ label, description, error, children }: Enterpr
 
       {children}
 
-      {description ? <span className="block break-words text-xs leading-5 text-slate-500">{description}</span> : null}
+      {description ? (
+        <span className="block break-words text-xs leading-5 text-slate-500">{description}</span>
+      ) : null}
 
-      {error ? <span className="block break-words text-xs font-medium text-red-600">{error}</span> : null}
+      {error ? (
+        <span className="block break-words text-xs font-medium text-red-600">{error}</span>
+      ) : null}
     </label>
   );
 }

@@ -61,7 +61,11 @@ export default function BenchmarksPage() {
             </thead>
             <tbody>
               {benchmarkQuery.isLoading ? (
-                <tr><td colSpan={8} className="px-3 py-6 text-slate-500">Loading benchmarks...</td></tr>
+                <tr>
+                  <td colSpan={8} className="px-3 py-6 text-slate-500">
+                    Loading benchmarks...
+                  </td>
+                </tr>
               ) : outlets.length ? (
                 outlets.map((outlet) => (
                   <tr key={outlet.outlet_id} className="border-b border-slate-100">
@@ -71,27 +75,40 @@ export default function BenchmarksPage() {
                       <p className="text-xs text-slate-500">{outlet.district ?? "-"}</p>
                     </td>
                     <td className="px-3 py-3 text-slate-600">{outlet.region ?? "-"}</td>
-                    <td className="px-3 py-3 font-semibold text-slate-900">{outlet.compliance_rate}%</td>
-                    <td className={`px-3 py-3 font-semibold ${outlet.score_delta_from_average < 0 ? "text-red-600" : "text-emerald-700"}`}>
-                      {outlet.score_delta_from_average > 0 ? "+" : ""}{outlet.score_delta_from_average}
+                    <td className="px-3 py-3 font-semibold text-slate-900">
+                      {outlet.compliance_rate}%
                     </td>
-                    <td className="px-3 py-3 text-slate-600">{outlet.completed_tasks}/{outlet.total_tasks}</td>
+                    <td
+                      className={`px-3 py-3 font-semibold ${outlet.score_delta_from_average < 0 ? "text-red-600" : "text-emerald-700"}`}
+                    >
+                      {outlet.score_delta_from_average > 0 ? "+" : ""}
+                      {outlet.score_delta_from_average}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {outlet.completed_tasks}/{outlet.total_tasks}
+                    </td>
                     <td className="px-3 py-3 text-slate-600">{outlet.overdue_tasks}</td>
                     <td className="px-3 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
-                        outlet.status === "at_risk"
-                          ? "bg-red-100 text-red-700"
-                          : outlet.status === "watch"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-emerald-100 text-emerald-700"
-                      }`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
+                          outlet.status === "at_risk"
+                            ? "bg-red-100 text-red-700"
+                            : outlet.status === "watch"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
                         {outlet.status}
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={8} className="px-3 py-6 text-slate-500">Belum ada outlet untuk benchmark.</td></tr>
+                <tr>
+                  <td colSpan={8} className="px-3 py-6 text-slate-500">
+                    Belum ada outlet untuk benchmark.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

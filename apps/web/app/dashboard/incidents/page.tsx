@@ -43,7 +43,14 @@ const STATUS_OPTIONS: IncidentStatus[] = [
   "closed",
 ];
 const SEVERITY_OPTIONS: IncidentSeverity[] = ["low", "medium", "high", "critical"];
-const CATEGORY_OPTIONS = ["operational", "food_safety", "employee", "guest", "security", "equipment"];
+const CATEGORY_OPTIONS = [
+  "operational",
+  "food_safety",
+  "employee",
+  "guest",
+  "security",
+  "equipment",
+];
 
 function localDateTimeValue(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -165,7 +172,8 @@ function IncidentsPageContent() {
       }));
       await refresh();
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Incident gagal dibuat."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Incident gagal dibuat."),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<Incident> }) =>
@@ -194,7 +202,8 @@ function IncidentsPageContent() {
         setSelected(latest.find((item) => item.id === selected.id) ?? selected);
       }
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Follow-up gagal dibuat."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Follow-up gagal dibuat."),
   });
   const followUpUpdateMutation = useMutation({
     mutationFn: ({
@@ -319,16 +328,23 @@ function IncidentsPageContent() {
               onClick={() => setSelected(incident)}
               className="flex w-full items-center gap-3 border-b border-slate-100 px-1 py-4 text-left last:border-0 hover:bg-slate-50 sm:px-4"
             >
-              <span className={`rounded-full px-2 py-1 text-xs font-bold ${severityClass(incident.severity)}`}>
+              <span
+                className={`rounded-full px-2 py-1 text-xs font-bold ${severityClass(incident.severity)}`}
+              >
                 {incident.severity}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-slate-950">{incident.title}</span>
+                <span className="block truncate font-semibold text-slate-950">
+                  {incident.title}
+                </span>
                 <span className="block truncate text-xs text-slate-500">
-                  {incident.category.replace("_", " ")} · {new Date(incident.occurred_at).toLocaleString()}
+                  {incident.category.replace("_", " ")} ·{" "}
+                  {new Date(incident.occurred_at).toLocaleString()}
                 </span>
               </span>
-              <span className={`hidden rounded-full px-2 py-1 text-xs font-semibold sm:inline ${statusClass(incident.status)}`}>
+              <span
+                className={`hidden rounded-full px-2 py-1 text-xs font-semibold sm:inline ${statusClass(incident.status)}`}
+              >
                 {incident.status}
               </span>
               <ChevronRight className="size-4 shrink-0 text-slate-400" />
@@ -466,14 +482,20 @@ function IncidentsPageContent() {
               </button>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClass(selected.severity)}`}>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClass(selected.severity)}`}
+              >
                 {selected.severity}
               </span>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(selected.status)}`}>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(selected.status)}`}
+              >
                 {selected.status}
               </span>
             </div>
-            <p className="mt-5 whitespace-pre-wrap text-sm text-slate-700">{selected.description}</p>
+            <p className="mt-5 whitespace-pre-wrap text-sm text-slate-700">
+              {selected.description}
+            </p>
 
             {canManage ? (
               <section className="mt-6 border-t border-slate-200 pt-5">
@@ -497,14 +519,18 @@ function IncidentsPageContent() {
                     rows={3}
                     placeholder="Root cause"
                     value={selected.root_cause ?? ""}
-                    onChange={(event) => setSelected({ ...selected, root_cause: event.target.value })}
+                    onChange={(event) =>
+                      setSelected({ ...selected, root_cause: event.target.value })
+                    }
                     className="rounded-lg border border-slate-300 p-3 text-sm"
                   />
                   <textarea
                     rows={3}
                     placeholder="Resolution"
                     value={selected.resolution ?? ""}
-                    onChange={(event) => setSelected({ ...selected, resolution: event.target.value })}
+                    onChange={(event) =>
+                      setSelected({ ...selected, resolution: event.target.value })
+                    }
                     className="rounded-lg border border-slate-300 p-3 text-sm"
                   />
                   <button
@@ -540,7 +566,9 @@ function IncidentsPageContent() {
                           <p className="text-sm font-semibold text-slate-950">{action.title}</p>
                           <p className="mt-1 text-xs text-slate-500">{action.instructions}</p>
                         </div>
-                        <span className="text-xs font-bold uppercase text-slate-600">{action.status}</span>
+                        <span className="text-xs font-bold uppercase text-slate-600">
+                          {action.status}
+                        </span>
                       </div>
                       {action.status !== "completed" &&
                       action.status !== "cancelled" &&
@@ -648,9 +676,7 @@ function IncidentsPageContent() {
                         title: followUp.title,
                         instructions: followUp.instructions || null,
                         priority: followUp.priority,
-                        due_at: followUp.due_at
-                          ? new Date(followUp.due_at).toISOString()
-                          : null,
+                        due_at: followUp.due_at ? new Date(followUp.due_at).toISOString() : null,
                       })
                     }
                     className="min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"

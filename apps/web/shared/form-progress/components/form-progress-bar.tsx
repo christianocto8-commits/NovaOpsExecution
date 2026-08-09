@@ -33,7 +33,9 @@ export function FormProgressBar({
   }
 
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${className}`.trim()}>
+    <div
+      className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${className}`.trim()}
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-950">Form Progress</p>

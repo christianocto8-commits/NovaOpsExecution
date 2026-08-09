@@ -290,7 +290,9 @@ export function TaskFormDrawer({
               value={form.title ?? ""}
               onChange={(event) => onChange({ ...form, title: event.target.value })}
               placeholder={
-                isScheduleVariant ? "Contoh: Daily opening checklist" : "Contoh: Project audit outlet"
+                isScheduleVariant
+                  ? "Contoh: Daily opening checklist"
+                  : "Contoh: Project audit outlet"
               }
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-600"
             />

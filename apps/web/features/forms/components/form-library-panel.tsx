@@ -225,7 +225,9 @@ export function FormLibraryPanel({
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-950">{template.name}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{template.description}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                      {template.description}
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                         {getFormCategoryLabel(template.category)}

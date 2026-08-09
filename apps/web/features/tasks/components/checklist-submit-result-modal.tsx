@@ -100,7 +100,9 @@ export function ChecklistSubmitResultModal({
 
         {capaEnabled && correctiveActionId && !pendingSync && !isSyncing ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <p className="text-sm font-semibold text-emerald-900">Corrective action (CAPA) dibuat</p>
+            <p className="text-sm font-semibold text-emerald-900">
+              Corrective action (CAPA) dibuat
+            </p>
             <p className="mt-1 text-sm text-emerald-800">
               Tindak lanjut otomatis telah dibuat dari item checklist yang gagal.
             </p>
@@ -171,9 +173,7 @@ export function ChecklistSubmitResultModal({
               <div
                 key={`${item.field_id}-${item.label}`}
                 className={`rounded-2xl border p-4 ${
-                  item.critical
-                    ? "border-red-200 bg-red-50"
-                    : "border-red-100 bg-red-50/70"
+                  item.critical ? "border-red-200 bg-red-50" : "border-red-100 bg-red-50/70"
                 }`}
               >
                 <div className="flex items-center gap-2">

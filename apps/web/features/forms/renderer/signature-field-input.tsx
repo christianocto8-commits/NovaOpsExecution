@@ -11,11 +11,7 @@ type SignatureFieldInputProps = {
   onChange: (value: string) => void;
 };
 
-function getCanvasPoint(
-  canvas: HTMLCanvasElement,
-  clientX: number,
-  clientY: number
-) {
+function getCanvasPoint(canvas: HTMLCanvasElement, clientX: number, clientY: number) {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
@@ -26,7 +22,11 @@ function getCanvasPoint(
   };
 }
 
-export function SignatureFieldInput({ value, readOnly = false, onChange }: SignatureFieldInputProps) {
+export function SignatureFieldInput({
+  value,
+  readOnly = false,
+  onChange,
+}: SignatureFieldInputProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const hasStrokeRef = useRef(false);
@@ -209,7 +209,11 @@ export function SignatureFieldInput({ value, readOnly = false, onChange }: Signa
             onClick={() => void saveSignature()}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isUploading ? <Loader2 className="size-4 animate-spin" /> : <PenLine className="size-4" />}
+            {isUploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <PenLine className="size-4" />
+            )}
             {isUploading ? "Menyimpan..." : "Simpan tanda tangan"}
           </button>
         </div>

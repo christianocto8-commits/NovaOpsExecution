@@ -10,9 +10,7 @@ export function StartNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
     <div
       className={[
         "min-w-52 rounded-2xl border bg-white px-4 py-3 shadow-sm transition",
-        selected
-          ? "border-emerald-600 ring-4 ring-emerald-100"
-          : "border-emerald-200",
+        selected ? "border-emerald-600 ring-4 ring-emerald-100" : "border-emerald-200",
       ].join(" ")}
     >
       <div className="flex items-center gap-3">
@@ -24,16 +22,12 @@ export function StartNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             Start
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-slate-950">
-            {data.label}
-          </p>
+          <p className="mt-0.5 text-sm font-semibold text-slate-950">{data.label}</p>
         </div>
       </div>
 
       {data.description ? (
-        <p className="mt-3 text-xs leading-5 text-slate-500">
-          {data.description}
-        </p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">{data.description}</p>
       ) : null}
 
       <Handle

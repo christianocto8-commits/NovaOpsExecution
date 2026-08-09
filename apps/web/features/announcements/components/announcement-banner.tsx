@@ -35,11 +35,17 @@ function AnnouncementModal({
             <Megaphone className="size-5 text-[#3D6B49]" />
             <h3 className="text-lg font-bold text-[#274733]">{announcement.title}</h3>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-slate-400 hover:bg-slate-100"
+          >
             <X className="size-4" />
           </button>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{announcement.body}</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+          {announcement.body}
+        </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <button
             type="button"
@@ -79,7 +85,7 @@ export function AnnouncementBanner() {
 
   const current = unread[0] ?? null;
   const modalAnnouncement =
-    modalId != null ? (query.data ?? []).find((item) => item.id === modalId) ?? current : current;
+    modalId != null ? ((query.data ?? []).find((item) => item.id === modalId) ?? current) : current;
 
   const mutation = useMutation({
     mutationFn: async (announcement: Announcement) => {

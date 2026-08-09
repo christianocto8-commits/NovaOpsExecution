@@ -1,14 +1,6 @@
 ﻿"use client";
 
-import {
-  Check,
-  ChevronLeft,
-  Cloud,
-  CloudAlert,
-  LoaderCircle,
-  Play,
-  Save,
-} from "lucide-react";
+import { Check, ChevronLeft, Cloud, CloudAlert, LoaderCircle, Play, Save } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -89,12 +81,7 @@ function WorkflowBuilderContent() {
     );
   }
 
-  const statusLabel =
-    documentStatus === "published"
-      ? "Published"
-      : documentId
-        ? "Draft"
-        : "New";
+  const statusLabel = documentStatus === "published" ? "Published" : documentId ? "Draft" : "New";
 
   return (
     <main className="flex h-[calc(100vh-72px)] min-h-[720px] flex-col overflow-hidden">

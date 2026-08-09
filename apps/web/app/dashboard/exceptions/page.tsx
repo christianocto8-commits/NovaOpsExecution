@@ -29,11 +29,7 @@ import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 import { useToast } from "@/shared/toast";
 
 type ExceptionType =
-  | "overdue"
-  | "checklist_failed"
-  | "missing_evidence"
-  | "rejected"
-  | "low_compliance";
+  "overdue" | "checklist_failed" | "missing_evidence" | "rejected" | "low_compliance";
 
 type ExceptionItem = {
   id: string;
@@ -228,8 +224,9 @@ export default function ExceptionDashboardPage() {
     return allItems.filter((item) => {
       if (typeFilter !== "all" && item.type !== typeFilter) return false;
       if (!query) return true;
-      return [item.title, item.outlet, item.summary, typeLabels[item.type]]
-        .some((value) => value.toLowerCase().includes(query));
+      return [item.title, item.outlet, item.summary, typeLabels[item.type]].some((value) =>
+        value.toLowerCase().includes(query)
+      );
     });
   }, [allItems, search, typeFilter]);
 
@@ -278,7 +275,8 @@ export default function ExceptionDashboardPage() {
           <p className="text-sm font-medium text-emerald-700">Exception Dashboard</p>
           <h1 className="text-2xl font-semibold text-slate-950">Review by Exception</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Fokus pada masalah operasional yang perlu tindakan, tanpa mewajibkan review manual untuk semua report.
+            Fokus pada masalah operasional yang perlu tindakan, tanpa mewajibkan review manual untuk
+            semua report.
           </p>
         </div>
         <Link
@@ -290,19 +288,23 @@ export default function ExceptionDashboardPage() {
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {([
-          ["overdue", AlertTriangle],
-          ["checklist_failed", XCircle],
-          ["missing_evidence", CameraOff],
-          ["rejected", ShieldAlert],
-          ["low_compliance", ClipboardList],
-        ] as const).map(([type, Icon]) => (
+        {(
+          [
+            ["overdue", AlertTriangle],
+            ["checklist_failed", XCircle],
+            ["missing_evidence", CameraOff],
+            ["rejected", ShieldAlert],
+            ["low_compliance", ClipboardList],
+          ] as const
+        ).map(([type, Icon]) => (
           <button
             key={type}
             type="button"
             onClick={() => setTypeFilter(typeFilter === type ? "all" : type)}
             className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition ${
-              typeFilter === type ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"
+              typeFilter === type
+                ? "border-emerald-500 ring-2 ring-emerald-100"
+                : "border-slate-200"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -342,7 +344,9 @@ export default function ExceptionDashboardPage() {
 
       {tasksQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {tasksQuery.error instanceof Error ? tasksQuery.error.message : "Gagal memuat exception dashboard."}
+          {tasksQuery.error instanceof Error
+            ? tasksQuery.error.message
+            : "Gagal memuat exception dashboard."}
         </div>
       ) : null}
 
@@ -359,16 +363,25 @@ export default function ExceptionDashboardPage() {
         ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-10 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-            <p className="mt-3 font-semibold text-slate-900">Tidak ada exception untuk filter ini.</p>
-            <p className="mt-1 text-sm text-slate-500">Operasional terlihat bersih dari sinyal masalah utama.</p>
+            <p className="mt-3 font-semibold text-slate-900">
+              Tidak ada exception untuk filter ini.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Operasional terlihat bersih dari sinyal masalah utama.
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {filteredItems.map((item) => (
-              <div key={item.id} className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div
+                key={item.id}
+                className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between"
+              >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs font-bold ${severityClass[item.severity]}`}>
+                    <span
+                      className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs font-bold ${severityClass[item.severity]}`}
+                    >
                       {item.severity}
                     </span>
                     <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">

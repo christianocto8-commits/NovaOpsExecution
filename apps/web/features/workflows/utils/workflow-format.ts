@@ -41,7 +41,7 @@ export function getWorkflowMetrics(workflows: WorkflowDefinition[]) {
   }).length;
 
   const draft = workflows.filter(
-    (workflow) => String(workflow.status ?? "").toLowerCase() === "draft",
+    (workflow) => String(workflow.status ?? "").toLowerCase() === "draft"
   ).length;
 
   const inactive = workflows.filter((workflow) => {

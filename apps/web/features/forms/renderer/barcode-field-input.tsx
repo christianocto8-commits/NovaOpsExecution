@@ -13,7 +13,8 @@ type BarcodeDetectorLike = {
   detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
 };
 
-function getBarcodeDetector(): (new (options?: { formats?: string[] }) => BarcodeDetectorLike) | null {
+function getBarcodeDetector():
+  (new (options?: { formats?: string[] }) => BarcodeDetectorLike) | null {
   if (typeof window === "undefined") return null;
 
   const detector = (window as Window & { BarcodeDetector?: unknown }).BarcodeDetector;
@@ -114,7 +115,11 @@ export function BarcodeFieldInput({ value, readOnly = false, onChange }: Barcode
             onClick={() => void (isScanning ? stopScanning() : startScanning())}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
           >
-            {isScanning ? <Loader2 className="size-4 animate-spin" /> : <ScanLine className="size-4" />}
+            {isScanning ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ScanLine className="size-4" />
+            )}
             {isScanning ? "Berhenti" : "Scan Kamera"}
           </button>
         ) : null}

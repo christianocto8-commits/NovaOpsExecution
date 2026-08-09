@@ -43,12 +43,14 @@ export type HaccpSummary = {
   by_ccp: Record<string, { total: number; passed: number; failed: number }>;
 };
 
-export function listHaccpEntries(params: {
-  outlet_id?: string;
-  ccp_name?: string;
-  passed?: boolean;
-  limit?: number;
-} = {}) {
+export function listHaccpEntries(
+  params: {
+    outlet_id?: string;
+    ccp_name?: string;
+    passed?: boolean;
+    limit?: number;
+  } = {}
+) {
   const query = new URLSearchParams();
   if (params.outlet_id) query.set("outlet_id", params.outlet_id);
   if (params.ccp_name) query.set("ccp_name", params.ccp_name);

@@ -153,11 +153,7 @@ export function usePushNotifications(): PushNotificationState {
 
   const canPrompt = useMemo(() => {
     return (
-      isSupported &&
-      isConfigured &&
-      !promptDismissed &&
-      !isSubscribed &&
-      permission !== "denied"
+      isSupported && isConfigured && !promptDismissed && !isSubscribed && permission !== "denied"
     );
   }, [isConfigured, isSubscribed, isSupported, permission, promptDismissed]);
 

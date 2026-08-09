@@ -1,4 +1,8 @@
-import type { FieldVisibilityOperator, FieldVisibilityRule, FormField } from "@/features/forms/types";
+import type {
+  FieldVisibilityOperator,
+  FieldVisibilityRule,
+  FormField,
+} from "@/features/forms/types";
 import type { TaskFormResponses } from "@/features/tasks/types";
 
 function normalizeComparable(value: string) {
@@ -6,7 +10,12 @@ function normalizeComparable(value: string) {
   if (normalized === "yes" || normalized === "ya" || normalized === "true" || normalized === "1") {
     return "yes";
   }
-  if (normalized === "no" || normalized === "tidak" || normalized === "false" || normalized === "0") {
+  if (
+    normalized === "no" ||
+    normalized === "tidak" ||
+    normalized === "false" ||
+    normalized === "0"
+  ) {
     return "no";
   }
   if (normalized === "fail" || normalized === "gagal") {

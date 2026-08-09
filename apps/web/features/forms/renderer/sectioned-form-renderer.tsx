@@ -174,7 +174,9 @@ function SectionCard({
 
             {section.title === "Laporan Penjualan" && salesTotal > 0 ? (
               <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <span className="text-sm font-bold text-slate-800">Total Penjualan (Cash + EDC)</span>
+                <span className="text-sm font-bold text-slate-800">
+                  Total Penjualan (Cash + EDC)
+                </span>
                 <span className="text-base font-bold text-slate-900">{formatIdr(salesTotal)}</span>
               </div>
             ) : null}
@@ -193,18 +195,14 @@ export function SectionedFormRenderer({
   highlightedFieldIds = [],
   hiddenFieldIds = [],
 }: SectionedFormRendererProps) {
-  const visibleFields = useMemo(
-    () => getVisibleFields(fields, responses),
-    [fields, responses]
-  );
+  const visibleFields = useMemo(() => getVisibleFields(fields, responses), [fields, responses]);
   const sections = useMemo(() => groupFieldsBySection(visibleFields), [visibleFields]);
   const responsiblePersonField = useMemo(
     () => getResponsiblePersonField(visibleFields),
     [visibleFields]
   );
   const showFallbackResponsiblePerson = !responsiblePersonField;
-  const responsiblePersonHighlighted =
-    highlightedFieldIds.includes("__responsible_person__");
+  const responsiblePersonHighlighted = highlightedFieldIds.includes("__responsible_person__");
   const reconciliation = useMemo(
     () => getMoneyReconciliation(fields, responses),
     [fields, responses]

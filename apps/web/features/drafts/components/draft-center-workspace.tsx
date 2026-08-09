@@ -279,9 +279,7 @@ export function DraftCenterWorkspace() {
     const taskTitleById = new Map(tasks.map((task) => [task.id, task.title]));
     const taskOutletById = new Map(tasks.map((task) => [task.id, task.outlet]));
     const taskFormTemplateById = new Map(
-      tasks
-        .map((task) => [task.id, task.formTemplateId ?? ""] as const)
-        .filter((entry) => entry[1])
+      tasks.map((task) => [task.id, task.formTemplateId ?? ""] as const).filter((entry) => entry[1])
     );
     const formNameById = new Map(templates.map((template) => [template.id, template.name]));
     const formFieldCountById = new Map(

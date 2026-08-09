@@ -1,21 +1,11 @@
 ﻿"use client";
 
-import {
-  CircleAlert,
-  GitBranch,
-  Network,
-  Save,
-} from "lucide-react";
+import { CircleAlert, GitBranch, Network, Save } from "lucide-react";
 
 import { useWorkflowBuilder } from "@/features/workflow-builder/hooks/use-workflow-builder";
 
 export function WorkflowStatusBar() {
-  const {
-    nodes,
-    edges,
-    isDirty,
-    connectionMessage,
-  } = useWorkflowBuilder();
+  const { nodes, edges, isDirty, connectionMessage } = useWorkflowBuilder();
 
   return (
     <footer className="flex min-h-9 items-center justify-between border-t border-slate-200 bg-white px-4 text-xs text-slate-500">

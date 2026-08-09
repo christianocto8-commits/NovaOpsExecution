@@ -75,10 +75,7 @@ const nodeStyleByType = {
   },
 };
 
-export function WorkflowStepNode({
-  data,
-  selected,
-}: NodeProps<WorkflowBuilderNode>) {
+export function WorkflowStepNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
   if (data.nodeType === "start" || data.nodeType === "end") {
     return null;
   }
@@ -90,59 +87,41 @@ export function WorkflowStepNode({
     <div
       className={[
         "min-w-56 rounded-2xl border bg-white px-4 py-3 shadow-sm transition",
-        selected
-          ? `${style.selected} ring-4`
-          : style.border,
+        selected ? `${style.selected} ring-4` : style.border,
       ].join(" ")}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className={[
-          "!size-3 !border-2 !border-white",
-          style.handle,
-        ].join(" ")}
+        className={["!size-3 !border-2 !border-white", style.handle].join(" ")}
       />
 
       <div className="flex items-center gap-3">
         <div
-          className={[
-            "flex size-10 items-center justify-center rounded-xl",
-            style.icon,
-          ].join(" ")}
+          className={["flex size-10 items-center justify-center rounded-xl", style.icon].join(" ")}
         >
           <Icon className="size-5" />
         </div>
 
         <div className="min-w-0">
           <p
-            className={[
-              "text-xs font-semibold uppercase tracking-[0.16em]",
-              style.label,
-            ].join(" ")}
+            className={["text-xs font-semibold uppercase tracking-[0.16em]", style.label].join(" ")}
           >
             {data.nodeType}
           </p>
 
-          <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
-            {data.label}
-          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">{data.label}</p>
         </div>
       </div>
 
       {data.description ? (
-        <p className="mt-3 text-xs leading-5 text-slate-500">
-          {data.description}
-        </p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">{data.description}</p>
       ) : null}
 
       <Handle
         type="source"
         position={Position.Right}
-        className={[
-          "!size-3 !border-2 !border-white",
-          style.handle,
-        ].join(" ")}
+        className={["!size-3 !border-2 !border-white", style.handle].join(" ")}
       />
     </div>
   );

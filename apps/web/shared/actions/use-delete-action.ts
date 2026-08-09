@@ -37,12 +37,11 @@ export function useDeleteAction<TId extends string | number>({
 
   const action = useAction<TId, void>({
     action: onDelete,
-    successMessage:
-      successMessage ?? `${entityName} ${actionName.toLowerCase()}d successfully.`,
+    successMessage: successMessage ?? `${entityName} ${actionName.toLowerCase()}d successfully.`,
     errorMessage: (error) =>
       error instanceof Error
         ? error.message
-        : errorMessage ?? `Failed to ${actionName.toLowerCase()} ${entityName.toLowerCase()}.`,
+        : (errorMessage ?? `Failed to ${actionName.toLowerCase()} ${entityName.toLowerCase()}.`),
     onSuccess: (_, id) => onAfterDelete?.(id),
   });
 

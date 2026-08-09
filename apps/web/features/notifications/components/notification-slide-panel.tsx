@@ -17,7 +17,9 @@ type NotificationSlidePanelProps = {
 type InboxFilter = "all" | "unread";
 
 function isUnreadNotification(notification: NotificationDelivery) {
-  return !notification.read_at && notification.status !== "cancelled" && notification.status !== "failed";
+  return (
+    !notification.read_at && notification.status !== "cancelled" && notification.status !== "failed"
+  );
 }
 
 function formatDate(value?: string | null) {
@@ -180,7 +182,9 @@ function NotificationDetailView({
           </span>
         </div>
 
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-700">{notification.body}</p>
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+          {notification.body}
+        </p>
 
         <dl className="mt-5 space-y-3 rounded-2xl border border-[#DDE8E1] bg-[#F7FAF8] p-4 text-sm">
           <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2">
@@ -325,7 +329,9 @@ export function NotificationSlidePanel({ open, onClose }: NotificationSlidePanel
                     <Bell className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#274733]">{t("navigation.notifications")}</p>
+                    <p className="text-sm font-bold text-[#274733]">
+                      {t("navigation.notifications")}
+                    </p>
                     <p className="text-xs text-slate-500">
                       {t("notifications.inbox.total").replace(
                         "{count}",
@@ -402,7 +408,9 @@ export function NotificationSlidePanel({ open, onClose }: NotificationSlidePanel
                   <p className="mt-3 text-sm font-semibold text-[#274733]">
                     {t("notifications.inbox.empty")}
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">{t("notifications.inbox.emptyHint")}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t("notifications.inbox.emptyHint")}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-5">

@@ -60,7 +60,7 @@ writeFileSync(
   </main>
 </body>
 </html>`,
-  "utf8",
+  "utf8"
 );
 
 console.log("Capacitor webDir ready at out/");

@@ -40,11 +40,13 @@ export type FoodPrepSummary = {
   expiring_soon: number;
 };
 
-export function listFoodPrepLabels(params: {
-  outlet_id?: string;
-  status?: string;
-  limit?: number;
-} = {}) {
+export function listFoodPrepLabels(
+  params: {
+    outlet_id?: string;
+    status?: string;
+    limit?: number;
+  } = {}
+) {
   const query = new URLSearchParams();
   if (params.outlet_id) query.set("outlet_id", params.outlet_id);
   if (params.status) query.set("status", params.status);
@@ -70,7 +72,10 @@ export function createFoodLabel(payload: FoodPrepLabelPayload) {
   });
 }
 
-export function updateFoodLabel(id: string, payload: Partial<Omit<FoodPrepLabelPayload, "outlet_id">>) {
+export function updateFoodLabel(
+  id: string,
+  payload: Partial<Omit<FoodPrepLabelPayload, "outlet_id">>
+) {
   return api<FoodPrepLabel>(`/api/v1/food-prep/labels/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

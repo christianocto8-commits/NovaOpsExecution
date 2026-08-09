@@ -35,7 +35,8 @@ export function WorkflowsWorkspace() {
           <p className="text-sm font-medium text-emerald-700">Workflow Engine</p>
           <h1 className="text-2xl font-semibold text-slate-950">Workflow Management</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Validate Sprint 09 backend workflows, approval matrix, escalation rules, notifications, and workflow execution before building the visual canvas.
+            Validate Sprint 09 backend workflows, approval matrix, escalation rules, notifications,
+            and workflow execution before building the visual canvas.
           </p>
         </div>
 
@@ -67,7 +68,9 @@ export function WorkflowsWorkspace() {
         <div className="rounded-3xl border border-red-200 bg-red-50 p-5">
           <p className="font-bold text-red-700">Workflow API error</p>
           <p className="mt-1 text-sm text-red-600">
-            {workspace.error instanceof Error ? workspace.error.message : "Unable to load workflows."}
+            {workspace.error instanceof Error
+              ? workspace.error.message
+              : "Unable to load workflows."}
           </p>
         </div>
       ) : null}

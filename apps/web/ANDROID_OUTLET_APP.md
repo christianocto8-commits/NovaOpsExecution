@@ -28,6 +28,7 @@ cd android
 ```
 
 APK hasil:
+
 - Debug: `apps/web/android/app/build/outputs/apk/debug/app-debug.apk`
 - Release: `apps/web/web/android/app/build/outputs/apk/release/app-release.apk`
 
@@ -35,6 +36,7 @@ APK hasil:
 
 APK dibuild dalam **wrapper mode**: aplikasi memuat https://nova-ops.cloud langsung
 di dalam WebView native. Alhasil:
+
 - Origin aplikasi == origin API → tidak ada masalah CORS, login & data connect 100%.
 - Aplikasi otomatis mengikuti update web (deploy baru ke VPS langsung muncul di app).
 

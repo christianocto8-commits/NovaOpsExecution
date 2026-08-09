@@ -118,8 +118,7 @@ export function ensureFinanceShiftTemplate() {
 }
 
 export async function downloadFinanceExport(format: "csv" = "csv") {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("novaops_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("novaops_token") : null;
 
   const response = await fetch(buildApiUrl(`/api/v1/finance-handoff/export?format=${format}`), {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,

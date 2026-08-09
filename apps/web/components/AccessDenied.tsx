@@ -23,8 +23,8 @@ export function AccessDenied({ email, roleLabel, onLogout }: AccessDeniedProps) 
         </div>
         <h1 className="text-xl font-bold">Akses Ditolak</h1>
         <p className="mt-3 text-sm leading-6 text-emerald-100">
-          Aplikasi NovaOps Mobile hanya untuk role <strong>Outlet</strong>.
-          Akun Anda ({email ?? "—"}
+          Aplikasi NovaOps Mobile hanya untuk role <strong>Outlet</strong>. Akun Anda (
+          {email ?? "—"}
           {roleLabel ? `, ${roleLabel}` : ""}) tidak memiliki akses ke aplikasi ini.
         </p>
         <p className="mt-3 text-xs text-emerald-200/70">

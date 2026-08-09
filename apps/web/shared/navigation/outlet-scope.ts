@@ -12,10 +12,7 @@ export function taskBelongsToWorkspace(task: Task, workspace: OutletScopeContext
     return true;
   }
 
-  if (
-    workspace.legacyOutletId != null &&
-    task.outletId === String(workspace.legacyOutletId)
-  ) {
+  if (workspace.legacyOutletId != null && task.outletId === String(workspace.legacyOutletId)) {
     return true;
   }
 

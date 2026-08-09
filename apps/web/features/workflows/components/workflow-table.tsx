@@ -45,7 +45,7 @@ export function WorkflowTable({
       render: (workflow) => (
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${getWorkflowStatusTone(
-            workflow.status,
+            workflow.status
           )}`}
         >
           {workflow.status ?? (workflow.is_active ? "active" : "inactive")}
@@ -121,5 +121,3 @@ export function WorkflowTable({
     />
   );
 }
-
-

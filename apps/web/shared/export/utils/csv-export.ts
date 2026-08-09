@@ -26,9 +26,7 @@ export function exportToCsv<T extends Record<string, string | number>>(
 
   const csv = [
     headers.join(","),
-    ...rows.map((row) =>
-      headers.map((header) => sanitizeCsvCell(row[header] ?? "")).join(",")
-    ),
+    ...rows.map((row) => headers.map((header) => sanitizeCsvCell(row[header] ?? "")).join(",")),
   ].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

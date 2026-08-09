@@ -1,7 +1,4 @@
-﻿import type {
-  Connection,
-  Edge,
-} from "@xyflow/react";
+﻿import type { Connection, Edge } from "@xyflow/react";
 
 import type { WorkflowBuilderNode } from "@/features/workflow-builder/types/builder";
 
@@ -21,8 +18,7 @@ export function validateWorkflowConnection({
   nodes,
   edges,
 }: ValidateConnectionInput): ConnectionValidationResult {
-  const { source, target, sourceHandle, targetHandle } =
-    connection;
+  const { source, target, sourceHandle, targetHandle } = connection;
 
   if (!source || !target) {
     return {
@@ -66,10 +62,8 @@ export function validateWorkflowConnection({
     (edge) =>
       edge.source === source &&
       edge.target === target &&
-      (edge.sourceHandle ?? null) ===
-        (sourceHandle ?? null) &&
-      (edge.targetHandle ?? null) ===
-        (targetHandle ?? null)
+      (edge.sourceHandle ?? null) === (sourceHandle ?? null) &&
+      (edge.targetHandle ?? null) === (targetHandle ?? null)
   );
 
   if (isDuplicate) {

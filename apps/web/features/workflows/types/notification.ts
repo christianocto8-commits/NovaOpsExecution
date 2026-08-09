@@ -2,12 +2,7 @@ import type { UUID } from "./workflow";
 
 export type NotificationChannel = "in_app" | "email" | "sms" | string;
 export type NotificationStatus =
-  | "pending"
-  | "processing"
-  | "sent"
-  | "failed"
-  | "cancelled"
-  | string;
+  "pending" | "processing" | "sent" | "failed" | "cancelled" | string;
 
 export interface NotificationTemplate {
   id: UUID;

@@ -69,7 +69,10 @@ function scoreYesNo(value: unknown, allowNa: boolean): { passed: boolean | null;
   return { passed: false, reason: `Invalid yes/no value: ${value}` };
 }
 
-function scoreNumber(field: FormField, value: unknown): { passed: boolean | null; reason?: string } {
+function scoreNumber(
+  field: FormField,
+  value: unknown
+): { passed: boolean | null; reason?: string } {
   const normalized = normalizeText(value);
   if (!normalized) return { passed: null, reason: "No answer provided" };
 
@@ -86,7 +89,10 @@ function scoreNumber(field: FormField, value: unknown): { passed: boolean | null
   return { passed: true };
 }
 
-function scoreRating(field: FormField, value: unknown): { passed: boolean | null; reason?: string } {
+function scoreRating(
+  field: FormField,
+  value: unknown
+): { passed: boolean | null; reason?: string } {
   const normalized = normalizeText(value);
   if (!normalized) return { passed: null, reason: "No answer provided" };
 

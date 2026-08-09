@@ -27,9 +27,13 @@ export function ActionCard({ title, description, icon, action, className }: Acti
         <div className="min-w-0 flex-1">
           <h3 className="break-words text-sm font-semibold text-[#1E1E1E]">{title}</h3>
 
-          {description ? <p className="mt-1 break-words text-sm leading-5 text-gray-500">{description}</p> : null}
+          {description ? (
+            <p className="mt-1 break-words text-sm leading-5 text-gray-500">{description}</p>
+          ) : null}
 
-          {action ? <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">{action}</div> : null}
+          {action ? (
+            <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">{action}</div>
+          ) : null}
         </div>
       </div>
     </div>

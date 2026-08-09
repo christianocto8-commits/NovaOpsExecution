@@ -51,7 +51,10 @@ export function parseMoneyDenomination(raw: string): MoneyDenominationValue | nu
 
     return {
       counts,
-      total: typeof parsed.total === "number" ? parsed.total : computeDenominationTotal(counts, getDenominations()),
+      total:
+        typeof parsed.total === "number"
+          ? parsed.total
+          : computeDenominationTotal(counts, getDenominations()),
     };
   } catch {
     return null;

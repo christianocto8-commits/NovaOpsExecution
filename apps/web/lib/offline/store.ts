@@ -76,8 +76,10 @@ export async function saveLocalDraft(draft: LocalDraft) {
 }
 
 export async function getLocalDraft(taskId: string): Promise<LocalDraft | null> {
-  const draft = await withStore<LocalDraft | undefined>(OFFLINE_STORES.LOCAL_DRAFTS, "readonly", (store) =>
-    store.get(taskId)
+  const draft = await withStore<LocalDraft | undefined>(
+    OFFLINE_STORES.LOCAL_DRAFTS,
+    "readonly",
+    (store) => store.get(taskId)
   );
 
   return draft ?? null;
@@ -168,7 +170,9 @@ export async function removePendingMutationsForTask(taskId: string, type?: Queue
   const toRemove = mutations.filter(
     (mutation) =>
       mutation.taskId === taskId &&
-      (mutation.status === "pending" || mutation.status === "failed" || mutation.status === "conflict") &&
+      (mutation.status === "pending" ||
+        mutation.status === "failed" ||
+        mutation.status === "conflict") &&
       (!type || mutation.type === type)
   );
 

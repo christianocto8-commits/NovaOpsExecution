@@ -81,7 +81,8 @@ export async function withStore<T>(
         }
 
         transaction.oncomplete = () => resolve(result);
-        transaction.onerror = () => reject(transaction.error ?? new Error("Transaksi IndexedDB gagal."));
+        transaction.onerror = () =>
+          reject(transaction.error ?? new Error("Transaksi IndexedDB gagal."));
       })
       .catch(reject);
   });

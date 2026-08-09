@@ -19,7 +19,7 @@ if (missing.length > 0) {
 const capacitorConfig = readFileSync(join(process.cwd(), "capacitor.config.ts"), "utf8");
 const manifest = readFileSync(
   join(process.cwd(), "android/app/src/main/AndroidManifest.xml"),
-  "utf8",
+  "utf8"
 );
 const gradle = readFileSync(join(process.cwd(), "android/app/build.gradle"), "utf8");
 const checks = [

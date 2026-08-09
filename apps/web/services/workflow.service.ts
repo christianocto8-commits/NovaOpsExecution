@@ -60,15 +60,11 @@ export const workflowService = {
   },
 
   listInstanceSteps(instanceId: UUID) {
-    return api<WorkflowInstanceStep[]>(
-      `/api/v1/workflows/instances/${instanceId}/steps`,
-    );
+    return api<WorkflowInstanceStep[]>(`/api/v1/workflows/instances/${instanceId}/steps`);
   },
 
   listHistory(instanceId: UUID) {
-    return api<WorkflowApprovalHistory[]>(
-      `/api/v1/workflows/instances/${instanceId}/history`,
-    );
+    return api<WorkflowApprovalHistory[]>(`/api/v1/workflows/instances/${instanceId}/history`);
   },
 
   approve(instanceId: UUID, payload: WorkflowActionRequest) {

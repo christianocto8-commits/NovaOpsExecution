@@ -61,7 +61,7 @@ export async function updateTrainingModule(
     required_for_roles: string[];
     expires_days: number;
     is_active: boolean;
-  }>,
+  }>
 ) {
   return api<TrainingModule>(`/api/v1/lms/modules/${moduleId}`, {
     method: "PUT",
@@ -77,7 +77,10 @@ export async function listMyTraining() {
   return api<MyTrainingItem[]>("/api/v1/lms/my-training");
 }
 
-export async function completeTrainingModule(moduleId: string, answers: Record<string, string> = {}) {
+export async function completeTrainingModule(
+  moduleId: string,
+  answers: Record<string, string> = {}
+) {
   return api<{
     id: string;
     score: number | null;

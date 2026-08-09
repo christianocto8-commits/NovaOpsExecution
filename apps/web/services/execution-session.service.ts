@@ -52,18 +52,12 @@ export function getExecutionSessions(params?: {
 
   const query = searchParams.toString();
 
-  return api<ExecutionSessionResponse[]>(
-    `/api/v1/execution-sessions${query ? `?${query}` : ""}`,
-    {
-      method: "GET",
-    }
-  );
+  return api<ExecutionSessionResponse[]>(`/api/v1/execution-sessions${query ? `?${query}` : ""}`, {
+    method: "GET",
+  });
 }
 
-export function updateExecutionSession(
-  sessionId: number,
-  payload: UpdateExecutionSessionPayload
-) {
+export function updateExecutionSession(sessionId: number, payload: UpdateExecutionSessionPayload) {
   return api<ExecutionSessionResponse>(`/api/v1/execution-sessions/${sessionId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

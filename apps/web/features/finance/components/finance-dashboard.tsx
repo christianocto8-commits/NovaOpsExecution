@@ -119,11 +119,15 @@ function IncomingReportRow({
           <p className="text-sm font-semibold text-slate-950">
             Rp {formatMoney(deposit.deposit_amount)}
           </p>
-          <p className={`break-words text-xs font-semibold ${isDiscrepancy ? "text-red-600" : "text-emerald-700"}`}>
+          <p
+            className={`break-words text-xs font-semibold ${isDiscrepancy ? "text-red-600" : "text-emerald-700"}`}
+          >
             Selisih {formatMoney(deposit.variance_amount)}
           </p>
         </div>
-        <span className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
+        <span
+          className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}
+        >
           {statusLabel(deposit.status)}
         </span>
       </div>
@@ -187,8 +191,8 @@ export function FinanceDashboard() {
             Report masuk ke Finance
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Pantau setoran shift yang dikirim outlet, antrean review, variance, dan
-            outlet yang butuh perhatian.
+            Pantau setoran shift yang dikirim outlet, antrean review, variance, dan outlet yang
+            butuh perhatian.
           </p>
         </div>
 
@@ -343,7 +347,10 @@ export function FinanceDashboard() {
           <div className="mt-4 space-y-3">
             {(data?.attention_queue ?? []).length ? (
               data?.attention_queue.map((deposit) => (
-                <div key={deposit.id} className="rounded-2xl border border-amber-100 bg-amber-50/40 px-4 py-3">
+                <div
+                  key={deposit.id}
+                  className="rounded-2xl border border-amber-100 bg-amber-50/40 px-4 py-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-950">
@@ -353,7 +360,9 @@ export function FinanceDashboard() {
                         {deposit.business_date} · {deposit.shift_name}
                       </p>
                     </div>
-                    <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}>
+                    <span
+                      className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(deposit.status)}`}
+                    >
                       {statusLabel(deposit.status)}
                     </span>
                   </div>
@@ -362,7 +371,9 @@ export function FinanceDashboard() {
                   </p>
                   <p
                     className={`mt-1 text-xs font-semibold ${
-                      Math.abs(deposit.variance_amount) >= threshold ? "text-red-600" : "text-slate-600"
+                      Math.abs(deposit.variance_amount) >= threshold
+                        ? "text-red-600"
+                        : "text-slate-600"
                     }`}
                   >
                     Selisih {formatMoney(deposit.variance_amount)}
@@ -409,14 +420,23 @@ export function FinanceDashboard() {
             <tbody>
               {(data?.by_outlet ?? []).length ? (
                 data?.by_outlet.map((row) => (
-                  <tr key={`${row.outlet_id ?? row.outlet_name}`} className="border-b border-slate-100">
+                  <tr
+                    key={`${row.outlet_id ?? row.outlet_name}`}
+                    className="border-b border-slate-100"
+                  >
                     <td className="px-3 py-3 font-semibold text-slate-950">{row.outlet_name}</td>
                     <td className="px-3 py-3 text-slate-600">{row.total_reports}</td>
                     <td className="px-3 py-3 text-amber-700">{row.pending_review}</td>
                     <td className="px-3 py-3 text-emerald-700">{row.approved}</td>
-                    <td className="px-3 py-3 text-slate-600">Rp {formatMoney(row.total_deposit_amount)}</td>
-                    <td className="px-3 py-3 text-slate-600">Rp {formatMoney(row.total_variance_amount)}</td>
-                    <td className="px-3 py-3 font-semibold text-red-600">{row.discrepancy_count}</td>
+                    <td className="px-3 py-3 text-slate-600">
+                      Rp {formatMoney(row.total_deposit_amount)}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      Rp {formatMoney(row.total_variance_amount)}
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-red-600">
+                      {row.discrepancy_count}
+                    </td>
                   </tr>
                 ))
               ) : (

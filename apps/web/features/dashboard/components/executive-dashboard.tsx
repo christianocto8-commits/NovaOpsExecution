@@ -16,8 +16,7 @@ function formatTrend(value: number) {
 }
 
 export function ExecutiveDashboard() {
-  const { summary, trends, outlets, compliance, isLoading, isError, error } =
-    useDashboardReports();
+  const { summary, trends, outlets, compliance, isLoading, isError, error } = useDashboardReports();
 
   const kpis = summary
     ? [
@@ -142,7 +141,6 @@ export function ExecutiveDashboard() {
             </div>
           )}
         </SectionCard>
-
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

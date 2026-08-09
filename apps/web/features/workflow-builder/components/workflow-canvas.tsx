@@ -1,9 +1,6 @@
 ﻿"use client";
 
-import {
-  useCallback,
-  type DragEvent,
-} from "react";
+import { useCallback, type DragEvent } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -44,17 +41,12 @@ const nodeTypes: NodeTypes = {
   form: WorkflowStepNode,
 };
 
-function createNodeId(
-  nodeType: WorkflowBuilderNodeType
-) {
+function createNodeId(nodeType: WorkflowBuilderNodeType) {
   return `${nodeType}-${createLocalId()}`;
 }
 
 function WorkflowCanvasContent() {
-  const {
-    screenToFlowPosition,
-    setViewport,
-  } = useReactFlow<WorkflowBuilderNode, Edge>();
+  const { screenToFlowPosition, setViewport } = useReactFlow<WorkflowBuilderNode, Edge>();
 
   const {
     nodes,
@@ -70,29 +62,24 @@ function WorkflowCanvasContent() {
     updateViewport,
   } = useWorkflowBuilder();
 
-  const handleDragOver = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-    },
-    []
-  );
+  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
 
-      const nodeType =
-        event.dataTransfer.getData(
-          WORKFLOW_NODE_DRAG_TYPE
-        ) as WorkflowBuilderNodeType;
+      const nodeType = event.dataTransfer.getData(
+        WORKFLOW_NODE_DRAG_TYPE
+      ) as WorkflowBuilderNodeType;
 
       if (!nodeType) {
         return;
       }
 
-      const definition =
-        getWorkflowNodeDefinition(nodeType);
+      const definition = getWorkflowNodeDefinition(nodeType);
 
       if (!definition) {
         return;
@@ -129,9 +116,7 @@ function WorkflowCanvasContent() {
   if (!isHydrated) {
     return (
       <div className="flex h-full min-h-[640px] items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-500">
-          Loading workflow draft...
-        </p>
+        <p className="text-sm text-slate-500">Loading workflow draft...</p>
       </div>
     );
   }
@@ -150,13 +135,9 @@ function WorkflowCanvasContent() {
         onEdgesChange={onEdgesChange}
         onConnect={connectNodes}
         isValidConnection={isConnectionValid}
-        onNodeClick={(_, node) =>
-          selectNode(node.id)
-        }
+        onNodeClick={(_, node) => selectNode(node.id)}
         onPaneClick={() => selectNode(null)}
-        onMoveEnd={(_, nextViewport) =>
-          updateViewport(nextViewport)
-        }
+        onMoveEnd={(_, nextViewport) => updateViewport(nextViewport)}
         onInit={() => {
           void setViewport(viewport);
         }}
@@ -177,16 +158,9 @@ function WorkflowCanvasContent() {
           hideAttribution: true,
         }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1.25}
-        />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1.25} />
 
-        <Controls
-          position="bottom-left"
-          showInteractive={false}
-        />
+        <Controls position="bottom-left" showInteractive={false} />
 
         <MiniMap
           position="bottom-right"
@@ -206,5 +180,3 @@ export function WorkflowCanvas() {
     </ReactFlowProvider>
   );
 }
-
-

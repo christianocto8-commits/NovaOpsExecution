@@ -26,8 +26,7 @@ function isOfflineContext() {
 
 function isNetworkFailure(error: unknown) {
   return (
-    error instanceof TypeError ||
-    (error instanceof DOMException && error.name === "NetworkError")
+    error instanceof TypeError || (error instanceof DOMException && error.name === "NetworkError")
   );
 }
 

@@ -30,9 +30,7 @@ export function useWorkflows() {
 
 export function useWorkflow(workflowId?: UUID) {
   return useQuery({
-    queryKey: workflowId
-      ? queryKeys.workflow.detail(workflowId)
-      : ["workflow", "detail", "empty"],
+    queryKey: workflowId ? queryKeys.workflow.detail(workflowId) : ["workflow", "detail", "empty"],
     queryFn: () => workflowService.get(workflowId as UUID),
     enabled: Boolean(workflowId),
   });
@@ -127,8 +125,7 @@ export function useWorkflowMutations() {
 
   return {
     createWorkflow: useMutation({
-      mutationFn: (payload: WorkflowDefinitionCreate) =>
-        workflowService.create(payload),
+      mutationFn: (payload: WorkflowDefinitionCreate) => workflowService.create(payload),
       onSuccess: invalidateWorkflowList,
     }),
 
@@ -154,19 +151,13 @@ export function useWorkflowMutations() {
     }),
 
     createInstance: useMutation({
-      mutationFn: (payload: WorkflowInstanceCreate) =>
-        workflowService.createInstance(payload),
+      mutationFn: (payload: WorkflowInstanceCreate) => workflowService.createInstance(payload),
       onSuccess: invalidateInstances,
     }),
 
     approveInstance: useMutation({
-      mutationFn: ({
-        instanceId,
-        payload,
-      }: {
-        instanceId: UUID;
-        payload: WorkflowActionRequest;
-      }) => workflowService.approve(instanceId, payload),
+      mutationFn: ({ instanceId, payload }: { instanceId: UUID; payload: WorkflowActionRequest }) =>
+        workflowService.approve(instanceId, payload),
       onSuccess: (_, variables) => {
         invalidateInstances();
         queryClient.invalidateQueries({
@@ -179,35 +170,20 @@ export function useWorkflowMutations() {
     }),
 
     rejectInstance: useMutation({
-      mutationFn: ({
-        instanceId,
-        payload,
-      }: {
-        instanceId: UUID;
-        payload: WorkflowActionRequest;
-      }) => workflowService.reject(instanceId, payload),
+      mutationFn: ({ instanceId, payload }: { instanceId: UUID; payload: WorkflowActionRequest }) =>
+        workflowService.reject(instanceId, payload),
       onSuccess: invalidateInstances,
     }),
 
     returnInstance: useMutation({
-      mutationFn: ({
-        instanceId,
-        payload,
-      }: {
-        instanceId: UUID;
-        payload: WorkflowActionRequest;
-      }) => workflowService.returnInstance(instanceId, payload),
+      mutationFn: ({ instanceId, payload }: { instanceId: UUID; payload: WorkflowActionRequest }) =>
+        workflowService.returnInstance(instanceId, payload),
       onSuccess: invalidateInstances,
     }),
 
     cancelInstance: useMutation({
-      mutationFn: ({
-        instanceId,
-        payload,
-      }: {
-        instanceId: UUID;
-        payload: WorkflowActionRequest;
-      }) => workflowService.cancel(instanceId, payload),
+      mutationFn: ({ instanceId, payload }: { instanceId: UUID; payload: WorkflowActionRequest }) =>
+        workflowService.cancel(instanceId, payload),
       onSuccess: invalidateInstances,
     }),
   };
@@ -226,8 +202,7 @@ export function useApprovalMatrixMutations(workflowId?: UUID) {
 
   return {
     createApprovalMatrix: useMutation({
-      mutationFn: (payload: WorkflowApprovalMatrixCreate) =>
-        approvalService.create(payload),
+      mutationFn: (payload: WorkflowApprovalMatrixCreate) => approvalService.create(payload),
       onSuccess: invalidate,
     }),
 
@@ -262,19 +237,13 @@ export function useEscalationMutations(workflowId?: UUID) {
 
   return {
     createEscalationRule: useMutation({
-      mutationFn: (payload: WorkflowEscalationRuleCreate) =>
-        escalationService.create(payload),
+      mutationFn: (payload: WorkflowEscalationRuleCreate) => escalationService.create(payload),
       onSuccess: invalidate,
     }),
 
     updateEscalationRule: useMutation({
-      mutationFn: ({
-        ruleId,
-        payload,
-      }: {
-        ruleId: UUID;
-        payload: WorkflowEscalationRuleUpdate;
-      }) => escalationService.update(ruleId, payload),
+      mutationFn: ({ ruleId, payload }: { ruleId: UUID; payload: WorkflowEscalationRuleUpdate }) =>
+        escalationService.update(ruleId, payload),
       onSuccess: invalidate,
     }),
 
@@ -333,8 +302,7 @@ export function useNotificationMutations() {
     }),
 
     deleteTemplate: useMutation({
-      mutationFn: (templateId: UUID) =>
-        notificationService.removeTemplate(templateId),
+      mutationFn: (templateId: UUID) => notificationService.removeTemplate(templateId),
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: queryKeys.workflow.notificationTemplates(),

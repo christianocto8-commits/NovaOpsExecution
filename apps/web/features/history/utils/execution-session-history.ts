@@ -1,4 +1,9 @@
-import type { Task, TaskExecution, TaskExecutionForm, ChecklistScore } from "@/features/tasks/types";
+import type {
+  Task,
+  TaskExecution,
+  TaskExecutionForm,
+  ChecklistScore,
+} from "@/features/tasks/types";
 import type { ExecutionSessionResponse } from "@/services/execution-session.service";
 import type { HistoryDetailSelection } from "@/features/history/components/history-detail-drawer";
 import { buildTaskEvidenceFromText } from "@/shared/evidence/submission-evidence";
@@ -62,7 +67,7 @@ export function parseExecutionSession(session: ExecutionSessionResponse): TaskEx
   const submittedAt =
     typeof payload.submittedAt === "string"
       ? payload.submittedAt
-      : session.submitted_at ?? new Date().toISOString();
+      : (session.submitted_at ?? new Date().toISOString());
   const evidenceText = typeof payload.evidence === "string" ? payload.evidence : "";
 
   return {

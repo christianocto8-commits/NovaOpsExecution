@@ -410,7 +410,11 @@ export function PhotoAnnotationEditor({ src, onSave, onClose }: PhotoAnnotationE
               disabled={isSaving || !isImageLoaded}
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              {isSaving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
               {isSaving ? "Menyimpan..." : "Simpan foto"}
             </button>
           </div>

@@ -5,10 +5,7 @@ type OutletOption = {
   name: string;
 };
 
-export function enrichTaskFormOutlets(
-  form: TaskFormState,
-  outlets: OutletOption[]
-): TaskFormState {
+export function enrichTaskFormOutlets(form: TaskFormState, outlets: OutletOption[]): TaskFormState {
   if (outlets.length === 0) {
     return form;
   }

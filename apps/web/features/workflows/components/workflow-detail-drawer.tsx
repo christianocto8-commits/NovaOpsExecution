@@ -53,7 +53,9 @@ export function WorkflowDetailDrawer({ workflow, onClose }: WorkflowDetailDrawer
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Version</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Version
+              </p>
               <p className="mt-1 font-semibold text-slate-950">v{workflow.version ?? 1}</p>
             </div>
 
@@ -61,7 +63,7 @@ export function WorkflowDetailDrawer({ workflow, onClose }: WorkflowDetailDrawer
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
               <span
                 className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getWorkflowStatusTone(
-                  workflow.status,
+                  workflow.status
                 )}`}
               >
                 {workflow.status ?? (workflow.is_active ? "active" : "inactive")}
@@ -69,14 +71,18 @@ export function WorkflowDetailDrawer({ workflow, onClose }: WorkflowDetailDrawer
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Created</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Created
+              </p>
               <p className="mt-1 font-semibold text-slate-950">
                 {formatWorkflowDate(workflow.created_at)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Updated</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Updated
+              </p>
               <p className="mt-1 font-semibold text-slate-950">
                 {formatWorkflowDate(workflow.updated_at)}
               </p>
@@ -106,5 +112,3 @@ export function WorkflowDetailDrawer({ workflow, onClose }: WorkflowDetailDrawer
     </div>
   );
 }
-
-

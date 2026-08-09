@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  getOfflineEvidenceBlobUrl,
-  isOfflineEvidenceUrl,
-} from "@/lib/offline/offline-evidence";
+import { getOfflineEvidenceBlobUrl, isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 
 import { resolveEvidenceDisplayUrl } from "../submission-evidence";
 
@@ -33,7 +30,10 @@ export function useEvidenceDisplayUrl(url: string) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!resolvedUrl || (!isOfflineEvidenceUrl(resolvedUrl) && !needsAuthenticatedFetch(resolvedUrl))) {
+    if (
+      !resolvedUrl ||
+      (!isOfflineEvidenceUrl(resolvedUrl) && !needsAuthenticatedFetch(resolvedUrl))
+    ) {
       setBlobUrl(null);
       return;
     }
@@ -77,7 +77,8 @@ export function useEvidenceDisplayUrl(url: string) {
 
   return useMemo(() => {
     if (!resolvedUrl) return "";
-    if (isOfflineEvidenceUrl(resolvedUrl) || needsAuthenticatedFetch(resolvedUrl)) return blobUrl ?? "";
+    if (isOfflineEvidenceUrl(resolvedUrl) || needsAuthenticatedFetch(resolvedUrl))
+      return blobUrl ?? "";
     return resolvedUrl;
   }, [resolvedUrl, blobUrl]);
 }

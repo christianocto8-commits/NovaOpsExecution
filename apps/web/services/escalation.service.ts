@@ -9,9 +9,7 @@ import type {
 
 export const escalationService = {
   listByWorkflow(workflowId: UUID) {
-    return api<WorkflowEscalationRule[]>(
-      `/api/v1/workflows/escalation-rules/${workflowId}`,
-    );
+    return api<WorkflowEscalationRule[]>(`/api/v1/workflows/escalation-rules/${workflowId}`);
   },
 
   create(payload: WorkflowEscalationRuleCreate) {
@@ -22,20 +20,16 @@ export const escalationService = {
   },
 
   update(ruleId: UUID, payload: WorkflowEscalationRuleUpdate) {
-    return api<WorkflowEscalationRule>(
-      `/api/v1/workflows/escalation-rules/${ruleId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      },
-    );
+    return api<WorkflowEscalationRule>(`/api/v1/workflows/escalation-rules/${ruleId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
 
   remove(ruleId: UUID) {
-    return api<{ message: string }>(
-      `/api/v1/workflows/escalation-rules/${ruleId}`,
-      { method: "DELETE" },
-    );
+    return api<{ message: string }>(`/api/v1/workflows/escalation-rules/${ruleId}`, {
+      method: "DELETE",
+    });
   },
 
   process() {
@@ -45,9 +39,8 @@ export const escalationService = {
   },
 
   assignDueDates() {
-    return api<{ due_dates_assigned: number }>(
-      "/api/v1/workflows/escalations/assign-due-dates",
-      { method: "POST" },
-    );
+    return api<{ due_dates_assigned: number }>("/api/v1/workflows/escalations/assign-due-dates", {
+      method: "POST",
+    });
   },
 };

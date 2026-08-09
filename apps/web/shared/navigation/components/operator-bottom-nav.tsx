@@ -13,11 +13,36 @@ import {
 } from "@/shared/navigation/outlet-overlay";
 
 const operatorNavItems = [
-  { href: "/dashboard/operator", labelKey: "operator.tab.home", icon: Home, match: "exact" as const },
-  { href: "/dashboard/tasks", labelKey: "operator.tab.tasks", icon: ClipboardCheck, match: "prefix" as const },
-  { href: "/dashboard/forms", labelKey: "operator.tab.forms", icon: FileText, match: "prefix" as const },
-  { href: "/dashboard/reports", labelKey: "operator.tab.reports", icon: BarChart3, match: "prefix" as const },
-  { href: "/dashboard/more", labelKey: "operator.tab.more", icon: MoreHorizontal, match: "more" as const },
+  {
+    href: "/dashboard/operator",
+    labelKey: "operator.tab.home",
+    icon: Home,
+    match: "exact" as const,
+  },
+  {
+    href: "/dashboard/tasks",
+    labelKey: "operator.tab.tasks",
+    icon: ClipboardCheck,
+    match: "prefix" as const,
+  },
+  {
+    href: "/dashboard/forms",
+    labelKey: "operator.tab.forms",
+    icon: FileText,
+    match: "prefix" as const,
+  },
+  {
+    href: "/dashboard/reports",
+    labelKey: "operator.tab.reports",
+    icon: BarChart3,
+    match: "prefix" as const,
+  },
+  {
+    href: "/dashboard/more",
+    labelKey: "operator.tab.more",
+    icon: MoreHorizontal,
+    match: "more" as const,
+  },
 ] as const;
 
 const morePaths = [
@@ -55,9 +80,7 @@ export function OperatorBottomNav() {
             item.match === "exact"
               ? pathname === item.href
               : item.match === "more"
-                ? morePaths.some(
-                    (path) => pathname === path || pathname.startsWith(`${path}/`)
-                  )
+                ? morePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
 
@@ -70,7 +93,9 @@ export function OperatorBottomNav() {
                   active ? "text-emerald-700" : "text-slate-400",
                 ].join(" ")}
               >
-                <Icon className={["size-5", active ? "text-emerald-700" : "text-slate-400"].join(" ")} />
+                <Icon
+                  className={["size-5", active ? "text-emerald-700" : "text-slate-400"].join(" ")}
+                />
                 {t(item.labelKey)}
               </Link>
             </li>

@@ -270,7 +270,8 @@ export function mapBackendTask(task: BackendTask): Task {
 
 function eventTypeToActivityType(eventType: string): TaskActivityType {
   if (eventType === "created" || eventType === "task.created") return "created";
-  if (eventType === "assigned" || eventType === "task.assigned" || eventType === "task_assigned") return "assigned";
+  if (eventType === "assigned" || eventType === "task.assigned" || eventType === "task_assigned")
+    return "assigned";
   if (eventType === "updated" || eventType === "task_assignment_updated") return "updated";
   if (eventType === "draft_saved") return "draft_saved";
   if (eventType === "form_submitted") return "form_submitted";
@@ -296,7 +297,7 @@ function eventTypeToTitle(eventType: string, comment: string): string {
     "task.assigned": "Task ditugaskan",
     task_assigned: "Task ditugaskan",
     updated: "Task diperbarui",
-    "task_assignment_updated": "Penugasan diperbarui",
+    task_assignment_updated: "Penugasan diperbarui",
     draft_saved: "Draft disimpan",
     form_submitted: "Form disubmit",
     evidence_submitted: "Bukti evidence dikirim",
@@ -319,12 +320,13 @@ function commentToActivity(comment: BackendTaskComment): TaskActivity {
     id: `CMT-${comment.id}`,
     type: eventTypeToActivityType(comment.event_type),
     title: eventTypeToTitle(comment.event_type, comment.comment),
-    description: [
-      comment.previous_value ? `Dari: ${comment.previous_value}` : "",
-      comment.new_value ? `Ke: ${comment.new_value}` : "",
-    ]
-      .filter(Boolean)
-      .join(" → ") || comment.comment,
+    description:
+      [
+        comment.previous_value ? `Dari: ${comment.previous_value}` : "",
+        comment.new_value ? `Ke: ${comment.new_value}` : "",
+      ]
+        .filter(Boolean)
+        .join(" → ") || comment.comment,
     actor: `User ${comment.user_id}`,
     timestamp: comment.created_at,
   };
@@ -484,9 +486,7 @@ export const taskService = {
 
   async create(form: TaskFormState) {
     if (form.recurrence !== "once") {
-      throw new Error(
-        "Recurring SOP harus dibuat dari menu Schedules, bukan Tasks."
-      );
+      throw new Error("Recurring SOP harus dibuat dari menu Schedules, bukan Tasks.");
     }
 
     const payload = toBackendPayload(form);

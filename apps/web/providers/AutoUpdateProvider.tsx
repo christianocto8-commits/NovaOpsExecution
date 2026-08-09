@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { ArrowUpCircle, CheckCircle2, Download, RefreshCw, Sparkles, X } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { resolveApiUrl } from "@/lib/api-url";
@@ -66,10 +59,7 @@ export function AutoUpdateProvider({ children }: { children: ReactNode }) {
           `${apiBase}/app-version.json?t=${Date.now()}`,
           `${apiBase}/api/v1/health/app-version?t=${Date.now()}`,
         ]
-      : [
-          `/app-version.json?t=${Date.now()}`,
-          `/api/v1/health/app-version?t=${Date.now()}`,
-        ];
+      : [`/app-version.json?t=${Date.now()}`, `/api/v1/health/app-version?t=${Date.now()}`];
 
     for (const url of urls) {
       try {
@@ -108,9 +98,12 @@ export function AutoUpdateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void checkNow();
     // Periodically check every 20 minutes
-    const interval = setInterval(() => {
-      void checkNow();
-    }, 20 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        void checkNow();
+      },
+      20 * 60 * 1000
+    );
     return () => clearInterval(interval);
   }, [checkNow]);
 

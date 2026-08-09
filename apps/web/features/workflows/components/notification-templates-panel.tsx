@@ -41,10 +41,7 @@ const eventOptions = [
 
 export function NotificationTemplatesPanel({ workflowId }: NotificationTemplatesPanelProps) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(
-    () => ["workflow-notification-templates", workflowId],
-    [workflowId],
-  );
+  const queryKey = useMemo(() => ["workflow-notification-templates", workflowId], [workflowId]);
 
   const [form, setForm] = useState<TemplateFormState>(emptyForm);
   const [editingId, setEditingId] = useState<UUID | null>(null);
@@ -85,7 +82,7 @@ export function NotificationTemplatesPanel({ workflowId }: NotificationTemplates
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
     onError: (mutationError) => {
       setError(
-        mutationError instanceof Error ? mutationError.message : "Failed to delete template",
+        mutationError instanceof Error ? mutationError.message : "Failed to delete template"
       );
     },
   });

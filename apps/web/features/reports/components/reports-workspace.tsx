@@ -310,12 +310,7 @@ export function ReportsWorkspace() {
           `Outlet #${submission.outlet_id}`
       )
     );
-  }, [
-    periodFilteredFormSubmissions,
-    tasks,
-    templateNameById,
-    workspace.outletName,
-  ]);
+  }, [periodFilteredFormSubmissions, tasks, templateNameById, workspace.outletName]);
 
   const reportRows = useMemo(
     () =>
@@ -500,7 +495,7 @@ export function ReportsWorkspace() {
         Operator: row.operator,
         Due: row.due,
         Submitted: row.submittedAt,
-       })),
+      })),
     [filteredReportRows]
   );
 
@@ -575,8 +570,7 @@ export function ReportsWorkspace() {
           `Form #${submission.form_template_id}`,
       })),
     ].sort(
-      (left, right) =>
-        new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime()
+      (left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime()
     );
 
     return (
@@ -684,9 +678,7 @@ export function ReportsWorkspace() {
 
       {tasksQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {tasksQuery.error instanceof Error
-            ? tasksQuery.error.message
-            : "Gagal memuat laporan."}
+          {tasksQuery.error instanceof Error ? tasksQuery.error.message : "Gagal memuat laporan."}
         </div>
       ) : null}
 
@@ -768,8 +760,7 @@ export function ReportsWorkspace() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {filteredReportRows.map((row) => {
-                const rowTask =
-                  row.kind === "task" ? taskById.get(row.id) : undefined;
+                const rowTask = row.kind === "task" ? taskById.get(row.id) : undefined;
                 const canExportPdf = Boolean(rowTask && isTaskWorkedOn(rowTask));
 
                 return (
@@ -875,9 +866,7 @@ export function ReportsWorkspace() {
                     >
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-slate-900">{outlet}</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {workedCount} task dikerjakan
-                        </p>
+                        <p className="mt-1 text-xs text-slate-500">{workedCount} task dikerjakan</p>
                       </div>
                       <button
                         type="button"
@@ -897,9 +886,7 @@ export function ReportsWorkspace() {
 
           <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 sm:p-5">
             <p className="text-sm font-semibold text-slate-950">Paket lanjutan</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Untuk audit atau compliance — opsional.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Untuk audit atau compliance — opsional.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"

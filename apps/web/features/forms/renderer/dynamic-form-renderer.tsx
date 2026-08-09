@@ -95,44 +95,45 @@ export function DynamicFormRenderer({
   return (
     <FormErrorBoundary>
       <div className="space-y-4">
-      {visibleFields.map((field) => {
-        const value = responses[field.id] ?? "";
-        const isHighlighted = highlightedFieldIds.includes(field.id);
-        const typeLabel = fieldTypeLabels[field.type] ?? field.type.toUpperCase();
+        {visibleFields.map((field) => {
+          const value = responses[field.id] ?? "";
+          const isHighlighted = highlightedFieldIds.includes(field.id);
+          const typeLabel = fieldTypeLabels[field.type] ?? field.type.toUpperCase();
 
-        return (
-          <div
-            key={field.id}
-            data-form-field-id={field.id}
-            className={`rounded-2xl border bg-white p-4 transition-all duration-300 ${
-              isHighlighted ? "border-red-300 bg-red-50 ring-2 ring-red-100" : "border-slate-200"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <label className="text-sm font-bold text-slate-800">
-                  {field.label}
-                  {field.required && <span className="ml-1 text-red-500">*</span>}
-                </label>
-                {field.options?.standard ? (
-                  <p className="mt-1 text-xs font-medium text-emerald-800/80">
-                    Standard: {field.options.standard}
+          return (
+            <div
+              key={field.id}
+              data-form-field-id={field.id}
+              className={`rounded-2xl border bg-white p-4 transition-all duration-300 ${
+                isHighlighted ? "border-red-300 bg-red-50 ring-2 ring-red-100" : "border-slate-200"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <label className="text-sm font-bold text-slate-800">
+                    {field.label}
+                    {field.required && <span className="ml-1 text-red-500">*</span>}
+                  </label>
+                  {field.options?.standard ? (
+                    <p className="mt-1 text-xs font-medium text-emerald-800/80">
+                      Standard: {field.options.standard}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-xs text-slate-400">
+                    {typeLabel}
+                    {field.required ? " • Wajib diisi" : " • Opsional"}
                   </p>
-                ) : null}
-                <p className="mt-1 text-xs text-slate-400">
-                  {typeLabel}
-                  {field.required ? " • Wajib diisi" : " • Opsional"}
-                </p>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-3">
-              {field.type === "yes_no" ? (
-                <div
-                  className={`grid gap-2 ${field.options?.allow_na ? "grid-cols-3" : "grid-cols-2"}`}
-                >
-                  {(["Yes", "No", ...(field.options?.allow_na ? (["N/A"] as const) : [])] as const).map(
-                    (option) => {
+              <div className="mt-3">
+                {field.type === "yes_no" ? (
+                  <div
+                    className={`grid gap-2 ${field.options?.allow_na ? "grid-cols-3" : "grid-cols-2"}`}
+                  >
+                    {(
+                      ["Yes", "No", ...(field.options?.allow_na ? (["N/A"] as const) : [])] as const
+                    ).map((option) => {
                       const selected = isYesNoOptionSelected(value, option);
 
                       return (
@@ -150,127 +151,126 @@ export function DynamicFormRenderer({
                           {option === "Yes" ? "Ya" : option === "No" ? "Tidak" : "Tidak Berlaku"}
                         </button>
                       );
-                    }
-                  )}
-                </div>
-              ) : field.type === "textarea" ? (
-                <textarea
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  rows={4}
-                  placeholder="Tulis catatan atau jawaban di sini..."
-                  className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              ) : field.type === "number" ? (
-                <input
-                  type="number"
-                  value={value}
-                  disabled={readOnly}
-                  min={field.validation?.min}
-                  max={field.validation?.max}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              ) : field.type === "select" ? (
-                <select
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
-                >
-                  <option value="">Pilih opsi...</option>
-                  {(field.options?.choices ?? []).map((choice) => (
-                    <option key={choice} value={choice}>
-                      {choice}
-                    </option>
-                  ))}
-                </select>
-              ) : field.type === "date" ? (
-                <input
-                  type="date"
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              ) : field.type === "time" ? (
-                <input
-                  type="time"
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              ) : field.type === "money_denomination" ? (
-                <MoneyDenominationField
-                  field={field}
-                  value={value}
-                  readOnly={readOnly}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-              ) : field.type === "money_amount" ? (
-                <MoneyAmountField
-                  value={value}
-                  readOnly={readOnly}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-              ) : field.type === "photo" || field.type === "video" ? (
-                <PhotoFieldInput
-                  value={value}
-                  readOnly={readOnly}
-                  mediaMode={field.type === "video" ? "video" : "photo"}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-              ) : field.type === "signature" ? (
-                <SignatureFieldInput
-                  value={value}
-                  readOnly={readOnly}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-              ) : field.type === "rating" ? (
-                <RatingFieldInput
-                  value={value}
-                  maxStars={field.options?.maxStars ?? 5}
-                  lowLabel={field.options?.lowLabel}
-                  highLabel={field.options?.highLabel}
-                  readOnly={readOnly}
-                  onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                />
-               ) : field.type === "barcode" ? (
-                 <BarcodeFieldInput
-                   value={value}
-                   readOnly={readOnly}
-                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                 />
-               ) : field.type === "gps" ? (
-                 <GpsFieldInput
-                   value={value}
-                   readOnly={readOnly}
-                   onChange={(nextValue) => updateResponse(field.id, nextValue)}
-                 />
-               ) : field.type === "responsible_person" ? (
-                <input
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  placeholder="Masukkan nama yang mengerjakan tugas ini..."
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              ) : (
-                <input
-                  value={value}
-                  disabled={readOnly}
-                  onChange={(event) => updateResponse(field.id, event.target.value)}
-                  placeholder="Tulis jawaban singkat..."
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
-                />
-              )}
+                    })}
+                  </div>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    rows={4}
+                    placeholder="Tulis catatan atau jawaban di sini..."
+                    className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                ) : field.type === "number" ? (
+                  <input
+                    type="number"
+                    value={value}
+                    disabled={readOnly}
+                    min={field.validation?.min}
+                    max={field.validation?.max}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                ) : field.type === "select" ? (
+                  <select
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 disabled:bg-slate-50"
+                  >
+                    <option value="">Pilih opsi...</option>
+                    {(field.options?.choices ?? []).map((choice) => (
+                      <option key={choice} value={choice}>
+                        {choice}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "date" ? (
+                  <input
+                    type="date"
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                ) : field.type === "time" ? (
+                  <input
+                    type="time"
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                ) : field.type === "money_denomination" ? (
+                  <MoneyDenominationField
+                    field={field}
+                    value={value}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "money_amount" ? (
+                  <MoneyAmountField
+                    value={value}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "photo" || field.type === "video" ? (
+                  <PhotoFieldInput
+                    value={value}
+                    readOnly={readOnly}
+                    mediaMode={field.type === "video" ? "video" : "photo"}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "signature" ? (
+                  <SignatureFieldInput
+                    value={value}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "rating" ? (
+                  <RatingFieldInput
+                    value={value}
+                    maxStars={field.options?.maxStars ?? 5}
+                    lowLabel={field.options?.lowLabel}
+                    highLabel={field.options?.highLabel}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "barcode" ? (
+                  <BarcodeFieldInput
+                    value={value}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "gps" ? (
+                  <GpsFieldInput
+                    value={value}
+                    readOnly={readOnly}
+                    onChange={(nextValue) => updateResponse(field.id, nextValue)}
+                  />
+                ) : field.type === "responsible_person" ? (
+                  <input
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    placeholder="Masukkan nama yang mengerjakan tugas ini..."
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                ) : (
+                  <input
+                    value={value}
+                    disabled={readOnly}
+                    onChange={(event) => updateResponse(field.id, event.target.value)}
+                    placeholder="Tulis jawaban singkat..."
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition-all disabled:bg-slate-50"
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
     </FormErrorBoundary>
   );
 }

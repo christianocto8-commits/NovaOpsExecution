@@ -57,7 +57,9 @@ export function parsePhotoFieldValue(value: string): PhotoFieldValue | null {
 }
 
 export function serializePhotoFieldValues(values: PhotoFieldValue[]): string {
-  const normalized = values.filter((item) => item && typeof item.url === "string" && item.url.trim());
+  const normalized = values.filter(
+    (item) => item && typeof item.url === "string" && item.url.trim()
+  );
 
   if (normalized.length === 0) return "";
   if (normalized.length === 1) return serializePhotoFieldValue(normalized[0]);

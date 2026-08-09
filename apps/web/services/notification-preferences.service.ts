@@ -21,9 +21,7 @@ export async function fetchNotificationPreferences() {
   return api<NotificationPreferences>("/api/v1/notifications/preferences");
 }
 
-export async function updateNotificationPreferences(
-  payload: Partial<NotificationPreferences>
-) {
+export async function updateNotificationPreferences(payload: Partial<NotificationPreferences>) {
   return api<NotificationPreferences>("/api/v1/notifications/preferences", {
     method: "PUT",
     body: JSON.stringify(payload),

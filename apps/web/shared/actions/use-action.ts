@@ -41,9 +41,7 @@ export function useAction<TInput = void, TResult = void>({
 
         if (showSuccessToast && successMessage) {
           toast.success(
-            typeof successMessage === "function"
-              ? successMessage(result, input)
-              : successMessage
+            typeof successMessage === "function" ? successMessage(result, input) : successMessage
           );
         }
 
@@ -57,8 +55,7 @@ export function useAction<TInput = void, TResult = void>({
         const message =
           typeof errorMessage === "function"
             ? errorMessage(nextError, input)
-            : errorMessage ??
-              (nextError instanceof Error ? nextError.message : "Action failed.");
+            : (errorMessage ?? (nextError instanceof Error ? nextError.message : "Action failed."));
 
         if (showErrorToast) {
           toast.error(message);

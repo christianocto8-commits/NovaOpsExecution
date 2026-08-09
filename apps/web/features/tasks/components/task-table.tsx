@@ -74,7 +74,8 @@ export function TaskTable({
   onEditTask,
   onDeleteTask,
   onStatusChange,
-}: TaskTableProps) {  const filterDefinitions = useMemo(() => buildTaskFilterDefinitions(tasks), [tasks]);
+}: TaskTableProps) {
+  const filterDefinitions = useMemo(() => buildTaskFilterDefinitions(tasks), [tasks]);
 
   const columns: EnterpriseColumn<Task>[] = [
     {

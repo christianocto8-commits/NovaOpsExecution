@@ -42,11 +42,7 @@ const toastStyles: Record<
 };
 
 export function Toaster() {
-  const toasts = useSyncExternalStore(
-    subscribeToast,
-    getToastSnapshot,
-    getToastSnapshot
-  );
+  const toasts = useSyncExternalStore(subscribeToast, getToastSnapshot, getToastSnapshot);
 
   if (toasts.length === 0) return null;
 
@@ -69,12 +65,8 @@ export function Toaster() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-950">
-                  {toast.title ?? style.title}
-                </p>
-                <p className="mt-1 text-sm leading-5 text-slate-600">
-                  {toast.description}
-                </p>
+                <p className="text-sm font-bold text-slate-950">{toast.title ?? style.title}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-600">{toast.description}</p>
 
                 {toast.action ? (
                   <button

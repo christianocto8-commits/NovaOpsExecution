@@ -54,10 +54,7 @@ export type SupportItem = {
 };
 
 export type EnterpriseItem =
-  | InventoryCountItem
-  | PurchaseRequestItem
-  | LaborAttendanceItem
-  | SupportItem;
+  InventoryCountItem | PurchaseRequestItem | LaborAttendanceItem | SupportItem;
 
 export type EnterpriseSummary = {
   inventory_counts: number;

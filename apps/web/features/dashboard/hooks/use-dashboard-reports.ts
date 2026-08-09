@@ -50,10 +50,6 @@ export function useDashboardReports() {
       trendsQuery.isError ||
       outletsQuery.isError ||
       complianceQuery.isError,
-    error:
-      summaryQuery.error ??
-      trendsQuery.error ??
-      outletsQuery.error ??
-      complianceQuery.error,
+    error: summaryQuery.error ?? trendsQuery.error ?? outletsQuery.error ?? complianceQuery.error,
   };
 }

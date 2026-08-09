@@ -11,11 +11,15 @@ import { listWebhookDeliveries } from "@/services/webhook.service";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 
 function statusClass(ok: boolean) {
-  return ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800";
+  return ok
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : "border-red-200 bg-red-50 text-red-800";
 }
 
 export default function OpsHealthPage() {
-  const [jobHistory, setJobHistory] = useState<Array<{ at: string; job: string; status: string }>>([]);
+  const [jobHistory, setJobHistory] = useState<Array<{ at: string; job: string; status: string }>>(
+    []
+  );
   const { isOnline, pendingSyncCount, failedSyncCount, isSyncing, syncNow } = useOfflineSync();
   const healthQuery = useQuery({
     queryKey: ["ops-health", "api"],
@@ -33,7 +37,9 @@ export default function OpsHealthPage() {
     retry: false,
   });
 
-  const failedDeliveries = (deliveriesQuery.data ?? []).filter((delivery) => delivery.status === "failed");
+  const failedDeliveries = (deliveriesQuery.data ?? []).filter(
+    (delivery) => delivery.status === "failed"
+  );
   const apiOk = healthQuery.data?.status === "ok";
 
   return (
@@ -42,7 +48,8 @@ export default function OpsHealthPage() {
         <p className="text-sm font-medium text-emerald-700">Operations</p>
         <h1 className="text-2xl font-semibold text-slate-950">Ops Health</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Ringkasan kondisi API, offline sync, dan integrasi webhook untuk monitoring VPS production.
+          Ringkasan kondisi API, offline sync, dan integrasi webhook untuk monitoring VPS
+          production.
         </p>
       </div>
 
@@ -50,9 +57,15 @@ export default function OpsHealthPage() {
         <div className={`rounded-2xl border p-5 ${statusClass(apiOk)}`}>
           <Server className="h-5 w-5" />
           <p className="mt-3 text-sm font-semibold">API health</p>
-          <p className="mt-1 text-2xl font-bold">{healthQuery.isLoading ? "Checking" : apiOk ? "OK" : "Issue"}</p>
+          <p className="mt-1 text-2xl font-bold">
+            {healthQuery.isLoading ? "Checking" : apiOk ? "OK" : "Issue"}
+          </p>
           <p className="mt-1 text-xs opacity-80">
-            {healthQuery.data ? `${healthQuery.data.service} ${healthQuery.data.version}` : healthQuery.error instanceof Error ? healthQuery.error.message : "No response yet"}
+            {healthQuery.data
+              ? `${healthQuery.data.service} ${healthQuery.data.version}`
+              : healthQuery.error instanceof Error
+                ? healthQuery.error.message
+                : "No response yet"}
           </p>
         </div>
 
@@ -71,7 +84,11 @@ export default function OpsHealthPage() {
         </div>
 
         <div className={`rounded-2xl border p-5 ${statusClass(failedDeliveries.length === 0)}`}>
-          {failedDeliveries.length === 0 ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+          {failedDeliveries.length === 0 ? (
+            <CheckCircle2 className="h-5 w-5" />
+          ) : (
+            <AlertTriangle className="h-5 w-5" />
+          )}
           <p className="mt-3 text-sm font-semibold">Webhook delivery</p>
           <p className="mt-1 text-2xl font-bold">{failedDeliveries.length} failed</p>
           <p className="mt-1 text-xs opacity-80">Dari 50 delivery terakhir.</p>
@@ -81,7 +98,8 @@ export default function OpsHealthPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-sm font-bold text-slate-950">Background job coverage</p>
         <p className="mt-1 text-sm text-slate-500">
-          Job scheduler production harus menjalankan pipeline ini lewat endpoint server-side yang dilindungi scheduler secret.
+          Job scheduler production harus menjalankan pipeline ini lewat endpoint server-side yang
+          dilindungi scheduler secret.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {[
@@ -102,7 +120,9 @@ export default function OpsHealthPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-slate-950">Scheduler job history</p>
-            <p className="mt-1 text-sm text-slate-500">Riwayat persisten dari pipeline scheduler production.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Riwayat persisten dari pipeline scheduler production.
+            </p>
           </div>
           <button
             type="button"
@@ -115,16 +135,23 @@ export default function OpsHealthPage() {
         <div className="mt-4 space-y-2">
           {(jobRunsQuery.data ?? []).length ? (
             (jobRunsQuery.data ?? []).slice(0, 8).map((run) => (
-              <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              <div
+                key={run.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              >
                 <div>
                   <p className="font-semibold text-slate-950">{run.job_name}</p>
                   <p className="text-xs text-slate-500">
                     {new Date(run.started_at).toLocaleString("id-ID")} - {run.duration_ms}ms
                   </p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  run.status === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-                }`}>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    run.status === "success"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-red-50 text-red-700"
+                  }`}
+                >
                   {run.status}
                 </span>
               </div>
@@ -143,10 +170,16 @@ export default function OpsHealthPage() {
             type="button"
             onClick={() => {
               void syncNow().then(() => {
-                setJobHistory((current) => [
-                  { at: new Date().toLocaleString("id-ID"), job: "Manual offline sync", status: "completed" },
-                  ...current,
-                ].slice(0, 6));
+                setJobHistory((current) =>
+                  [
+                    {
+                      at: new Date().toLocaleString("id-ID"),
+                      job: "Manual offline sync",
+                      status: "completed",
+                    },
+                    ...current,
+                  ].slice(0, 6)
+                );
               });
             }}
             disabled={!isOnline || isSyncing}
@@ -154,10 +187,16 @@ export default function OpsHealthPage() {
           >
             {isSyncing ? "Syncing..." : "Sync offline queue"}
           </button>
-          <Link href="/dashboard/webhooks" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">
+          <Link
+            href="/dashboard/webhooks"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700"
+          >
             Open webhook monitor
           </Link>
-          <Link href="/dashboard/audit" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">
+          <Link
+            href="/dashboard/audit"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700"
+          >
             Open audit trail
           </Link>
         </div>
@@ -165,9 +204,14 @@ export default function OpsHealthPage() {
           <p className="text-sm font-bold text-slate-950">Local admin run history</p>
           {jobHistory.length ? (
             jobHistory.map((item) => (
-              <div key={`${item.at}-${item.job}`} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              <div
+                key={`${item.at}-${item.job}`}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              >
                 <span className="font-semibold text-slate-950">{item.job}</span>
-                <span className="ml-2 text-slate-500">{item.status} at {item.at}</span>
+                <span className="ml-2 text-slate-500">
+                  {item.status} at {item.at}
+                </span>
               </div>
             ))
           ) : (

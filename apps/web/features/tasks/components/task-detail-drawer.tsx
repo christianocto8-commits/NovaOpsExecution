@@ -162,7 +162,9 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
   const fallbackTaskId = currentTask ? Number(currentTask.id) : undefined;
   const shouldLoadFallbackSession =
     currentTask &&
-    (currentTask.status === "Completed" || currentTask.backendStatus === "completed" || currentTask.execution?.reviewStatus) &&
+    (currentTask.status === "Completed" ||
+      currentTask.backendStatus === "completed" ||
+      currentTask.execution?.reviewStatus) &&
     !Object.values(currentTask.execution?.formResponses ?? {}).some((value) =>
       String(value ?? "").trim()
     );
@@ -175,9 +177,7 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
         status: "completed",
       }),
     enabled:
-      Boolean(shouldLoadFallbackSession) &&
-      fallbackTaskId != null &&
-      !Number.isNaN(fallbackTaskId),
+      Boolean(shouldLoadFallbackSession) && fallbackTaskId != null && !Number.isNaN(fallbackTaskId),
     retry: false,
   });
 
@@ -185,8 +185,8 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
     const baseTask = detailTask ?? task;
     if (!baseTask) return null;
 
-    const hasResponses = Object.values(baseTask.execution?.formResponses ?? {}).some(
-      (value) => String(value ?? "").trim()
+    const hasResponses = Object.values(baseTask.execution?.formResponses ?? {}).some((value) =>
+      String(value ?? "").trim()
     );
     if (hasResponses) return baseTask;
 
@@ -214,7 +214,10 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
   const assignments = assignmentsQuery.data ?? [];
   const outletMembers = outletMembersQuery.data ?? [];
   const activeAssignee = assignments.find((assignment) => assignment.user_id === assignedUserId);
-  const canReassign = !resolvedTask?.execution && resolvedTask?.status !== "Completed" && resolvedTask?.status !== "Cancelled";
+  const canReassign =
+    !resolvedTask?.execution &&
+    resolvedTask?.status !== "Completed" &&
+    resolvedTask?.status !== "Cancelled";
 
   const photoEvidence = useMemo(
     () =>
@@ -245,7 +248,9 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
       >
         <div className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Task Detail</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+              Task Detail
+            </p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-950">{resolvedTask.title}</h2>
             <p className="mt-1 text-sm text-slate-500">{resolvedTask.outlet}</p>
           </div>
@@ -261,16 +266,22 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap gap-2">
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(resolvedTask.status)}`}>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(resolvedTask.status)}`}
+              >
                 {resolvedTask.status}
               </span>
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getPriorityClass(resolvedTask.priority)}`}>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-bold ${getPriorityClass(resolvedTask.priority)}`}
+              >
                 {resolvedTask.priority}
               </span>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assignee</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Assignee
+                </p>
                 <p className="mt-1 font-medium text-slate-900">
                   {(activeAssignee?.user?.name ?? resolvedTask.assignee) || "Unassigned"}
                 </p>
@@ -321,11 +332,17 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Due</p>
-                <p className="mt-1 font-medium text-slate-900">{resolvedTask.due || "No due date"}</p>
+                <p className="mt-1 font-medium text-slate-900">
+                  {resolvedTask.due || "No due date"}
+                </p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
-                <p className="mt-1 font-medium text-slate-900">{formatTaskSchedule(resolvedTask)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Schedule
+                </p>
+                <p className="mt-1 font-medium text-slate-900">
+                  {formatTaskSchedule(resolvedTask)}
+                </p>
               </div>
             </div>
             {resolvedTask.description ? (
@@ -361,15 +378,22 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
             {hasExecution ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Operator</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Operator
+                  </p>
                   <p className="mt-1 font-medium text-slate-900">
-                    {resolvedTask.execution?.operatorName} &bull; {resolvedTask.execution?.operatorPosition}
+                    {resolvedTask.execution?.operatorName} &bull;{" "}
+                    {resolvedTask.execution?.operatorPosition}
                   </p>
                   {resolvedTask.execution?.completedAt ? (
-                    <p className="mt-2 text-xs text-slate-500">Submitted {resolvedTask.execution.completedAt}</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Submitted {resolvedTask.execution.completedAt}
+                    </p>
                   ) : null}
                   {resolvedTask.execution?.note ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{resolvedTask.execution.note}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {resolvedTask.execution.note}
+                    </p>
                   ) : null}
                 </div>
 
@@ -378,17 +402,26 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                     const evidenceStyle = getEvidenceStyle(evidence.type);
                     const EvidenceIcon = evidenceStyle.icon;
                     const isUrl = /^https?:\/\//i.test(evidence.value);
-                    const photoIndex = photoEvidence.findIndex((item) => item.url === evidence.value);
+                    const photoIndex = photoEvidence.findIndex(
+                      (item) => item.url === evidence.value
+                    );
 
                     return (
-                      <div key={`${evidence.type}-${evidence.value}`} className="rounded-2xl border border-slate-200 p-4">
+                      <div
+                        key={`${evidence.type}-${evidence.value}`}
+                        className="rounded-2xl border border-slate-200 p-4"
+                      >
                         <div className="flex gap-3">
-                          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${evidenceStyle.className}`}>
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${evidenceStyle.className}`}
+                          >
                             <EvidenceIcon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wide ${evidenceStyle.className}`}>
+                              <span
+                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wide ${evidenceStyle.className}`}
+                              >
                                 {evidenceStyle.label}
                               </span>
                               <p className="text-xs text-slate-400">{evidence.submittedAt}</p>
@@ -469,7 +502,9 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                 </div>
                 <div className="rounded-2xl bg-emerald-50 p-4">
                   <p className="text-xs text-emerald-700">Passed</p>
-                  <p className="mt-1 text-2xl font-bold text-emerald-800">{checklist.passed_count}</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-800">
+                    {checklist.passed_count}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-red-50 p-4">
                   <p className="text-xs text-red-700">Failed</p>
@@ -477,11 +512,15 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs text-slate-500">Scorable</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">{checklist.total_scorable}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">
+                    {checklist.total_scorable}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-slate-100 p-4">
                   <p className="text-xs text-slate-500">N/A</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-700">{checklist.na_count ?? 0}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-700">
+                    {checklist.na_count ?? 0}
+                  </p>
                 </div>
               </div>
 
@@ -521,15 +560,15 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-sm text-red-800">
-                        Value: {item.value || "-"}
-                      </p>
+                      <p className="mt-1 text-sm text-red-800">Value: {item.value || "-"}</p>
                       <p className="mt-1 text-sm text-red-700">{item.reason}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-emerald-700">All scorable checklist items passed.</p>
+                <p className="mt-4 text-sm text-emerald-700">
+                  All scorable checklist items passed.
+                </p>
               )}
             </section>
           ) : null}
@@ -550,7 +589,9 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                         <div className="absolute left-5 top-11 h-full w-px bg-slate-200" />
                       ) : null}
 
-                      <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${activityStyle.className}`}>
+                      <div
+                        className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${activityStyle.className}`}
+                      >
                         <ActivityIcon className="h-4 w-4" />
                       </div>
 
@@ -559,8 +600,12 @@ export function TaskDetailDrawer({ task, onClose, onEdit, onDelete }: TaskDetail
                           <p className="font-semibold text-slate-900">{activity.title}</p>
                           <p className="text-xs text-slate-400">{activity.timestamp}</p>
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">{activity.description}</p>
-                        <p className="mt-2 text-xs font-semibold text-slate-400">Actor: {activity.actor}</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {activity.description}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-slate-400">
+                          Actor: {activity.actor}
+                        </p>
                       </div>
                     </div>
                   );

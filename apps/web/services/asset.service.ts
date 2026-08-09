@@ -101,7 +101,7 @@ export async function approveEquipmentReplacement(id: string) {
 
 export async function pairEquipmentSensor(
   id: string,
-  payload: { pairing_code: string; sensor_id: string; gateway_id: string },
+  payload: { pairing_code: string; sensor_id: string; gateway_id: string }
 ) {
   return api<EquipmentRegisterItem>(`/api/v1/assets/equipment/${id}/pair`, {
     method: "POST",

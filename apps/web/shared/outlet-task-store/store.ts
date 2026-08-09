@@ -3,11 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 import { initialOutletTaskStoreItems } from "./data";
-import {
-  OutletTaskExecutionStatus,
-  OutletTaskStoreItem,
-  OutletTaskStoreSummary,
-} from "./types";
+import { OutletTaskExecutionStatus, OutletTaskStoreItem, OutletTaskStoreSummary } from "./types";
 
 let outletTaskItems: OutletTaskStoreItem[] = initialOutletTaskStoreItems;
 

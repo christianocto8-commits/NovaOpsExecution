@@ -233,11 +233,12 @@ export function useUsersWorkspace() {
       username: user.username,
       password: "",
       role: user.role,
-      outlet: user.role === "Outlet"
-        ? (user.outletIds[0] ?? "")
-        : isMultiOutletRole(user.role)
-          ? "Multiple Outlets"
-          : "All Outlets",
+      outlet:
+        user.role === "Outlet"
+          ? (user.outletIds[0] ?? "")
+          : isMultiOutletRole(user.role)
+            ? "Multiple Outlets"
+            : "All Outlets",
       outletIds: user.outletIds,
       outletScope: user.outletScope,
       status: user.status,

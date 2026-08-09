@@ -18,7 +18,11 @@ import { EnterpriseColumn, EnterpriseDataTable } from "@/shared/data-table";
 import { RealtimeClock } from "@/shared/realtime";
 import { queryKeys } from "@/lib/query/keys";
 import { getExecutionSessions } from "@/services/execution-session.service";
-import { downloadComplianceExport, getFailedChecklistItems, getTemplateComplianceTrends } from "@/services/reports.service";
+import {
+  downloadComplianceExport,
+  getFailedChecklistItems,
+  getTemplateComplianceTrends,
+} from "@/services/reports.service";
 import { outletService } from "@/services/outlet.service";
 import { taskService } from "@/services/task.service";
 import type { Task } from "@/features/tasks/types";
@@ -54,7 +58,9 @@ const columns: EnterpriseColumn<ComplianceRow>[] = [
     header: "Status",
     sortable: true,
     render: (row) => (
-      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(row.status)}`}>
+      <span
+        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(row.status)}`}
+      >
         {row.status}
       </span>
     ),
@@ -102,12 +108,7 @@ function toRow(
     district: outletDistrictByName.get(task.outlet) ?? "—",
     task: task.title,
     priority: task.priority,
-    status:
-      checklistStatus === "fail"
-        ? "Overdue"
-        : isOverdue(task)
-          ? "Overdue"
-          : task.status,
+    status: checklistStatus === "fail" ? "Overdue" : isOverdue(task) ? "Overdue" : task.status,
     completion: getCompletion(task),
     due: task.due || "-",
     assignee: task.assignee,
@@ -129,7 +130,13 @@ function getAverage(values: number[]) {
 }
 
 function groupByStatus(rows: ComplianceRow[]) {
-  const statuses: ComplianceRow["status"][] = ["Completed", "In Progress", "Pending", "Overdue", "Cancelled"];
+  const statuses: ComplianceRow["status"][] = [
+    "Completed",
+    "In Progress",
+    "Pending",
+    "Overdue",
+    "Cancelled",
+  ];
   return statuses.map((status) => ({
     name: status,
     value: rows.filter((row) => row.status === status).length,
@@ -400,11 +407,7 @@ export default function ComplianceCenterPage() {
       (tasksQuery.data ?? []).map((task) => [task.id, task.outlet] as const)
     );
 
-    return getOutletScoreHeatmap(
-      executionSessionsQuery.data ?? [],
-      taskOutletById,
-      passThreshold
-    );
+    return getOutletScoreHeatmap(executionSessionsQuery.data ?? [], taskOutletById, passThreshold);
   }, [executionSessionsQuery.data, tasksQuery.data, passThreshold]);
   const failedItemsChartData = useMemo(
     () =>
@@ -415,10 +418,7 @@ export default function ComplianceCenterPage() {
     [failedItemsQuery.data]
   );
   const repeatFailures = useMemo(
-    () =>
-      (failedItemsQuery.data?.items ?? [])
-        .filter((item) => item.failure_count > 1)
-        .slice(0, 4),
+    () => (failedItemsQuery.data?.items ?? []).filter((item) => item.failure_count > 1).slice(0, 4),
     [failedItemsQuery.data]
   );
   const templateTrendChartData = useMemo(
@@ -431,7 +431,9 @@ export default function ComplianceCenterPage() {
     [templateTrendQuery.data]
   );
   const ownerActionQueue = rows
-    .filter((row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical")
+    .filter(
+      (row) => row.status === "Overdue" || row.completion < 100 || row.priority === "Critical"
+    )
     .sort((first, second) => first.completion - second.completion)
     .slice(0, 5);
   const riskInsights = useMemo(() => {
@@ -666,11 +668,20 @@ export default function ComplianceCenterPage() {
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-950">{isAreaWorkspace ? "Area Action Queue" : "Owner Action Queue"}</p>
-              <p className="mt-1 text-xs text-slate-500">{isAreaWorkspace ? "Real tasks in your area that need follow-up." : "Real tasks that are overdue or incomplete."}</p>
+              <p className="text-sm font-semibold text-slate-950">
+                {isAreaWorkspace ? "Area Action Queue" : "Owner Action Queue"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {isAreaWorkspace
+                  ? "Real tasks in your area that need follow-up."
+                  : "Real tasks that are overdue or incomplete."}
+              </p>
             </div>
             {capaEnabled ? (
-              <Link href="/dashboard/corrective-actions" className="text-sm font-bold text-emerald-700">
+              <Link
+                href="/dashboard/corrective-actions"
+                className="text-sm font-bold text-emerald-700"
+              >
                 Review all
               </Link>
             ) : (
@@ -695,7 +706,9 @@ export default function ComplianceCenterPage() {
                         {row.outlet} - Due {row.due}
                       </p>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(row.status)}`}>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(row.status)}`}
+                    >
                       {row.status}
                     </span>
                   </div>
@@ -742,7 +755,10 @@ export default function ComplianceCenterPage() {
                     <p className="text-sm font-bold text-slate-950">{item.progress}%</p>
                   </div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-emerald-700" style={{ width: `${item.progress}%` }} />
+                    <div
+                      className="h-full rounded-full bg-emerald-700"
+                      style={{ width: `${item.progress}%` }}
+                    />
                   </div>
                 </div>
               ))
@@ -826,7 +842,10 @@ export default function ComplianceCenterPage() {
           <div className="mt-4 space-y-3">
             {repeatFailures.length ? (
               repeatFailures.map((item) => (
-                <div key={`${item.label}-${item.failure_count}`} className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                <div
+                  key={`${item.label}-${item.failure_count}`}
+                  className="rounded-2xl border border-red-100 bg-red-50 p-4"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-bold text-red-950">{item.label}</p>
                     <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-red-700">
@@ -858,9 +877,7 @@ export default function ComplianceCenterPage() {
                 <button
                   key={item.outlet}
                   type="button"
-                  onClick={() =>
-                    router.push("/dashboard/reports?tab=riwayat")
-                  }
+                  onClick={() => router.push("/dashboard/reports?tab=riwayat")}
                   className={`rounded-2xl border p-4 text-left transition hover:scale-[1.01] hover:shadow-md ${getHeatmapClass(item.tone)}`}
                 >
                   <p className="text-sm font-bold">{item.outlet}</p>

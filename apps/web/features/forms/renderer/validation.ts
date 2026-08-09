@@ -1,9 +1,6 @@
 ﻿import { FormField } from "@/features/forms/types";
 import { getVisibleFields } from "@/features/forms/utils/field-visibility";
-import {
-  isMoneyAmountFilled,
-  isMoneyDenominationFilled,
-} from "@/features/forms/utils/money";
+import { isMoneyAmountFilled, isMoneyDenominationFilled } from "@/features/forms/utils/money";
 import {
   getResponsiblePersonField,
   isResponsiblePersonField,

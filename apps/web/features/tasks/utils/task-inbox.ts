@@ -55,5 +55,7 @@ export function isOpenTaskInInbox(task: Task) {
 
 /** Tasks with a submitted result — shown in Reports / PDF export. */
 export function isTaskWorkedOn(task: Task) {
-  return isTaskCompleted(task) || Boolean(task.execution?.completedAt) || isTaskExpiredOverdue(task);
+  return (
+    isTaskCompleted(task) || Boolean(task.execution?.completedAt) || isTaskExpiredOverdue(task)
+  );
 }

@@ -174,7 +174,10 @@ export function EvidenceGallery({
           {value
             .filter((item) => item.latitude != null && item.longitude != null)
             .map((item) => (
-              <div key={`${item.id}-location`} className="flex items-center gap-2 text-xs text-slate-600">
+              <div
+                key={`${item.id}-location`}
+                className="flex items-center gap-2 text-xs text-slate-600"
+              >
                 <MapPin className="size-3.5 shrink-0 text-emerald-700" />
                 <a
                   href={`https://maps.google.com/?q=${item.latitude},${item.longitude}`}
@@ -182,7 +185,8 @@ export function EvidenceGallery({
                   rel="noreferrer"
                   className="font-medium text-emerald-700 hover:text-emerald-800"
                 >
-                  {item.caption ?? "Evidence"}: {item.latitude?.toFixed(5)}, {item.longitude?.toFixed(5)}
+                  {item.caption ?? "Evidence"}: {item.latitude?.toFixed(5)},{" "}
+                  {item.longitude?.toFixed(5)}
                 </a>
               </div>
             ))}

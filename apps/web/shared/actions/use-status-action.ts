@@ -24,7 +24,7 @@ export function useStatusAction<TId extends string | number, TStatus extends str
     errorMessage: (error) =>
       error instanceof Error
         ? error.message
-        : errorMessage ?? `Failed to update ${entityName.toLowerCase()} status.`,
+        : (errorMessage ?? `Failed to update ${entityName.toLowerCase()} status.`),
   });
 
   const updateStatus = useCallback(

@@ -99,10 +99,7 @@ export async function removeOfflineQueueEntry(id: string): Promise<void> {
 }
 
 /** Increment retry count and record last error on a failed entry */
-export async function markOfflineQueueEntryFailed(
-  id: string,
-  error: string
-): Promise<void> {
+export async function markOfflineQueueEntryFailed(id: string, error: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_QUEUE, "readwrite");

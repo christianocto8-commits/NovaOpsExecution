@@ -182,19 +182,79 @@ export function NotificationPreferencesPanel() {
       <p className="mt-1 text-sm text-slate-500">{t("notifications.prefs.subtitle")}</p>
 
       <div className="mt-5 space-y-3">
-        <PreferenceToggle title={t("notifications.prefs.email")} description={t("notifications.prefs.emailHint")} checked={prefs.emailEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("emailEnabled", checked)} />
-        <PreferenceToggle title={t("notifications.prefs.push")} description={t("notifications.prefs.pushHint")} checked={prefs.pushEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("pushEnabled", checked)} />
-        <PreferenceToggle title={t("notifications.prefs.digest")} description={t("notifications.prefs.digestHint")} checked={prefs.digestEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("digestEnabled", checked)} />
-        <PreferenceToggle title={t("notifications.prefs.sms")} description={t("notifications.prefs.smsHint")} checked={prefs.smsEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("smsEnabled", checked)} />
+        <PreferenceToggle
+          title={t("notifications.prefs.email")}
+          description={t("notifications.prefs.emailHint")}
+          checked={prefs.emailEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("emailEnabled", checked)}
+        />
+        <PreferenceToggle
+          title={t("notifications.prefs.push")}
+          description={t("notifications.prefs.pushHint")}
+          checked={prefs.pushEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("pushEnabled", checked)}
+        />
+        <PreferenceToggle
+          title={t("notifications.prefs.digest")}
+          description={t("notifications.prefs.digestHint")}
+          checked={prefs.digestEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("digestEnabled", checked)}
+        />
+        <PreferenceToggle
+          title={t("notifications.prefs.sms")}
+          description={t("notifications.prefs.smsHint")}
+          checked={prefs.smsEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("smsEnabled", checked)}
+        />
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <PreferenceToggle title="Task baru" description="Notif saat task baru diberikan ke outlet atau area manager." checked={prefs.taskIncomingEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("taskIncomingEnabled", checked)} />
-        <PreferenceToggle title="Task akan publish" description="Notif upcoming task dari auto publish schedule." checked={prefs.taskUpcomingEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("taskUpcomingEnabled", checked)} />
-        <PreferenceToggle title="Task overdue" description="Notif saat task melewati batas waktu." checked={prefs.taskOverdueEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("taskOverdueEnabled", checked)} />
-        <PreferenceToggle title="Task selesai" description="Notif ke supervisor saat outlet menyelesaikan task." checked={prefs.taskCompletedEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("taskCompletedEnabled", checked)} />
-        <PreferenceToggle title="Checklist gagal" description="Notif saat checklist gagal dan perlu perhatian manager." checked={prefs.checklistFailedEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("checklistFailedEnabled", checked)} />
-        <PreferenceToggle title="Quiet hours" description="Tahan push/email/SMS selama jam tenang. In-app tetap tersimpan." checked={prefs.quietHoursEnabled} disabled={saveMutation.isPending || prefsQuery.isLoading} onChange={(checked) => update("quietHoursEnabled", checked)} />
+        <PreferenceToggle
+          title="Task baru"
+          description="Notif saat task baru diberikan ke outlet atau area manager."
+          checked={prefs.taskIncomingEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("taskIncomingEnabled", checked)}
+        />
+        <PreferenceToggle
+          title="Task akan publish"
+          description="Notif upcoming task dari auto publish schedule."
+          checked={prefs.taskUpcomingEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("taskUpcomingEnabled", checked)}
+        />
+        <PreferenceToggle
+          title="Task overdue"
+          description="Notif saat task melewati batas waktu."
+          checked={prefs.taskOverdueEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("taskOverdueEnabled", checked)}
+        />
+        <PreferenceToggle
+          title="Task selesai"
+          description="Notif ke supervisor saat outlet menyelesaikan task."
+          checked={prefs.taskCompletedEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("taskCompletedEnabled", checked)}
+        />
+        <PreferenceToggle
+          title="Checklist gagal"
+          description="Notif saat checklist gagal dan perlu perhatian manager."
+          checked={prefs.checklistFailedEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("checklistFailedEnabled", checked)}
+        />
+        <PreferenceToggle
+          title="Quiet hours"
+          description="Tahan push/email/SMS selama jam tenang. In-app tetap tersimpan."
+          checked={prefs.quietHoursEnabled}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
+          onChange={(checked) => update("quietHoursEnabled", checked)}
+        />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -221,7 +281,9 @@ export function NotificationPreferencesPanel() {
       </div>
 
       {saved ? (
-        <p className="mt-3 text-xs font-semibold text-emerald-700">{t("notifications.prefs.saved")}</p>
+        <p className="mt-3 text-xs font-semibold text-emerald-700">
+          {t("notifications.prefs.saved")}
+        </p>
       ) : null}
     </section>
   );

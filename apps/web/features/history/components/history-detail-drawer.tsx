@@ -9,16 +9,14 @@ import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import type { ExecutionSessionResponse } from "@/services/execution-session.service";
 import { getExecutionSessions } from "@/services/execution-session.service";
-import { formSubmissionService, type FormSubmissionResponse } from "@/services/form-submission.service";
+import {
+  formSubmissionService,
+  type FormSubmissionResponse,
+} from "@/services/form-submission.service";
 import { formTemplateService } from "@/services/form-template.service";
-import {
-  fetchHistoryNotes,
-  saveHistoryNotes,
-} from "@/services/notification-preferences.service";
+import { fetchHistoryNotes, saveHistoryNotes } from "@/services/notification-preferences.service";
 import { EvidenceGallery } from "@/shared/evidence";
-import {
-  collectSubmissionEvidenceItems,
-} from "@/shared/evidence/submission-evidence";
+import { collectSubmissionEvidenceItems } from "@/shared/evidence/submission-evidence";
 import { TaskPdfExportButton } from "@/features/reports/components/task-pdf-export-button";
 import { isTaskWorkedOn } from "@/features/tasks/utils/task-inbox";
 
@@ -97,7 +95,11 @@ function buildSubmissionResponses(submission: FormSubmissionResponse) {
   );
 }
 
-export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: HistoryDetailDrawerProps) {
+export function HistoryDetailDrawer({
+  selection,
+  onClose,
+  enrichedTasks = [],
+}: HistoryDetailDrawerProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [draftNote, setDraftNote] = useState("");
   const [saved, setSaved] = useState(false);
@@ -160,8 +162,7 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
     saveMutation.mutate(next);
   }
 
-  const fallbackTaskId =
-    selection?.kind === "task" ? Number(selection.task.id) : undefined;
+  const fallbackTaskId = selection?.kind === "task" ? Number(selection.task.id) : undefined;
   const shouldLoadFallbackSession =
     selection?.kind === "task" &&
     !Object.values(selection.task.execution?.formResponses ?? {}).some((value) =>
@@ -175,10 +176,7 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
         taskId: fallbackTaskId!,
         status: "completed",
       }),
-    enabled:
-      shouldLoadFallbackSession &&
-      fallbackTaskId != null &&
-      !Number.isNaN(fallbackTaskId),
+    enabled: shouldLoadFallbackSession && fallbackTaskId != null && !Number.isNaN(fallbackTaskId),
     retry: false,
   });
 
@@ -336,13 +334,12 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     Status report:{" "}
-                    <span className="font-bold capitalize text-slate-900">
-                      {formReviewStatus}
-                    </span>
+                    <span className="font-bold capitalize text-slate-900">{formReviewStatus}</span>
                   </p>
                   {resolvedSelection.submission.reviewed_at ? (
                     <p className="mt-1 text-xs text-slate-400">
-                      Reviewed at {new Date(resolvedSelection.submission.reviewed_at).toLocaleString("id-ID")}
+                      Reviewed at{" "}
+                      {new Date(resolvedSelection.submission.reviewed_at).toLocaleString("id-ID")}
                     </p>
                   ) : null}
                 </div>
@@ -384,9 +381,7 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
                     : "Review failed."}
                 </p>
               ) : reviewMutation.isSuccess ? (
-                <p className="mt-3 text-xs font-semibold text-emerald-700">
-                  Review tersimpan.
-                </p>
+                <p className="mt-3 text-xs font-semibold text-emerald-700">Review tersimpan.</p>
               ) : null}
             </section>
           ) : null}
@@ -407,9 +402,7 @@ export function HistoryDetailDrawer({ selection, onClose, enrichedTasks = [] }: 
               <p className="mb-3 text-sm font-bold text-slate-800">Evidence</p>
               <EvidenceGallery
                 value={evidenceItems.filter(
-                  (item) =>
-                    !item.id.startsWith("form-") &&
-                    !item.id.startsWith("submission-")
+                  (item) => !item.id.startsWith("form-") && !item.id.startsWith("submission-")
                 )}
                 onChange={() => undefined}
                 readOnly

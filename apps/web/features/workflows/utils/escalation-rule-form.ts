@@ -39,7 +39,7 @@ export function escalationRuleToForm(rule: WorkflowEscalationRule): EscalationRu
 
 export function buildEscalationRuleCreatePayload(
   workflowId: UUID,
-  form: EscalationRuleFormState,
+  form: EscalationRuleFormState
 ): WorkflowEscalationRuleCreate {
   return {
     workflow_id: workflowId,
@@ -54,7 +54,7 @@ export function buildEscalationRuleCreatePayload(
 }
 
 export function buildEscalationRuleUpdatePayload(
-  form: EscalationRuleFormState,
+  form: EscalationRuleFormState
 ): WorkflowEscalationRuleUpdate {
   return {
     step_order: Number(form.step_order || 1),

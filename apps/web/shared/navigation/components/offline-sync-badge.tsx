@@ -13,14 +13,8 @@ import { taskService, type BackendTask } from "@/services/task.service";
 export function OfflineSyncBadge() {
   const { t } = useLanguage();
   const toast = useToast();
-  const {
-    isOnline,
-    pendingSyncCount,
-    failedSyncCount,
-    isSyncing,
-    lastSyncErrors,
-    syncNow,
-  } = useOfflineSync();
+  const { isOnline, pendingSyncCount, failedSyncCount, isSyncing, lastSyncErrors, syncNow } =
+    useOfflineSync();
   const [isOpen, setIsOpen] = useState(false);
   const [failedItems, setFailedItems] = useState<QueuedMutation[]>([]);
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
@@ -82,8 +76,14 @@ export function OfflineSyncBadge() {
       { label: "Status", value: task.status },
       { label: "Priority", value: task.priority },
       { label: "Due", value: task.due_date ? new Date(task.due_date).toLocaleString() : "-" },
-      { label: "Completed", value: task.completed_at ? new Date(task.completed_at).toLocaleString() : "-" },
-      { label: "Updated", value: task.updated_at ? new Date(task.updated_at).toLocaleString() : "-" },
+      {
+        label: "Completed",
+        value: task.completed_at ? new Date(task.completed_at).toLocaleString() : "-",
+      },
+      {
+        label: "Updated",
+        value: task.updated_at ? new Date(task.updated_at).toLocaleString() : "-",
+      },
     ];
   }
 
@@ -98,7 +98,10 @@ export function OfflineSyncBadge() {
       { label: "Task ID", value: item.taskId },
       { label: "Answers", value: `${answerCount} fields` },
       { label: "Evidence", value: JSON.stringify(payload).includes("evidence") ? "Included" : "-" },
-      { label: "Last attempt", value: item.lastAttemptAt ? new Date(item.lastAttemptAt).toLocaleString() : "-" },
+      {
+        label: "Last attempt",
+        value: item.lastAttemptAt ? new Date(item.lastAttemptAt).toLocaleString() : "-",
+      },
     ];
   }
 
@@ -176,7 +179,11 @@ export function OfflineSyncBadge() {
         <div className="absolute right-0 z-50 mt-2 w-[min(90vw,360px)] rounded-2xl border border-red-100 bg-white p-3 text-left shadow-xl">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-slate-950">Offline sync errors</p>
-            <button type="button" onClick={() => void syncNow()} className="text-xs font-bold text-emerald-700">
+            <button
+              type="button"
+              onClick={() => void syncNow()}
+              className="text-xs font-bold text-emerald-700"
+            >
               Retry all
             </button>
           </div>
@@ -186,18 +193,31 @@ export function OfflineSyncBadge() {
                 <p className="font-bold text-red-900">{item.label ?? item.type}</p>
                 <p className="mt-1 break-words">{item.error ?? "Sync failed."}</p>
                 <p className="mt-1 text-red-600">
-                  Retry {item.retryCount ?? 0}x {item.lastAttemptAt ? `- ${new Date(item.lastAttemptAt).toLocaleString()}` : ""}
+                  Retry {item.retryCount ?? 0}x{" "}
+                  {item.lastAttemptAt ? `- ${new Date(item.lastAttemptAt).toLocaleString()}` : ""}
                 </p>
                 {item.status === "conflict" ? (
                   <div className="mt-2 space-y-2">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => void compareConflict(item)} className="rounded-lg bg-white px-2 py-1 font-bold text-red-700">
+                      <button
+                        type="button"
+                        onClick={() => void compareConflict(item)}
+                        className="rounded-lg bg-white px-2 py-1 font-bold text-red-700"
+                      >
                         Compare
                       </button>
-                      <button type="button" onClick={() => void retryOfflineCopy(item)} className="rounded-lg bg-emerald-700 px-2 py-1 font-bold text-white">
+                      <button
+                        type="button"
+                        onClick={() => void retryOfflineCopy(item)}
+                        className="rounded-lg bg-emerald-700 px-2 py-1 font-bold text-white"
+                      >
                         Retry offline copy
                       </button>
-                      <button type="button" onClick={() => void discardOfflineCopy(item)} className="rounded-lg bg-slate-900 px-2 py-1 font-bold text-white">
+                      <button
+                        type="button"
+                        onClick={() => void discardOfflineCopy(item)}
+                        className="rounded-lg bg-slate-900 px-2 py-1 font-bold text-white"
+                      >
                         Discard
                       </button>
                     </div>

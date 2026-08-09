@@ -1,8 +1,8 @@
-import React from 'react';
-import { useState } from 'react';
-import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
-import type { Task } from '@/features/tasks/types';
+import React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
+import type { Task } from "@/features/tasks/types";
 
 interface OperationalExceptionPanelProps {
   tasks: Task[];
@@ -38,7 +38,10 @@ export const OperationalExceptionPanel: React.FC<OperationalExceptionPanelProps>
             {overdueTasks.length} overdue, {failedTasks.length} failed checklist
             {criticalTasks.length > 0 ? `, ${criticalTasks.length} critical` : ""}.
           </p>
-          <Link href="/dashboard/tasks?filter=exceptions" className="inline-block mt-3 text-sm font-semibold text-red-700 hover:text-red-800 underline">
+          <Link
+            href="/dashboard/tasks?filter=exceptions"
+            className="inline-block mt-3 text-sm font-semibold text-red-700 hover:text-red-800 underline"
+          >
             Lihat daftar masalah
           </Link>
         </div>

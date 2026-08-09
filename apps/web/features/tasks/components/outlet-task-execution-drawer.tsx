@@ -20,11 +20,18 @@ import { queryKeys } from "@/lib/query/keys";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
 import { listMyTraining } from "@/services/lms.service";
 import { formTemplateService } from "@/services/form-template.service";
-import { hasResolvableBackendFormTemplate, isLocalFormTemplateSource } from "@/services/task.service";
+import {
+  hasResolvableBackendFormTemplate,
+  isLocalFormTemplateSource,
+} from "@/services/task.service";
 import { outletService } from "@/services/outlet.service";
 import { ExecutionHeader } from "@/features/tasks/components/execution-header";
 import { FormProgressBar, useFormProgress } from "@/shared/form-progress";
-import { GeofenceStatusBanner, getCurrentPosition, getDistanceToOutletMeters } from "@/shared/evidence";
+import {
+  GeofenceStatusBanner,
+  getCurrentPosition,
+  getDistanceToOutletMeters,
+} from "@/shared/evidence";
 import { SaveIndicator } from "@/shared/status";
 import { useLanguage } from "@/shared/i18n";
 import { setOutletOverlayOpen } from "@/shared/navigation/outlet-overlay";
@@ -188,7 +195,9 @@ export function OutletTaskExecutionDrawer({
     enabled: Boolean(task && hasResolvableBackendFormTemplate(task)),
   });
   const template = templateQuery.data ?? null;
-  const templateSettings = template ? getTemplateSettings(template.fields) : { require_execution_note: true };
+  const templateSettings = template
+    ? getTemplateSettings(template.fields)
+    : { require_execution_note: true };
   const responsiblePersonField = template ? getResponsiblePersonField(template.fields) : undefined;
   const isLocalOnlyTemplate = isLocalFormTemplateSource(task?.sourceType);
   const hasChecklistPreview = (task?.checklistPreview?.length ?? 0) > 0;
@@ -318,10 +327,7 @@ export function OutletTaskExecutionDrawer({
 
     try {
       setSaveState("saving");
-      await onSubmit(
-        geofenceEnabled ? currentPosition : undefined,
-        template?.fields
-      );
+      await onSubmit(geofenceEnabled ? currentPosition : undefined, template?.fields);
       setLastSavedAt(new Date());
       setSaveState("saved");
     } catch {
@@ -382,7 +388,7 @@ export function OutletTaskExecutionDrawer({
                 </p>
               </div>
 
-                <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 {!isOnline && (
                   <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">
                     <WifiOff className="h-3 w-3" /> Offline
@@ -444,203 +450,208 @@ export function OutletTaskExecutionDrawer({
         </div>
       </header>
 
-        <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-          style={{ paddingBottom: keyboardInset > 0 ? `${keyboardInset}px` : undefined }}
-        >
-          <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_280px] lg:px-8">
-            <div className="min-w-0 space-y-3 sm:space-y-6">
-              {templateQuery.isLoading ? (
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-                  {t("execution.loadingTemplate")}
-                </section>
-              ) : templateQuery.isError ? (
-                <section className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
-                  {hasChecklistPreview
-                    ? t("execution.checklistPreviewFallback", {
-                        count: String(task.checklistFieldCount ?? task.checklistPreview?.length ?? 0),
-                        preview: checklistPreviewText,
-                      })
-                    : t("execution.templateLoadFailed")}
-                </section>
-              ) : template ? (
-                <section>
-                  <SectionedFormRenderer
-                    fields={template.fields}
-                    responses={form.formResponses}
-                    onChange={(formResponses) => {
-                      const nextResponsibleName = responsiblePersonField
-                        ? formResponses[responsiblePersonField.id]?.trim() ?? ""
-                        : form.operatorName;
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        style={{ paddingBottom: keyboardInset > 0 ? `${keyboardInset}px` : undefined }}
+      >
+        <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_280px] lg:px-8">
+          <div className="min-w-0 space-y-3 sm:space-y-6">
+            {templateQuery.isLoading ? (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+                {t("execution.loadingTemplate")}
+              </section>
+            ) : templateQuery.isError ? (
+              <section className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
+                {hasChecklistPreview
+                  ? t("execution.checklistPreviewFallback", {
+                      count: String(task.checklistFieldCount ?? task.checklistPreview?.length ?? 0),
+                      preview: checklistPreviewText,
+                    })
+                  : t("execution.templateLoadFailed")}
+              </section>
+            ) : template ? (
+              <section>
+                <SectionedFormRenderer
+                  fields={template.fields}
+                  responses={form.formResponses}
+                  onChange={(formResponses) => {
+                    const nextResponsibleName = responsiblePersonField
+                      ? (formResponses[responsiblePersonField.id]?.trim() ?? "")
+                      : form.operatorName;
 
-                      updateForm({
-                        ...form,
-                        formResponses,
-                        operatorName: responsiblePersonField ? nextResponsibleName : form.operatorName,
-                      });
-                    }}
-                    highlightedFieldIds={highlightedFieldIds}
+                    updateForm({
+                      ...form,
+                      formResponses,
+                      operatorName: responsiblePersonField
+                        ? nextResponsibleName
+                        : form.operatorName,
+                    });
+                  }}
+                  highlightedFieldIds={highlightedFieldIds}
+                />
+              </section>
+            ) : isLocalOnlyTemplate ? (
+              <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                {t("execution.localTemplateOnly")}
+              </section>
+            ) : task.formTemplateId ? (
+              <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                {hasChecklistPreview
+                  ? t("execution.checklistPreviewFallback", {
+                      count: String(task.checklistFieldCount ?? task.checklistPreview?.length ?? 0),
+                      preview: checklistPreviewText,
+                    })
+                  : t("execution.noTemplate")}
+              </section>
+            ) : (
+              <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                {t("execution.noTemplateAssigned")}
+              </section>
+            )}
+          </div>
+
+          <div className="space-y-3 lg:sticky lg:top-28 lg:self-start">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              {!responsiblePersonField ? (
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">
+                    {t("execution.operatorName")}
+                  </label>
+                  <input
+                    value={form.operatorName}
+                    onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
+                    placeholder={t("execution.operatorPlaceholder")}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
                   />
-                </section>
-              ) : isLocalOnlyTemplate ? (
-                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
-                  {t("execution.localTemplateOnly")}
-                </section>
-              ) : task.formTemplateId ? (
-                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
-                  {hasChecklistPreview
-                    ? t("execution.checklistPreviewFallback", {
-                        count: String(task.checklistFieldCount ?? task.checklistPreview?.length ?? 0),
-                        preview: checklistPreviewText,
-                      })
-                    : t("execution.noTemplate")}
-                </section>
+                </div>
               ) : (
-                <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
-                  {t("execution.noTemplateAssigned")}
-                </section>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                  {t("execution.responsibleHint", {
+                    section: t("execution.responsibleSection"),
+                  })}
+                  {form.operatorName.trim() ? (
+                    <p className="mt-2 font-semibold">{form.operatorName}</p>
+                  ) : null}
+                </div>
               )}
-            </div>
 
-            <div className="space-y-3 lg:sticky lg:top-28 lg:self-start">
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                {!responsiblePersonField ? (
+              {templateSettings.require_execution_note ? (
+                <div className="mt-4">
+                  <label className="text-sm font-bold text-slate-950">
+                    {t("execution.note")}
+                    <span className="ml-1 text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={form.note}
+                    onChange={(event) => updateForm({ ...form, note: event.target.value })}
+                    placeholder={t("execution.notePlaceholder")}
+                    rows={3}
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                  />
+                </div>
+              ) : null}
+
+              <details className="mt-4 rounded-xl bg-slate-50 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {t("execution.moreDetails")}
+                </summary>
+                <div className="mt-3 space-y-3">
                   <div>
                     <label className="text-sm font-semibold text-slate-700">
-                      {t("execution.operatorName")}
+                      {t("execution.position")}
                     </label>
-                    <input
-                      value={form.operatorName}
-                      onChange={(event) => updateForm({ ...form, operatorName: event.target.value })}
-                      placeholder={t("execution.operatorPlaceholder")}
-                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3.5 text-base outline-none transition focus:border-emerald-600"
-                    />
+                    <select
+                      value={form.operatorPosition}
+                      onChange={(event) =>
+                        updateForm({
+                          ...form,
+                          operatorPosition: event.target
+                            .value as TaskExecutionForm["operatorPosition"],
+                        })
+                      }
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                    >
+                      {operatorPositions.map((position) => (
+                        <option key={position} value={position}>
+                          {position}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                    {t("execution.responsibleHint", {
-                      section: t("execution.responsibleSection"),
-                    })}
-                    {form.operatorName.trim() ? (
-                      <p className="mt-2 font-semibold">{form.operatorName}</p>
-                    ) : null}
-                  </div>
-                )}
-
-                {templateSettings.require_execution_note ? (
-                  <div className="mt-4">
-                    <label className="text-sm font-bold text-slate-950">
-                      {t("execution.note")}
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={form.note}
-                      onChange={(event) => updateForm({ ...form, note: event.target.value })}
-                      placeholder={t("execution.notePlaceholder")}
-                      rows={3}
-                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
-                    />
-                  </div>
-                ) : null}
-
-                <details className="mt-4 rounded-xl bg-slate-50 px-3 py-2">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t("execution.moreDetails")}
-                  </summary>
-                  <div className="mt-3 space-y-3">
+                  {!templateSettings.require_execution_note ? (
                     <div>
-                      <label className="text-sm font-semibold text-slate-700">
-                        {t("execution.position")}
+                      <label className="text-sm font-bold text-slate-950">
+                        {t("execution.note")}
+                        <span className="ml-1 font-normal text-slate-500">
+                          {t("execution.noteOptional")}
+                        </span>
                       </label>
-                      <select
-                        value={form.operatorPosition}
-                        onChange={(event) =>
-                          updateForm({
-                            ...form,
-                            operatorPosition: event.target
-                              .value as TaskExecutionForm["operatorPosition"],
-                          })
-                        }
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-600"
-                      >
-                        {operatorPositions.map((position) => (
-                          <option key={position} value={position}>
-                            {position}
-                          </option>
-                        ))}
-                      </select>
+                      <textarea
+                        value={form.note}
+                        onChange={(event) => updateForm({ ...form, note: event.target.value })}
+                        placeholder={t("execution.notePlaceholder")}
+                        rows={3}
+                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
+                      />
                     </div>
-                    {!templateSettings.require_execution_note ? (
-                      <div>
-                        <label className="text-sm font-bold text-slate-950">
-                          {t("execution.note")}
-                          <span className="ml-1 font-normal text-slate-500">
-                            {t("execution.noteOptional")}
-                          </span>
-                        </label>
-                        <textarea
-                          value={form.note}
-                          onChange={(event) => updateForm({ ...form, note: event.target.value })}
-                          placeholder={t("execution.notePlaceholder")}
-                          rows={3}
-                          className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-base outline-none transition focus:border-emerald-600"
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </details>
-              </section>
-            </div>
+                  ) : null}
+                </div>
+              </details>
+            </section>
           </div>
         </div>
+      </div>
 
-        <div
-          className="shrink-0 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 lg:px-8"
-          style={
-            keyboardInset > 0
-              ? { paddingBottom: `calc(${keyboardInset}px + max(0.5rem, env(safe-area-inset-bottom)))` }
-              : undefined
-          }
-        >
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:gap-3">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="min-h-[44px] rounded-xl border border-slate-200 px-2 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
-            >
-              {t("execution.cancel")}
-            </button>
+      <div
+        className="shrink-0 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 lg:px-8"
+        style={
+          keyboardInset > 0
+            ? {
+                paddingBottom: `calc(${keyboardInset}px + max(0.5rem, env(safe-area-inset-bottom)))`,
+              }
+            : undefined
+        }
+      >
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:gap-3">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="min-h-[44px] rounded-xl border border-slate-200 px-2 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
+          >
+            {t("execution.cancel")}
+          </button>
 
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={
-                !(responsiblePersonField
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={
+              !(
+                responsiblePersonField
                   ? getResponsiblePersonValue(template?.fields ?? [], form.formResponses) ||
                     form.operatorName
                   : form.operatorName
-                ).trim() || saveState === "saving"
-              }
-              className="min-h-[44px] rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
-            >
-              {saveState === "saving" ? t("execution.saving") : t("execution.saveDraft")}
-            </button>
+              ).trim() || saveState === "saving"
+            }
+            className="min-h-[44px] rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
+          >
+            {saveState === "saving" ? t("execution.saving") : t("execution.saveDraft")}
+          </button>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saveState === "saving" || trainingBlocked}
-              className="min-h-[44px] rounded-xl bg-emerald-700 px-2 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-base"
-            >
-              {saveState === "saving"
-                ? t("execution.saving")
-                : !isOnline
-                  ? t("execution.submitOffline")
-                  : t("execution.submit")}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saveState === "saving" || trainingBlocked}
+            className="min-h-[44px] rounded-xl bg-emerald-700 px-2 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-base"
+          >
+            {saveState === "saving"
+              ? t("execution.saving")
+              : !isOnline
+                ? t("execution.submitOffline")
+                : t("execution.submit")}
+          </button>
         </div>
-      </div>,
+      </div>
+    </div>,
     document.body
   );
 }

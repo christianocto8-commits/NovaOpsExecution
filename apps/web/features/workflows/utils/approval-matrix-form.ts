@@ -36,7 +36,7 @@ export function approvalMatrixToForm(matrix: WorkflowApprovalMatrix): ApprovalMa
 
 export function buildApprovalMatrixCreatePayload(
   workflowId: UUID,
-  form: ApprovalMatrixFormState,
+  form: ApprovalMatrixFormState
 ): WorkflowApprovalMatrixCreate {
   return {
     workflow_id: workflowId,
@@ -50,7 +50,7 @@ export function buildApprovalMatrixCreatePayload(
 }
 
 export function buildApprovalMatrixUpdatePayload(
-  form: ApprovalMatrixFormState,
+  form: ApprovalMatrixFormState
 ): WorkflowApprovalMatrixUpdate {
   return {
     step_order: Number(form.step_order || 1),

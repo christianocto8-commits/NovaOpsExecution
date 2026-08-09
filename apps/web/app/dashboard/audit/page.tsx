@@ -125,17 +125,23 @@ export default function AuditCenterPage() {
 
       <section className="grid gap-4 md:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Event</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Total Event
+          </p>
           <p className="mt-2 text-2xl font-bold text-slate-950">{query.data?.total ?? 0}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Komentar Task</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Komentar Task
+          </p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {categoryCounts.task_comment ?? 0}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Submit Form</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Submit Form
+          </p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {categoryCounts.form_submission ?? 0}
           </p>
@@ -148,9 +154,7 @@ export default function AuditCenterPage() {
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Security</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {categoryCounts.security ?? 0}
-          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">{categoryCounts.security ?? 0}</p>
         </div>
       </section>
 
@@ -179,9 +183,7 @@ export default function AuditCenterPage() {
 
           <select
             value={categoryFilter}
-            onChange={(event) =>
-              setCategoryFilter(event.target.value as AuditEventCategory | "")
-            }
+            onChange={(event) => setCategoryFilter(event.target.value as AuditEventCategory | "")}
             className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-emerald-600"
           >
             <option value="">Semua tipe event</option>

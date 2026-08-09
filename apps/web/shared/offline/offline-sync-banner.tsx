@@ -120,13 +120,8 @@ export function OfflineSyncIndicator() {
       onClick={isOnline && pendingCount > 0 ? triggerSync : undefined}
       style={{ cursor: isOnline && pendingCount > 0 ? "pointer" : "default" }}
     >
-      <span
-        className="offline-indicator__dot"
-        style={{ backgroundColor: getColor() }}
-      />
-      {pendingCount > 0 && (
-        <span className="offline-indicator__count">{pendingCount}</span>
-      )}
+      <span className="offline-indicator__dot" style={{ backgroundColor: getColor() }} />
+      {pendingCount > 0 && <span className="offline-indicator__count">{pendingCount}</span>}
     </button>
   );
 }

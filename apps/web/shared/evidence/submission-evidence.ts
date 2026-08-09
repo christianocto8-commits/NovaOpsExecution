@@ -7,7 +7,9 @@ import type { EvidenceItem } from "./types";
 import { getPhotoDisplayUrl, parsePhotoFieldValue, parsePhotoFieldValues } from "./photo-value";
 
 function isPhotoUrl(url: string) {
-  return /uploads\/evidence|evidence-uploads|\.(jpg|jpeg|png|webp|heic|heif|mp4|webm|mov)(\?|$)/i.test(url);
+  return /uploads\/evidence|evidence-uploads|\.(jpg|jpeg|png|webp|heic|heif|mp4|webm|mov)(\?|$)/i.test(
+    url
+  );
 }
 
 export function normalizeEvidenceUrl(url: string) {

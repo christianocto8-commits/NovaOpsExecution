@@ -5,10 +5,7 @@ import { CircleAlert, Settings2 } from "lucide-react";
 import { useWorkflowBuilder } from "@/features/workflow-builder/hooks/use-workflow-builder";
 
 export function WorkflowProperties() {
-  const {
-    selectedNode,
-    updateNodeData,
-  } = useWorkflowBuilder();
+  const { selectedNode, updateNodeData } = useWorkflowBuilder();
 
   if (!selectedNode) {
     return (
@@ -22,9 +19,7 @@ export function WorkflowProperties() {
             <Settings2 className="size-4" />
           </div>
 
-          <p className="mt-3 text-sm font-semibold text-slate-800">
-            No node selected
-          </p>
+          <p className="mt-3 text-sm font-semibold text-slate-800">No node selected</p>
 
           <p className="mt-1 text-xs leading-5 text-slate-500">
             Select a node on the canvas to configure its properties.
@@ -42,9 +37,7 @@ export function WorkflowProperties() {
         </p>
 
         <div className="mt-3">
-          <p className="text-sm font-semibold text-slate-950">
-            {selectedNode.data.label}
-          </p>
+          <p className="text-sm font-semibold text-slate-950">{selectedNode.data.label}</p>
 
           <p className="mt-1 text-xs capitalize text-slate-500">
             {selectedNode.data.nodeType} node
@@ -54,10 +47,7 @@ export function WorkflowProperties() {
 
       <div className="space-y-5 p-4">
         <section>
-          <label
-            htmlFor="workflow-node-label"
-            className="text-xs font-semibold text-slate-700"
-          >
+          <label htmlFor="workflow-node-label" className="text-xs font-semibold text-slate-700">
             Name
           </label>
 
@@ -96,9 +86,7 @@ export function WorkflowProperties() {
         </section>
 
         <section>
-          <p className="text-xs font-semibold text-slate-700">
-            Node type
-          </p>
+          <p className="text-xs font-semibold text-slate-700">Node type</p>
 
           <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
             <p className="text-sm font-medium capitalize text-slate-700">
@@ -110,9 +98,7 @@ export function WorkflowProperties() {
         {selectedNode.data.nodeType === "approval" ? (
           <section className="space-y-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
             <div>
-              <p className="text-xs font-semibold text-blue-950">
-                Approval configuration
-              </p>
+              <p className="text-xs font-semibold text-blue-950">Approval configuration</p>
               <p className="mt-1 text-xs leading-5 text-blue-700">
                 Basic approval fields are enabled for canvas testing.
               </p>
@@ -129,21 +115,14 @@ export function WorkflowProperties() {
               <input
                 id="approval-approver-label"
                 type="text"
-                value={
-                  selectedNode.data.approval?.approverLabel ?? ""
-                }
+                value={selectedNode.data.approval?.approverLabel ?? ""}
                 onChange={(event) =>
                   updateNodeData(selectedNode.id, {
                     approval: {
-                      approverType:
-                        selectedNode.data.approval?.approverType ??
-                        "role",
+                      approverType: selectedNode.data.approval?.approverType ?? "role",
                       approverLabel: event.target.value,
-                      approvalMode:
-                        selectedNode.data.approval?.approvalMode ??
-                        "single",
-                      slaHours:
-                        selectedNode.data.approval?.slaHours ?? null,
+                      approvalMode: selectedNode.data.approval?.approvalMode ?? "single",
+                      slaHours: selectedNode.data.approval?.slaHours ?? null,
                     },
                   })
                 }
@@ -152,35 +131,20 @@ export function WorkflowProperties() {
             </div>
 
             <div>
-              <label
-                htmlFor="approval-mode"
-                className="text-xs font-semibold text-slate-700"
-              >
+              <label htmlFor="approval-mode" className="text-xs font-semibold text-slate-700">
                 Approval mode
               </label>
 
               <select
                 id="approval-mode"
-                value={
-                  selectedNode.data.approval?.approvalMode ??
-                  "single"
-                }
+                value={selectedNode.data.approval?.approvalMode ?? "single"}
                 onChange={(event) =>
                   updateNodeData(selectedNode.id, {
                     approval: {
-                      approverType:
-                        selectedNode.data.approval?.approverType ??
-                        "role",
-                      approverLabel:
-                        selectedNode.data.approval?.approverLabel ??
-                        "Outlet Manager",
-                      approvalMode: event.target.value as
-                        | "single"
-                        | "any"
-                        | "all"
-                        | "sequential",
-                      slaHours:
-                        selectedNode.data.approval?.slaHours ?? null,
+                      approverType: selectedNode.data.approval?.approverType ?? "role",
+                      approverLabel: selectedNode.data.approval?.approverLabel ?? "Outlet Manager",
+                      approvalMode: event.target.value as "single" | "any" | "all" | "sequential",
+                      slaHours: selectedNode.data.approval?.slaHours ?? null,
                     },
                   })
                 }
@@ -194,10 +158,7 @@ export function WorkflowProperties() {
             </div>
 
             <div>
-              <label
-                htmlFor="approval-sla"
-                className="text-xs font-semibold text-slate-700"
-              >
+              <label htmlFor="approval-sla" className="text-xs font-semibold text-slate-700">
                 SLA hours
               </label>
 
@@ -205,24 +166,14 @@ export function WorkflowProperties() {
                 id="approval-sla"
                 type="number"
                 min="1"
-                value={
-                  selectedNode.data.approval?.slaHours ?? ""
-                }
+                value={selectedNode.data.approval?.slaHours ?? ""}
                 onChange={(event) =>
                   updateNodeData(selectedNode.id, {
                     approval: {
-                      approverType:
-                        selectedNode.data.approval?.approverType ??
-                        "role",
-                      approverLabel:
-                        selectedNode.data.approval?.approverLabel ??
-                        "Outlet Manager",
-                      approvalMode:
-                        selectedNode.data.approval?.approvalMode ??
-                        "single",
-                      slaHours: event.target.value
-                        ? Number(event.target.value)
-                        : null,
+                      approverType: selectedNode.data.approval?.approverType ?? "role",
+                      approverLabel: selectedNode.data.approval?.approverLabel ?? "Outlet Manager",
+                      approvalMode: selectedNode.data.approval?.approvalMode ?? "single",
+                      slaHours: event.target.value ? Number(event.target.value) : null,
                     },
                   })
                 }
@@ -236,13 +187,10 @@ export function WorkflowProperties() {
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-700" />
 
               <div>
-                <p className="text-xs font-semibold text-amber-900">
-                  Configuration pending
-                </p>
+                <p className="text-xs font-semibold text-amber-900">Configuration pending</p>
 
                 <p className="mt-1 text-xs leading-5 text-amber-800">
-                  Type-specific configuration will be added in Sprint
-                  09G.3.
+                  Type-specific configuration will be added in Sprint 09G.3.
                 </p>
               </div>
             </div>
@@ -250,9 +198,7 @@ export function WorkflowProperties() {
         )}
 
         <section>
-          <p className="text-xs font-semibold text-slate-700">
-            Node ID
-          </p>
+          <p className="text-xs font-semibold text-slate-700">Node ID</p>
 
           <code className="mt-2 block break-all rounded-xl bg-slate-950 px-3 py-2 text-[11px] leading-5 text-slate-200">
             {selectedNode.id}
@@ -262,4 +208,3 @@ export function WorkflowProperties() {
     </aside>
   );
 }
-

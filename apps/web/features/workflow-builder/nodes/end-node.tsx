@@ -10,9 +10,7 @@ export function EndNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
     <div
       className={[
         "min-w-52 rounded-2xl border bg-white px-4 py-3 shadow-sm transition",
-        selected
-          ? "border-slate-700 ring-4 ring-slate-200"
-          : "border-slate-300",
+        selected ? "border-slate-700 ring-4 ring-slate-200" : "border-slate-300",
       ].join(" ")}
     >
       <Handle
@@ -27,19 +25,13 @@ export function EndNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
         </div>
 
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
-            End
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-slate-950">
-            {data.label}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">End</p>
+          <p className="mt-0.5 text-sm font-semibold text-slate-950">{data.label}</p>
         </div>
       </div>
 
       {data.description ? (
-        <p className="mt-3 text-xs leading-5 text-slate-500">
-          {data.description}
-        </p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">{data.description}</p>
       ) : null}
     </div>
   );

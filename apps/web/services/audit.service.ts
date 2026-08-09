@@ -1,6 +1,7 @@
 import { api } from "@/services/api";
 
-export type AuditEventCategory = "task_comment" | "form_submission" | "execution_session" | "security";
+export type AuditEventCategory =
+  "task_comment" | "form_submission" | "execution_session" | "security";
 
 export type AuditEvent = {
   id: string;

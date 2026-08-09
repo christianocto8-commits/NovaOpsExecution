@@ -29,24 +29,37 @@ function run(command, args) {
   }
 }
 
+const mainConfig = join(root, "next.config.ts");
+const mobileConfig = join(root, "next.config.mobile.ts");
+const configBackup = join(root, ".next-config-backup.ts");
+
 // 1. Move API routes aside so the static export build does not choke on them.
 if (existsSync(apiDir)) {
   console.log("Moving app/api aside for static export...");
   renameSync(apiDir, apiBackup);
 }
 
+// 1b. Next 16 loads its config only from next.config.{js,mjs,ts,mts} in the
+// project root; the `-c`/`--config` flag was removed. Swap the mobile export
+// config into place for the build, then restore the original afterwards.
+const swappedConfig = existsSync(mobileConfig) && existsSync(mainConfig);
+if (swappedConfig) {
+  console.log("Swapping next.config.ts with next.config.mobile.ts...");
+  renameSync(mainConfig, configBackup);
+  renameSync(mobileConfig, mainConfig);
+}
+
+// Note: do NOT call process.exit() before the finally block runs, otherwise
+// app/api and next.config.ts would be left in the swapped-out state.
+let buildStatus = 0;
 try {
   console.log("Building static export (output: export)...");
-  const buildEnv = { ...process.env, NEXT_CONFIG_FILE: "next.config.mobile.ts" };
-  const result = spawnSync("npx", ["next", "build", "-c", "next.config.mobile.ts"], {
+  const result = spawnSync("npx", ["next", "build"], {
     stdio: "inherit",
     shell: true,
     cwd: root,
-    env: buildEnv,
   });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  buildStatus = result.status ?? 1;
 } finally {
   // 3. Always restore app/api.
   if (existsSync(apiDir)) {
@@ -59,6 +72,15 @@ try {
     console.error("app/api missing and no backup — restoring from git...");
     spawnSync("git", ["checkout", "--", "app/api"], { stdio: "inherit", shell: true, cwd: root });
   }
+  // 3b. Always restore the original next.config.ts.
+  if (swappedConfig) {
+    console.log("Restoring next.config.ts...");
+    renameSync(mainConfig, mobileConfig);
+    renameSync(configBackup, mainConfig);
+  }
+}
+if (buildStatus !== 0) {
+  process.exit(buildStatus);
 }
 
 // 4. Assemble the Capacitor webDir (out/) from the Next export output.

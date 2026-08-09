@@ -48,7 +48,10 @@ export const outletService = {
     });
   },
 
-  async updateOutlet(outletId: number, payload: { region?: string | null; district?: string | null }) {
+  async updateOutlet(
+    outletId: number,
+    payload: { region?: string | null; district?: string | null }
+  ) {
     return api<LegacyOutlet>(`/api/v1/outlets/${outletId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),

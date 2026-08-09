@@ -81,7 +81,9 @@ test.describe("Zenput parity — Form Builder & Templates", () => {
     await login(page);
   });
 
-  test("form builder shows Zenput category sidebar and no Money Safe Count preset", async ({ page }) => {
+  test("form builder shows Zenput category sidebar and no Money Safe Count preset", async ({
+    page,
+  }) => {
     await page.goto("/dashboard/forms");
     await expect(page.getByRole("heading", { name: /My Form/i })).toBeVisible({ timeout: 20_000 });
 
@@ -122,10 +124,15 @@ test.describe("Zenput parity — Form Builder & Templates", () => {
     await expect(page.getByRole("heading", { name: /My Form/i })).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole("button", { name: /^Opening$/i }).click();
-    await page.getByText(/Opening Checklist/i).first().click();
+    await page
+      .getByText(/Opening Checklist/i)
+      .first()
+      .click();
 
     await page.getByRole("button", { name: /Pratinjau|Preview/i }).click();
-    await expect(page.getByText(/Store unlocked|Equipment pre-check|Opening photo/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/Store unlocked|Equipment pre-check|Opening photo/i).first()
+    ).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -136,19 +143,26 @@ test.describe("Zenput parity — Task execution UI", () => {
     await login(page);
   });
 
-  test("outlet task execution opens sectioned form without separate evidence gallery", async ({ page }) => {
+  test("outlet task execution opens sectioned form without separate evidence gallery", async ({
+    page,
+  }) => {
     const switched = await switchToOutletWorkspace(page);
     test.skip(!switched, "No outlet available for crew execution parity");
 
     await page.goto("/dashboard/tasks");
     await expect(page.getByRole("heading", { name: /Tasks/i })).toBeVisible({ timeout: 20_000 });
 
-    const taskButton = page.locator("button").filter({ hasText: /Checklist|Opening|Closing|Task/i }).first();
+    const taskButton = page
+      .locator("button")
+      .filter({ hasText: /Checklist|Opening|Closing|Task/i })
+      .first();
     test.skip((await taskButton.count()) === 0, "No tasks available for execution parity");
 
     await taskButton.click();
 
-    await expect(page.getByText(/Task Execution|Eksekusi Task/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Task Execution|Eksekusi Task/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(/Evidence Gallery|Galeri Evidence/i)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Submit|Kirim/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Save Draft|Simpan Draft/i })).toBeVisible();
@@ -164,7 +178,10 @@ test.describe("Zenput parity — Task execution UI", () => {
     await page.goto("/dashboard/tasks");
     await expect(page.getByRole("heading", { name: /^Task$/i })).toBeVisible({ timeout: 20_000 });
 
-    const taskButton = page.locator("button").filter({ hasText: /Checklist|Opening|Closing|Task/i }).first();
+    const taskButton = page
+      .locator("button")
+      .filter({ hasText: /Checklist|Opening|Closing|Task/i })
+      .first();
     test.skip((await taskButton.count()) === 0, "No tasks available for admin detail parity");
 
     await taskButton.click();

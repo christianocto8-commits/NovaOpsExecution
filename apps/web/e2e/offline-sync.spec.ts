@@ -98,9 +98,9 @@ test.describe("Offline sync (Fase F)", () => {
       window.dispatchEvent(new Event("novaops-offline-queue-change"));
     });
 
-    await expect(
-      page.locator('button[title="Offline — changes queued locally"]'),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('button[title="Offline — changes queued locally"]')).toBeVisible({
+      timeout: 20_000,
+    });
 
     await context.setOffline(false);
     await page.evaluate(() => {

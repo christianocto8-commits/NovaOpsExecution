@@ -1,7 +1,4 @@
-import type {
-  Edge,
-  Viewport,
-} from "@xyflow/react";
+import type { Edge, Viewport } from "@xyflow/react";
 
 import type {
   WorkflowBuilderDraft,
@@ -33,4 +30,3 @@ export function serializeWorkflowDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-

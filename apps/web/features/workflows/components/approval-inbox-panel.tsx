@@ -71,7 +71,9 @@ export function ApprovalInboxPanel({ compact = false, limit = 5 }: ApprovalInbox
         await mutations.rejectInstance.mutateAsync({ instanceId: instance.id, payload });
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to update workflow instance.");
+      setActionError(
+        error instanceof Error ? error.message : "Unable to update workflow instance."
+      );
     }
   }
 
@@ -141,7 +143,9 @@ export function ApprovalInboxPanel({ compact = false, limit = 5 }: ApprovalInbox
                     <button
                       type="button"
                       onClick={() => void runQuickAction(instance, "approve")}
-                      disabled={mutations.approveInstance.isPending || mutations.rejectInstance.isPending}
+                      disabled={
+                        mutations.approveInstance.isPending || mutations.rejectInstance.isPending
+                      }
                       className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
                     >
                       <CheckCircle2 className="size-3.5" />
@@ -150,7 +154,9 @@ export function ApprovalInboxPanel({ compact = false, limit = 5 }: ApprovalInbox
                     <button
                       type="button"
                       onClick={() => void runQuickAction(instance, "reject")}
-                      disabled={mutations.approveInstance.isPending || mutations.rejectInstance.isPending}
+                      disabled={
+                        mutations.approveInstance.isPending || mutations.rejectInstance.isPending
+                      }
                       className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
                       <XCircle className="size-3.5" />

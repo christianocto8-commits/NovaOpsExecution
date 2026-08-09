@@ -192,9 +192,7 @@ export function SchedulesWorkspace() {
       );
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memproses schedule sekarang."
-      );
+      toast.error(error instanceof Error ? error.message : "Gagal memproses schedule sekarang.");
     },
   });
 
@@ -294,17 +292,13 @@ export function SchedulesWorkspace() {
       });
     }
 
-    const activeSchedules = (schedulesQuery.data ?? []).filter(
-      (schedule) => schedule.is_active
-    );
+    const activeSchedules = (schedulesQuery.data ?? []).filter((schedule) => schedule.is_active);
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const weekdayIndex = (date.getDay() + 6) % 7;
-      const isException = scheduleExceptions.some(
-        (exception) => exception.date === dateKey
-      );
+      const isException = scheduleExceptions.some((exception) => exception.date === dateKey);
 
       const daySchedules = activeSchedules.filter((schedule) => {
         if (schedule.one_time_due_at) {
@@ -407,7 +401,9 @@ export function SchedulesWorkspace() {
                   await toggleMutation.mutateAsync({ scheduleId, isActive: !isActive });
                   toast.success(isActive ? "Schedule dinonaktifkan." : "Schedule diaktifkan.");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Gagal mengubah status schedule.");
+                  toast.error(
+                    error instanceof Error ? error.message : "Gagal mengubah status schedule."
+                  );
                 }
               }}
               className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -487,10 +483,7 @@ export function SchedulesWorkspace() {
       return;
     }
 
-    if (
-      scheduleForm.targetOutletIds?.length === 0 &&
-      !scheduleForm.outletId
-    ) {
+    if (scheduleForm.targetOutletIds?.length === 0 && !scheduleForm.outletId) {
       toast.error("Pilih minimal satu outlet.");
       return;
     }
@@ -542,8 +535,8 @@ export function SchedulesWorkspace() {
 
         {isReadOnly ? (
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Akun Area Manager hanya bisa melihat schedule. Untuk membuat, mengubah, menghapus,
-            atau memproses publish, login sebagai Owner/Admin.
+            Akun Area Manager hanya bisa melihat schedule. Untuk membuat, mengubah, menghapus, atau
+            memproses publish, login sebagai Owner/Admin.
           </div>
         ) : null}
       </section>
@@ -552,11 +545,15 @@ export function SchedulesWorkspace() {
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
           <p className="text-sm font-bold text-amber-950">Schedule conflict warning</p>
           <p className="mt-1 text-sm text-amber-800">
-            Ada outlet yang menerima beberapa task pada jam publish yang sama. Pertimbangkan reschedule agar beban outlet tidak menumpuk.
+            Ada outlet yang menerima beberapa task pada jam publish yang sama. Pertimbangkan
+            reschedule agar beban outlet tidak menumpuk.
           </p>
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {scheduleConflicts.slice(0, 4).map((conflict) => (
-              <div key={conflict.label} className="rounded-2xl border border-amber-200 bg-white p-4">
+              <div
+                key={conflict.label}
+                className="rounded-2xl border border-amber-200 bg-white p-4"
+              >
                 <p className="text-sm font-bold text-amber-950">{conflict.label}</p>
                 <p className="mt-1 text-xs text-amber-800">{conflict.schedules.join(", ")}</p>
               </div>
@@ -568,7 +565,8 @@ export function SchedulesWorkspace() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <p className="text-sm font-bold text-slate-950">Holiday / store closed exceptions</p>
         <p className="mt-1 text-sm text-slate-500">
-          Catat tanggal tutup untuk planning schedule. Preview publish pada tanggal ini akan diberi warning.
+          Catat tanggal tutup untuk planning schedule. Preview publish pada tanggal ini akan diberi
+          warning.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]">
           <input
@@ -621,7 +619,10 @@ export function SchedulesWorkspace() {
         <div className="mt-4 space-y-2">
           {scheduleExceptions.length ? (
             scheduleExceptions.map((exception) => (
-              <div key={exception.id} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div
+                key={exception.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+              >
                 <p className="text-sm font-semibold text-amber-950">
                   {exception.date} - {exception.reason}
                 </p>
@@ -633,7 +634,9 @@ export function SchedulesWorkspace() {
                       await deleteExceptionMutation.mutateAsync(exception.id);
                       toast.success("Exception schedule dihapus.");
                     } catch (error) {
-                      toast.error(error instanceof Error ? error.message : "Gagal menghapus exception.");
+                      toast.error(
+                        error instanceof Error ? error.message : "Gagal menghapus exception."
+                      );
                     }
                   }}
                   className="text-xs font-bold text-amber-800 disabled:cursor-not-allowed disabled:text-amber-400"
@@ -660,7 +663,8 @@ export function SchedulesWorkspace() {
             <div>
               <p className="text-sm font-bold text-slate-950">7-day publish preview</p>
               <p className="mt-1 text-xs text-slate-500">
-                {previewTaskCount} task akan dibuat dari schedule aktif yang sudah punya next publish.
+                {previewTaskCount} task akan dibuat dari schedule aktif yang sudah punya next
+                publish.
               </p>
             </div>
           </div>
@@ -672,7 +676,10 @@ export function SchedulesWorkspace() {
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {upcomingPreview.length ? (
             upcomingPreview.map(({ schedule, outletCount }) => (
-              <div key={schedule.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div
+                key={schedule.id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              >
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
                   {getPreviewDateLabel(schedule.next_publish_at)}
                 </p>
@@ -698,7 +705,8 @@ export function SchedulesWorkspace() {
             <div>
               <p className="text-sm font-bold text-slate-950">Kalender jadwal berulang</p>
               <p className="mt-1 text-xs text-slate-500">
-                Recurring public day per tanggal untuk schedule aktif (harian, mingguan, bulanan, sekali).
+                Recurring public day per tanggal untuk schedule aktif (harian, mingguan, bulanan,
+                sekali).
               </p>
             </div>
           </div>
@@ -729,16 +737,17 @@ export function SchedulesWorkspace() {
 
         <div className="mt-4 grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
           {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="bg-slate-100 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+            <div
+              key={label}
+              className="bg-slate-100 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-500"
+            >
               {label}
             </div>
           ))}
           {calendarGrid.map((cell, index) => (
             <div
               key={`${cell.date || "blank"}-${index}`}
-              className={`min-h-[7rem] bg-white p-2 ${
-                cell.isException ? "bg-amber-50" : ""
-              }`}
+              className={`min-h-[7rem] bg-white p-2 ${cell.isException ? "bg-amber-50" : ""}`}
             >
               {cell.dayNumber ? (
                 <>
@@ -787,12 +796,8 @@ export function SchedulesWorkspace() {
         <EnterpriseDataTable
           columns={columns}
           data={rows}
-          emptyTitle={
-            schedulesQuery.isLoading ? "Loading schedules..." : t("schedules.emptyTitle")
-          }
-          emptyDescription={
-            schedulesQuery.isLoading ? undefined : t("schedules.emptyDescription")
-          }
+          emptyTitle={schedulesQuery.isLoading ? "Loading schedules..." : t("schedules.emptyTitle")}
+          emptyDescription={schedulesQuery.isLoading ? undefined : t("schedules.emptyDescription")}
           searchPlaceholder="Search schedule, outlet, template..."
         />
       </section>

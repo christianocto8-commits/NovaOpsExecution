@@ -101,9 +101,7 @@ export function WorkflowInstanceDrawer({
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-700">Workflow Instance</p>
-              <h2 className="mt-1 text-2xl font-bold text-slate-950">
-                {instance.entity_id}
-              </h2>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">{instance.entity_id}</h2>
               <p className="mt-1 text-sm text-slate-500">
                 {getWorkflowName(workflows, instance.workflow_id)}
               </p>
@@ -128,9 +126,7 @@ export function WorkflowInstanceDrawer({
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
                 Current Step
               </p>
-              <p className="mt-1 font-semibold text-slate-950">
-                {instance.current_step_id ?? "-"}
-              </p>
+              <p className="mt-1 font-semibold text-slate-950">{instance.current_step_id ?? "-"}</p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
@@ -271,7 +267,3 @@ export function WorkflowInstanceDrawer({
     </div>
   );
 }
-
-
-
-

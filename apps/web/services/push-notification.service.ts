@@ -27,7 +27,7 @@ export const pushNotificationService = {
   test() {
     return api<{ message: string; result: Record<string, number> }>(
       "/api/v1/notifications/push/test",
-      { method: "POST" },
+      { method: "POST" }
     );
   },
 
@@ -37,7 +37,7 @@ export const pushNotificationService = {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
+      }
     );
   },
 };

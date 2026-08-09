@@ -21,9 +21,7 @@ export function MoneyDenominationField({
   readOnly = false,
   onChange,
 }: MoneyDenominationFieldProps) {
-  const denominations = getDenominations(
-    field.options as { denominations?: number[] } | undefined
-  );
+  const denominations = getDenominations(field.options as { denominations?: number[] } | undefined);
   const parsed = parseMoneyDenomination(value) ?? {
     counts: Object.fromEntries(denominations.map((denomination) => [String(denomination), 0])),
     total: 0,
@@ -47,7 +45,9 @@ export function MoneyDenominationField({
               key={denomination}
               className="grid grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] items-center gap-2 px-3 py-2.5"
             >
-              <span className="text-sm font-semibold text-slate-800">{formatIdr(denomination)}</span>
+              <span className="text-sm font-semibold text-slate-800">
+                {formatIdr(denomination)}
+              </span>
 
               <input
                 type="number"

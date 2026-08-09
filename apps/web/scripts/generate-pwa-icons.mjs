@@ -11,7 +11,7 @@ function crc32(buffer) {
   for (let i = 0; i < buffer.length; i++) {
     crc ^= buffer[i];
     for (let j = 0; j < 8; j++) {
-      crc = crc & 1 ? (0xedb88320 ^ (crc >>> 1)) : crc >>> 1;
+      crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
     }
   }
   return (crc ^ 0xffffffff) >>> 0;

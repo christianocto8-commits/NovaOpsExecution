@@ -49,9 +49,7 @@ function normalizeReviewStatus(
   return "pending";
 }
 
-function normalizeSubmissionReviewStatus(
-  status?: string
-): ReviewEvidenceItem["reviewStatus"] {
+function normalizeSubmissionReviewStatus(status?: string): ReviewEvidenceItem["reviewStatus"] {
   if (status === "approved" || status === "rejected") return status;
   return "pending";
 }
@@ -177,9 +175,7 @@ function ReviewEvidenceCard({
         <p className="truncate text-xs text-slate-500">
           {item.outlet} · {item.source}
         </p>
-        <p className="text-[11px] text-slate-400">
-          {new Date(item.submittedAt).toLocaleString()}
-        </p>
+        <p className="text-[11px] text-slate-400">{new Date(item.submittedAt).toLocaleString()}</p>
       </div>
     </button>
   );
@@ -242,19 +238,14 @@ export function EvidenceReviewHub({
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "execution" | "form">("all");
   const [outletFilter, setOutletFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "approved" | "rejected" | "pending"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "rejected" | "pending">(
+    "all"
+  );
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const reviewMutation = useMutation({
-    mutationFn: ({
-      taskId,
-      review,
-    }: {
-      taskId: string;
-      review: "approved" | "rejected";
-    }) => taskService.review(taskId, review),
+    mutationFn: ({ taskId, review }: { taskId: string; review: "approved" | "rejected" }) =>
+      taskService.review(taskId, review),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
     },
@@ -337,7 +328,7 @@ export function EvidenceReviewHub({
     [evidenceItems]
   );
 
-  const activeItem = lightboxIndex != null ? filteredItems[lightboxIndex] ?? null : null;
+  const activeItem = lightboxIndex != null ? (filteredItems[lightboxIndex] ?? null) : null;
 
   function openLightbox(index: number) {
     setLightboxIndex(index);
@@ -366,7 +357,8 @@ export function EvidenceReviewHub({
     reviewMutation.mutate({ taskId: item.taskId, review });
   }
 
-  const isReviewing = reviewMutation.isPending || submissionReviewMutation.isPending || reopenMutation.isPending;
+  const isReviewing =
+    reviewMutation.isPending || submissionReviewMutation.isPending || reopenMutation.isPending;
 
   function reopenSubmission(item: ReviewEvidenceItem) {
     if (item.entityType === "submission" && item.submissionId != null) {
@@ -502,7 +494,12 @@ export function EvidenceReviewHub({
       ) : (
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredItems.map((item, index) => (
-            <ReviewEvidenceCard key={item.id} item={item} t={t} onOpen={() => openLightbox(index)} />
+            <ReviewEvidenceCard
+              key={item.id}
+              item={item}
+              t={t}
+              onOpen={() => openLightbox(index)}
+            />
           ))}
         </div>
       )}

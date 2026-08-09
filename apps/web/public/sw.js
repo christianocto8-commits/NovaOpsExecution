@@ -26,9 +26,7 @@ const SHELL_ROUTES = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      cache.addAll(SHELL_ROUTES).catch(() => undefined)
-    )
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ROUTES).catch(() => undefined))
   );
   self.skipWaiting();
 });
@@ -37,13 +35,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== SHELL_CACHE && key !== STATIC_CACHE)
-          .map((key) => caches.delete(key))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== SHELL_CACHE && key !== STATIC_CACHE)
+            .map((key) => caches.delete(key))
+        )
       )
-    )
   );
   self.clients.claim();
 });

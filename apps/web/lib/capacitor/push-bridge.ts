@@ -59,7 +59,11 @@ export async function registerNativePushIfAvailable() {
     });
 
     await PushNotifications.addListener("pushNotificationReceived", (notification) => {
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      if (
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
         const title = notification.title ?? "NovaOps";
         const body = notification.body ?? "";
         new Notification(title, { body });

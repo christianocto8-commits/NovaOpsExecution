@@ -9,9 +9,7 @@ function isLocalHostname(hostname: string) {
 }
 
 function isBrowserLocalDev() {
-  return (
-    typeof window !== "undefined" && isLocalHostname(window.location.hostname)
-  );
+  return typeof window !== "undefined" && isLocalHostname(window.location.hostname);
 }
 
 function isBrowserProduction() {
@@ -24,9 +22,7 @@ function shouldUseRelativeApiMode() {
 
 function configuredApiUrl() {
   return normalizeApiUrl(
-    process.env.NEXT_PUBLIC_API_URL ??
-      process.env.NEXT_PUBLIC_API_BASE_URL ??
-      ""
+    process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
   );
 }
 

@@ -1,12 +1,7 @@
 import type { UUID } from "./workflow";
 
 export type WorkflowInstanceStatus =
-  | "open"
-  | "approved"
-  | "rejected"
-  | "cancelled"
-  | "escalated"
-  | string;
+  "open" | "approved" | "rejected" | "cancelled" | "escalated" | string;
 
 export interface WorkflowInstance {
   id: UUID;

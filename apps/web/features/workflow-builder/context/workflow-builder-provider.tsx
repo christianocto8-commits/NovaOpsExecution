@@ -139,7 +139,9 @@ export function WorkflowBuilderProvider({
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
-  const [hasHydratedDocument, setHasHydratedDocument] = useState(!isPersistedDocumentId(initialDocumentId));
+  const [hasHydratedDocument, setHasHydratedDocument] = useState(
+    !isPersistedDocumentId(initialDocumentId)
+  );
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

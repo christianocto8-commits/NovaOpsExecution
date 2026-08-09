@@ -37,9 +37,7 @@ export function exportToExcel<T extends Record<string, string | number>>(
   const tableRows = rows
     .map(
       (row) =>
-        `<tr>${headers
-          .map((header) => `<td>${escapeHtml(row[header] ?? "")}</td>`)
-          .join("")}</tr>`
+        `<tr>${headers.map((header) => `<td>${escapeHtml(row[header] ?? "")}</td>`).join("")}</tr>`
     )
     .join("");
   const html = `<!doctype html><html><head><meta charset="utf-8" /></head><body><table><caption>${escapeHtml(

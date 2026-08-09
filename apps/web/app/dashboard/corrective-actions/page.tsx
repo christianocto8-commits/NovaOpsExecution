@@ -21,10 +21,7 @@ import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 
 type StatusFilter = "all" | "open" | "in_progress" | "completed";
 
-type Translate = (
-  key: string,
-  values?: Record<string, string | number>
-) => string;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 function getReason(task: Task, t: Translate) {
   if (task.description?.includes("Failed items:")) {
@@ -64,7 +61,10 @@ function getDueLabel(task: Task, t: Translate) {
 
   const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
   if (hoursLeft < 4) {
-    return { label: t("capa.hoursLeft", { hours: Math.max(hoursLeft, 1) }), tone: "urgent" as const };
+    return {
+      label: t("capa.hoursLeft", { hours: Math.max(hoursLeft, 1) }),
+      tone: "urgent" as const,
+    };
   }
   if (hoursLeft >= 24) {
     return { label: t("capa.daysLeft", { days: Math.ceil(hoursLeft / 24) }), tone: "ok" as const };
@@ -119,8 +119,7 @@ export default function CorrectiveActionsPage() {
     return correctiveActions.filter((task) => (task.backendStatus ?? "open") === statusFilter);
   }, [correctiveActions, statusFilter]);
 
-  const selectedTask =
-    correctiveActions.find((task) => task.id === selectedTaskId) ?? null;
+  const selectedTask = correctiveActions.find((task) => task.id === selectedTaskId) ?? null;
 
   const openCount = correctiveActions.filter((task) => task.backendStatus === "open").length;
   const inProgressCount = correctiveActions.filter(
@@ -289,10 +288,7 @@ export default function CorrectiveActionsPage() {
         </ul>
       )}
 
-      <CorrectiveActionDetailDrawer
-        task={selectedTask}
-        onClose={() => setSelectedTaskId(null)}
-      />
+      <CorrectiveActionDetailDrawer task={selectedTask} onClose={() => setSelectedTaskId(null)} />
     </main>
   );
 }

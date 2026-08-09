@@ -182,7 +182,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "more.logout": "Sign out",
     "incidents.outletEyebrow": "Outlet",
     "incidents.outletTitle": "Report Issue",
-    "incidents.outletSubtitle": "Report spills, equipment problems, guest issues, or safety events.",
+    "incidents.outletSubtitle":
+      "Report spills, equipment problems, guest issues, or safety events.",
     "incidents.reportCta": "Report issue",
     "navigation.more": "More",
     "navigation.training": "Training",
@@ -277,7 +278,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "fieldAudits.loading": "Loading audits...",
     "fieldAudits.loadError": "Failed to load field audits.",
     "fieldAudits.emptyTitle": "No field audits yet",
-    "fieldAudits.emptyBody": "Start your first store visit above. Findings that fail will open CAPA.",
+    "fieldAudits.emptyBody":
+      "Start your first store visit above. Findings that fail will open CAPA.",
     "fieldAudits.continue": "Continue",
     "fieldAudits.statusOpen": "Open",
     "fieldAudits.statusInProgress": "In progress",
@@ -769,7 +771,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "operator.todayTitle": "Hari ini",
     "operator.nextUp": "Berikutnya",
     "operator.allCaughtUp": "Semua selesai",
-    "operator.allCaughtUpBody": "Tidak ada task terbuka. Task baru akan muncul di sini saat dipublish.",
+    "operator.allCaughtUpBody":
+      "Tidak ada task terbuka. Task baru akan muncul di sini saat dipublish.",
     "operator.queueTitle": "Antrian Anda",
     "operator.viewAllTasks": "Lihat semua",
     "operator.loadingTasks": "Memuat task...",
@@ -893,8 +896,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.schedules": "Jadwal",
     "fieldAudits.eyebrow": "Kunjungan outlet",
     "fieldAudits.title": "Field Audits",
-    "fieldAudits.subtitle":
-      "Audit outlet dengan checklist. Temuan gagal otomatis membuat CAPA.",
+    "fieldAudits.subtitle": "Audit outlet dengan checklist. Temuan gagal otomatis membuat CAPA.",
     "fieldAudits.startTitle": "Mulai kunjungan",
     "fieldAudits.startBody": "Pilih outlet dan form audit, lalu isi checklist di lokasi.",
     "fieldAudits.outlet": "Outlet",

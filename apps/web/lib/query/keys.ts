@@ -20,8 +20,7 @@ export const queryKeys = {
   },
 
   audit: {
-    events: (filters: Record<string, string | undefined>) =>
-      ["audit", "events", filters] as const,
+    events: (filters: Record<string, string | undefined>) => ["audit", "events", filters] as const,
   },
 
   activity: {
@@ -52,19 +51,15 @@ export const queryKeys = {
 
     instances: () => ["workflow", "instances"] as const,
     instance: (instanceId: string) => ["workflow", "instance", instanceId] as const,
-    instanceSteps: (instanceId: string) =>
-      ["workflow", "instance", instanceId, "steps"] as const,
+    instanceSteps: (instanceId: string) => ["workflow", "instance", instanceId, "steps"] as const,
     instanceHistory: (instanceId: string) =>
       ["workflow", "instance", instanceId, "history"] as const,
 
-    approvalMatrix: (workflowId: string) =>
-      ["workflow", "approval-matrix", workflowId] as const,
+    approvalMatrix: (workflowId: string) => ["workflow", "approval-matrix", workflowId] as const,
 
-    escalationRules: (workflowId: string) =>
-      ["workflow", "escalation-rules", workflowId] as const,
+    escalationRules: (workflowId: string) => ["workflow", "escalation-rules", workflowId] as const,
 
-    notificationTemplates: () =>
-      ["workflow", "notification-templates"] as const,
+    notificationTemplates: () => ["workflow", "notification-templates"] as const,
     notificationInbox: () => ["workflow", "notification-inbox"] as const,
   },
 };

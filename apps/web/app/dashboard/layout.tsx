@@ -106,9 +106,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
           onOpenMobileMenu={isOutletShell ? undefined : () => setMobileSidebarOpen(true)}
         />
 
-        <div className="min-w-0 overflow-x-hidden">
-          {canAccess ? children : <AccessDenied />}
-        </div>
+        <div className="min-w-0 overflow-x-hidden">{canAccess ? children : <AccessDenied />}</div>
       </div>
 
       {isOutletShell ? <OperatorBottomNav /> : null}

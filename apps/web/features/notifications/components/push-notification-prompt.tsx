@@ -32,7 +32,9 @@ export function PushNotificationPrompt({ compact = false }: PushNotificationProm
           menerima notifikasi task. Lihat panduan di{" "}
           <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">deploy/README_VPS.md</code>{" "}
           atau{" "}
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">scripts/vps-setup-ssl.sh</code>
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">
+            scripts/vps-setup-ssl.sh
+          </code>
           .
         </p>
       </div>

@@ -6,10 +6,7 @@ import {
   getPendingMutations,
   updateMutation,
 } from "@/lib/offline/store";
-import {
-  getOfflineEvidenceId,
-  isOfflineEvidenceUrl,
-} from "@/lib/offline/offline-evidence";
+import { getOfflineEvidenceId, isOfflineEvidenceUrl } from "@/lib/offline/offline-evidence";
 import type { QueuedMutation } from "@/lib/offline/types";
 import {
   createExecutionSession,
@@ -98,9 +95,8 @@ async function uploadEvidenceBlob(blob: Blob, fileName: string): Promise<Evidenc
 }
 
 async function resolveOfflineEvidenceUrl(offlineUrl: string): Promise<string> {
-  const { getEvidenceBlob, getEvidenceUrlCache, setEvidenceUrlCache } = await import(
-    "@/lib/offline/store"
-  );
+  const { getEvidenceBlob, getEvidenceUrlCache, setEvidenceUrlCache } =
+    await import("@/lib/offline/store");
 
   const offlineId = getOfflineEvidenceId(offlineUrl);
   const cached = await getEvidenceUrlCache(offlineId);
@@ -164,7 +160,10 @@ async function replaceOfflineUrlsInValue(value: unknown): Promise<unknown> {
 
   if (value && typeof value === "object") {
     const entries = await Promise.all(
-      Object.entries(value).map(async ([key, nestedValue]) => [key, await replaceOfflineUrlsInValue(nestedValue)])
+      Object.entries(value).map(async ([key, nestedValue]) => [
+        key,
+        await replaceOfflineUrlsInValue(nestedValue),
+      ])
     );
 
     return Object.fromEntries(entries);
@@ -259,7 +258,10 @@ async function resolveFormSubmissionAnswers(answers: FormSubmissionCreatePayload
         resolved.answer_text = await resolveOfflineEvidenceUrl(resolved.answer_text);
       }
 
-      if (typeof resolved.evidence_url === "string" && isOfflineEvidenceUrl(resolved.evidence_url)) {
+      if (
+        typeof resolved.evidence_url === "string" &&
+        isOfflineEvidenceUrl(resolved.evidence_url)
+      ) {
         resolved.evidence_url = await resolveOfflineEvidenceUrl(resolved.evidence_url);
       }
 
@@ -282,9 +284,7 @@ async function processFormSubmit(mutation: QueuedMutation) {
     outlet_id: Number(payload.outlet_id),
     status: "submitted",
     responsible_person_name:
-      typeof payload.responsible_person_name === "string"
-        ? payload.responsible_person_name
-        : null,
+      typeof payload.responsible_person_name === "string" ? payload.responsible_person_name : null,
     client_ref: mutation.id,
     answers,
   });
@@ -370,9 +370,7 @@ export async function processMutationQueue(): Promise<SyncQueueResult> {
 
       failed += 1;
       const message =
-        error instanceof Error
-          ? error.message
-          : mutation.error ?? "Sinkronisasi gagal.";
+        error instanceof Error ? error.message : (mutation.error ?? "Sinkronisasi gagal.");
       const label = mutation.label ? `${mutation.label}: ` : "";
       errors.push(`${label}${message}`);
     }

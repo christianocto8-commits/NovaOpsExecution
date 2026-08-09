@@ -108,10 +108,20 @@ function formatResponseValue(value: string | undefined, field?: FormField) {
 
   if (field?.type === "yes_no") {
     const normalized = value.trim().toLowerCase();
-    if (normalized === "yes" || normalized === "ya" || normalized === "true" || normalized === "1") {
+    if (
+      normalized === "yes" ||
+      normalized === "ya" ||
+      normalized === "true" ||
+      normalized === "1"
+    ) {
       return "Ya";
     }
-    if (normalized === "no" || normalized === "tidak" || normalized === "false" || normalized === "0") {
+    if (
+      normalized === "no" ||
+      normalized === "tidak" ||
+      normalized === "false" ||
+      normalized === "0"
+    ) {
       return "Tidak";
     }
     if (normalized === "n/a" || normalized === "na" || normalized === "tidak berlaku") {
@@ -138,12 +148,7 @@ function getExecutionResponses(task: Task) {
 }
 
 function getOperatorName(task: Task) {
-  return (
-    task.execution?.operatorName ??
-    task.executionDraft?.operatorName ??
-    task.assignee ??
-    "-"
-  );
+  return task.execution?.operatorName ?? task.executionDraft?.operatorName ?? task.assignee ?? "-";
 }
 
 function getOperatorPosition(task: Task) {
@@ -266,11 +271,7 @@ function detectImageFormat(dataUrl: string): "JPEG" | "PNG" | "WEBP" {
   return "JPEG";
 }
 
-async function appendEvidencePhotos(
-  doc: jsPDF,
-  task: Task,
-  startY: number
-): Promise<number> {
+async function appendEvidencePhotos(doc: jsPDF, task: Task, startY: number): Promise<number> {
   const photos = getTaskEvidencePhotos(task);
   if (photos.length === 0) return startY;
 
@@ -404,7 +405,8 @@ async function renderTaskWorkReportSection(
     },
   });
 
-  cursorY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
+  cursorY =
+    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
   cursorY += 6;
 
   doc.setFontSize(10);
@@ -430,7 +432,8 @@ async function renderTaskWorkReportSection(
     },
   });
 
-  cursorY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
+  cursorY =
+    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY;
   return appendEvidencePhotos(doc, task, cursorY + 4);
 }
 

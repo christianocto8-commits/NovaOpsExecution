@@ -31,13 +31,11 @@ export function useSaveAction<TInput>({
       const mode = getMode();
 
       return mode === "create"
-        ? successCreateMessage ?? `${createLabel} created successfully.`
-        : successUpdateMessage ?? `${updateLabel} updated successfully.`;
+        ? (successCreateMessage ?? `${createLabel} created successfully.`)
+        : (successUpdateMessage ?? `${updateLabel} updated successfully.`);
     },
     errorMessage: (error) =>
-      error instanceof Error
-        ? error.message
-        : errorMessage ?? "Failed to save record.",
+      error instanceof Error ? error.message : (errorMessage ?? "Failed to save record."),
     onSuccess: (_, input) => onAfterSave?.(input),
   });
 

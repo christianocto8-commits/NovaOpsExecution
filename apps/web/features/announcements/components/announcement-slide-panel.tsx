@@ -162,7 +162,9 @@ function AnnouncementDetailView({
           </span>
         </div>
 
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-700">{announcement.body}</p>
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+          {announcement.body}
+        </p>
 
         <dl className="mt-5 space-y-3 rounded-2xl border border-[#DDE8E1] bg-[#F7FAF8] p-4 text-sm">
           <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2">
@@ -173,7 +175,9 @@ function AnnouncementDetailView({
           </div>
           {announcement.requires_acknowledgment ? (
             <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2">
-              <dt className="font-semibold text-slate-500">{t("announcements.inbox.acknowledgment")}</dt>
+              <dt className="font-semibold text-slate-500">
+                {t("announcements.inbox.acknowledgment")}
+              </dt>
               <dd className="text-slate-800">
                 {announcement.is_acknowledged
                   ? t("announcements.inbox.acknowledged")
@@ -318,9 +322,14 @@ export function AnnouncementSlidePanel({ open, onClose }: AnnouncementSlidePanel
                     <Megaphone className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#274733]">{t("navigation.announcements")}</p>
+                    <p className="text-sm font-bold text-[#274733]">
+                      {t("navigation.announcements")}
+                    </p>
                     <p className="text-xs text-slate-500">
-                      {t("announcements.inbox.total").replace("{count}", String(announcements.length))}
+                      {t("announcements.inbox.total").replace(
+                        "{count}",
+                        String(announcements.length)
+                      )}
                       {unreadCount > 0
                         ? ` · ${t("announcements.inbox.unread").replace("{count}", String(unreadCount))}`
                         : ""}
@@ -392,7 +401,9 @@ export function AnnouncementSlidePanel({ open, onClose }: AnnouncementSlidePanel
                   <p className="mt-3 text-sm font-semibold text-[#274733]">
                     {t("announcements.inbox.empty")}
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">{t("announcements.inbox.emptyHint")}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t("announcements.inbox.emptyHint")}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-5">

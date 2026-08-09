@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 
 import { queryKeys } from "@/lib/query/keys";
-import { activityService, type ActivityAction, type ActivityFeedItem } from "@/services/activity.service";
+import {
+  activityService,
+  type ActivityAction,
+  type ActivityFeedItem,
+} from "@/services/activity.service";
 import { useLanguage } from "@/shared/i18n";
 
 const actionIcons: Record<ActivityAction, { icon: typeof ClipboardCheck; tone: string }> = {
@@ -65,7 +69,9 @@ function ActivityFeedRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className={`font-semibold text-slate-900 ${compact ? "text-sm" : ""}`}>{item.summary}</p>
+          <p className={`font-semibold text-slate-900 ${compact ? "text-sm" : ""}`}>
+            {item.summary}
+          </p>
           <span className="shrink-0 text-xs text-slate-500">
             {formatTimestamp(item.occurred_at, locale)}
           </span>
@@ -112,7 +118,9 @@ export function ActivityFeed({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-[#274733]">{resolvedTitle}</h2>
-          {!compact ? <p className="mt-1 text-xs text-slate-500">{t("activity.subtitle")}</p> : null}
+          {!compact ? (
+            <p className="mt-1 text-xs text-slate-500">{t("activity.subtitle")}</p>
+          ) : null}
         </div>
         <button
           type="button"

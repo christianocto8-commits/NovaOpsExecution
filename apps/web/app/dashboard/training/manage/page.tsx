@@ -62,7 +62,10 @@ export default function TrainingManagePage() {
             title: title.trim(),
             description: description.trim() || undefined,
             content_url: contentUrl.trim() || undefined,
-            required_for_roles: roles.split(",").map((role) => role.trim()).filter(Boolean),
+            required_for_roles: roles
+              .split(",")
+              .map((role) => role.trim())
+              .filter(Boolean),
             duration_minutes: 20,
             expires_days: 365,
             quiz_questions: quizQuestions,
@@ -146,7 +149,10 @@ export default function TrainingManagePage() {
         <h2 className="text-lg font-semibold text-slate-950">{t("training.modulesList")}</h2>
         <div className="mt-4 space-y-3">
           {(modulesQuery.data ?? []).map((module) => (
-            <div key={module.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div
+              key={module.id}
+              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
               <div>
                 <p className="font-semibold text-slate-950">{module.title}</p>
                 <p className="text-xs text-slate-500">

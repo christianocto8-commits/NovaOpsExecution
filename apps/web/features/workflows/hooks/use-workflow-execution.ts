@@ -48,7 +48,7 @@ export function useWorkflowExecution() {
           workflow_name: workflow.name,
         },
         null,
-        2,
+        2
       ),
     });
     setError("");
@@ -92,7 +92,9 @@ export function useWorkflowExecution() {
 
       closeExecution();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create workflow instance.");
+      setError(
+        createError instanceof Error ? createError.message : "Failed to create workflow instance."
+      );
     }
   }
 

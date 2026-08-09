@@ -168,9 +168,7 @@ export function NotificationsWorkspace() {
       const result = await workspace.processPending();
       window.alert(JSON.stringify(result, null, 2));
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : "Failed to process notifications."
-      );
+      window.alert(error instanceof Error ? error.message : "Failed to process notifications.");
     }
   }
 

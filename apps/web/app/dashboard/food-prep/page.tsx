@@ -125,8 +125,7 @@ function FoodPrepPageContent() {
       });
       await refresh();
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Label gagal dibuat."),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Label gagal dibuat."),
   });
   const discardMutation = useMutation({
     mutationFn: discardFoodLabel,
@@ -256,7 +255,9 @@ function FoodPrepPageContent() {
                 <span className="text-sm font-medium text-slate-700">Outlet</span>
                 <select
                   value={form.outlet_id}
-                  onChange={(event) => setForm((current) => ({ ...current, outlet_id: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, outlet_id: event.target.value }))
+                  }
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 >
                   <option value="">Pilih outlet</option>
@@ -272,7 +273,9 @@ function FoodPrepPageContent() {
               <span className="text-sm font-medium text-slate-700">Nama item</span>
               <input
                 value={form.item_name}
-                onChange={(event) => setForm((current) => ({ ...current, item_name: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, item_name: event.target.value }))
+                }
                 placeholder="Chicken Curry Batch"
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
@@ -281,7 +284,9 @@ function FoodPrepPageContent() {
               <span className="text-sm font-medium text-slate-700">Kategori</span>
               <select
                 value={form.category}
-                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, category: event.target.value }))
+                }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               >
                 {CATEGORIES.map((category) => (
@@ -295,7 +300,9 @@ function FoodPrepPageContent() {
               <span className="text-sm font-medium text-slate-700">Batch code</span>
               <input
                 value={form.batch_code ?? ""}
-                onChange={(event) => setForm((current) => ({ ...current, batch_code: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, batch_code: event.target.value }))
+                }
                 placeholder="B-001"
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
@@ -305,7 +312,9 @@ function FoodPrepPageContent() {
                 <span className="text-sm font-medium text-slate-700">Jumlah</span>
                 <input
                   value={form.quantity_text ?? ""}
-                  onChange={(event) => setForm((current) => ({ ...current, quantity_text: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, quantity_text: event.target.value }))
+                  }
                   placeholder="5"
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 />
@@ -314,7 +323,9 @@ function FoodPrepPageContent() {
                 <span className="text-sm font-medium text-slate-700">Satuan</span>
                 <input
                   value={form.unit ?? ""}
-                  onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, unit: event.target.value }))
+                  }
                   placeholder="kg"
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 />
@@ -325,7 +336,9 @@ function FoodPrepPageContent() {
               <input
                 type="datetime-local"
                 value={form.prepared_at}
-                onChange={(event) => setForm((current) => ({ ...current, prepared_at: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, prepared_at: event.target.value }))
+                }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
             </label>
@@ -334,7 +347,9 @@ function FoodPrepPageContent() {
               <input
                 type="datetime-local"
                 value={form.discard_at}
-                onChange={(event) => setForm((current) => ({ ...current, discard_at: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, discard_at: event.target.value }))
+                }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
             </label>
@@ -345,7 +360,10 @@ function FoodPrepPageContent() {
                 min={0}
                 value={form.shelf_hours ?? ""}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, shelf_hours: Number(event.target.value || 0) }))
+                  setForm((current) => ({
+                    ...current,
+                    shelf_hours: Number(event.target.value || 0),
+                  }))
                 }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
@@ -354,7 +372,9 @@ function FoodPrepPageContent() {
               <span className="text-sm font-medium text-slate-700">Catatan</span>
               <textarea
                 value={form.prepared_notes ?? ""}
-                onChange={(event) => setForm((current) => ({ ...current, prepared_notes: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, prepared_notes: event.target.value }))
+                }
                 rows={2}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
               />
@@ -394,14 +414,18 @@ function FoodPrepPageContent() {
                     <h3 className="truncate text-sm font-semibold text-slate-900">
                       {label.item_name}
                     </h3>
-                    <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge(label.status)}`}>
+                    <span
+                      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge(label.status)}`}
+                    >
                       {label.status.replace("_", " ")}
                     </span>
                   </div>
                   <p className="mt-1 truncate text-xs text-slate-500">
                     {label.category.replace("_", " ")}
                     {label.batch_code ? ` · ${label.batch_code}` : ""}
-                    {label.quantity_text ? ` · ${label.quantity_text}${label.unit ? ` ${label.unit}` : ""}` : ""}
+                    {label.quantity_text
+                      ? ` · ${label.quantity_text}${label.unit ? ` ${label.unit}` : ""}`
+                      : ""}
                   </p>
                 </div>
                 {canExecute ? (

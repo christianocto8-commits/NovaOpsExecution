@@ -59,7 +59,11 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
 
       <div className="flex flex-col gap-3 pr-8 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          {pwa.isIos ? <Share className="mt-0.5 size-4 shrink-0" /> : <Download className="mt-0.5 size-4 shrink-0" />}
+          {pwa.isIos ? (
+            <Share className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <Download className="mt-0.5 size-4 shrink-0" />
+          )}
           <div>
             <p className="font-semibold">{t("pwa.title")}</p>
             <p className="mt-1 text-emerald-800/90">

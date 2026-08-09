@@ -41,7 +41,9 @@ function parseChecklist(value: unknown): ChecklistScore | null {
   const payload = value as Record<string, unknown>;
   const failedItems = Array.isArray(payload.failed_items)
     ? payload.failed_items
-        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+        .filter(
+          (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+        )
         .map((item) => ({
           field_id: Number(item.field_id),
           label: typeof item.label === "string" ? item.label : "Unknown field",
@@ -68,7 +70,9 @@ function parseChecklist(value: unknown): ChecklistScore | null {
     failed_items: failedItems,
     critical_failures: Array.isArray(payload.critical_failures)
       ? payload.critical_failures
-          .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+          .filter(
+            (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"
+          )
           .map((item) => ({
             field_id: Number(item.field_id),
             label: typeof item.label === "string" ? item.label : "Unknown field",
@@ -305,7 +309,9 @@ export function FieldAuditsWorkspace() {
             <ClipboardList className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-slate-950">{t("fieldAudits.startTitle")}</h2>
+            <h2 className="text-base font-semibold text-slate-950">
+              {t("fieldAudits.startTitle")}
+            </h2>
             <p className="mt-0.5 text-sm text-slate-500">{t("fieldAudits.startBody")}</p>
           </div>
         </div>
@@ -331,7 +337,9 @@ export function FieldAuditsWorkspace() {
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">{t("fieldAudits.template")}</span>
+            <span className="mb-1 block font-medium text-slate-700">
+              {t("fieldAudits.template")}
+            </span>
             <select
               value={resolvedTemplateId}
               onChange={(event) => setTemplateId(event.target.value)}
@@ -353,7 +361,10 @@ export function FieldAuditsWorkspace() {
         <button
           type="button"
           disabled={
-            startMutation.isPending || !resolvedOutletId || !resolvedTemplateId || outlets.length === 0
+            startMutation.isPending ||
+            !resolvedOutletId ||
+            !resolvedTemplateId ||
+            outlets.length === 0
           }
           onClick={() => startMutation.mutate()}
           className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"

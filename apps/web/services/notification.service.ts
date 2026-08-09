@@ -39,7 +39,7 @@ export const notificationService = {
 
   listWorkflowTemplates(workflowId: UUID) {
     return api<WorkflowNotificationTemplate[]>(
-      `/api/v1/workflow-notifications/templates?workflow_id=${workflowId}`,
+      `/api/v1/workflow-notifications/templates?workflow_id=${workflowId}`
     );
   },
 
@@ -50,24 +50,20 @@ export const notificationService = {
     });
   },
 
-  updateWorkflowTemplate(
-    templateId: UUID,
-    payload: WorkflowNotificationTemplateUpdate,
-  ) {
+  updateWorkflowTemplate(templateId: UUID, payload: WorkflowNotificationTemplateUpdate) {
     return api<WorkflowNotificationTemplate>(
       `/api/v1/workflow-notifications/templates/${templateId}`,
       {
         method: "PUT",
         body: JSON.stringify(payload),
-      },
+      }
     );
   },
 
   removeWorkflowTemplate(templateId: UUID) {
-    return api<{ message: string }>(
-      `/api/v1/workflow-notifications/templates/${templateId}`,
-      { method: "DELETE" },
-    );
+    return api<{ message: string }>(`/api/v1/workflow-notifications/templates/${templateId}`, {
+      method: "DELETE",
+    });
   },
 
   createEvent(payload: NotificationEventCreate) {
@@ -89,7 +85,7 @@ export const notificationService = {
     return api<{ message: string }>("/api/v1/notifications/me/mark-read", {
       method: "POST",
       body: JSON.stringify(
-        deliveryIds && deliveryIds.length > 0 ? { delivery_ids: deliveryIds } : {},
+        deliveryIds && deliveryIds.length > 0 ? { delivery_ids: deliveryIds } : {}
       ),
     });
   },

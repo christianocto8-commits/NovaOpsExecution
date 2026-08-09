@@ -100,8 +100,12 @@ export function AnnouncementInboxPanel() {
                     setExpandedId(expanded ? null : item.id);
                     if (unread) {
                       void announcementService.markRead(item.id).then(() => {
-                        queryClient.invalidateQueries({ queryKey: queryKeys.announcements.active() });
-                        queryClient.invalidateQueries({ queryKey: queryKeys.announcements.unreadCount() });
+                        queryClient.invalidateQueries({
+                          queryKey: queryKeys.announcements.active(),
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: queryKeys.announcements.unreadCount(),
+                        });
                       });
                     }
                   }}

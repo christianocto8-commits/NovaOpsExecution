@@ -67,7 +67,10 @@ export function GeofenceStatusBanner({
   const effectiveRadius = Math.max(25, radiusMeters);
   const inRadius = distanceMeters <= effectiveRadius;
   const showMapPreview =
-    outletLat != null && outletLon != null && Number.isFinite(outletLat) && Number.isFinite(outletLon);
+    outletLat != null &&
+    outletLon != null &&
+    Number.isFinite(outletLat) &&
+    Number.isFinite(outletLon);
 
   return (
     <div

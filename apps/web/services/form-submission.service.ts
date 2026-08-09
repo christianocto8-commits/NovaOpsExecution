@@ -58,8 +58,7 @@ function buildAnswers(fields: FormField[], responses: TaskFormResponses) {
         const normalized = raw.toLowerCase();
         return {
           form_field_id: fieldId,
-          answer_boolean:
-            normalized === "yes" || normalized === "true" || normalized === "1",
+          answer_boolean: normalized === "yes" || normalized === "true" || normalized === "1",
         };
       }
 
@@ -145,9 +144,7 @@ export const formSubmissionService = {
 
     const query = searchParams.toString();
 
-    return api<FormSubmissionResponse[]>(
-      `/api/v1/form-submissions${query ? `?${query}` : ""}`
-    );
+    return api<FormSubmissionResponse[]>(`/api/v1/form-submissions${query ? `?${query}` : ""}`);
   },
 
   async create(payload: FormSubmissionCreatePayload) {

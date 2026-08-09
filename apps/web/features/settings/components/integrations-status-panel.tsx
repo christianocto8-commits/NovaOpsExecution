@@ -134,9 +134,7 @@ export function IntegrationsStatusPanel() {
                 <StatusPill
                   ok={status.webhooks.enabled}
                   label={
-                    status.webhooks.enabled
-                      ? t("integrations.enabled")
-                      : t("integrations.disabled")
+                    status.webhooks.enabled ? t("integrations.enabled") : t("integrations.disabled")
                   }
                 />
               }
@@ -144,7 +142,10 @@ export function IntegrationsStatusPanel() {
             <Row
               label="Video evidence"
               pill={
-                <StatusPill ok={status.video_evidence.enabled} label={t("integrations.configured")} />
+                <StatusPill
+                  ok={status.video_evidence.enabled}
+                  label={t("integrations.configured")}
+                />
               }
             />
             <Row
@@ -200,7 +201,9 @@ export function IntegrationsStatusPanel() {
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
           >
             <Zap className="size-4" />
-            {testMutation.isPending ? t("integrations.testingWebhook") : t("integrations.testWebhook")}
+            {testMutation.isPending
+              ? t("integrations.testingWebhook")
+              : t("integrations.testWebhook")}
           </button>
         ) : null}
         <button
@@ -252,7 +255,9 @@ export function IntegrationsStatusPanel() {
       ) : null}
 
       {smsTestMutation.data ? (
-        <p className="mt-3 text-xs font-semibold text-emerald-700">{smsTestMutation.data.message}</p>
+        <p className="mt-3 text-xs font-semibold text-emerald-700">
+          {smsTestMutation.data.message}
+        </p>
       ) : null}
 
       <p className="mt-4 text-xs leading-5 text-slate-500">{t("integrations.setupHint")}</p>
@@ -261,10 +266,7 @@ export function IntegrationsStatusPanel() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <SetupChecklistCard
             title={t("integrations.ssoChecklistTitle")}
-            steps={[
-              ...(status.oidc_sso.setup_steps ?? []),
-              ...(status.saml_sso.setup_steps ?? []),
-            ]}
+            steps={[...(status.oidc_sso.setup_steps ?? []), ...(status.saml_sso.setup_steps ?? [])]}
             configured={status.oidc_sso.configured || status.saml_sso.configured}
           />
           <SetupChecklistCard
@@ -349,9 +351,7 @@ function SetupWizardCard({
 }) {
   return (
     <article className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-        Step {step}
-      </p>
+      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Step {step}</p>
       <h4 className="mt-2 text-sm font-bold text-slate-950">{title}</h4>
       <p className="mt-2 text-xs leading-5 text-slate-600">{description}</p>
       <Link

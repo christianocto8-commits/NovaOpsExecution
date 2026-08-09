@@ -101,7 +101,9 @@ export function LabelPrintModal({ label, onClose }: LabelPrintModalProps) {
             </span>
             <div>
               <h2 className="text-base font-semibold text-slate-900">Cetak Label</h2>
-              <p className="text-xs text-slate-500">{label.itemName} · {label.batchCode ?? "tanpa batch"}</p>
+              <p className="text-xs text-slate-500">
+                {label.itemName} · {label.batchCode ?? "tanpa batch"}
+              </p>
             </div>
           </div>
           <button
@@ -124,14 +126,18 @@ export function LabelPrintModal({ label, onClose }: LabelPrintModalProps) {
               <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-700">
                 <p className="text-xs font-semibold uppercase text-slate-500">Pratinjau label</p>
                 <div className="mt-2 rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs leading-relaxed">
-                  <div className="text-center font-bold">{label.outletName ?? "NOVAOPS OUTLET"}</div>
+                  <div className="text-center font-bold">
+                    {label.outletName ?? "NOVAOPS OUTLET"}
+                  </div>
                   <div className="text-center text-sm font-bold">FOOD PREP</div>
                   <div className="text-center font-bold">
                     DISCARD BY
                     <br />
                     {printableDate(label.discardAt)}
                   </div>
-                  <div className="text-center text-sm font-bold">{label.itemName.toUpperCase()}</div>
+                  <div className="text-center text-sm font-bold">
+                    {label.itemName.toUpperCase()}
+                  </div>
                   {label.quantityText ? <div>JUMLAH: {label.quantityText}</div> : null}
                   <div>KATEGORI: {label.category}</div>
                   <div>DIBUAT: {printableDate(label.preparedAt)}</div>
@@ -169,7 +175,11 @@ export function LabelPrintModal({ label, onClose }: LabelPrintModalProps) {
                   disabled={isScanning}
                   className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
-                  {isScanning ? <Loader2 className="size-4 animate-spin" /> : <Bluetooth className="size-4" />}
+                  {isScanning ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Bluetooth className="size-4" />
+                  )}
                   {isScanning ? "Scanning..." : "Scan printer"}
                 </button>
               </div>
@@ -185,7 +195,9 @@ export function LabelPrintModal({ label, onClose }: LabelPrintModalProps) {
                         className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-left hover:bg-slate-50 disabled:opacity-60"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-800">{device.name}</p>
+                          <p className="truncate text-sm font-semibold text-slate-800">
+                            {device.name}
+                          </p>
                           <p className="text-xs text-slate-500">{device.address}</p>
                         </div>
                         {connectingAddress === device.address ? (
@@ -217,7 +229,11 @@ export function LabelPrintModal({ label, onClose }: LabelPrintModalProps) {
             disabled={isPrinting || (nativeSupported && !connectedAddress)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPrinting ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+            {isPrinting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Printer className="size-4" />
+            )}
             {isPrinting ? "Mencetak..." : "Cetak label"}
           </button>
         </div>

@@ -30,9 +30,7 @@ export default function WebhooksPage() {
   const [secret, setSecret] = useState(generateSecret);
   const [description, setDescription] = useState("");
   const [outletId, setOutletId] = useState("");
-  const [selectedEvents, setSelectedEvents] = useState<WebhookEventType[]>([
-    "task.completed",
-  ]);
+  const [selectedEvents, setSelectedEvents] = useState<WebhookEventType[]>(["task.completed"]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<"all" | "delivered" | "failed">("all");
@@ -89,8 +87,7 @@ export default function WebhooksPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
-      updateWebhook(id, { active }),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => updateWebhook(id, { active }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
     },
@@ -189,8 +186,8 @@ export default function WebhooksPage() {
         <p className="text-sm font-medium text-emerald-700">Integrations</p>
         <h1 className="text-2xl font-semibold text-slate-950">Webhook Subscriptions</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Owner/admin dapat mendaftarkan endpoint HTTP untuk menerima event operasional dengan
-          tanda tangan HMAC.
+          Owner/admin dapat mendaftarkan endpoint HTTP untuk menerima event operasional dengan tanda
+          tangan HMAC.
         </p>
       </div>
 
@@ -207,7 +204,10 @@ export default function WebhooksPage() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {eventSummary.map((item) => (
-          <div key={item.value} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div
+            key={item.value}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
             <p className="text-sm text-slate-500">{item.label}</p>
             <p className="mt-2 text-3xl font-semibold text-slate-950">{item.count}</p>
           </div>
@@ -230,10 +230,7 @@ export default function WebhooksPage() {
             </EnterpriseField>
 
             <EnterpriseField label="Signing secret">
-              <EnterpriseInput
-                value={secret}
-                onChange={(event) => setSecret(event.target.value)}
-              />
+              <EnterpriseInput value={secret} onChange={(event) => setSecret(event.target.value)} />
             </EnterpriseField>
 
             <EnterpriseField label="Outlet ID (optional)">
@@ -284,7 +281,10 @@ export default function WebhooksPage() {
               <p className="text-sm text-slate-500">Loading webhooks...</p>
             ) : webhooks.length ? (
               webhooks.map((webhook: WebhookSubscription) => (
-                <div key={webhook.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div
+                  key={webhook.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                     <div>
                       <p className="font-semibold text-slate-950">{webhook.url}</p>

@@ -21,10 +21,7 @@ import {
   updateIdentityOutletOperator,
 } from "@/services/identity.service";
 
-import {
-  emptyOperatorForm,
-  emptyOutletForm,
-} from "../data/outlets-data";
+import { emptyOperatorForm, emptyOutletForm } from "../data/outlets-data";
 import { OperatorFormState, Outlet, OutletFormState, OutletOperator, OutletStatus } from "../types";
 
 function toUiStatus(status: string): OutletStatus {
@@ -56,10 +53,7 @@ function formatLastAudit(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
-function mapIdentityOutlet(
-  outlet: IdentityOutlet,
-  metrics?: IdentityOutletMetrics
-): Outlet {
+function mapIdentityOutlet(outlet: IdentityOutlet, metrics?: IdentityOutletMetrics): Outlet {
   return {
     id: outlet.id,
     code: outlet.code,
@@ -75,14 +69,12 @@ function mapIdentityOutlet(
 }
 
 function makeOutletCode(value: string) {
-  return (
-    value
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40)
-  );
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
 }
 
 export function useOutletsWorkspace() {
@@ -126,15 +118,10 @@ export function useOutletsWorkspace() {
 
   const outlets = useMemo(
     () =>
-      identityOutlets.map((outlet) =>
-        mapIdentityOutlet(outlet, metricsByOutletId.get(outlet.id))
-      ),
+      identityOutlets.map((outlet) => mapIdentityOutlet(outlet, metricsByOutletId.get(outlet.id))),
     [identityOutlets, metricsByOutletId]
   );
-  const operators = useMemo(
-    () => identityOperators.map(mapIdentityOperator),
-    [identityOperators]
-  );
+  const operators = useMemo(() => identityOperators.map(mapIdentityOperator), [identityOperators]);
 
   const metrics = useMemo(() => {
     return {
@@ -162,8 +149,13 @@ export function useOutletsWorkspace() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ outletId, payload }: { outletId: string; payload: Parameters<typeof updateIdentityOutlet>[1] }) =>
-      updateIdentityOutlet(outletId, payload),
+    mutationFn: ({
+      outletId,
+      payload,
+    }: {
+      outletId: string;
+      payload: Parameters<typeof updateIdentityOutlet>[1];
+    }) => updateIdentityOutlet(outletId, payload),
     onSuccess: invalidateOutlets,
   });
 
@@ -269,7 +261,9 @@ export function useOutletsWorkspace() {
         });
       }
 
-      toast.success(editingOutletId ? "Outlet updated successfully." : "Outlet created successfully.");
+      toast.success(
+        editingOutletId ? "Outlet updated successfully." : "Outlet created successfully."
+      );
 
       setOutletForm(emptyOutletForm);
       setEditingOutletId(null);
@@ -371,17 +365,14 @@ export function useOutletsWorkspace() {
       }
 
       toast.success(
-        editingOperatorId
-          ? "Operator updated successfully."
-          : "Operator created successfully."
+        editingOperatorId ? "Operator updated successfully." : "Operator created successfully."
       );
 
       setOperatorForm(emptyOperatorForm);
       setEditingOperatorId(null);
       setOperatorModalOpen(false);
     } catch (nextError) {
-      const message =
-        nextError instanceof Error ? nextError.message : "Failed to save operator";
+      const message = nextError instanceof Error ? nextError.message : "Failed to save operator";
       setError(message);
       toast.error(message);
     }
@@ -434,9 +425,3 @@ export function useOutletsWorkspace() {
     deleteOperator,
   };
 }
-
-
-
-
-
-

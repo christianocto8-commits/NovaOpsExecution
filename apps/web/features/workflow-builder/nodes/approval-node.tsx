@@ -1,16 +1,7 @@
 ﻿"use client";
 
-import {
-  CheckCircle2,
-  Clock3,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import {
-  Handle,
-  Position,
-  type NodeProps,
-} from "@xyflow/react";
+import { CheckCircle2, Clock3, ShieldCheck, Users } from "lucide-react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import type { WorkflowBuilderNode } from "@/features/workflow-builder/types/builder";
 
@@ -21,10 +12,7 @@ const approvalModeLabel = {
   sequential: "Sequential",
 };
 
-export function ApprovalNode({
-  data,
-  selected,
-}: NodeProps<WorkflowBuilderNode>) {
+export function ApprovalNode({ data, selected }: NodeProps<WorkflowBuilderNode>) {
   const configuration = data.approval ?? {
     approverType: "role" as const,
     approverLabel: "Approval role not configured",
@@ -36,9 +24,7 @@ export function ApprovalNode({
     <div
       className={[
         "w-64 rounded-2xl border bg-white shadow-sm transition",
-        selected
-          ? "border-blue-600 ring-4 ring-blue-100"
-          : "border-blue-200",
+        selected ? "border-blue-600 ring-4 ring-blue-100" : "border-blue-200",
       ].join(" ")}
     >
       <Handle
@@ -58,9 +44,7 @@ export function ApprovalNode({
               Approval
             </p>
 
-            <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
-              {data.label}
-            </p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">{data.label}</p>
           </div>
         </div>
 
@@ -71,9 +55,7 @@ export function ApprovalNode({
 
       <div className="space-y-3 px-4 py-3">
         {data.description ? (
-          <p className="text-xs leading-5 text-slate-500">
-            {data.description}
-          </p>
+          <p className="text-xs leading-5 text-slate-500">{data.description}</p>
         ) : null}
 
         <div className="rounded-xl bg-slate-50 p-3">
@@ -100,9 +82,7 @@ export function ApprovalNode({
 
           <span className="inline-flex items-center gap-1.5 text-slate-600">
             <Clock3 className="size-3.5 text-amber-600" />
-            {configuration.slaHours
-              ? `${configuration.slaHours}h SLA`
-              : "No SLA"}
+            {configuration.slaHours ? `${configuration.slaHours}h SLA` : "No SLA"}
           </span>
         </div>
       </div>

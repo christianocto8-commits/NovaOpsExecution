@@ -153,7 +153,12 @@ function HaccpPageContent() {
   }
 
   const cards = [
-    { label: "Total checks", value: summary?.total ?? 0, tone: "text-slate-700", icon: Thermometer },
+    {
+      label: "Total checks",
+      value: summary?.total ?? 0,
+      tone: "text-slate-700",
+      icon: Thermometer,
+    },
     { label: "Passed", value: summary?.passed ?? 0, tone: "text-emerald-700", icon: CheckCircle2 },
     { label: "Failed", value: summary?.failed ?? 0, tone: "text-red-700", icon: CircleAlert },
     {
@@ -241,7 +246,9 @@ function HaccpPageContent() {
                 <span className="text-sm font-medium text-slate-700">Outlet</span>
                 <select
                   value={form.outlet_id}
-                  onChange={(event) => setForm((current) => ({ ...current, outlet_id: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, outlet_id: event.target.value }))
+                  }
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 >
                   <option value="">Pilih outlet</option>
@@ -257,7 +264,9 @@ function HaccpPageContent() {
               <span className="text-sm font-medium text-slate-700">CCP</span>
               <select
                 value={form.ccp_name}
-                onChange={(event) => setForm((current) => ({ ...current, ccp_name: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, ccp_name: event.target.value }))
+                }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               >
                 <option value="">Pilih CCP</option>
@@ -272,7 +281,9 @@ function HaccpPageContent() {
               <span className="text-sm font-medium text-slate-700">Nama item</span>
               <input
                 value={form.item_name ?? ""}
-                onChange={(event) => setForm((current) => ({ ...current, item_name: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, item_name: event.target.value }))
+                }
                 placeholder="Beef patties"
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
@@ -285,7 +296,10 @@ function HaccpPageContent() {
                   step="any"
                   value={form.reading_value}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, reading_value: Number(event.target.value || 0) }))
+                    setForm((current) => ({
+                      ...current,
+                      reading_value: Number(event.target.value || 0),
+                    }))
                   }
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 />
@@ -294,7 +308,9 @@ function HaccpPageContent() {
                 <span className="text-sm font-medium text-slate-700">Satuan</span>
                 <input
                   value={form.unit ?? ""}
-                  onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, unit: event.target.value }))
+                  }
                   className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                 />
               </label>
@@ -304,7 +320,9 @@ function HaccpPageContent() {
               <input
                 type="datetime-local"
                 value={form.recorded_at ?? localDateTimeValue()}
-                onChange={(event) => setForm((current) => ({ ...current, recorded_at: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, recorded_at: event.target.value }))
+                }
                 className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
               />
             </label>
@@ -367,9 +385,7 @@ function HaccpPageContent() {
                     </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        entry.passed
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
+                        entry.passed ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                       }`}
                     >
                       {entry.passed ? "Passed" : "Failed"}
@@ -380,9 +396,8 @@ function HaccpPageContent() {
                     {entry.item_name ?? "—"}
                     {entry.target_min != null || entry.target_max != null ? (
                       <span className="ml-1 text-slate-400">
-                        (range{" "}
-                        {entry.target_min != null ? `${entry.target_min}${entry.unit}` : "—"}–
-                        {entry.target_max != null ? `${entry.target_max}${entry.unit}` : "∞"})
+                        (range {entry.target_min != null ? `${entry.target_min}${entry.unit}` : "—"}
+                        –{entry.target_max != null ? `${entry.target_max}${entry.unit}` : "∞"})
                       </span>
                     ) : null}
                   </p>
@@ -422,7 +437,9 @@ function HaccpPageContent() {
                 </p>
               ) : null}
               {entry.verification_notes ? (
-                <p className="mt-1 text-xs text-slate-500">Verifikasi: {entry.verification_notes}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Verifikasi: {entry.verification_notes}
+                </p>
               ) : null}
             </div>
           ))

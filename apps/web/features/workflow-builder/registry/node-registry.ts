@@ -1,7 +1,6 @@
 ﻿import type { WorkflowBuilderNodeType } from "@/features/workflow-builder/types/builder";
 
-export const WORKFLOW_NODE_DRAG_TYPE =
-  "application/x-novaops-workflow-node";
+export const WORKFLOW_NODE_DRAG_TYPE = "application/x-novaops-workflow-node";
 
 export type WorkflowNodeRegistryItem = {
   type: WorkflowBuilderNodeType;

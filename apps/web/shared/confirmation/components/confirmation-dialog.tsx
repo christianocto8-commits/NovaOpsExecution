@@ -2,11 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 
-import {
-  getConfirmationSnapshot,
-  resolveConfirmation,
-  subscribeConfirmation,
-} from "../store";
+import { getConfirmationSnapshot, resolveConfirmation, subscribeConfirmation } from "../store";
 import { ConfirmationVariant } from "../types";
 
 const variantStyles: Record<
@@ -76,9 +72,7 @@ export function ConfirmationDialog() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-slate-950">
-              {request.title}
-            </h2>
+            <h2 className="text-lg font-semibold text-slate-950">{request.title}</h2>
 
             {request.description ? (
               <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
@@ -105,8 +99,8 @@ export function ConfirmationDialog() {
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${style.buttonClassName}`}
           >
             {isLoading
-              ? request.loadingText ?? "Processing..."
-              : request.confirmText ?? "Confirm"}
+              ? (request.loadingText ?? "Processing...")
+              : (request.confirmText ?? "Confirm")}
           </button>
         </div>
       </div>

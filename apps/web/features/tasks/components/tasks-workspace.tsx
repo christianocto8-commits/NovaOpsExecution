@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CheckSquare, ChevronDown, ChevronUp, Lock, Search, Square, Trash2, UserPlus } from "lucide-react";
+import {
+  CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  Search,
+  Square,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -13,7 +22,8 @@ import { TaskTable } from "@/features/tasks/components/task-table";
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { isCapaEnabled } from "@/features/settings/utils/capa-settings";
-import { ChecklistSubmitResultModal,
+import {
+  ChecklistSubmitResultModal,
   OutletTaskExecutionDrawer,
   TaskDetailDrawer,
   TaskFormDrawer,
@@ -21,7 +31,12 @@ import { ChecklistSubmitResultModal,
 import { TaskWeekCalendarStrip } from "@/features/tasks/components/task-week-calendar-strip";
 import type { FormTemplate } from "@/features/forms/types";
 import { useTaskWorkspace } from "@/features/tasks/hooks/use-task-workspace";
-import { Task, TaskStatus, type TaskPriorityFilter, type TaskStatusFilter } from "@/features/tasks/types";
+import {
+  Task,
+  TaskStatus,
+  type TaskPriorityFilter,
+  type TaskStatusFilter,
+} from "@/features/tasks/types";
 import { formatTaskSchedule } from "@/features/tasks/utils";
 import { queryKeys } from "@/lib/query/keys";
 import { useOfflineSync } from "@/providers/OfflineSyncProvider";
@@ -31,7 +46,12 @@ import {
   type BackendUpcomingTaskSchedule,
 } from "@/services/task-schedule.service";
 import { calculateFormProgress, ProgressChip } from "@/shared/form-progress";
-import { taskService, toBackendStatus, type BackendTaskStatus, type OutletMember } from "@/services/task.service";
+import {
+  taskService,
+  toBackendStatus,
+  type BackendTaskStatus,
+  type OutletMember,
+} from "@/services/task.service";
 import { useToast } from "@/shared/toast";
 import {
   getServerWorkspaceSnapshot,
@@ -46,10 +66,7 @@ import {
 } from "@/features/tasks/utils/task-inbox";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
-import {
-  updateOutletTaskStoreItem,
-  upsertOutletTaskStoreItem,
-} from "@/shared/outlet-task-store";
+import { updateOutletTaskStoreItem, upsertOutletTaskStoreItem } from "@/shared/outlet-task-store";
 import { RealtimeClock } from "@/shared/realtime";
 import { useLanguage } from "@/shared/i18n";
 
@@ -239,10 +256,12 @@ function formatMobileTime(task: Task) {
   const dueDate = parseTaskDueDate(task);
   if (!dueDate) return "-";
 
-  return dueDate.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).toLowerCase();
+  return dueDate
+    .toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    .toLowerCase();
 }
 
 function formatUpcomingPublish(value?: string) {
@@ -372,13 +391,14 @@ function MobileTaskRow({
   const isLockedOverdue = isOverdue && isTaskExpiredOverdue(task);
 
   const status = (() => {
-    if (isTaskCompleted(task)) return 'completed';
-    if (task.executionDraft) return 'in_progress';
-    if (isUpcoming) return 'blocked';
-    return 'open';
+    if (isTaskCompleted(task)) return "completed";
+    if (task.executionDraft) return "in_progress";
+    if (isUpcoming) return "blocked";
+    return "open";
   })();
 
-  const priority = (task.priority?.toLowerCase() === 'high' ? 'high' : 'medium') as 'low' | 'medium' | 'high';
+  const priority = (task.priority?.toLowerCase() === "high" ? "high" : "medium") as
+    "low" | "medium" | "high";
 
   return (
     <div className={`flex items-stretch px-3 py-2 ${highlighted ? "bg-emerald-50" : "bg-white"}`}>
@@ -417,7 +437,11 @@ function MobileTaskRow({
           formTemplateName={task.formTemplateName}
           checklistCount={task.checklistFieldCount}
           checklistPreview={task.checklistPreview}
-          lockedReason={isLockedOverdue ? "Task sudah lewat due. Hanya admin yang bisa menjadwalkan ulang." : task.lockedReason}
+          lockedReason={
+            isLockedOverdue
+              ? "Task sudah lewat due. Hanya admin yang bisa menjadwalkan ulang."
+              : task.lockedReason
+          }
           isFollowUp={task.priority?.toLowerCase() === "high"}
         />
       </div>
@@ -866,9 +890,10 @@ export function TasksWorkspace() {
   );
 
   const openTasks = useMemo(
-    () => allWorkspaceOpenTasks.filter((task) => 
-      taskViewTab === "active" ? !task.isUpcoming : task.isUpcoming
-    ),
+    () =>
+      allWorkspaceOpenTasks.filter((task) =>
+        taskViewTab === "active" ? !task.isUpcoming : task.isUpcoming
+      ),
     [allWorkspaceOpenTasks, taskViewTab]
   );
 
@@ -912,9 +937,7 @@ export function TasksWorkspace() {
     const baseTasks = calendarView ? calendarFilteredTasks : visibleTasks;
 
     const byStatus =
-      statusFilter === "All"
-        ? baseTasks
-        : baseTasks.filter((task) => task.status === statusFilter);
+      statusFilter === "All" ? baseTasks : baseTasks.filter((task) => task.status === statusFilter);
 
     const byPriority =
       priorityFilter === "All"
@@ -930,7 +953,14 @@ export function TasksWorkspace() {
 
       return haystack.includes(query);
     });
-  }, [mobileSearch, visibleTasks, calendarView, calendarFilteredTasks, statusFilter, priorityFilter]);
+  }, [
+    mobileSearch,
+    visibleTasks,
+    calendarView,
+    calendarFilteredTasks,
+    statusFilter,
+    priorityFilter,
+  ]);
 
   const mobileSections = useMemo(
     () => getMobileSections(filteredMobileTasks),
@@ -1048,10 +1078,7 @@ export function TasksWorkspace() {
           <p className="text-sm font-medium text-emerald-700">{t("tasks.eyebrow")}</p>
           <h1 className="text-2xl font-semibold text-slate-950">
             {isOutletWorkspace
-              ? t("tasks.titleOutlet").replace(
-                  "{outlet}",
-                  workspace.outletName ?? "Outlet"
-                )
+              ? t("tasks.titleOutlet").replace("{outlet}", workspace.outletName ?? "Outlet")
               : t("tasks.titleAdmin")}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
@@ -1062,7 +1089,9 @@ export function TasksWorkspace() {
                 : t("tasks.subtitleAdmin")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {isOutletWorkspace ? <OfflineSyncBadge /> : (
+            {isOutletWorkspace ? (
+              <OfflineSyncBadge />
+            ) : (
               <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4">
                 <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-400 sm:inline">
                   {t("tasks.realtime")}
@@ -1080,7 +1109,9 @@ export function TasksWorkspace() {
             {!isOutletWorkspace ? (
               <span
                 className={`inline-flex items-center rounded-2xl px-4 py-2 text-xs font-bold ${
-                  isBackendConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                  isBackendConnected
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-amber-50 text-amber-700"
                 }`}
               >
                 {isBackendConnected ? t("tasks.backendSynced") : t("tasks.backendUnavailable")}
@@ -1144,40 +1175,48 @@ export function TasksWorkspace() {
       ) : null}
 
       {!isOutletWorkspace ? (
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
-          <p className="text-xs text-slate-500 md:text-sm">Total Tasks</p>
-          <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">{outletTaskMetrics.total}</p>
-        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+            <p className="text-xs text-slate-500 md:text-sm">Total Tasks</p>
+            <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">
+              {outletTaskMetrics.total}
+            </p>
+          </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
-          <p className="text-xs text-slate-500 md:text-sm">Pending</p>
-          <p className="mt-2 text-xl font-bold text-amber-700 md:text-2xl">{outletTaskMetrics.pending}</p>
-        </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+            <p className="text-xs text-slate-500 md:text-sm">Pending</p>
+            <p className="mt-2 text-xl font-bold text-amber-700 md:text-2xl">
+              {outletTaskMetrics.pending}
+            </p>
+          </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
-          <p className="text-xs text-slate-500 md:text-sm">Draft</p>
-          <p className="mt-2 text-xl font-bold text-blue-700 md:text-2xl">{outletTaskMetrics.draft}</p>
-        </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+            <p className="text-xs text-slate-500 md:text-sm">Draft</p>
+            <p className="mt-2 text-xl font-bold text-blue-700 md:text-2xl">
+              {outletTaskMetrics.draft}
+            </p>
+          </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
-          <p className="text-xs text-slate-500 md:text-sm">Submitted</p>
-          <p className="mt-2 text-xl font-bold text-emerald-700 md:text-2xl">{outletTaskMetrics.completed}</p>
-        </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 md:rounded-3xl md:p-5">
+            <p className="text-xs text-slate-500 md:text-sm">Submitted</p>
+            <p className="mt-2 text-xl font-bold text-emerald-700 md:text-2xl">
+              {outletTaskMetrics.completed}
+            </p>
+          </div>
 
-        <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 md:col-span-1 md:rounded-3xl md:p-5">
-          <p className="text-xs text-slate-500 md:text-sm">Completion</p>
-          <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">
-            {outletTaskMetrics.averageProgress}%
-          </p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-emerald-700 transition-all duration-700"
-              style={{ width: `${outletTaskMetrics.averageProgress}%` }}
-            />
+          <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 md:col-span-1 md:rounded-3xl md:p-5">
+            <p className="text-xs text-slate-500 md:text-sm">Completion</p>
+            <p className="mt-2 text-xl font-bold text-slate-950 md:text-2xl">
+              {outletTaskMetrics.averageProgress}%
+            </p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-emerald-700 transition-all duration-700"
+                style={{ width: `${outletTaskMetrics.averageProgress}%` }}
+              />
+            </div>
           </div>
         </div>
-      </div>
       ) : null}
 
       <div className="flex border border-slate-200 bg-white rounded-2xl p-1 gap-1 shadow-sm max-w-md w-full">
@@ -1205,51 +1244,53 @@ export function TasksWorkspace() {
         </button>
       </div>
 
-       <section className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
-         {!isOutletWorkspace ? (
-           <div className="border-b border-slate-200 px-3 py-3 sm:px-4">
-             <TaskFilters
-               query={mobileSearch}
-               statusFilter={statusFilter}
-               priorityFilter={priorityFilter}
-               onQueryChange={setMobileSearch}
-               onStatusFilterChange={setStatusFilter}
-               onPriorityFilterChange={setPriorityFilter}
-             />
-           </div>
-         ) : null}
+      <section
+        className={`overflow-hidden ${isOutletWorkspace ? "" : "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}
+      >
+        {!isOutletWorkspace ? (
+          <div className="border-b border-slate-200 px-3 py-3 sm:px-4">
+            <TaskFilters
+              query={mobileSearch}
+              statusFilter={statusFilter}
+              priorityFilter={priorityFilter}
+              onQueryChange={setMobileSearch}
+              onStatusFilterChange={setStatusFilter}
+              onPriorityFilterChange={setPriorityFilter}
+            />
+          </div>
+        ) : null}
 
-         {!isOutletWorkspace ? (
-           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
-             <span>{`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}</span>
-             <div className="flex items-center gap-2">
-               <button
-                 type="button"
-                 onClick={() => setTableView("grouped")}
-                 className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
-                   tableView === "grouped"
-                     ? "border-emerald-600 bg-emerald-600 text-white"
-                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                 }`}
-               >
-                 Kelompok
-               </button>
-               <button
-                 type="button"
-                 onClick={() => setTableView("table")}
-                 className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
-                   tableView === "table"
-                     ? "border-emerald-600 bg-emerald-600 text-white"
-                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                 }`}
-               >
-                 Tabel
-               </button>
-             </div>
-           </div>
-         ) : null}
+        {!isOutletWorkspace ? (
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:px-4">
+            <span>{`${outletTaskGroups.length} outlet · ${filteredAdminTasks.length} task aktif`}</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTableView("grouped")}
+                className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
+                  tableView === "grouped"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                Kelompok
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableView("table")}
+                className={`rounded-lg border px-2 py-1 font-medium transition-colors ${
+                  tableView === "table"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                Tabel
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-         {bulkActive && !isOutletRole && bulkTargetTaskIds.length > 0 ? (
+        {bulkActive && !isOutletRole && bulkTargetTaskIds.length > 0 ? (
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-4">
             <span className="text-xs font-semibold text-emerald-800">
               {bulkTargetTaskIds.length} task dipilih
@@ -1302,67 +1343,67 @@ export function TasksWorkspace() {
           </div>
         ) : null}
 
-         {!isOutletWorkspace && tableView === "table" ? (
-           <div className="bg-[#F7FAF8] p-3 sm:p-4">
-             <TaskTable
-               tasks={filteredAdminTasks}
-               onSelectTask={handleOpenTask}
-               onEditTask={isOwnerAdminWorkspace ? openEditTask : () => {}}
-               onDeleteTask={
-                 isOwnerAdminWorkspace
-                   ? (id) => {
-                       void deleteTask(id);
-                     }
-                   : () => {}
-               }
-               onStatusChange={(id, status) => {
-                 void updateTaskStatus(id, status);
-               }}
-             />
-           </div>
-         ) : null}
+        {!isOutletWorkspace && tableView === "table" ? (
+          <div className="bg-[#F7FAF8] p-3 sm:p-4">
+            <TaskTable
+              tasks={filteredAdminTasks}
+              onSelectTask={handleOpenTask}
+              onEditTask={isOwnerAdminWorkspace ? openEditTask : () => {}}
+              onDeleteTask={
+                isOwnerAdminWorkspace
+                  ? (id) => {
+                      void deleteTask(id);
+                    }
+                  : () => {}
+              }
+              onStatusChange={(id, status) => {
+                void updateTaskStatus(id, status);
+              }}
+            />
+          </div>
+        ) : null}
 
-         {!isOutletWorkspace && tableView === "grouped" ? (
-           <div className="bg-[#F7FAF8] p-3 sm:p-4">
-             <TaskGroupedList
-               groups={activeTaskGroups}
-               highlightedTaskId={highlightedTaskId}
-               onOpenTask={handleOpenTask}
-               formTemplates={formTemplates}
-               collapsedGroups={collapsedGroups}
-               onToggleGroup={toggleTaskGroup}
-               onExpandAll={expandAllTaskGroups}
-               onCollapseAll={collapseAllTaskGroups}
-               emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
-               pendingTaskIds={pendingTaskIds}
-               failedTaskIds={failedTaskIds}
-               isOutletRole={isOutletRole}
-               selectionMode={bulkActive && !isOutletRole}
-               selectedTaskIds={selectedTaskIds}
-               onToggleSelect={toggleTaskSelection}
-             />
-           </div>
-         ) : null}
+        {!isOutletWorkspace && tableView === "grouped" ? (
+          <div className="bg-[#F7FAF8] p-3 sm:p-4">
+            <TaskGroupedList
+              groups={activeTaskGroups}
+              highlightedTaskId={highlightedTaskId}
+              onOpenTask={handleOpenTask}
+              formTemplates={formTemplates}
+              collapsedGroups={collapsedGroups}
+              onToggleGroup={toggleTaskGroup}
+              onExpandAll={expandAllTaskGroups}
+              onCollapseAll={collapseAllTaskGroups}
+              emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
+              pendingTaskIds={pendingTaskIds}
+              failedTaskIds={failedTaskIds}
+              isOutletRole={isOutletRole}
+              selectionMode={bulkActive && !isOutletRole}
+              selectedTaskIds={selectedTaskIds}
+              onToggleSelect={toggleTaskSelection}
+            />
+          </div>
+        ) : null}
 
-         {isOutletWorkspace ? (
-           <div className="pt-2">
-             <TaskGroupedList
-               groups={mobileSections}
-               highlightedTaskId={highlightedTaskId}
-               onOpenTask={handleOpenTask}
-               formTemplates={formTemplates}
-               collapsedGroups={collapsedGroups}
-               onToggleGroup={toggleTaskGroup}
-               onExpandAll={expandAllTaskGroups}
-               onCollapseAll={collapseAllTaskGroups}
-               emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
-               pendingTaskIds={pendingTaskIds}
-               failedTaskIds={failedTaskIds}
-               isOutletRole={isOutletRole}
-             />
-           </div>
-         ) : null}
-       </section>
+        {isOutletWorkspace ? (
+          <div className="pt-2">
+            <TaskGroupedList
+              groups={mobileSections}
+              highlightedTaskId={highlightedTaskId}
+              onOpenTask={handleOpenTask}
+              formTemplates={formTemplates}
+              collapsedGroups={collapsedGroups}
+              onToggleGroup={toggleTaskGroup}
+              onExpandAll={expandAllTaskGroups}
+              onCollapseAll={collapseAllTaskGroups}
+              emptyMessage="Semua task sudah selesai. Lihat hasil pekerjaan di menu Reports."
+              pendingTaskIds={pendingTaskIds}
+              failedTaskIds={failedTaskIds}
+              isOutletRole={isOutletRole}
+            />
+          </div>
+        ) : null}
+      </section>
 
       {canCreateTask ? (
         <TaskFormDrawer

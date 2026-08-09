@@ -1,8 +1,4 @@
-﻿import type {
-  Edge,
-  Node,
-  Viewport,
-} from "@xyflow/react";
+﻿import type { Edge, Node, Viewport } from "@xyflow/react";
 
 export type WorkflowBuilderNodeType =
   | "start"
@@ -15,11 +11,7 @@ export type WorkflowBuilderNodeType =
   | "task"
   | "form";
 
-export type ApprovalMode =
-  | "single"
-  | "any"
-  | "all"
-  | "sequential";
+export type ApprovalMode = "single" | "any" | "all" | "sequential";
 
 export type ApprovalNodeConfiguration = {
   approverType: "role" | "user" | "outlet" | "owner";
@@ -35,10 +27,7 @@ export type WorkflowBuilderNodeData = {
   approval?: ApprovalNodeConfiguration;
 };
 
-export type WorkflowBuilderNode = Node<
-  WorkflowBuilderNodeData,
-  WorkflowBuilderNodeType
->;
+export type WorkflowBuilderNode = Node<WorkflowBuilderNodeData, WorkflowBuilderNodeType>;
 
 export type WorkflowBuilderDraft = {
   schemaVersion: 1;
