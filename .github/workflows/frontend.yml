@@ -1,4 +1,4 @@
-﻿name: NovaOps Frontend CI
+name: NovaOps Frontend CI
 
 on:
   push:
@@ -14,17 +14,18 @@ on:
       - ".github/workflows/frontend.yml"
 
 jobs:
-
   frontend:
-
     runs-on: ubuntu-latest
 
     defaults:
       run:
         working-directory: apps/web
 
-    steps:
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: "--max-old-space-size=4096"
 
+    steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4

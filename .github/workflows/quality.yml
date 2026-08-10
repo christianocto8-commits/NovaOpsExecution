@@ -1,7 +1,6 @@
 name: NovaOps Enterprise Quality
 
 on:
-
   push:
     branches: [ main ]
 
@@ -9,9 +8,7 @@ on:
     branches: [ main ]
 
 jobs:
-
   quality:
-
     runs-on: ubuntu-latest
 
     services:
@@ -35,9 +32,10 @@ jobs:
       BOOTSTRAP_ADMIN_EMAIL: admin@novaops.com
       BOOTSTRAP_ADMIN_USERNAME: admin
       BOOTSTRAP_ADMIN_PASSWORD: admin123
+      NEXT_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: "--max-old-space-size=4096"
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
