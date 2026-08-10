@@ -26,7 +26,6 @@ const API_BASE = resolveApiBase();
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
-  "content-length",
   "expect",
   "host",
   "keep-alive",
@@ -35,6 +34,15 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+
+// Headers stripped from requests forwarded to the upstream API. content-length
+// is recomputed by fetch from the body and must not be forwarded verbatim.
+const REQUEST_DROP_HEADERS = new Set([...HOP_BY_HOP_HEADERS, "content-length"]);
+
+// Headers stripped from upstream responses. content-length is intentionally
+// preserved so responses reach browsers as fixed-length bodies instead of
+// chunked transfer-encoding, which mobile/ISP proxies may truncate.
+const RESPONSE_DROP_HEADERS = new Set(HOP_BY_HOP_HEADERS);
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const relativePath = pathSegments.join("/");
@@ -54,7 +62,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
   const headers = new Headers();
   request.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+    if (!REQUEST_DROP_HEADERS.has(key.toLowerCase())) {
       headers.set(key, value);
     }
   });
@@ -110,10 +118,20 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, key) => {
-      if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+      if (!RESPONSE_DROP_HEADERS.has(key.toLowerCase())) {
         responseHeaders.set(key, value);
       }
     });
+    // Ensure a fixed Content-Length is delivered to the browser. Streaming a
+    // body without one forces chunked transfer-encoding, which some mobile/ISP
+    // proxies truncate mid-stream and surface as a fetch TypeError
+    // ("Koneksi ke backend gagal") on cellular networks.
+    if (!responseHeaders.has("content-length")) {
+      const contentLength = upstream.headers.get("content-length");
+      if (contentLength) {
+        responseHeaders.set("content-length", contentLength);
+      }
+    }
 
     let authPayload:
       | {
