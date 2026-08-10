@@ -57,7 +57,14 @@ export function isTaskOverdue(task: Task) {
 
 /** Tasks that should stay in the Task inbox (not yet finished). */
 export function isOpenTaskInInbox(task: Task) {
-  if (String(task.backendStatus ?? "").toLowerCase() === "cancelled") {
+  const backendStatus = String(task.backendStatus ?? "").toLowerCase();
+
+  if (backendStatus === "cancelled" || backendStatus === "expired") {
+    return false;
+  }
+
+  // Tasks that have been auto-expired (60min after overdue) should leave the queue
+  if (task.expiredAt) {
     return false;
   }
 
