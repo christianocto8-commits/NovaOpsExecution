@@ -1035,6 +1035,9 @@ class TaskService:
             if outlet_ids is not None and task.outlet_id not in outlet_ids:
                 continue
 
+            if task.status not in ("open", "draft", "closed", "rejected"):
+                continue
+
             self.db.query(ExecutionSession).filter(ExecutionSession.task_id == task_id).delete()
 
             self.repo.create_comment(
@@ -1045,6 +1048,17 @@ class TaskService:
                     event_type="deleted",
                     new_value="deleted",
                 )
+            )
+            record_activity_event(
+                self.db,
+                action="task_deleted",
+                summary=f"Task #{task_id} deleted via bulk action (status was '{task.status}')",
+                outlet_id=task.outlet_id,
+                actor_id=actor_id,
+                resource_type="task",
+                resource_id=str(task_id),
+                metadata={"previous_status": task.status},
+                commit=False,
             )
             self.repo.delete(task)
             count += 1
