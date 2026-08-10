@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
+import { OutletStreakCard } from "@/features/gamification/components/outlet-streak-card";
 
 import { useDashboardReports } from "@/features/dashboard/hooks/use-dashboard-reports";
 import { useSettings } from "@/features/settings/hooks/use-settings";
@@ -299,6 +300,10 @@ export default function DashboardPage() {
           </div>
           <div className="absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
         </div>
+
+        {/* Gamification Outlet Streak Card & Leaderboard Panel */}
+        <OutletStreakCard />
+        <LeaderboardPanel />
 
         {tasksQuery.isError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
