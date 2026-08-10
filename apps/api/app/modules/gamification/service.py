@@ -30,7 +30,19 @@ class GamificationService:
         self.db = db
 
     def get_leaderboard(self) -> LeaderboardResponse:
-        outlets = self.db.query(Outlet).filter(Outlet.is_active == True).order_by(Outlet.name.asc()).all()
+        from app.modules.identity.models import Outlet as IdentityOutlet
+
+        active_identity_codes = {
+            row[0].strip().upper()
+            for row in self.db.query(IdentityOutlet.code)
+            .filter(IdentityOutlet.status == "active")
+            .all()
+        }
+        outlets = [
+            outlet
+            for outlet in self.db.query(Outlet).filter(Outlet.is_active == True).order_by(Outlet.name.asc()).all()
+            if outlet.code.strip().upper() in active_identity_codes
+        ]
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=30)
 
