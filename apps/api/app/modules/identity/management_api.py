@@ -31,6 +31,7 @@ from app.modules.identity.repository import (
     OutletRepository,
     OutletOperatorRepository,
     PermissionRepository,
+    RefreshTokenRepository,
     RoleRepository,
     UserRepository,
 )
