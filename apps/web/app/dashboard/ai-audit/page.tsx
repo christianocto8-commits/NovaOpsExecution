@@ -120,18 +120,30 @@ export default function AIAuditPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const liveItems: TaskEvidenceItem[] = data.map((t: any) => ({
-            id: t.id,
-            task_title: t.title || t.template_title || "Tugas Outlet",
-            outlet_name: t.outlet_name || "Outlet Main",
-            submitted_at: t.completed_at
-              ? new Date(t.completed_at).toLocaleTimeString()
-              : "Baru saja",
-            image_url: t.evidence_url || "/uploads/evidence/sample_pos.jpg",
-            note: t.notes || "Pengerjaan selesai.",
-            ai_status: t.evidence_verified ? "verified" : "needs_review",
-            ai_score: t.evidence_score ?? 90,
-          }));
+          const liveItems: TaskEvidenceItem[] = data.map(
+            (t: {
+              id: string;
+              title?: string;
+              template_title?: string;
+              outlet_name?: string;
+              completed_at?: string;
+              evidence_url?: string;
+              notes?: string;
+              evidence_verified?: boolean;
+              evidence_score?: number;
+            }) => ({
+              id: t.id,
+              task_title: t.title || t.template_title || "Tugas Outlet",
+              outlet_name: t.outlet_name || "Outlet Main",
+              submitted_at: t.completed_at
+                ? new Date(t.completed_at).toLocaleTimeString()
+                : "Baru saja",
+              image_url: t.evidence_url || "/uploads/evidence/sample_pos.jpg",
+              note: t.notes || "Pengerjaan selesai.",
+              ai_status: t.evidence_verified ? "verified" : "needs_review",
+              ai_score: t.evidence_score ?? 90,
+            })
+          );
           setSubmissions([...liveItems, ...SAMPLE_SUBMISSIONS]);
           setActiveTask(liveItems[0]);
           runDirectAudit(liveItems[0].image_url);
