@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Flame, Trophy, Award, ShieldCheck, Zap, RefreshCw } from "lucide-react";
+import { api } from "@/services/api";
 
 type BadgeItem = {
   id: string;
@@ -36,23 +37,7 @@ export function OutletStreakCard() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("novaops_token") ?? "";
-      const res = await fetch("/api/v1/gamification/outlet-stats", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache",
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(
-          res.status === 401
-            ? "Sesi login habis. Silakan login kembali."
-            : `Gagal memuat data performa (${res.status}).`
-        );
-      }
-
-      const json: OutletGamificationStats = await res.json();
+      const json = await api<OutletGamificationStats>("/gamification/outlet-stats");
       setStats(json);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal terhubung ke server.";

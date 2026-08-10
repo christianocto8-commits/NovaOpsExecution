@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { AIEvidenceBadge } from "@/features/evidence/components/ai-evidence-badge";
+import { api } from "@/services/api";
 
 type AuditResult = {
   status: string;
@@ -91,21 +92,14 @@ export default function AIAuditPage() {
   const runDirectAudit = async (targetUrl?: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/evidence/audit", {
+      const json = await api<AuditResult>("/evidence/audit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("novaops_token") ?? ""}`,
-        },
         body: JSON.stringify({
           evidence_url: targetUrl || previewUrl || activeTask?.image_url || "/uploads/sample.jpg",
           context_note: testNote,
         }),
       });
-      if (res.ok) {
-        const json = await res.json();
-        setAuditResult(json);
-      }
+      setAuditResult(json);
     } catch (err) {
       console.error("Failed to run AI audit", err);
     } finally {
@@ -114,10 +108,7 @@ export default function AIAuditPage() {
   };
 
   useEffect(() => {
-    fetch("/api/v1/tasks?status=completed&limit=10", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("novaops_token") ?? ""}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
+    api<any[]>("/tasks?status=completed&limit=10")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const liveItems: TaskEvidenceItem[] = data.map(

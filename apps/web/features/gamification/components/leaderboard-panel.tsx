@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Trophy, Flame, Zap, Shield, Camera, Award, RefreshCw } from "lucide-react";
+import { api } from "@/services/api";
 
 type BadgeItem = {
   id: string;
@@ -44,24 +45,7 @@ export function LeaderboardPanel() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("novaops_token") ?? "";
-      const res = await fetch("/api/v1/gamification/leaderboard", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache",
-        },
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        throw new Error(
-          res.status === 401
-            ? "Sesi login habis. Silakan login kembali."
-            : `Gagal memuat leaderboard (${res.status}). ${errorText}`
-        );
-      }
-
-      const json: LeaderboardResponse = await res.json();
+      const json = await api<LeaderboardResponse>("/gamification/leaderboard");
       setData(json);
       setLastUpdated(new Date());
     } catch (err) {
