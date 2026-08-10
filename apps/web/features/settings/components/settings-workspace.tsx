@@ -1199,8 +1199,32 @@ function PasswordPanel({
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
-    if (!currentPassword || !newPassword || newPassword !== confirmPassword) {
-      onNotice("Password baru belum cocok atau password saat ini belum diisi.");
+    if (!currentPassword) {
+      onNotice("Password saat ini wajib diisi.");
+      return;
+    }
+    if (!newPassword) {
+      onNotice("Password baru wajib diisi.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      onNotice("Konfirmasi password baru tidak cocok.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      onNotice("Password baru minimal 8 karakter.");
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      onNotice("Password baru wajib mengandung minimal 1 huruf besar (A-Z).");
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      onNotice("Password baru wajib mengandung minimal 1 huruf kecil (a-z).");
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      onNotice("Password baru wajib mengandung minimal 1 angka (0-9).");
       return;
     }
 
@@ -1223,11 +1247,12 @@ function PasswordPanel({
 
   return (
     <SectionCard title={title}>
-      <p className="mb-5 text-sm text-slate-500">{description}</p>
+      <p className="mb-4 text-sm text-slate-500">{description}</p>
       <div className="grid gap-4 md:grid-cols-3">
         <EnterpriseField label="Current password">
           <EnterpriseInput
             type="password"
+            placeholder="Password saat ini"
             value={currentPassword}
             onChange={(event) => setCurrentPassword(event.target.value)}
           />
@@ -1235,13 +1260,18 @@ function PasswordPanel({
         <EnterpriseField label="New password">
           <EnterpriseInput
             type="password"
+            placeholder="Contoh: AdminNova123!"
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
           />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Syarat: Min. 8 karakter, 1 huruf besar (A-Z), 1 huruf kecil (a-z), 1 angka (0-9).
+          </p>
         </EnterpriseField>
         <EnterpriseField label="Confirm password">
           <EnterpriseInput
             type="password"
+            placeholder="Ulangi password baru"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
           />
