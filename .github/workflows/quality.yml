@@ -32,6 +32,7 @@ jobs:
       BOOTSTRAP_ADMIN_EMAIL: admin@novaops.com
       BOOTSTRAP_ADMIN_USERNAME: admin
       BOOTSTRAP_ADMIN_PASSWORD: admin123
+      PYTHONPATH: apps/api
       NEXT_TELEMETRY_DISABLED: 1
       NODE_OPTIONS: "--max-old-space-size=4096"
 
@@ -48,7 +49,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Setup frontend
+      - name: Setup and test frontend
         working-directory: apps/web
         run: |
           npm ci
@@ -56,13 +57,26 @@ jobs:
           npm run lint
           npm run typecheck
 
-      - name: Setup backend & run tests
-        working-directory: apps/api
+      - name: Install backend system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libxml2-dev libxslt1-dev libxmlsec1-dev xmlsec1
+
+      - name: Install backend Python packages
+        working-directory: apps/api
+        run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
-          alembic upgrade head
-          python -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin()"
-          pytest tests/ -q
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run backend database migrations
+        working-directory: apps/api
+        run: alembic upgrade head
+
+      - name: Bootstrap admin account
+        working-directory: apps/api
+        run: python -c "from app.bootstrap.ensure_online_admin import ensure_online_admin; ensure_online_admin()"
+
+      - name: Run backend pytest suite
+        working-directory: apps/api
+        run: pytest tests/ -v
