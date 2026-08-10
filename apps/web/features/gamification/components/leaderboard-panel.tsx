@@ -45,7 +45,7 @@ export function LeaderboardPanel() {
     setError(null);
 
     try {
-      const json = await api<LeaderboardResponse>("/gamification/leaderboard");
+      const json = await api<LeaderboardResponse>("/api/v1/gamification/leaderboard");
       setData(json);
       setLastUpdated(new Date());
     } catch (err) {

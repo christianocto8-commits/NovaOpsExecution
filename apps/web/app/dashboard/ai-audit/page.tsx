@@ -36,6 +36,18 @@ type TaskEvidenceItem = {
   ai_score: number;
 };
 
+type LiveTaskItem = {
+  id: string;
+  title?: string;
+  template_title?: string;
+  outlet_name?: string;
+  completed_at?: string;
+  evidence_url?: string;
+  notes?: string;
+  evidence_verified?: boolean;
+  evidence_score?: number;
+};
+
 const SAMPLE_SUBMISSIONS: TaskEvidenceItem[] = [
   {
     id: "task-239",
@@ -92,7 +104,7 @@ export default function AIAuditPage() {
   const runDirectAudit = async (targetUrl?: string) => {
     setLoading(true);
     try {
-      const json = await api<AuditResult>("/evidence/audit", {
+      const json = await api<AuditResult>("/api/v1/evidence/audit", {
         method: "POST",
         body: JSON.stringify({
           evidence_url: targetUrl || previewUrl || activeTask?.image_url || "/uploads/sample.jpg",
@@ -108,33 +120,21 @@ export default function AIAuditPage() {
   };
 
   useEffect(() => {
-    api<any[]>("/tasks?status=completed&limit=10")
+    api<LiveTaskItem[]>("/api/v1/tasks?status=completed&limit=10")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const liveItems: TaskEvidenceItem[] = data.map(
-            (t: {
-              id: string;
-              title?: string;
-              template_title?: string;
-              outlet_name?: string;
-              completed_at?: string;
-              evidence_url?: string;
-              notes?: string;
-              evidence_verified?: boolean;
-              evidence_score?: number;
-            }) => ({
-              id: t.id,
-              task_title: t.title || t.template_title || "Tugas Outlet",
-              outlet_name: t.outlet_name || "Outlet Main",
-              submitted_at: t.completed_at
-                ? new Date(t.completed_at).toLocaleTimeString()
-                : "Baru saja",
-              image_url: t.evidence_url || "/uploads/evidence/sample_pos.jpg",
-              note: t.notes || "Pengerjaan selesai.",
-              ai_status: t.evidence_verified ? "verified" : "needs_review",
-              ai_score: t.evidence_score ?? 90,
-            })
-          );
+          const liveItems: TaskEvidenceItem[] = data.map((t: LiveTaskItem) => ({
+            id: t.id,
+            task_title: t.title || t.template_title || "Tugas Outlet",
+            outlet_name: t.outlet_name || "Outlet Main",
+            submitted_at: t.completed_at
+              ? new Date(t.completed_at).toLocaleTimeString()
+              : "Baru saja",
+            image_url: t.evidence_url || "/uploads/evidence/sample_pos.jpg",
+            note: t.notes || "Pengerjaan selesai.",
+            ai_status: t.evidence_verified ? "verified" : "needs_review",
+            ai_score: t.evidence_score ?? 90,
+          }));
           setSubmissions([...liveItems, ...SAMPLE_SUBMISSIONS]);
           setActiveTask(liveItems[0]);
           runDirectAudit(liveItems[0].image_url);

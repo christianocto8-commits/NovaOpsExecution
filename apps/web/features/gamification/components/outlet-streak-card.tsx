@@ -37,7 +37,7 @@ export function OutletStreakCard() {
     setError(null);
 
     try {
-      const json = await api<OutletGamificationStats>("/gamification/outlet-stats");
+      const json = await api<OutletGamificationStats>("/api/v1/gamification/outlet-stats");
       setStats(json);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal terhubung ke server.";
