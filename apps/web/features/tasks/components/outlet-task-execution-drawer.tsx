@@ -612,11 +612,11 @@ export function OutletTaskExecutionDrawer({
             : undefined
         }
       >
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:gap-3">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)] sm:gap-3">
           <button
             type="button"
             onClick={handleCancel}
-            className="min-h-[44px] rounded-xl border border-slate-200 px-2 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 sm:col-span-1 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-xs font-bold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 active:scale-95 sm:min-h-[50px] sm:px-4 sm:text-sm"
           >
             {t("execution.cancel")}
           </button>
@@ -632,7 +632,7 @@ export function OutletTaskExecutionDrawer({
                   : form.operatorName
               ).trim() || saveState === "saving"
             }
-            className="min-h-[44px] rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-sm"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-emerald-300/80 bg-emerald-50/90 px-3 py-3 text-xs font-bold text-emerald-800 shadow-sm transition-all duration-200 hover:bg-emerald-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[50px] sm:px-4 sm:text-sm"
           >
             {saveState === "saving" ? t("execution.saving") : t("execution.saveDraft")}
           </button>
@@ -641,7 +641,7 @@ export function OutletTaskExecutionDrawer({
             type="button"
             onClick={handleSubmit}
             disabled={saveState === "saving" || trainingBlocked}
-            className="min-h-[44px] rounded-xl bg-emerald-700 px-2 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:min-h-[48px] sm:rounded-2xl sm:px-4 sm:py-3.5 sm:text-base"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 px-3 py-3 text-xs font-black text-white shadow-md transition-all duration-200 hover:from-emerald-800 hover:to-teal-900 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[50px] sm:px-4 sm:text-base"
           >
             {saveState === "saving"
               ? t("execution.saving")

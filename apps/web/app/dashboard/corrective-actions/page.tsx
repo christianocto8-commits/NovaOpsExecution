@@ -44,10 +44,13 @@ function getWorkflowLabel(task: Task, t: Translate) {
 function getWorkflowBadgeClass(task: Task) {
   const status = task.backendStatus ?? "open";
 
-  if (status === "completed") return "bg-emerald-50 text-emerald-800";
-  if (status === "in_progress") return "bg-blue-50 text-blue-800";
-  if (status === "blocked") return "bg-amber-50 text-amber-800";
-  return "bg-red-50 text-red-800";
+  if (status === "completed")
+    return "bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold";
+  if (status === "in_progress")
+    return "bg-blue-50 text-blue-800 border border-blue-200/80 font-bold";
+  if (status === "blocked")
+    return "bg-amber-50 text-amber-800 border border-amber-200/80 font-bold";
+  return "bg-red-50 text-red-800 border border-red-300 font-black animate-pulse shadow-sm";
 }
 
 function getDueLabel(task: Task, t: Translate) {
