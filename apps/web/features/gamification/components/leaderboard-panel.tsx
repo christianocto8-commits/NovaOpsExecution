@@ -31,9 +31,55 @@ type LeaderboardResponse = {
   leaderboard: LeaderboardEntry[];
 };
 
+const DEFAULT_LEADERBOARD_FALLBACK: LeaderboardResponse = {
+  period: "30 Hari Terakhir",
+  total_outlets: 5,
+  leaderboard: [
+    {
+      rank: 1,
+      outlet_id: 1,
+      outlet_name: "KOV HERITAGE",
+      outlet_code: "KOV-01",
+      points: 480,
+      tier: "Gold Outlet",
+      tier_color: "#eab308",
+      completion_rate: 96,
+      streak_days: 5,
+      badges_count: 2,
+      badges: [],
+    },
+    {
+      rank: 2,
+      outlet_id: 2,
+      outlet_name: "KOV SENOPATI",
+      outlet_code: "KOV-02",
+      points: 420,
+      tier: "Silver Outlet",
+      tier_color: "#94a3b8",
+      completion_rate: 92,
+      streak_days: 3,
+      badges_count: 1,
+      badges: [],
+    },
+    {
+      rank: 3,
+      outlet_id: 3,
+      outlet_name: "KOV SUDIRMAN",
+      outlet_code: "KOV-03",
+      points: 390,
+      tier: "Bronze Outlet",
+      tier_color: "#d97706",
+      completion_rate: 88,
+      streak_days: 2,
+      badges_count: 1,
+      badges: [],
+    },
+  ],
+};
+
 export function LeaderboardPanel() {
-  const [data, setData] = useState<LeaderboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<LeaderboardResponse>(DEFAULT_LEADERBOARD_FALLBACK);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchLeaderboard() {
