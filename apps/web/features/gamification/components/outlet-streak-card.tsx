@@ -76,7 +76,10 @@ export function OutletStreakCard() {
         </div>
         <div>
           <p className="text-[11px] font-semibold text-amber-100">Peringkat</p>
-          <p className="text-xl font-black text-white">#{stats.rank} <span className="text-xs font-normal text-amber-200">/ {stats.total_outlets}</span></p>
+          <p className="text-xl font-black text-white">
+            #{stats.rank}{" "}
+            <span className="text-xs font-normal text-amber-200">/ {stats.total_outlets}</span>
+          </p>
         </div>
         <div>
           <p className="text-[11px] font-semibold text-amber-100">Total Poin</p>

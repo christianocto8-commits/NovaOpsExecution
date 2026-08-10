@@ -86,7 +86,8 @@ export function LeaderboardPanel() {
           </div>
           <h2 className="mt-1 text-2xl font-black">Outlet Leaderboard & Gamifikasi</h2>
           <p className="mt-1 text-xs text-amber-100 sm:text-sm">
-            Peringkat kepatuhan operasional, streak berturut-turut, dan akumulasi poin performa 30 hari.
+            Peringkat kepatuhan operasional, streak berturut-turut, dan akumulasi poin performa 30
+            hari.
           </p>
         </div>
         <div className="shrink-0 rounded-xl bg-white/10 px-4 py-3 backdrop-blur-md">
@@ -108,8 +109,8 @@ export function LeaderboardPanel() {
                 isFirst
                   ? "border-amber-300 bg-amber-50/60"
                   : isSecond
-                  ? "border-slate-300 bg-slate-50/60"
-                  : "border-orange-200 bg-orange-50/40"
+                    ? "border-slate-300 bg-slate-50/60"
+                    : "border-orange-200 bg-orange-50/40"
               }`}
             >
               <div className="flex items-center justify-between">
