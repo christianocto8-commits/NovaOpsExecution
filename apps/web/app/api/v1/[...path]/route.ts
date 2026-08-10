@@ -4,6 +4,17 @@ const ACCESS_COOKIE = "novaops_access";
 const REFRESH_COOKIE = "novaops_refresh";
 const AUTH_RESPONSE_PATHS = new Set(["auth/login", "auth/verify-otp", "auth/refresh"]);
 
+const refreshLockByToken = new Map<
+  string,
+  Promise<{ access_token: string; refresh_token: string; expires_in_minutes?: number } | null>
+>();
+
+type RefreshResult = {
+  access_token: string;
+  refresh_token: string;
+  expires_in_minutes?: number;
+} | null;
+
 function resolveApiBase() {
   const raw =
     process.env.API_PROXY_TARGET ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -186,7 +197,7 @@ function setAuthCookies(
   });
 }
 
-async function refreshUpstreamTokens(request: NextRequest) {
+async function doRefreshUpstreamTokens(request: NextRequest) {
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   if (!refreshToken) return null;
 
@@ -210,6 +221,26 @@ async function refreshUpstreamTokens(request: NextRequest) {
     refresh_token: payload.refresh_token,
     expires_in_minutes: payload.expires_in_minutes,
   };
+}
+
+async function refreshUpstreamTokens(request: NextRequest): Promise<RefreshResult> {
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+  if (!refreshToken) return null;
+
+  const existing = refreshLockByToken.get(refreshToken);
+  if (existing) {
+    return existing;
+  }
+
+  const pending = doRefreshUpstreamTokens(request);
+  refreshLockByToken.set(refreshToken, pending);
+  try {
+    return await pending;
+  } finally {
+    if (refreshLockByToken.get(refreshToken) === pending) {
+      refreshLockByToken.delete(refreshToken);
+    }
+  }
 }
 
 async function handleBrowserSessionRefresh(request: NextRequest) {

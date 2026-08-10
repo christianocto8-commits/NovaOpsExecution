@@ -10,7 +10,110 @@ const DEFAULT_TIMEOUT_MS = 70000;
 const RETRY_DELAY_MS = 5000;
 const REFRESH_TOKEN_KEY = "novaops_refresh_token";
 
+const REFRESH_CHANNEL_NAME = "novaops_refresh_channel";
+const REFRESH_LOCK_KEY = "novaops_refresh_lock";
+const REFRESH_LOCK_TTL_MS = 15000;
+
 let refreshInFlight: Promise<boolean> | null = null;
+
+type RefreshBroadcast =
+  | { type: "refresh_started"; nonce: string }
+  | { type: "refresh_done"; access_token: string; refresh_token: string }
+  | { type: "refresh_failed" };
+
+let refreshChannel: BroadcastChannel | null = null;
+
+function getRefreshChannel(): BroadcastChannel | null {
+  if (typeof window === "undefined") return null;
+  if (refreshChannel) return refreshChannel;
+  if (typeof BroadcastChannel === "undefined") return null;
+  refreshChannel = new BroadcastChannel(REFRESH_CHANNEL_NAME);
+  return refreshChannel;
+}
+
+function acquireCrossTabRefreshLock(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const raw = localStorage.getItem(REFRESH_LOCK_KEY);
+    const now = Date.now();
+    if (raw) {
+      const parsed = JSON.parse(raw) as { nonce: string; at: number };
+      if (now - parsed.at < REFRESH_LOCK_TTL_MS) {
+        return false;
+      }
+    }
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ nonce: crypto.randomUUID(), at: now }));
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function releaseCrossTabRefreshLock() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(REFRESH_LOCK_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function waitForCrossTabRefresh(timeoutMs = 12000): Promise<RefreshBroadcast | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+
+    const storageListener = (event: StorageEvent) => {
+      if (event.key === REFRESH_TOKEN_KEY && event.newValue) {
+        cleanup();
+        resolve({
+          type: "refresh_done",
+          access_token: getToken() ?? "",
+          refresh_token: event.newValue,
+        });
+      }
+    };
+
+    const channel = getRefreshChannel();
+    const channelListener = (event: MessageEvent) => {
+      const msg = event.data as RefreshBroadcast;
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === "refresh_done" || msg.type === "refresh_failed") {
+        cleanup();
+        resolve(msg);
+      }
+    };
+
+    const cleanup = () => {
+      window.removeEventListener("storage", storageListener);
+      if (channel) channel.removeEventListener("message", channelListener);
+      window.clearTimeout(timer);
+    };
+
+    const timer = window.setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, timeoutMs);
+
+    window.addEventListener("storage", storageListener);
+    if (channel) channel.addEventListener("message", channelListener);
+  });
+}
+
+function announceRefresh(done: boolean, accessToken = "", refreshToken = "") {
+  const channel = getRefreshChannel();
+  if (!channel) return;
+  const message: RefreshBroadcast = done
+    ? { type: "refresh_done", access_token: accessToken, refresh_token: refreshToken }
+    : { type: "refresh_failed" };
+  try {
+    channel.postMessage(message);
+  } catch {
+    // channel not available
+  }
+}
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -147,27 +250,46 @@ async function refreshSession(): Promise<boolean> {
         const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         if (!refreshToken) return false;
 
-        const response = await fetch(buildApiUrl("/api/v1/auth/refresh"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-        if (!response.ok) {
-          clearAuthenticatedSession();
+        if (!acquireCrossTabRefreshLock()) {
+          const result = await waitForCrossTabRefresh();
+          if (result && result.type === "refresh_done" && result.refresh_token) {
+            storeAuthenticatedSession(
+              result.access_token || getToken() || "",
+              result.refresh_token
+            );
+            return true;
+          }
           return false;
         }
 
-        const payload = (await response.json()) as {
-          access_token?: string | null;
-          refresh_token?: string | null;
-        };
-        if (!payload.access_token || !payload.refresh_token) {
-          clearAuthenticatedSession();
-          return false;
-        }
+        try {
+          const response = await fetch(buildApiUrl("/api/v1/auth/refresh"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (!response.ok) {
+            announceRefresh(false);
+            clearAuthenticatedSession();
+            return false;
+          }
 
-        storeAuthenticatedSession(payload.access_token, payload.refresh_token);
-        return true;
+          const payload = (await response.json()) as {
+            access_token?: string | null;
+            refresh_token?: string | null;
+          };
+          if (!payload.access_token || !payload.refresh_token) {
+            announceRefresh(false);
+            clearAuthenticatedSession();
+            return false;
+          }
+
+          storeAuthenticatedSession(payload.access_token, payload.refresh_token);
+          announceRefresh(true, payload.access_token, payload.refresh_token);
+          return true;
+        } finally {
+          releaseCrossTabRefreshLock();
+        }
       }
 
       const response = await fetch("/api/v1/auth/browser-session/refresh", {

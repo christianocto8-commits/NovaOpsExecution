@@ -31,6 +31,12 @@ from app.services.workspace_settings import get_workspace_settings
 
 MAX_OTP_ATTEMPTS_PER_CHALLENGE = 5
 
+# A refresh token that is reused within this window after being rotated is
+# almost certainly a benign race (two tabs/devices sharing the same refresh
+# token refreshing concurrently), not a stolen token. Within the window we
+# only reject the request without revoking the user's other active sessions.
+REFRESH_TOKEN_REUSE_GRACE_SECONDS = 60
+
 
 class _OtpAttemptTracker:
     def __init__(self, max_attempts: int = MAX_OTP_ATTEMPTS_PER_CHALLENGE) -> None:
@@ -240,12 +246,35 @@ class AuthService:
         token_hash = hash_token(raw_refresh_token)
         existing = self.refresh_tokens.find_active_by_hash(token_hash)
         if existing is None:
-            # Reuse of a revoked/rotated token invalidates the whole family for that user
-            # when we can still resolve the user from any matching hash row.
+            # Reuse of a revoked/rotated token. Distinguish a benign race (a
+            # second tab/device refreshing the same token concurrently) from a
+            # stolen-token replay so we don't log the user out of every device
+            # whenever two sessions refresh at the same time.
             reused = self.refresh_tokens.find_by_hash_including_revoked(token_hash)
             if reused is not None:
-                self.refresh_tokens.revoke_all_for_user(reused.user_id)
-                self.db.commit()
+                revoked_recently = reused.revoked_at is not None and (
+                    datetime.now(UTC) - reused.revoked_at
+                ).total_seconds() <= REFRESH_TOKEN_REUSE_GRACE_SECONDS
+
+                if not revoked_recently:
+                    # Stale replay (not within the race window): assume theft
+                    # and revoke every active session for the user.
+                    self.refresh_tokens.revoke_all_for_user(reused.user_id)
+                    self.db.commit()
+
+                record_identity_audit_event(
+                    self.db,
+                    action="refresh_token_reuse",
+                    resource_type="auth_session",
+                    actor_user_id=reused.user_id,
+                    outlet_id=getattr(getattr(reused, "user", None), "outlet_id", None),
+                    resource_id=str(reused.id),
+                    metadata={
+                        "reused_within_grace": bool(revoked_recently),
+                        "ip_address": ip_address,
+                        "user_agent": user_agent,
+                    },
+                )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired refresh token",
