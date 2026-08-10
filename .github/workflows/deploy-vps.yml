@@ -127,6 +127,7 @@ jobs:
           CAPACITOR_ENV: production
           CAPACITOR_OFFLINE: 1
           NEXT_TELEMETRY_DISABLED: 1
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: node scripts/release-offline-android.mjs
 
       - name: Build signed release APK
