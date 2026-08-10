@@ -19,7 +19,10 @@ from app.modules.identity.models import (
     Role,
     User,
 )
-from app.modules.tasks.identity_bridge import get_accessible_identity_outlets
+from app.modules.tasks.identity_bridge import (
+    get_accessible_identity_outlets,
+    get_or_create_legacy_outlet,
+)
 from app.modules.identity.permissions import (
     ROLE_DISPLAY_NAMES,
     ROLE_PERMISSION_MAP,
@@ -303,6 +306,7 @@ def create_outlet(
     )
 
     created = outlets.create(outlet)
+    get_or_create_legacy_outlet(db, created)
     db.commit()
     record_identity_audit_event(
         db,
@@ -364,6 +368,8 @@ def update_outlet(
         outlet.operating_hours_close = update_data["operating_hours_close"]
 
     updated = outlets.update(outlet)
+    db.flush()
+    get_or_create_legacy_outlet(db, outlet)
     db.commit()
     record_identity_audit_event(
         db,
@@ -395,7 +401,13 @@ def delete_outlet(
         linked_user.outlet_id = None
         db.add(linked_user)
 
-    db.delete(outlet)
+    # Soft delete (deactivate) instead of hard delete so foreign-key
+    # references from tasks, submissions, incidents, HACCP, etc. are
+    # preserved and the outlet disappears from leaderboards/performance.
+    outlet.status = "inactive"
+    db.flush()
+
+    get_or_create_legacy_outlet(db, outlet)
     db.commit()
     record_identity_audit_event(
         db,
@@ -408,7 +420,7 @@ def delete_outlet(
     )
     db.commit()
 
-    return MessageResponse(message="Outlet deleted")
+    return MessageResponse(message="Outlet deactivated")
 
 
 @router.get("/users", response_model=list[UserRead])
@@ -861,6 +873,7 @@ def list_outlet_metrics(
 ):
     accessible_outlets, full_access = get_accessible_identity_outlets(db, current_user)
     outlet_rows = OutletRepository(db).list() if full_access else list(accessible_outlets)
+    outlet_rows = [outlet for outlet in outlet_rows if outlet.status == "active"]
     operators = OutletOperatorRepository(db).list()
 
     active_operator_count_by_outlet: dict[UUID, int] = {}
