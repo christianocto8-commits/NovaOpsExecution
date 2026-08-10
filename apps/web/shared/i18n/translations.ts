@@ -21,6 +21,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "navigation.dashboard": "Dashboard",
     "navigation.compliance": "Compliance",
     "navigation.exceptions": "Review Queue",
+    "navigation.ai-audit": "AI Audit Center",
     "navigation.tasks": "Task",
     "navigation.forms": "My Form",
     "navigation.corrective-actions": "Corrective Actions",

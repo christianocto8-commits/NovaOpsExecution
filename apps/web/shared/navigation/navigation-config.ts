@@ -31,6 +31,7 @@ import {
   Users,
   Wrench,
   Sandwich,
+  Sparkles,
 } from "lucide-react";
 
 export type NavigationItem = {
@@ -76,6 +77,15 @@ export const navigationItems: NavigationItem[] = [
     icon: ShieldAlert,
     requiredPermissions: ["report.read"],
     section: "analytics",
+  },
+  {
+    id: "ai-audit",
+    label: "AI Audit Center",
+    href: "/dashboard/ai-audit",
+    icon: Sparkles,
+    requiredPermissions: ["report.read"],
+    section: "analytics",
+    sidebar: true,
   },
   {
     id: "tasks",
