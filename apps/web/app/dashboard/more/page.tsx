@@ -27,6 +27,8 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 
+import { OutletStreakCard } from "@/features/gamification/components/outlet-streak-card";
+
 type MoreLink = {
   href: string;
   titleKey: string;
@@ -137,6 +139,9 @@ export default function OutletMorePage() {
           </p>
         ) : null}
       </div>
+
+      {/* Gamification Outlet Streak & Badges Widget */}
+      <OutletStreakCard />
 
       {/* Dedicated Language Selector Card */}
       <div className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">

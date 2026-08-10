@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { getBenchmarks } from "@/services/reports.service";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
+import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
 
 export default function BenchmarksPage() {
   const benchmarkQuery = useQuery({
@@ -25,11 +26,13 @@ export default function BenchmarksPage() {
     <main className={mobileDashboardMainClass}>
       <div>
         <p className="text-sm font-medium text-emerald-700">Enterprise Analytics</p>
-        <h1 className="text-2xl font-semibold text-slate-950">Benchmarking</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">Benchmarking & Leaderboard</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Ranking outlet, compliance comparison, overdue heat, and best/worst performance signals.
+          Ranking outlet, kepatuhan operasional, streak berturut-turut, dan akumulasi poin performa.
         </p>
       </div>
+
+      <LeaderboardPanel />
 
       <section className="grid gap-3 md:grid-cols-3">
         {summaryCards.map(({ label, value, icon: Icon }) => (

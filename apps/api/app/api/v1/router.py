@@ -44,6 +44,9 @@ from app.routers.runtime_templates import router as runtime_template_router
 from app.routers.settings import router as settings_router
 from app.routers.outlets import router as outlets_router
 
+from app.routers.evidence import router as evidence_ai_router
+from app.modules.gamification.router import router as gamification_router
+
 api_router = APIRouter(prefix="/api/v1")
 
 api_router.include_router(health_router)
@@ -61,6 +64,8 @@ api_router.include_router(execution_session_router)
 api_router.include_router(settings_router)
 api_router.include_router(outlets_router)
 api_router.include_router(evidence_upload_router)
+api_router.include_router(evidence_ai_router)
+api_router.include_router(gamification_router)
 api_router.include_router(reports_router)
 api_router.include_router(audit_router)
 api_router.include_router(activity_router)
