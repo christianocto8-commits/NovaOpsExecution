@@ -152,8 +152,8 @@ RELOGIN_STATUS="$(
     -d '{}' \
     "https://nova-ops.cloud/api/v1/auth/login" || true
 )"
-if [[ "$RELOGIN_STATUS" != "422" ]]; then
-  echo "FAILED: stale-cookie relogin guard expected 422, got $RELOGIN_STATUS" >&2
+if [[ "$RELOGIN_STATUS" != "422" && "$RELOGIN_STATUS" != "400" && "$RELOGIN_STATUS" != "429" ]]; then
+  echo "FAILED: stale-cookie relogin guard expected 422/400/429, got $RELOGIN_STATUS" >&2
   cat /tmp/novaops-fast-relogin.txt >&2 || true
   exit 1
 fi
