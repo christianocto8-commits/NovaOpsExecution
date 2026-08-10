@@ -145,7 +145,9 @@ export default function OutletMorePage() {
             <Globe className="size-5" />
           </span>
           <div>
-            <span className="block font-semibold text-slate-950">{t("common.language")} / Language</span>
+            <span className="block font-semibold text-slate-950">
+              {t("common.language")} / Language
+            </span>
             <span className="text-xs text-slate-500">
               {language === "id" ? "Bahasa Indonesia" : "English"}
             </span>

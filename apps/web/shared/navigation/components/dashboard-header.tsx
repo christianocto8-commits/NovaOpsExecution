@@ -103,9 +103,21 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
             title={language === "id" ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
             className="flex items-center gap-1 rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-2.5 py-1.5 text-xs font-bold text-[#274733] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
           >
-            <span className={language === "id" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"}>ID</span>
+            <span
+              className={
+                language === "id" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"
+              }
+            >
+              ID
+            </span>
             <span className="text-gray-300">|</span>
-            <span className={language === "en" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"}>EN</span>
+            <span
+              className={
+                language === "en" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"
+              }
+            >
+              EN
+            </span>
           </button>
 
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] md:block">
