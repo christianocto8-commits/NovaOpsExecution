@@ -37,34 +37,34 @@ type TaskEvidenceItem = {
 
 const SAMPLE_SUBMISSIONS: TaskEvidenceItem[] = [
   {
-    id: "task-001",
-    task_title: "Checklist kebersihan area kasir & mesin EDC",
-    outlet_name: "Kopi Kenangan - Senayan City",
-    submitted_at: "Hari ini, 14:20",
+    id: "task-239",
+    task_title: "Evening - Espresso checklist",
+    outlet_name: "KOV HERITAGE",
+    submitted_at: "Hari ini, 18:30",
     image_url: "/uploads/evidence/sample_pos.jpg",
-    note: "Mesin EDC sudah dibersihkan dan siap digunakan transaksi.",
+    note: "Mesin grinder & group head espresso telah dibersihkan & di-backflush.",
     ai_status: "verified",
     ai_score: 96,
   },
   {
-    id: "task-002",
-    task_title: "Sanitasi Chiller & Cek Suhu Pembeku (-18°C)",
-    outlet_name: "Kopi Kenangan - Grand Indonesia",
-    submitted_at: "Hari ini, 12:15",
+    id: "task-238",
+    task_title: "Evening - Mixo Station & Bar Back",
+    outlet_name: "KOV HERITAGE",
+    submitted_at: "Hari ini, 17:45",
     image_url: "/uploads/evidence/sample_chiller.jpg",
-    note: "Suhu chiller stabil di -18.5 derajat.",
+    note: "Area bar back & peralatan mixologi sudah disterilkan.",
     ai_status: "verified",
-    ai_score: 92,
+    ai_score: 94,
   },
   {
-    id: "task-003",
-    task_title: "PemberSIHAN Area Dapur & Wastafel Utama",
-    outlet_name: "Kopi Kenangan - Mal Kelapa Gading",
-    submitted_at: "Hari ini, 10:45",
+    id: "task-236",
+    task_title: "Opening - Espresso Checklist",
+    outlet_name: "KOV HERITAGE",
+    submitted_at: "Hari ini, 07:15",
     image_url: "/uploads/evidence/sample_blank.jpg",
-    note: "Selesai.",
-    ai_status: "flagged",
-    ai_score: 45,
+    note: "Pengecekan suhu air & tekanan pompa espresso.",
+    ai_status: "verified",
+    ai_score: 91,
   },
 ];
 
@@ -75,6 +75,8 @@ export default function AIAuditPage() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTask, setActiveTask] = useState<TaskEvidenceItem | null>(SAMPLE_SUBMISSIONS[0]);
+
+  const [submissions, setSubmissions] = useState<TaskEvidenceItem[]>(SAMPLE_SUBMISSIONS);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -112,7 +114,34 @@ export default function AIAuditPage() {
   };
 
   useEffect(() => {
-    runDirectAudit(SAMPLE_SUBMISSIONS[0].image_url);
+    fetch("/api/v1/tasks?status=completed&limit=10", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("novaops_token") ?? ""}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const liveItems: TaskEvidenceItem[] = data.map((t: any) => ({
+            id: t.id,
+            task_title: t.title || t.template_title || "Tugas Outlet",
+            outlet_name: t.outlet_name || "Outlet Main",
+            submitted_at: t.completed_at
+              ? new Date(t.completed_at).toLocaleTimeString()
+              : "Baru saja",
+            image_url: t.evidence_url || "/uploads/evidence/sample_pos.jpg",
+            note: t.notes || "Pengerjaan selesai.",
+            ai_status: t.evidence_verified ? "verified" : "needs_review",
+            ai_score: t.evidence_score ?? 90,
+          }));
+          setSubmissions([...liveItems, ...SAMPLE_SUBMISSIONS]);
+          setActiveTask(liveItems[0]);
+          runDirectAudit(liveItems[0].image_url);
+        } else {
+          runDirectAudit(SAMPLE_SUBMISSIONS[0].image_url);
+        }
+      })
+      .catch(() => {
+        runDirectAudit(SAMPLE_SUBMISSIONS[0].image_url);
+      });
   }, []);
 
   return (
@@ -190,7 +219,7 @@ export default function AIAuditPage() {
             </p>
 
             <div className="mt-4 space-y-3">
-              {SAMPLE_SUBMISSIONS.map((item) => (
+              {submissions.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => {
