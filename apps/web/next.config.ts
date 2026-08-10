@@ -51,21 +51,16 @@ const nextConfig: NextConfig = {
       return [];
     }
 
-    const rewrites = [
+    return [
       {
         source: "/api/backend/:path*",
         destination: `${API_PROXY_TARGET}/api/:path*`,
       },
-    ];
-
-    if (isLocalApiTarget) {
-      rewrites.unshift({
+      {
         source: "/api/v1/:path*",
         destination: `${API_PROXY_TARGET}/api/v1/:path*`,
-      });
-    }
-
-    return rewrites;
+      },
+    ];
   },
 };
 
