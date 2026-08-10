@@ -244,7 +244,7 @@ def create_form_submission(
     submission = FormSubmission(
         form_template_id=payload.form_template_id,
         outlet_id=payload.outlet_id,
-        submitted_by=payload.submitted_by or current_user.id,
+        submitted_by=current_user.id,
         status=payload.status,
         score=payload.score if payload.score is not None else checklist_result["score"],
         responsible_person_name=payload.responsible_person_name,

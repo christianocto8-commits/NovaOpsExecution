@@ -12,10 +12,30 @@ from app.modules.identity.models import Role, User as IdentityUser
 from app.modules.identity.permissions import ADMIN_ROLE, AREA_MANAGER_ROLE, OWNER_ROLE
 from app.modules.notifications.models import NotificationDelivery, NotificationEvent
 from app.modules.notifications.task_notifications import notify_task_recipient, resolve_identity_user_id
+from app.modules.webhooks.models import WebhookDelivery
 from app.services.webhook_dispatcher import dispatch_webhook_event
 from app.services.workspace_settings import get_workspace_settings
 
 OVERDUE_ESCALATION_MINUTES = (15, 30, 60)
+
+
+def _webhook_already_dispatched(
+    db: Session,
+    *,
+    event_type: str,
+    task_id: int,
+    escalation_level_minutes: int | None = None,
+) -> bool:
+    query = db.query(WebhookDelivery.id).filter(
+        WebhookDelivery.event_type == event_type,
+        WebhookDelivery.payload["data"]["task_id"].astext == str(task_id),
+    )
+    if escalation_level_minutes is not None:
+        query = query.filter(
+            WebhookDelivery.payload["data"]["escalation_level_minutes"].astext
+            == str(escalation_level_minutes)
+        )
+    return query.first() is not None
 
 
 def _resolve_identity_outlet(db: Session, legacy_outlet_id: int) -> IdentityOutlet | None:
@@ -127,23 +147,31 @@ def _process_escalation_rules(
 
         # Webhook signal so external notifiers are reached even when task
         # recipients are not yet mapped to an IdentityUser (legacy-only).
-        try:
-            dispatch_webhook_event(
-                db,
-                event_type="task.overdue_escalation",
-                outlet_id=task.outlet_id,
-                payload={
-                    "task_id": task.id,
-                    "task_title": task.title,
-                    "outlet_id": task.outlet_id,
-                    "due_date": task.due_date.isoformat() if task.due_date else None,
-                    "status": task.status,
-                    "minutes_overdue": minutes_overdue,
-                    "escalation_level_minutes": level,
-                },
-            )
-        except Exception:
-            pass
+        # Dispatch once per task + escalation level; later ticks are skipped
+        # so external notifiers are not re-pinged on every scheduler run.
+        if not _webhook_already_dispatched(
+            db,
+            event_type="task.overdue_escalation",
+            task_id=task.id,
+            escalation_level_minutes=level,
+        ):
+            try:
+                dispatch_webhook_event(
+                    db,
+                    event_type="task.overdue_escalation",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "status": task.status,
+                        "minutes_overdue": minutes_overdue,
+                        "escalation_level_minutes": level,
+                    },
+                )
+            except Exception:
+                pass
 
         for recipient_legacy_id in recipients:
             if _recipient_already_notified(
@@ -269,21 +297,28 @@ def process_overdue_task_alerts(db: Session) -> dict[str, int]:
             )
             alerts_created += 1
 
-        try:
-            dispatch_webhook_event(
-                db,
-                event_type="task.overdue",
-                outlet_id=task.outlet_id,
-                payload={
-                    "task_id": task.id,
-                    "task_title": task.title,
-                    "outlet_id": task.outlet_id,
-                    "due_date": task.due_date.isoformat() if task.due_date else None,
-                    "status": task.status,
-                },
-            )
-        except Exception:
-            pass
+        # Dispatch the overdue webhook once per task; skip on later scheduler
+        # ticks so external notifiers are not re-pinged every run.
+        if not _webhook_already_dispatched(
+            db,
+            event_type="task.overdue",
+            task_id=task.id,
+        ):
+            try:
+                dispatch_webhook_event(
+                    db,
+                    event_type="task.overdue",
+                    outlet_id=task.outlet_id,
+                    payload={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "outlet_id": task.outlet_id,
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "status": task.status,
+                    },
+                )
+            except Exception:
+                pass
 
     db.commit()
 

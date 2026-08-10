@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
+from datetime import time
 from uuid import UUID
 
 from sqlalchemy import select
@@ -20,6 +20,7 @@ from app.modules.notifications.schemas import NotificationEventCreate
 from app.modules.notifications.service import NotificationService
 from app.services.email_service import EmailService
 from app.services.sms_service import send_sms
+from app.services.timezones import now_local
 from app.services.user_settings_store import get_user_settings
 from app.services.workspace_settings import get_workspace_settings
 
@@ -97,7 +98,7 @@ def _is_quiet_hours(db: Session, identity_user_id: UUID) -> bool:
     if not prefs.get("quiet_hours_enabled", False):
         return False
 
-    current = datetime.now(timezone.utc).time()
+    current = now_local(db).time()
     start = _parse_quiet_time(prefs.get("quiet_hours_start"), "22:00")
     end = _parse_quiet_time(prefs.get("quiet_hours_end"), "07:00")
 

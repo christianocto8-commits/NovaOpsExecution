@@ -1,5 +1,4 @@
-from datetime import datetime, time, timezone
-from sqlalchemy import func
+from datetime import datetime, time, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
@@ -25,7 +24,7 @@ def deduplicate_existing_schedule_tasks(db: Session) -> dict[str, int]:
     for task in completed_tasks:
         created_date = task.created_at.astimezone(tz).date() if task.created_at else now_local(db).date()
         start_of_day = datetime.combine(created_date, time.min, tzinfo=tz)
-        end_of_day = start_of_day + datetime.resolution * 86400
+        end_of_day = start_of_day + timedelta(days=1)
 
         duplicates = (
             db.query(Task)
