@@ -1135,7 +1135,7 @@ export function TasksWorkspace() {
               <button
                 type="button"
                 onClick={openCreateTask}
-                className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-emerald-800 active:scale-95"
               >
                 {t("tasks.createTask")}
               </button>
@@ -1143,7 +1143,7 @@ export function TasksWorkspace() {
             {canCreateTask ? (
               <Link
                 href="/dashboard/schedules"
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-slate-200/80 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 active:scale-95"
               >
                 {t("tasks.manageSchedules")}
               </Link>
@@ -1159,10 +1159,10 @@ export function TasksWorkspace() {
           <button
             type="button"
             onClick={() => setCalendarView((current) => !current)}
-            className={`rounded-2xl px-4 py-2 text-xs font-bold ${
+            className={`inline-flex min-h-[44px] items-center justify-center rounded-2xl px-5 py-2.5 text-xs font-bold transition-all duration-200 active:scale-95 ${
               calendarView
-                ? "bg-emerald-700 text-white"
-                : "border border-slate-200 bg-white text-slate-700"
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "border border-slate-200/80 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
             }`}
           >
             {calendarView ? t("tasks.listView") : t("tasks.weekView")}
