@@ -34,13 +34,17 @@ function getParentRoute(pathname: string) {
 
 export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeaderProps) {
   const auth = useContext(AuthContext);
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
 
   const parentRoute = useMemo(() => getParentRoute(pathname), [pathname]);
   const showBackButton = pathname !== "/dashboard" && pathname !== "/dashboard/operator";
   const isOutletWorkspace = workspace.mode === "outlet";
+
+  const toggleLanguage = () => {
+    setLanguage(language === "id" ? "en" : "id");
+  };
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#DDE8E1] bg-white/90 px-3 py-3 backdrop-blur-xl sm:px-6 sm:py-4">
@@ -92,6 +96,17 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
           <OfflineSyncBadge />
           <AnnouncementHeaderButton />
           <NotificationHeaderButton />
+
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            title={language === "id" ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
+            className="flex items-center gap-1 rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-2.5 py-1.5 text-xs font-bold text-[#274733] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
+          >
+            <span className={language === "id" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"}>ID</span>
+            <span className="text-gray-300">|</span>
+            <span className={language === "en" ? "text-[#274733] font-bold" : "text-gray-400 font-normal"}>EN</span>
+          </button>
 
           <div className="hidden rounded-full border border-[#DDE8E1] bg-[#F7FAF8] px-4 py-2 text-xs font-semibold text-[#3D6B49] md:block">
             {workspace.roleLabel}
