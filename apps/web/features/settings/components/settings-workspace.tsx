@@ -346,7 +346,9 @@ function OutletLocationPanel({ onNotice }: { onNotice: (message: string) => void
           setLongitude(items[0].longitude != null ? String(items[0].longitude) : "");
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("401") || msg.includes("Unauthorized")) return;
         onNotice("Gagal memuat daftar outlet untuk geofence.");
       });
   }, [onNotice]);
@@ -1237,7 +1239,9 @@ function PasswordPanel({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      onNotice("Password berhasil diperbarui.");
+      onNotice(
+        "Password berhasil diperbarui! Gunakan password baru Anda ini untuk login selanjutnya."
+      );
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Gagal memperbarui password.");
     } finally {
