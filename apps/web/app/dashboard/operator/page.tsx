@@ -21,6 +21,8 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
+import { OutletStreakCard } from "@/features/gamification/components/outlet-streak-card";
+import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
 import { TaskSkeleton } from "@/shared/skeleton/skeleton";
 
 function isDueToday(task: Task) {
@@ -137,32 +139,42 @@ export default function OperatorHomePage() {
         </div>
       </header>
 
+      {/* Outlet Gamification Streak Card */}
+      <OutletStreakCard />
+
       {nextTask ? (
         <Link
           href={`/dashboard/tasks?taskId=${nextTask.id}`}
-          className="flex items-center justify-between gap-4 rounded-[1.5rem] bg-slate-950 px-5 py-4 text-white transition hover:bg-slate-900 active:scale-[0.99]"
+          className="group relative flex items-center justify-between gap-4 overflow-hidden rounded-[1.75rem] border border-emerald-800/40 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 px-6 py-5 text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:shadow-xl active:scale-[0.99]"
         >
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+          <div className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-emerald-500/10 blur-xl transition group-hover:bg-emerald-500/20" />
+          <div className="relative min-w-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-md">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {t("operator.nextUp")}
+            </span>
+            <p className="mt-2 truncate text-xl font-bold tracking-tight text-white group-hover:text-emerald-300 transition">
+              {nextTask.title}
             </p>
-            <p className="mt-1 truncate text-lg font-semibold">{nextTask.title}</p>
-            <p className="mt-1 text-sm text-slate-300">
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300">
+              <Clock3 className="size-3.5 text-emerald-400" />
               {formatDueLabel(nextTask, t("operator.overdue"), t("operator.dueToday")) ||
                 t("operator.open")}
             </p>
           </div>
-          <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-slate-950">
-            <ArrowRight className="size-5" />
+          <span className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-slate-950 shadow-md transition group-hover:scale-105 group-hover:bg-emerald-400">
+            <ArrowRight className="size-6" />
           </span>
         </Link>
       ) : (
-        <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 px-5 py-5">
+        <div className="rounded-[1.75rem] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white px-6 py-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="size-6 text-emerald-700" />
+            <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-700">
+              <CheckCircle2 className="size-6 text-emerald-700" />
+            </span>
             <div>
-              <p className="font-semibold text-emerald-950">{t("operator.allCaughtUp")}</p>
-              <p className="text-sm text-emerald-800/80">{t("operator.allCaughtUpBody")}</p>
+              <p className="font-bold text-emerald-950">{t("operator.allCaughtUp")}</p>
+              <p className="text-xs text-emerald-800/80">{t("operator.allCaughtUpBody")}</p>
             </div>
           </div>
         </div>
@@ -171,10 +183,10 @@ export default function OperatorHomePage() {
       {openCorrectiveActions.length > 0 ? (
         <Link
           href="/dashboard/corrective-actions"
-          className="flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950"
+          className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm font-bold text-amber-950 shadow-sm transition hover:bg-amber-100/80"
         >
           <span className="inline-flex items-center gap-2">
-            <CircleAlert className="size-4" />
+            <CircleAlert className="size-4 text-amber-600" />
             {t("operator.openCorrectiveActions", { count: openCorrectiveActions.length })}
           </span>
           <ArrowRight className="size-4" />
@@ -185,42 +197,52 @@ export default function OperatorHomePage() {
 
       <PushNotificationPrompt compact />
 
+      {/* Gamification Outlet Standings */}
+      <LeaderboardPanel />
+
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-950">{t("operator.queueTitle")}</h2>
-          <Link href="/dashboard/tasks" className="text-sm font-semibold text-emerald-700">
-            {t("operator.viewAllTasks")}
+          <h2 className="text-lg font-bold tracking-tight text-slate-950">
+            {t("operator.queueTitle")}
+          </h2>
+          <Link
+            href="/dashboard/tasks"
+            className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800"
+          >
+            {t("operator.viewAllTasks")} →
           </Link>
         </div>
 
         {tasksQuery.isLoading ? (
           <TaskSkeleton />
         ) : queue.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">
+          <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
             {t("operator.emptyQueue")}
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm">
             {queue.slice(0, 6).map((task) => {
               const overdue = isOverdue(task);
               return (
                 <li key={task.id}>
                   <Link
                     href={`/dashboard/tasks?taskId=${task.id}`}
-                    className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3.5 transition hover:bg-slate-50 active:bg-slate-100"
+                    className="flex min-h-[64px] items-center justify-between gap-3 px-5 py-4 transition hover:bg-slate-50/80 active:bg-slate-100"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950">{task.title}</p>
+                      <p className="truncate font-bold text-slate-900">{task.title}</p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                        <Clock3 className="size-3.5" />
+                        <Clock3 className="size-3.5 text-slate-400" />
                         {formatDueLabel(task, t("operator.overdue"), t("operator.dueToday")) ||
                           t("operator.open")}
                         {task.executionDraft ? ` · ${t("operator.draftBadge")}` : ""}
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                        overdue ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"
+                      className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-extrabold ${
+                        overdue
+                          ? "bg-red-50 text-red-700 border border-red-200"
+                          : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                       }`}
                     >
                       {overdue ? t("operator.overdue") : t("operator.open")}

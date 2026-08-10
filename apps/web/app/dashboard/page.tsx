@@ -14,7 +14,10 @@ import {
   ArrowRight,
   BookOpen,
   MapPin,
+  Sparkles,
 } from "lucide-react";
+
+import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
 
 import { useDashboardReports } from "@/features/dashboard/hooks/use-dashboard-reports";
 import { useSettings } from "@/features/settings/hooks/use-settings";
@@ -495,6 +498,9 @@ export default function DashboardPage() {
           icon={TrendingUp}
         />
       </section>
+
+      {/* Gamification Outlet Leaderboard */}
+      <LeaderboardPanel />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

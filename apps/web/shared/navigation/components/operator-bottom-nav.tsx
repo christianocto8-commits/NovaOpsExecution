@@ -71,10 +71,10 @@ export function OperatorBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DDE8E1] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg"
+      className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-md rounded-full border border-slate-200/80 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl transition-all duration-200 sm:left-1/2 sm:-translate-x-1/2 sm:w-full"
       aria-label={t("operator.tab.navLabel")}
     >
-      <ul className="mx-auto flex max-w-lg items-stretch justify-around">
+      <ul className="flex items-center justify-around">
         {operatorNavItems.map((item) => {
           const active =
             item.match === "exact"
@@ -89,14 +89,21 @@ export function OperatorBottomNav() {
               <Link
                 href={item.href}
                 className={[
-                  "flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-bold transition sm:text-[11px]",
-                  active ? "text-emerald-700" : "text-slate-400",
+                  "flex flex-col items-center justify-center gap-1 rounded-full py-1.5 text-[10px] font-bold transition-all duration-200 sm:text-[11px]",
+                  active
+                    ? "bg-emerald-500/10 text-emerald-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900",
                 ].join(" ")}
               >
                 <Icon
-                  className={["size-5", active ? "text-emerald-700" : "text-slate-400"].join(" ")}
+                  className={[
+                    "size-4 transition-transform duration-200",
+                    active ? "scale-110 text-emerald-700" : "text-slate-400",
+                  ].join(" ")}
                 />
-                {t(item.labelKey)}
+                <span className={active ? "font-extrabold text-emerald-800" : ""}>
+                  {t(item.labelKey)}
+                </span>
               </Link>
             </li>
           );
