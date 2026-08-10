@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Trophy, Flame, Zap, Shield, Camera, Award } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Trophy, Flame, Zap, Shield, Camera, Award, RefreshCw } from "lucide-react";
 
 type BadgeItem = {
   id: string;
@@ -31,82 +31,82 @@ type LeaderboardResponse = {
   leaderboard: LeaderboardEntry[];
 };
 
-const DEFAULT_LEADERBOARD_FALLBACK: LeaderboardResponse = {
-  period: "30 Hari Terakhir",
-  total_outlets: 5,
-  leaderboard: [
-    {
-      rank: 1,
-      outlet_id: 1,
-      outlet_name: "KOV HERITAGE",
-      outlet_code: "KOV-01",
-      points: 480,
-      tier: "Gold Outlet",
-      tier_color: "#eab308",
-      completion_rate: 96,
-      streak_days: 5,
-      badges_count: 2,
-      badges: [],
-    },
-    {
-      rank: 2,
-      outlet_id: 2,
-      outlet_name: "KOV SENOPATI",
-      outlet_code: "KOV-02",
-      points: 420,
-      tier: "Silver Outlet",
-      tier_color: "#94a3b8",
-      completion_rate: 92,
-      streak_days: 3,
-      badges_count: 1,
-      badges: [],
-    },
-    {
-      rank: 3,
-      outlet_id: 3,
-      outlet_name: "KOV SUDIRMAN",
-      outlet_code: "KOV-03",
-      points: 390,
-      tier: "Bronze Outlet",
-      tier_color: "#d97706",
-      completion_rate: 88,
-      streak_days: 2,
-      badges_count: 1,
-      badges: [],
-    },
-  ],
-};
+const REFRESH_INTERVAL_MS = 60_000; // Auto-refresh every 60 seconds
 
 export function LeaderboardPanel() {
-  const [data, setData] = useState<LeaderboardResponse>(DEFAULT_LEADERBOARD_FALLBACK);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<LeaderboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    async function fetchLeaderboard() {
-      try {
-        const res = await fetch("/api/v1/gamification/leaderboard", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("novaops_token") ?? ""}`,
-          },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        }
-      } catch (err) {
-        console.error("Failed to load leaderboard", err);
-      } finally {
-        setLoading(false);
+  const fetchLeaderboard = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem("novaops_token") ?? "";
+      const res = await fetch("/api/v1/gamification/leaderboard", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        throw new Error(
+          res.status === 401
+            ? "Sesi login habis. Silakan login kembali."
+            : `Gagal memuat leaderboard (${res.status}). ${errorText}`
+        );
       }
-    }
 
-    fetchLeaderboard();
+      const json: LeaderboardResponse = await res.json();
+      setData(json);
+      setLastUpdated(new Date());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal terhubung ke server.";
+      setError(message);
+      console.error("LeaderboardPanel fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (loading) {
+  // Initial fetch + auto-refresh polling
+  useEffect(() => {
+    fetchLeaderboard(true);
+
+    const interval = setInterval(() => {
+      fetchLeaderboard(false);
+    }, REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [fetchLeaderboard]);
+
+  if (loading && !data) {
     return (
       <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-white">
-        <p className="text-sm font-medium text-slate-500">Memuat Leaderboard Outlet...</p>
+        <div className="flex flex-col items-center gap-2">
+          <RefreshCw className="size-5 animate-spin text-amber-500" />
+          <p className="text-sm font-medium text-slate-500">Memuat Leaderboard dari server...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm font-medium text-red-700">{error}</p>
+        <button
+          type="button"
+          onClick={() => fetchLeaderboard(true)}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors"
+        >
+          <RefreshCw className="size-3.5" />
+          Coba Lagi
+        </button>
       </div>
     );
   }
@@ -114,7 +114,9 @@ export function LeaderboardPanel() {
   if (!data || !data.leaderboard.length) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
-        <p className="text-sm text-slate-500">Belum ada data peringkat outlet.</p>
+        <p className="text-sm text-slate-500">
+          Belum ada data outlet aktif di database. Pastikan outlet sudah terdaftar di sistem.
+        </p>
       </div>
     );
   }
@@ -130,17 +132,42 @@ export function LeaderboardPanel() {
               NovaOps Performance Championship
             </span>
           </div>
-          <h2 className="mt-1 text-2xl font-black">Outlet Leaderboard & Gamifikasi</h2>
+          <h2 className="mt-1 text-2xl font-black">Outlet Leaderboard &amp; Gamifikasi</h2>
           <p className="mt-1 text-xs text-amber-100 sm:text-sm">
             Peringkat kepatuhan operasional, streak berturut-turut, dan akumulasi poin performa 30
-            hari.
+            hari. Data real-time dari server.
           </p>
         </div>
-        <div className="shrink-0 rounded-xl bg-white/10 px-4 py-3 backdrop-blur-md">
-          <p className="text-xs font-medium text-amber-100">Total Outlet Aktif</p>
-          <p className="text-2xl font-black text-white">{data.total_outlets} Outlet</p>
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="rounded-xl bg-white/10 px-4 py-3 backdrop-blur-md">
+            <p className="text-xs font-medium text-amber-100">Total Outlet Aktif</p>
+            <p className="text-2xl font-black text-white">{data.total_outlets} Outlet</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchLeaderboard(true)}
+            className="rounded-xl bg-white/10 p-3 backdrop-blur-md hover:bg-white/20 transition-colors"
+            title="Refresh data dari server"
+          >
+            <RefreshCw className={`size-5 text-white ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
+
+      {/* Live update indicator */}
+      {lastUpdated && (
+        <div className="flex items-center justify-end gap-2 text-xs text-slate-400">
+          <span className="inline-block size-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>
+            Live dari VPS · Terakhir diperbarui{" "}
+            {lastUpdated.toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </span>
+        </div>
+      )}
 
       {/* Top 3 Podium Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
