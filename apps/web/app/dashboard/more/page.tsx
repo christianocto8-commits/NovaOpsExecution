@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Bell,
   FileClock,
+  Globe,
   GraduationCap,
   LogOut,
   Megaphone,
@@ -35,7 +36,7 @@ type MoreLink = {
 };
 
 export default function OutletMorePage() {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { logout, user, can } = useAuth();
   const { settings } = useSettings();
   const workspace = useSyncExternalStore(
@@ -135,6 +136,46 @@ export default function OutletMorePage() {
             {user.user.full_name || user.user.email}
           </p>
         ) : null}
+      </div>
+
+      {/* Dedicated Language Selector Card */}
+      <div className="flex items-center justify-between rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <Globe className="size-5" />
+          </span>
+          <div>
+            <span className="block font-semibold text-slate-950">{t("common.language")} / Language</span>
+            <span className="text-xs text-slate-500">
+              {language === "id" ? "Bahasa Indonesia" : "English"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
+          <button
+            type="button"
+            onClick={() => setLanguage("id")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              language === "id"
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Bahasa ID
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage("en")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              language === "en"
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            English
+          </button>
+        </div>
       </div>
 
       <ul className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
