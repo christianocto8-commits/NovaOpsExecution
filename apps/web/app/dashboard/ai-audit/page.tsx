@@ -172,7 +172,7 @@ export default function AIAuditPage() {
               secara instan.
             </p>
 
-            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center transition hover:border-emerald-500 hover:bg-emerald-50/20">
+            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-400/60 bg-emerald-50/30 p-6 text-center transition-all duration-200 hover:border-emerald-500 hover:bg-emerald-50/80 active:scale-[0.99] cursor-pointer">
               <input
                 type="file"
                 accept="image/*"
@@ -182,27 +182,29 @@ export default function AIAuditPage() {
               />
               <label
                 htmlFor="direct-photo-upload"
-                className="cursor-pointer flex flex-col items-center"
+                className="cursor-pointer flex flex-col items-center w-full min-h-[52px] justify-center"
               >
-                <span className="flex size-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 mb-2">
-                  <ImageIcon className="size-6" />
+                <span className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-700 mb-2 shadow-sm">
+                  <ImageIcon className="size-7 text-emerald-700" />
                 </span>
                 <span className="text-sm font-bold text-slate-900">
-                  {selectedFile ? selectedFile.name : "Klik / Drop Foto di Sini"}
+                  {selectedFile ? selectedFile.name : "Klik / Drop Foto dari Perangkat"}
                 </span>
-                <span className="mt-1 text-xs text-slate-500">Mendukung format JPG, PNG, WEBP</span>
+                <span className="mt-1 text-xs font-semibold text-emerald-800">
+                  Mendukung format JPG, PNG, WEBP
+                </span>
               </label>
             </div>
 
             <div className="mt-4">
-              <label className="block text-xs font-medium text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Catatan Pengerjaan Staf
               </label>
               <input
                 type="text"
                 value={testNote}
                 onChange={(e) => setTestNote(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 min-h-[44px] text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all"
               />
             </div>
           </div>
