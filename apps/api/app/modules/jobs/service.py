@@ -14,6 +14,7 @@ from app.modules.tasks.daily_reminders import (
 )
 from app.modules.tasks.due_soon_alerts import process_due_soon_task_alerts
 from app.modules.tasks.overdue_alerts import process_overdue_task_alerts
+from app.services.ai_compliance import process_ai_compliance_guard
 from app.services.digest_email import send_compliance_digest
 from app.services.scheduled_reports import process_scheduled_reports
 
@@ -61,6 +62,10 @@ class SchedulerJobService:
             "compliance_digest": self._run_and_record(
                 "compliance_digest",
                 lambda: send_compliance_digest(self.db, force=force_digest),
+            ),
+            "ai_compliance_guard": self._run_and_record(
+                "ai_compliance_guard",
+                lambda: process_ai_compliance_guard(self.db),
             ),
             "scheduled_reports": self._run_and_record(
                 "scheduled_reports",

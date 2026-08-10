@@ -117,6 +117,11 @@ class Settings(BaseSettings):
     firebase_credentials_json: str | None = None
     iot_ingest_api_key: str | None = None
 
+    llm_api_base: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+    llm_timeout_seconds: int = 20
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
