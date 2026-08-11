@@ -67,6 +67,30 @@ export function OfflineSyncBadge() {
     await refreshFailedItems();
   }
 
+  async function retryAllFailed() {
+    const items = await getFailedMutations();
+    await Promise.all(
+      items.map((item) =>
+        updateMutation({
+          ...item,
+          status: "pending",
+          error: undefined,
+          retryCount: 0,
+          lastAttemptAt: undefined,
+        })
+      )
+    );
+    await refreshFailedItems();
+    await syncNow();
+  }
+
+  async function discardAllFailed() {
+    const items = await getFailedMutations();
+    await Promise.all(items.map((item) => deleteMutation(item.id)));
+    await refreshFailedItems();
+    setIsOpen(false);
+  }
+
   function readableServerVersion(task: BackendTask | null | undefined) {
     if (task === undefined) return [{ label: "Status", value: "Loading..." }];
     if (task === null) return [{ label: "Status", value: "Server task unavailable" }];
@@ -177,15 +201,25 @@ export function OfflineSyncBadge() {
 
       {isOpen && hasFailures ? (
         <div className="absolute right-0 z-50 mt-2 w-[min(90vw,360px)] rounded-2xl border border-red-100 bg-white p-3 text-left shadow-xl">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-slate-950">Offline sync errors</p>
-            <button
-              type="button"
-              onClick={() => void syncNow()}
-              className="text-xs font-bold text-emerald-700"
-            >
-              Retry all
-            </button>
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
+            <p className="text-sm font-bold text-slate-950">Offline Sync Errors</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void retryAllFailed()}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+              >
+                Retry All
+              </button>
+              <span className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={() => void discardAllFailed()}
+                className="text-xs font-bold text-red-600 hover:text-red-700"
+              >
+                Clear All
+              </button>
+            </div>
           </div>
           <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
             {failedItems.map((item) => (
@@ -196,43 +230,41 @@ export function OfflineSyncBadge() {
                   Retry {item.retryCount ?? 0}x{" "}
                   {item.lastAttemptAt ? `- ${new Date(item.lastAttemptAt).toLocaleString()}` : ""}
                 </p>
-                {item.status === "conflict" ? (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void compareConflict(item)}
-                        className="rounded-lg bg-white px-2 py-1 font-bold text-red-700"
-                      >
-                        Compare
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void retryOfflineCopy(item)}
-                        className="rounded-lg bg-emerald-700 px-2 py-1 font-bold text-white"
-                      >
-                        Retry offline copy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void discardOfflineCopy(item)}
-                        className="rounded-lg bg-slate-900 px-2 py-1 font-bold text-white"
-                      >
-                        Discard
-                      </button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void retryOfflineCopy(item)}
+                    className="rounded-lg bg-emerald-700 px-2 py-1 font-bold text-white"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void discardOfflineCopy(item)}
+                    className="rounded-lg bg-slate-800 px-2 py-1 font-bold text-white hover:bg-slate-900"
+                  >
+                    Discard
+                  </button>
+                  {item.status === "conflict" ? (
+                    <button
+                      type="button"
+                      onClick={() => void compareConflict(item)}
+                      className="rounded-lg bg-white border border-red-200 px-2 py-1 font-bold text-red-700"
+                    >
+                      Compare
+                    </button>
+                  ) : null}
+                </div>
+                {item.status === "conflict" && compareItemId === item.id ? (
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <div className="rounded-lg bg-white p-2">
+                      <p className="font-bold text-slate-900">Server version</p>
+                      <ReadableFields rows={readableServerVersion(serverVersions[item.id])} />
                     </div>
-                    {compareItemId === item.id ? (
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <div className="rounded-lg bg-white p-2">
-                          <p className="font-bold text-slate-900">Server version</p>
-                          <ReadableFields rows={readableServerVersion(serverVersions[item.id])} />
-                        </div>
-                        <div className="rounded-lg bg-white p-2">
-                          <p className="font-bold text-slate-900">Offline version</p>
-                          <ReadableFields rows={readableOfflineVersion(item)} />
-                        </div>
-                      </div>
-                    ) : null}
+                    <div className="rounded-lg bg-white p-2">
+                      <p className="font-bold text-slate-900">Offline version</p>
+                      <ReadableFields rows={readableOfflineVersion(item)} />
+                    </div>
                   </div>
                 ) : null}
               </div>
