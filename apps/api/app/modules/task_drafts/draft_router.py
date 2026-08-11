@@ -16,6 +16,15 @@ from app.repositories.outlet_repository import OutletRepository
 router = APIRouter(prefix="/task-drafts", tags=["Task Drafts"])
 
 
+def parse_outlet_id_header(raw_header: str | None) -> int:
+    if not raw_header:
+        return 1
+    try:
+        return int(raw_header.split(",")[0].strip())
+    except (ValueError, TypeError):
+        return 1
+
+
 def ensure_outlet_access(db: Session, user_id: int, outlet_id: int):
     repo = OutletRepository(db)
     membership = repo.get_user_outlet_role(user_id, outlet_id)
@@ -31,27 +40,29 @@ def ensure_outlet_access(db: Session, user_id: int, outlet_id: int):
 
 @router.get("", response_model=list[TaskDraftResponse])
 def list_task_drafts(
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     service = TaskDraftService(db)
-    return service.list_drafts(outlet_id=x_outlet_id)
+    return service.list_drafts(outlet_id=outlet_id)
 
 
 @router.post("", response_model=TaskDraftResponse, status_code=status.HTTP_201_CREATED)
 def create_task_draft(
     payload: TaskDraftCreate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     service = TaskDraftService(db)
     return service.create_draft(
         payload=payload,
-        outlet_id=x_outlet_id,
+        outlet_id=outlet_id,
         actor_id=current_user.id,
     )
 
@@ -59,28 +70,30 @@ def create_task_draft(
 @router.get("/{draft_id}", response_model=TaskDraftResponse)
 def get_task_draft(
     draft_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     service = TaskDraftService(db)
-    return service.get_draft(draft_id=draft_id, outlet_id=x_outlet_id)
+    return service.get_draft(draft_id=draft_id, outlet_id=outlet_id)
 
 
 @router.patch("/{draft_id}", response_model=TaskDraftResponse)
 def update_task_draft(
     draft_id: int,
     payload: TaskDraftUpdate,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     service = TaskDraftService(db)
     return service.update_draft(
         draft_id=draft_id,
-        outlet_id=x_outlet_id,
+        outlet_id=outlet_id,
         payload=payload,
     )
 
@@ -88,30 +101,32 @@ def update_task_draft(
 @router.delete("/{draft_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task_draft(
     draft_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     service = TaskDraftService(db)
-    service.delete_draft(draft_id=draft_id, outlet_id=x_outlet_id)
+    service.delete_draft(draft_id=draft_id, outlet_id=outlet_id)
     return None
 
 
 @router.post("/{draft_id}/publish", response_model=TaskDraftPublishResponse)
 def publish_task_draft(
     draft_id: int,
-    x_outlet_id: int = Header(..., alias="X-Outlet-Id"),
+    x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    ensure_outlet_access(db, current_user.id, x_outlet_id)
+    outlet_id = parse_outlet_id_header(x_outlet_id)
+    ensure_outlet_access(db, current_user.id, outlet_id)
     ensure_task_permission(db, current_user, "task.create")
     service = TaskDraftService(db)
 
     task = service.publish_draft(
         draft_id=draft_id,
-        outlet_id=x_outlet_id,
+        outlet_id=outlet_id,
         actor_id=current_user.id,
     )
 

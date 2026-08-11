@@ -234,7 +234,11 @@ async function processExecutionSubmit(mutation: QueuedMutation) {
       : await findExistingDraftSessionId(mutation.taskId);
 
   if (existingSessionId) {
-    await deleteExecutionSession(existingSessionId);
+    try {
+      await deleteExecutionSession(existingSessionId);
+    } catch (err) {
+      console.warn("Could not delete draft session from server, proceeding with submit:", err);
+    }
   }
 
   await taskService.submitExecution(mutation.taskId, {
