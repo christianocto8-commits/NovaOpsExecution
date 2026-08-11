@@ -16,7 +16,12 @@ import {
 } from "@/services/execution-session.service";
 import { taskService } from "@/services/task.service";
 import { useAuth } from "@/hooks/useAuth";
-import { getAllLocalDrafts, deleteLocalDraft } from "@/lib/offline/store";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useSettings } from "@/features/settings/hooks/use-settings";
+import { getCurrentPosition } from "@/shared/evidence";
+import { createLocalId } from "@/lib/local-id";
+import { useOfflineSync } from "@/providers/OfflineSyncProvider";
+import { getAllLocalDrafts, deleteLocalDraft, enqueueMutation } from "@/lib/offline/store";
 import type { LocalDraft } from "@/lib/offline/types";
 
 type DraftCenterMode = "operational" | "content";
@@ -32,6 +37,8 @@ type OperationalDraft = {
   progress: string;
   updatedAt: string;
   isLocal: boolean;
+  answersJson: Record<string, unknown> | null;
+  formTemplateId: string;
 };
 
 type ContentDraft = {
@@ -89,6 +96,8 @@ function buildOperationalDrafts(
         progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
         updatedAt: formatUpdatedAt(session.submitted_at),
         isLocal: false,
+        answersJson: session.answers_json ?? null,
+        formTemplateId,
       };
     });
 }
@@ -119,6 +128,8 @@ function buildLocalOperationalDrafts(
       progress: totalFields > 0 ? `${answeredCount}/${totalFields}` : "-",
       updatedAt: formatUpdatedAt(draft.updatedAt),
       isLocal: true,
+      answersJson: draft.answersJson ?? null,
+      formTemplateId,
     };
   });
 }
@@ -126,9 +137,13 @@ function buildLocalOperationalDrafts(
 function OperationalDraftCard({
   draft,
   onDelete,
+  onSubmit,
+  isSubmitting,
 }: {
   draft: OperationalDraft;
   onDelete: (draft: OperationalDraft) => void;
+  onSubmit: (draft: OperationalDraft) => void;
+  isSubmitting?: boolean;
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -156,9 +171,18 @@ function OperationalDraftCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => onSubmit(draft)}
+          disabled={isSubmitting}
+          className="flex items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 px-4 py-3 text-sm font-bold text-white hover:from-emerald-800 hover:to-teal-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? "Menyubmit..." : "Submit"}
+        </button>
+
         <Link
           href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
-          className="flex items-center justify-center rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800"
+          className="flex items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
         >
           Lanjutkan
         </Link>
@@ -166,7 +190,7 @@ function OperationalDraftCard({
         <button
           type="button"
           onClick={() => onDelete(draft)}
-          className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
+          className="col-span-2 rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50"
         >
           Hapus
         </button>
@@ -230,9 +254,13 @@ export function DraftCenterWorkspace() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
   const canManageFormDrafts = can("form.create") || can("form.edit");
+  const { isOnline } = useOnlineStatus();
+  const { settings } = useSettings();
+  const { syncNow } = useOfflineSync();
 
   const [mode, setMode] = useState<DraftCenterMode>("operational");
   const [search, setSearch] = useState("");
+  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
 
   const executionDraftsQuery = useQuery({
     queryKey: ["execution-sessions", "draft-center"],
@@ -399,6 +427,80 @@ export function DraftCenterWorkspace() {
     }
   }
 
+  async function handleSubmitOperationalDraft(draft: OperationalDraft) {
+    if (!draft.answersJson) {
+      toast.error("Draft tidak memiliki data jawaban untuk disubmit.");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Submit Task Draft",
+      description: `Submit ${draft.title}?\n\nDraft akan dikirim sebagai eksekusi final dan task akan ditutup.`,
+      confirmText: "Submit",
+      cancelText: "Cancel",
+      loadingText: "Menyubmit...",
+    });
+
+    if (!confirmed) return;
+
+    const formTemplateId = draft.formTemplateId ? Number(draft.formTemplateId) : null;
+
+    let location: { latitude: number; longitude: number; accuracy_m?: number } | null = null;
+    if (settings?.geofence_enabled) {
+      location = await getCurrentPosition(800, { highAccuracy: false });
+      if (!location) {
+        toast.error("GPS belum tersedia. Izinkan lokasi di browser untuk submit.");
+        return;
+      }
+    }
+
+    setSubmittingTaskId(draft.taskId);
+
+    try {
+      await enqueueMutation({
+        id: createLocalId(),
+        type: "EXECUTION_SUBMIT",
+        taskId: draft.taskId,
+        label: draft.title,
+        payload: {
+          task_id: Number(draft.taskId),
+          form_template_id: formTemplateId,
+          answers_json: draft.answersJson,
+          existingSessionId: draft.sessionId ?? null,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+          accuracy_m: location?.accuracy_m ?? null,
+        },
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
+
+      if (draft.isLocal) {
+        await deleteLocalDraft(draft.taskId);
+        queryClient.invalidateQueries({ queryKey: ["local-drafts"] });
+      }
+
+      if (isOnline) {
+        await syncNow();
+      }
+
+      toast.success(
+        isOnline
+          ? "Draft berhasil disubmit."
+          : "Draft masuk antrean sinkronisasi dan akan disubmit saat online."
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Gagal menyubmit draft.";
+      toast.error(message);
+    } finally {
+      setSubmittingTaskId(null);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["execution-sessions", "draft-center"] });
+    queryClient.invalidateQueries({ queryKey: ["execution-sessions", "drafts"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
+  }
+
   return (
     <main className={mobileDashboardMainClass}>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
@@ -474,6 +576,8 @@ export function DraftCenterWorkspace() {
                   key={draft.id}
                   draft={draft}
                   onDelete={(item) => void handleDeleteOperationalDraft(item)}
+                  onSubmit={(item) => void handleSubmitOperationalDraft(item)}
+                  isSubmitting={submittingTaskId === draft.taskId}
                 />
               ))
             )}
@@ -511,6 +615,14 @@ export function DraftCenterWorkspace() {
                     <td className="px-5 py-4 text-slate-500">{draft.updatedAt}</td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSubmitOperationalDraft(draft)}
+                          disabled={submittingTaskId === draft.taskId}
+                          className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 px-3 py-2 text-xs font-bold text-white hover:from-emerald-800 hover:to-teal-900 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {submittingTaskId === draft.taskId ? "Menyubmit..." : "Submit"}
+                        </button>
                         <Link
                           href={`/dashboard/tasks?continueDraft=${draft.taskId}`}
                           className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
