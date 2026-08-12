@@ -150,6 +150,9 @@ class TaskSchedulePublisher:
             pub_h, pub_m = 9, 0
 
         publish_dt = local_current.replace(hour=pub_h, minute=pub_m, second=0, microsecond=0)
+        if pub_h == 0 and 1 <= pub_m <= 5 and local_current.hour == 0 and local_current.minute == 0:
+            publish_dt = local_current.replace(hour=0, minute=0, second=0, microsecond=0)
+
         window_end = publish_dt + timedelta(hours=14)
         if not (publish_dt <= local_current < window_end):
             return False

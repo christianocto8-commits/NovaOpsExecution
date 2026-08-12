@@ -57,3 +57,17 @@ def test_due_rolls_to_next_day_when_before_publish():
     )
     assert due.day == 3
     assert due.hour == 6
+
+
+def test_early_midnight_publish_triggers_on_top_of_hour_cron():
+    tz = ZoneInfo("Asia/Jakarta")
+    midnight_cron_tick = datetime(2026, 8, 2, 0, 0, tzinfo=tz)
+    assert (
+        should_publish_recurring(
+            recurrence="daily",
+            publish_time="00:01",
+            local_current=midnight_cron_tick,
+        )
+        is True
+    )
+

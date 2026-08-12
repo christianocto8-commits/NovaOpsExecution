@@ -20,6 +20,9 @@ def is_past_clock_time(clock_time: str, current: datetime) -> bool:
     except (TypeError, ValueError):
         hour, minute = 9, 0
 
+    if hour == 0 and 1 <= minute <= 5 and current.hour == 0 and current.minute == 0:
+        return True
+
     return current.time() >= time(hour=hour, minute=minute)
 
 
