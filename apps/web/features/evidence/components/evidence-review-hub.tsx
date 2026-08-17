@@ -328,6 +328,26 @@ export function EvidenceReviewHub({
     [evidenceItems]
   );
 
+  const pendingGroups = useMemo(() => {
+    const groups = new Map<string, ReviewEvidenceItem[]>();
+
+    pendingItems.forEach((item) => {
+      const key =
+        item.entityType === "submission"
+          ? `submission:${item.submissionId}`
+          : `task:${item.taskId}`;
+      const items = groups.get(key) ?? [];
+      items.push(item);
+      groups.set(key, items);
+    });
+
+    return Array.from(groups.values()).map((items) => ({
+      key: items[0].id,
+      item: items[0],
+      photoCount: items.length,
+    }));
+  }, [pendingItems]);
+
   const activeItem = lightboxIndex != null ? (filteredItems[lightboxIndex] ?? null) : null;
 
   function openLightbox(index: number) {
@@ -421,12 +441,15 @@ export function EvidenceReviewHub({
         </select>
       </div>
 
-      {pendingItems.length > 0 ? (
+      {pendingGroups.length > 0 ? (
         <div className="mt-5 overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/60">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 px-4 py-3">
             <div>
               <p className="text-sm font-bold text-blue-950">Approval Queue</p>
-              <p className="text-xs text-blue-700">Evidence yang belum disetujui owner/admin.</p>
+              <p className="text-xs text-blue-700">
+                {pendingGroups.length} task/submission dengan bukti foto yang belum disetujui
+                owner/admin. Satu aksi berlaku untuk semua foto pada task/submission tersebut.
+              </p>
             </div>
             <button
               type="button"
@@ -442,26 +465,30 @@ export function EvidenceReviewHub({
                 <tr className="border-b border-blue-100 text-left text-xs uppercase tracking-wide text-blue-700">
                   <th className="px-4 py-3">Task</th>
                   <th className="px-4 py-3">Outlet</th>
+                  <th className="px-4 py-3">Photos</th>
                   <th className="px-4 py-3">Submitted</th>
                   <th className="px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingItems.slice(0, 8).map((item) => (
+                {pendingGroups.slice(0, 8).map((group) => (
                   <tr
-                    key={`approval-${item.id}`}
+                    key={`approval-${group.key}`}
                     className="border-b border-blue-100/70 last:border-b-0"
                   >
-                    <td className="px-4 py-3 font-semibold text-slate-950">{item.taskTitle}</td>
-                    <td className="px-4 py-3 text-slate-600">{item.outlet}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-950">
+                      {group.item.taskTitle}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{group.item.outlet}</td>
+                    <td className="px-4 py-3 text-slate-600">{group.photoCount} foto</td>
                     <td className="px-4 py-3 text-slate-600">
-                      {new Date(item.submittedAt).toLocaleString()}
+                      {new Date(group.item.submittedAt).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => submitReview(item, "approved")}
+                          onClick={() => submitReview(group.item, "approved")}
                           disabled={isReviewing}
                           className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
                         >
@@ -469,7 +496,7 @@ export function EvidenceReviewHub({
                         </button>
                         <button
                           type="button"
-                          onClick={() => submitReview(item, "rejected")}
+                          onClick={() => submitReview(group.item, "rejected")}
                           disabled={isReviewing}
                           className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-60"
                         >
