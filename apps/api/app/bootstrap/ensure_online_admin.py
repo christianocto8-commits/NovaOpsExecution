@@ -4,10 +4,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.session import SessionLocal
+from app.core.database import SessionLocal
 from app.modules.identity.models import Organization, Outlet, Permission, Role, User
 from app.modules.identity.permissions import ROLE_PERMISSION_MAP, SYSTEM_ROLES
 from app.modules.identity.security import hash_password
+from app.modules.tasks.identity_bridge import get_or_create_legacy_outlet, sync_legacy_user
 
 ROLE_NAMES = {
     "owner": "Owner",
@@ -154,6 +155,14 @@ def ensure_online_admin() -> None:
             user.outlet_id = outlet.id
             user.is_active = True
             db.add(user)
+
+        db.flush()
+
+        # Bridge the identity admin into the legacy task engine so the
+        # bootstrapped user (legacy id 1) and HQ outlet (legacy id 1) exist
+        # immediately, without waiting for the first login to sync them.
+        legacy_outlet = get_or_create_legacy_outlet(db, outlet)
+        sync_legacy_user(db, user, legacy_outlet)
 
         db.commit()
     except Exception:
