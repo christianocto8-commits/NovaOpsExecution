@@ -21,12 +21,17 @@ export async function prepareEvidenceFile(
 
   let preparedFile = file;
 
-  if (options.timestampWatermark) {
-    preparedFile = await applyPhotoWatermark(preparedFile, {
-      timestamp: new Date(),
-      timezone: options.timezone,
-      outletName: options.outletName,
-    });
+  if (options.timestampWatermark && file.type.startsWith("image/")) {
+    try {
+      preparedFile = await applyPhotoWatermark(preparedFile, {
+        timestamp: new Date(),
+        timezone: options.timezone,
+        outletName: options.outletName,
+      });
+    } catch {
+      // Fallback safely to original file if canvas/image decoding fails
+      preparedFile = file;
+    }
   }
 
   const geolocation = await geolocationPromise;

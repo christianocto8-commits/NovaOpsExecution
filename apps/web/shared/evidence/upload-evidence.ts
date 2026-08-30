@@ -54,10 +54,23 @@ export async function uploadEvidenceFile(file: File, options: EvidenceUploadOpti
   formData.append("file", file);
 
   if (options.geolocation) {
-    formData.append("latitude", String(options.geolocation.latitude));
-    formData.append("longitude", String(options.geolocation.longitude));
-
-    if (options.geolocation.accuracy_m != null) {
+    if (
+      typeof options.geolocation.latitude === "number" &&
+      !Number.isNaN(options.geolocation.latitude)
+    ) {
+      formData.append("latitude", String(options.geolocation.latitude));
+    }
+    if (
+      typeof options.geolocation.longitude === "number" &&
+      !Number.isNaN(options.geolocation.longitude)
+    ) {
+      formData.append("longitude", String(options.geolocation.longitude));
+    }
+    if (
+      options.geolocation.accuracy_m != null &&
+      typeof options.geolocation.accuracy_m === "number" &&
+      !Number.isNaN(options.geolocation.accuracy_m)
+    ) {
       formData.append("accuracy_m", String(options.geolocation.accuracy_m));
     }
   }
@@ -66,6 +79,7 @@ export async function uploadEvidenceFile(file: File, options: EvidenceUploadOpti
     const response = await fetch(buildApiUrl("/api/v1/evidence-uploads"), {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: "include",
       body: formData,
     });
 

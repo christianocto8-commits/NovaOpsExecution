@@ -2,6 +2,7 @@ from datetime import datetime, UTC
 import mimetypes
 from pathlib import Path
 import re
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -9,7 +10,7 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 from app.services.s3_storage import (
     download_bytes,
@@ -38,6 +39,24 @@ ALLOWED_CONTENT_TYPES = {
 SAFE_STORED_NAME = re.compile(r"^[0-9]{14}-[a-f0-9]{32}\.(jpg|jpeg|png|webp|heic|heif|mp4|webm|mov)$")
 
 
+def _parse_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        val = float(value)
+        return val if not (val != val) else None  # Filter out NaN
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned or cleaned.lower() in {"null", "undefined", "none", "nan"}:
+            return None
+        try:
+            val = float(cleaned)
+            return val if not (val != val) else None
+        except ValueError:
+            return None
+    return None
+
+
 def _safe_extension(filename: str, content_type: str | None) -> str:
     suffix = Path(filename or "").suffix.lower()
 
@@ -59,9 +78,9 @@ def _safe_extension(filename: str, content_type: str | None) -> str:
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_evidence(
     file: UploadFile = File(...),
-    latitude: float | None = Form(default=None),
-    longitude: float | None = Form(default=None),
-    accuracy_m: float | None = Form(default=None),
+    latitude: Any = Form(default=None),
+    longitude: Any = Form(default=None),
+    accuracy_m: Any = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, str | float | None]:
@@ -103,9 +122,9 @@ async def upload_evidence(
         "url": f"/api/v1/evidence-uploads/{stored_name}",
         "file_name": file.filename or stored_name,
         "uploaded_at": datetime.now(UTC).isoformat(),
-        "latitude": latitude,
-        "longitude": longitude,
-        "accuracy_m": accuracy_m,
+        "latitude": _parse_optional_float(latitude),
+        "longitude": _parse_optional_float(longitude),
+        "accuracy_m": _parse_optional_float(accuracy_m),
     }
 
 
@@ -143,7 +162,7 @@ def _serve_evidence_file(stored_name: str, use_presigned: bool = True):
 def get_evidence_file(
     stored_name: str,
     redirect: bool = Query(default=True),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
     del current_user
     return _serve_evidence_file(stored_name, use_presigned=redirect)
@@ -153,7 +172,7 @@ def get_evidence_file(
 def get_legacy_evidence_file(
     stored_name: str,
     redirect: bool = Query(default=True),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
     del current_user
     return _serve_evidence_file(stored_name, use_presigned=redirect)

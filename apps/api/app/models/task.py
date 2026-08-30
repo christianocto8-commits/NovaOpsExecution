@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -6,6 +6,10 @@ from app.core.database import Base
 
 class Task(Base):
     __tablename__ = "tasks"
+    __table_args__ = (
+        Index("ix_tasks_outlet_status", "outlet_id", "status"),
+        Index("ix_tasks_status_created", "status", "created_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 

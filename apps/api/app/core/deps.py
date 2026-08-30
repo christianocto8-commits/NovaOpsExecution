@@ -101,6 +101,18 @@ def get_current_user(
         )
 
 
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if credentials is None:
+        return None
+    try:
+        return get_current_user(credentials, db)
+    except HTTPException:
+        return None
+
+
 def get_optional_api_key(
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
     db: Session = Depends(get_db),

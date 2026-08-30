@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $false
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $WebDir = Join-Path $Root "apps\web"
@@ -92,23 +93,13 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
-Write-Host "[1/6] Build frontend (relative API + VAPID)..." -ForegroundColor Cyan
-Push-Location $WebDir
-$env:NEXT_PUBLIC_USE_RELATIVE_API = "true"
-if ($vapidPublic) { $env:NEXT_PUBLIC_VAPID_PUBLIC_KEY = $vapidPublic }
-npm run build
-if ($LASTEXITCODE -ne 0) { exit 1 }
-Copy-Item -Recurse -Force public .next\standalone\public
-Copy-Item -Recurse -Force .next\static .next\standalone\.next\static
-Pop-Location
-
-Write-Host "[2/6] Upload backend + infra payload..." -ForegroundColor Cyan
+Write-Host "[1/5] Upload backend + infra payload..." -ForegroundColor Cyan
 Deploy-VpsCodePayload -Root $Root -ApiDir $ApiDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot -SshKey $SshKey
 
-Write-Host "[3/6] Upload frontend standalone (tar.gz)..." -ForegroundColor Cyan
+Write-Host "[2/5] Upload frontend source and build on VPS..." -ForegroundColor Cyan
 Deploy-VpsFrontendArchive -WebDir $WebDir -VpsHost $VpsHost -RemoteRoot $RemoteRoot -SshKey $SshKey
 
-Write-Host "[4/6] Activate live integrations on VPS..." -ForegroundColor Cyan
+Write-Host "[3/5] Activate live integrations on VPS..." -ForegroundColor Cyan
 $remoteEnvPairs = @()
 if ($vapidPublic) {
   $remoteEnvPairs += "VAPID_PUBLIC_KEY=$(ConvertTo-BashSingleQuotedValue $vapidPublic)"

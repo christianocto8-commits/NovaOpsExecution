@@ -10,56 +10,105 @@ function Deploy-VpsFrontendArchive {
   )
 
   $sshArgs = if ($SshKey) { @("-i", $SshKey, "-o", "IdentitiesOnly=yes") } else { @() }
-  $standaloneDir = Join-Path $WebDir ".next\standalone"
-  if (-not (Test-Path -LiteralPath $standaloneDir)) {
-    throw "Standalone build not found at $standaloneDir. Run 'npm run build' first."
+  $tar = Get-Command tar -ErrorAction SilentlyContinue
+  if (-not $tar) {
+    throw "'tar' not found in PATH."
   }
 
   $timestamp = Get-Date -Format "yyyyMMddHHmmss"
-  $remoteNext = "$RemoteRoot/apps/web/.next"
-  $remoteStandalone = "$remoteNext/standalone"
-  $remoteStandaloneIncoming = "$remoteNext/standalone-new-$timestamp"
+  $stagingRoot = Join-Path $env:TEMP "novaops-websrc-$timestamp"
+  $archiveName = "novaops-websrc-$timestamp.tar.gz"
+  $localArchive = Join-Path $env:TEMP $archiveName
+  $remoteArchive = "$RemoteRoot/.deploy-tmp/$archiveName"
 
-  Write-Host "  Uploading standalone folder to VPS ..." -ForegroundColor Gray
-  ssh @sshArgs $VpsHost "mkdir -p '$remoteNext' && rm -rf '$remoteStandaloneIncoming'"
-  if ($LASTEXITCODE -ne 0) { throw "ssh prepare failed" }
+  if (Test-Path -LiteralPath $stagingRoot) {
+    Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+  }
+  if (Test-Path -LiteralPath $localArchive) {
+    Remove-Item -LiteralPath $localArchive -Force
+  }
 
-  scp @sshArgs -r $standaloneDir "${VpsHost}:${remoteStandaloneIncoming}"
+  New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
+
+  $dirsToCopy = @("app", "components", "features", "hooks", "lib", "providers", "public", "services", "shared")
+  foreach ($d in $dirsToCopy) {
+    $srcPath = Join-Path $WebDir $d
+    if (Test-Path $srcPath) {
+      Copy-Item -LiteralPath $srcPath -Destination (Join-Path $stagingRoot $d) -Recurse -Force
+    }
+  }
+
+  $filesToCopy = @("next.config.ts", "package.json", "package-lock.json", "postcss.config.mjs", "tsconfig.json", "next-env.d.ts", "eslint.config.mjs")
+  foreach ($f in $filesToCopy) {
+    $srcPath = Join-Path $WebDir $f
+    if (Test-Path $srcPath) {
+      Copy-Item -LiteralPath $srcPath -Destination (Join-Path $stagingRoot $f) -Force
+    }
+  }
+
+  Push-Location $stagingRoot
+  try {
+    & tar -czf $localArchive *
+    if ($LASTEXITCODE -ne 0) {
+      throw "tar pack failed with exit code $LASTEXITCODE"
+    }
+  }
+  finally {
+    Pop-Location
+  }
+
+  $sizeMb = [math]::Round((Get-Item $localArchive).Length / 1MB, 1)
+  Write-Host "  Uploading web source ($sizeMb MB) to VPS and building on Linux..." -ForegroundColor Gray
+
+  ssh @sshArgs $VpsHost "mkdir -p '$RemoteRoot/.deploy-tmp' '$RemoteRoot/apps/web'"
+  if ($LASTEXITCODE -ne 0) { throw "ssh mkdir failed" }
+
+  scp @sshArgs $localArchive "${VpsHost}:${remoteArchive}"
   if ($LASTEXITCODE -ne 0) { throw "scp upload failed" }
 
-  Write-Host "  Swapping standalone on VPS ..." -ForegroundColor Gray
   $remoteScript = @"
 set -e
-test -f '$remoteStandaloneIncoming/server.js'
-systemctl stop novaops-web 2>/dev/null || true
-rm -rf '$remoteStandalone.previous'
-if [ -d '$remoteStandalone' ]; then
-  mv '$remoteStandalone' '$remoteStandalone.previous'
-fi
-mv '$remoteStandaloneIncoming' '$remoteStandalone'
+ROOT="$RemoteRoot"
+ARCHIVE="$remoteArchive"
+WEB_DIR="`$ROOT/apps/web"
+
+mkdir -p "`$WEB_DIR"
+tar -xzf "`$ARCHIVE" -C "`$WEB_DIR"
+rm -f "`$ARCHIVE"
+
+cd "`$WEB_DIR"
+export NEXT_PUBLIC_USE_RELATIVE_API=true
+npm ci --prefer-offline 2>/dev/null || npm install --no-audit
+
+npm run build
+
+cp -rf public .next/standalone/public
+mkdir -p .next/standalone/.next
+cp -rf .next/static .next/standalone/.next/static
+
 if systemctl list-unit-files novaops-web.service 2>/dev/null | grep -q '^novaops-web.service'; then
   systemctl restart novaops-web
   echo 'novaops-web restarted'
-else
-  echo 'novaops-web not installed yet; skipped restart'
 fi
-echo 'Frontend standalone deployed to $remoteStandalone'
+echo 'Frontend built and deployed successfully on VPS.'
 "@
   $remoteScript = ($remoteScript -replace "`r`n", "`n" -replace "`r", "`n").Trim()
-  $localSh = Join-Path $env:TEMP "novaops-frontend-remote-$timestamp.sh"
+  $localSh = Join-Path $env:TEMP "novaops-frontend-build-$timestamp.sh"
   $utf8NoBom = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllText($localSh, $remoteScript, $utf8NoBom)
-  $remoteSh = "/tmp/novaops-frontend-remote-$timestamp.sh"
+  $remoteSh = "/tmp/novaops-frontend-build-$timestamp.sh"
 
   try {
     scp @sshArgs $localSh "${VpsHost}:${remoteSh}"
     if ($LASTEXITCODE -ne 0) { throw "scp remote script failed" }
     ssh @sshArgs $VpsHost "bash '$remoteSh'; ec=`$?; rm -f '$remoteSh'; exit `$ec"
-    if ($LASTEXITCODE -ne 0) { throw "remote swap failed" }
+    if ($LASTEXITCODE -ne 0) { throw "remote build on VPS failed" }
   }
   finally {
     Remove-Item -LiteralPath $localSh -ErrorAction SilentlyContinue -Force
+    Remove-Item -LiteralPath $localArchive -ErrorAction SilentlyContinue -Force
+    Remove-Item -LiteralPath $stagingRoot -ErrorAction SilentlyContinue -Recurse -Force
   }
 
-  Write-Host "  Frontend standalone deploy complete." -ForegroundColor Green
+  Write-Host "  Frontend deploy complete." -ForegroundColor Green
 }
