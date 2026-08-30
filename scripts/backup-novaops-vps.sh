@@ -38,13 +38,20 @@ else
   exit 1
 fi
 
-DUMP_FILE="$DB_DIR/novaops-$TIMESTAMP.sql"
-PGPASSWORD="$PG_PASS" pg_dump -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -F p -f "$DUMP_FILE"
+DUMP_FILE="$DB_DIR/novaops-$TIMESTAMP.sql.gz"
+PGPASSWORD="$PG_PASS" pg_dump -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -F p | gzip > "$DUMP_FILE"
 
 EVIDENCE_SOURCE="${NOVAOPS_EVIDENCE_DIR:-/opt/NovaOpsExecution/apps/api/uploads/evidence}"
+EVIDENCE_RETENTION_DAYS="${NOVAOPS_EVIDENCE_RETENTION_DAYS:-14}"
+
+# Auto-purge local evidence files older than retention period (default: 14 days)
 if [[ -d "$EVIDENCE_SOURCE" ]]; then
-  cp -a "$EVIDENCE_SOURCE/." "$EVIDENCE_DIR/"
+  echo "Auto-purging evidence older than $EVIDENCE_RETENTION_DAYS days in $EVIDENCE_SOURCE..."
+  find "$EVIDENCE_SOURCE" -type f -mtime +"$EVIDENCE_RETENTION_DAYS" -delete || true
 fi
+
+# Clean systemd journal logs older than 7 days
+journalctl --vacuum-time=7d >/dev/null 2>&1 || true
 
 cat > "$BACKUP_ROOT/manifest.json" <<EOF
 {
@@ -55,9 +62,19 @@ cat > "$BACKUP_ROOT/manifest.json" <<EOF
   "database_url_name": "$PG_DB",
   "db_dump": "$(basename "$DUMP_FILE")",
   "evidence_source": "$EVIDENCE_SOURCE",
+  "evidence_retention_days": $EVIDENCE_RETENTION_DAYS,
   "retention_count": $RETENTION_COUNT
 }
 EOF
+
+# Optional Google Drive Upload via Rclone
+GDRIVE_REMOTE="${NOVAOPS_GDRIVE_REMOTE:-}"
+if [[ -n "$GDRIVE_REMOTE" ]] && command -v rclone >/dev/null 2>&1; then
+  echo "Uploading backup to Google Drive ($GDRIVE_REMOTE)..."
+  rclone copy "$BACKUP_ROOT" "$GDRIVE_REMOTE/vps-$TIMESTAMP" --fast-list --transfers 4 || true
+  # Optionally purge Google Drive backups older than 30 days
+  rclone delete "$GDRIVE_REMOTE" --min-age 30d 2>/dev/null || true
+fi
 
 BACKUP_PARENT="$(dirname "$BACKUP_ROOT")"
 if [[ -d "$BACKUP_PARENT" ]]; then
@@ -71,4 +88,4 @@ if [[ -d "$BACKUP_PARENT" ]]; then
   fi
 fi
 
-echo "VPS backup complete: $BACKUP_ROOT (retention=$RETENTION_COUNT)"
+echo "VPS backup complete: $BACKUP_ROOT (retention=$RETENTION_COUNT, evidence_purge=${EVIDENCE_RETENTION_DAYS}d)"
