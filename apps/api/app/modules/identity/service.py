@@ -236,7 +236,7 @@ class AuthService:
             expires_in_minutes=self.settings.access_token_expire_minutes,
         )
 
-    def refresh_tokens(
+    def rotate_refresh_token(
         self,
         *,
         raw_refresh_token: str,

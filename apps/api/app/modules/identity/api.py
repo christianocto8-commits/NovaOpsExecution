@@ -98,7 +98,7 @@ def refresh_session(
     request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    return AuthService(db).refresh_tokens(
+    return AuthService(db).rotate_refresh_token(
         raw_refresh_token=payload.refresh_token,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),

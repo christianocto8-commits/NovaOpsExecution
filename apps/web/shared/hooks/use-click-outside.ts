@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { RefObject, useEffect } from "react";
+import { RefObject, useEffect, useRef } from "react";
 
 type UseClickOutsideOptions = {
   enabled?: boolean;
@@ -12,6 +12,8 @@ export function useClickOutside<T extends HTMLElement>(
   options: UseClickOutsideOptions = {}
 ) {
   const { enabled = true } = options;
+  const callbackRef = useRef(onClickOutside);
+  callbackRef.current = onClickOutside;
 
   useEffect(() => {
     if (!enabled) return;
@@ -22,7 +24,7 @@ export function useClickOutside<T extends HTMLElement>(
       if (!target || !ref.current) return;
 
       if (!ref.current.contains(target)) {
-        onClickOutside();
+        callbackRef.current();
       }
     }
 
@@ -33,5 +35,5 @@ export function useClickOutside<T extends HTMLElement>(
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("touchstart", handlePointerDown);
     };
-  }, [enabled, onClickOutside, ref]);
+  }, [enabled, ref]);
 }

@@ -255,7 +255,7 @@ class NotificationService:
                         raise ValueError("Email delivery failed or SMTP not configured")
 
                 delivery.status = NotificationStatus.sent
-                delivery.sent_at = datetime.utcnow()
+                delivery.sent_at = datetime.now(timezone.utc)
                 delivery.last_error = None
                 result["sent"] += 1
             except Exception as exc:

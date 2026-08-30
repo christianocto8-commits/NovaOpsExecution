@@ -55,20 +55,23 @@ def _normalize_form_template_payload(data: Any) -> Any:
             if help_text is None:
                 help_text = field.get("section")
 
-            normalized_fields.append(
-                {
-                    "label": label,
-                    "field_type": str(field_type),
-                    "placeholder": field.get("placeholder"),
-                    "help_text": help_text,
-                    "is_required": bool(
-                        field.get("is_required", field.get("required", False))
-                    ),
-                    "options_json": field.get("options_json", field.get("options")),
-                    "validation_json": field.get("validation_json"),
-                    "sort_order": int(field.get("sort_order", index)),
-                }
-            )
+            field_id = field.get("id")
+            normalized_field: dict[str, Any] = {
+                "label": label,
+                "field_type": str(field_type),
+                "placeholder": field.get("placeholder"),
+                "help_text": help_text,
+                "is_required": bool(
+                    field.get("is_required", field.get("required", False))
+                ),
+                "options_json": field.get("options_json", field.get("options")),
+                "validation_json": field.get("validation_json"),
+                "sort_order": int(field.get("sort_order", index)),
+            }
+            if field_id is not None and isinstance(field_id, (int, str)) and str(field_id).isdigit():
+                normalized_field["id"] = int(field_id)
+
+            normalized_fields.append(normalized_field)
         payload["fields"] = normalized_fields
 
     return payload

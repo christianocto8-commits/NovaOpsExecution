@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -356,6 +356,8 @@ def list_form_submissions(
     outlet_id: int | None = Query(default=None),
     form_template_id: int | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -380,7 +382,7 @@ def list_form_submissions(
     if status_filter:
         query = query.filter(FormSubmission.status == status_filter)
 
-    submissions = query.order_by(FormSubmission.id.desc()).all()
+    submissions = query.order_by(FormSubmission.id.desc()).limit(limit).offset(offset).all()
     return build_form_submission_responses(db, submissions)
 
 
@@ -408,6 +410,7 @@ def get_form_submission(
 def review_form_submission(
     submission_id: int,
     payload: FormSubmissionReviewUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -431,47 +434,66 @@ def review_form_submission(
     submission.reviewed_by = current_user.id
     submission.reviewed_at = datetime.now(timezone.utc)
     db.add(submission)
-    db.flush()
 
-    try:
-        record_identity_audit_event(
-            db,
-            action=f"form_submission_{payload.review}",
-            resource_type="form_submission",
-            actor_user_id=None,
-            resource_id=str(submission.id),
-            metadata={
-                "submission_id": submission.id,
-                "outlet_id": submission.outlet_id,
-                "form_template_id": submission.form_template_id,
-                "review": payload.review,
-                "note": payload.note,
-                "reviewed_by_legacy_user_id": current_user.id,
-            },
-        )
-    except Exception:
-        pass
+    # Keep audit + webhook out of the critical approval path
+    saved_submission_id = submission.id
+    review_value = payload.review
+    review_note = payload.note
+    outlet_id = submission.outlet_id
+    template_id = submission.form_template_id
+    score_value = submission.score
+    reviewer_id = current_user.id
 
-    try:
-        dispatch_webhook_event(
-            db,
-            event_type=f"form.{payload.review}",
-            outlet_id=submission.outlet_id,
-            payload={
-                "submission_id": submission.id,
-                "form_template_id": submission.form_template_id,
-                "outlet_id": submission.outlet_id,
-                "score": submission.score,
-                "status": submission.status,
-                "review_note": payload.note,
-                "reviewed_by": current_user.id,
-            },
-        )
-    except Exception:
-        pass
+    def _audit_and_webhook_in_background() -> None:
+        from app.core.database import SessionLocal
+
+        bg_db = SessionLocal()
+        try:
+            try:
+                record_identity_audit_event(
+                    bg_db,
+                    action=f"form_submission_{review_value}",
+                    resource_type="form_submission",
+                    actor_user_id=None,
+                    resource_id=str(saved_submission_id),
+                    metadata={
+                        "submission_id": saved_submission_id,
+                        "outlet_id": outlet_id,
+                        "form_template_id": template_id,
+                        "review": review_value,
+                        "note": review_note,
+                        "reviewed_by_legacy_user_id": reviewer_id,
+                    },
+                )
+                bg_db.commit()
+            except Exception:
+                try:
+                    bg_db.rollback()
+                except Exception:
+                    pass
+            try:
+                dispatch_webhook_event(
+                    bg_db,
+                    event_type=f"form.{review_value}",
+                    outlet_id=outlet_id,
+                    payload={
+                        "submission_id": saved_submission_id,
+                        "form_template_id": template_id,
+                        "outlet_id": outlet_id,
+                        "score": score_value,
+                        "status": review_value,
+                        "review_note": review_note,
+                        "reviewed_by": reviewer_id,
+                    },
+                )
+            except Exception:
+                pass
+        finally:
+            bg_db.close()
 
     db.commit()
     db.refresh(submission)
+    background_tasks.add_task(_audit_and_webhook_in_background)
     return build_form_submission_response(db, submission)
 
 

@@ -12,7 +12,10 @@ type BeforeInstallPromptEvent = Event & {
 function isIosDevice() {
   if (typeof navigator === "undefined") return false;
 
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return true;
+
+  // iPadOS 13+ reports a macOS desktop Safari user-agent — detect via touch support
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
 function isStandaloneDisplayMode() {

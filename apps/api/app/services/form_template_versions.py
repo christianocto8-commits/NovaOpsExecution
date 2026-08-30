@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.form_answer import FormAnswer
 from app.models.form_field import FormField
 from app.models.form_template import FormTemplate
 from app.models.form_template_version import FormTemplateVersion
@@ -89,25 +90,62 @@ def restore_form_template_version(
     form_template.is_active = bool(snapshot.get("is_active", form_template.is_active))
     form_template.outlet_id = snapshot.get("outlet_id")
 
-    db.query(FormField).filter(FormField.form_template_id == form_template.id).delete()
+    existing_fields = {
+        field.id: field
+        for field in db.query(FormField)
+        .filter(FormField.form_template_id == form_template.id)
+        .all()
+    }
 
-    for index, field_data in enumerate(snapshot.get("fields") or []):
-        if not isinstance(field_data, dict):
-            continue
+    incoming_fields = [
+        field_data
+        for field_data in (snapshot.get("fields") or [])
+        if isinstance(field_data, dict)
+    ]
 
-        db.add(
-            FormField(
-                form_template_id=form_template.id,
-                label=field_data.get("label") or "Untitled field",
-                field_type=field_data.get("field_type") or "text",
-                placeholder=field_data.get("placeholder"),
-                help_text=field_data.get("help_text"),
-                is_required=bool(field_data.get("is_required", False)),
-                options_json=field_data.get("options_json"),
-                validation_json=field_data.get("validation_json"),
-                sort_order=int(field_data.get("sort_order", index)),
+    matched_ids: set[int] = set()
+    existing_list = sorted(existing_fields.values(), key=lambda f: f.sort_order)
+
+    for index, field_data in enumerate(incoming_fields):
+        # Match with existing field by index if available
+        if index < len(existing_list):
+            existing = existing_list[index]
+            matched_ids.add(existing.id)
+            existing.label = field_data.get("label") or "Untitled field"
+            existing.field_type = field_data.get("field_type") or "text"
+            existing.placeholder = field_data.get("placeholder")
+            existing.help_text = field_data.get("help_text")
+            existing.is_required = bool(field_data.get("is_required", False))
+            existing.options_json = field_data.get("options_json")
+            existing.validation_json = field_data.get("validation_json")
+            existing.sort_order = int(field_data.get("sort_order", index))
+        else:
+            db.add(
+                FormField(
+                    form_template_id=form_template.id,
+                    label=field_data.get("label") or "Untitled field",
+                    field_type=field_data.get("field_type") or "text",
+                    placeholder=field_data.get("placeholder"),
+                    help_text=field_data.get("help_text"),
+                    is_required=bool(field_data.get("is_required", False)),
+                    options_json=field_data.get("options_json"),
+                    validation_json=field_data.get("validation_json"),
+                    sort_order=int(field_data.get("sort_order", index)),
+                )
             )
-        )
+
+    for old_id, old_field in existing_fields.items():
+        if old_id not in matched_ids:
+            has_answers = (
+                db.query(FormAnswer.id)
+                .filter(FormAnswer.form_field_id == old_id)
+                .first()
+                is not None
+            )
+            if not has_answers:
+                db.delete(old_field)
+            else:
+                old_field.is_required = False
 
     db.flush()
     return form_template

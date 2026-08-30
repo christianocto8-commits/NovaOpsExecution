@@ -6,6 +6,10 @@ import { getOfflineEvidenceBlobUrl, isOfflineEvidenceUrl } from "@/lib/offline/o
 
 import { resolveEvidenceDisplayUrl } from "../submission-evidence";
 
+// Shared cache for API evidence blobs to avoid N parallel fetches for duplicate URLs
+const apiBlobCache = new Map<string, string>();
+const apiBlobPromises = new Map<string, Promise<string | null>>();
+
 function getAuthHeaders(): HeadersInit | undefined {
   if (typeof window === "undefined") return undefined;
 
@@ -46,19 +50,37 @@ export function useEvidenceDisplayUrl(url: string) {
         return getOfflineEvidenceBlobUrl(resolvedUrl);
       }
 
-      const response = await fetch(resolvedUrl, {
-        headers: getAuthHeaders(),
-        credentials: "include",
-      });
+      const cached = apiBlobCache.get(resolvedUrl);
+      if (cached) return cached;
 
-      if (!response.ok) return null;
+      const pending = apiBlobPromises.get(resolvedUrl);
+      if (pending) return pending;
 
-      return URL.createObjectURL(await response.blob());
+      const promise = (async () => {
+        const response = await fetch(resolvedUrl, {
+          headers: getAuthHeaders(),
+          credentials: "include",
+        });
+
+        if (!response.ok) return null;
+
+        const blobUrl = URL.createObjectURL(await response.blob());
+        apiBlobCache.set(resolvedUrl, blobUrl);
+        return blobUrl;
+      })();
+
+      apiBlobPromises.set(resolvedUrl, promise);
+      try {
+        return await promise;
+      } finally {
+        apiBlobPromises.delete(resolvedUrl);
+      }
     }
 
     void resolveBlobUrl().then((nextBlobUrl) => {
       if (cancelled) {
-        if (nextBlobUrl) URL.revokeObjectURL(nextBlobUrl);
+        // Don't revoke cached URLs — they're shared
+        if (nextBlobUrl && !apiBlobCache.has(resolvedUrl)) URL.revokeObjectURL(nextBlobUrl);
         return;
       }
 
@@ -69,9 +91,7 @@ export function useEvidenceDisplayUrl(url: string) {
     return () => {
       cancelled = true;
       setBlobUrl(null);
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      // Keep shared cache alive — do not revoke apiBlobCache entries on unmount
     };
   }, [resolvedUrl]);
 

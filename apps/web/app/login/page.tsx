@@ -11,7 +11,9 @@ import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
 
 const REMEMBER_KEY = "novaops_remember_identifier";
-const GOOGLE_OAUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
+const GOOGLE_OAUTH_ENABLED =
+  process.env.NEXT_PUBLIC_GOOGLE_SSO_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
 const OIDC_SSO_ENABLED = process.env.NEXT_PUBLIC_OIDC_SSO_ENABLED === "true";
 const SAML_SSO_ENABLED = process.env.NEXT_PUBLIC_SAML_SSO_ENABLED === "true";
 const OIDC_SSO_LABEL = process.env.NEXT_PUBLIC_OIDC_SSO_LABEL?.trim() || "Sign in with SSO";

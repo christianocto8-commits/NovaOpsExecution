@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { ArrowUpCircle, CheckCircle2, Download, RefreshCw, Sparkles, X } from "lucide-react";
+import { Download, Sparkles, X } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { resolveApiUrl } from "@/lib/api-url";
 import { useToast } from "@/shared/toast";

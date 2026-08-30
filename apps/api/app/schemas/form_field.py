@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class FormFieldCreate(BaseModel):
+    id: Optional[int] = None
     label: str = Field(min_length=1, max_length=150)
     field_type: str = Field(min_length=1, max_length=50)
     placeholder: Optional[str] = None

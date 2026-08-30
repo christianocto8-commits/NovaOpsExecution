@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -235,7 +235,7 @@ class WorkflowInstanceService:
             ),
             current_step_id=first_step.id,
             submitted_by_id=submitted_by_id,
-            submitted_at=datetime.utcnow(),
+            submitted_at=datetime.now(timezone.utc),
             context_json=payload.context_json,
         )
 
@@ -435,7 +435,7 @@ class WorkflowActionService:
         active_step = self._get_active_step(instance_id)
         steps = self.step_repository.list_by_instance(instance_id)
         active_step.status = WorkflowInstanceStepStatus.approved
-        active_step.completed_at = datetime.utcnow()
+        active_step.completed_at = datetime.now(timezone.utc)
         active_step.result_json = payload.payload_json
 
         next_step = next(
@@ -459,7 +459,7 @@ class WorkflowActionService:
         else:
             instance.current_step_id = None
             instance.status = WorkflowInstanceStatus.completed
-            instance.completed_at = datetime.utcnow()
+            instance.completed_at = datetime.now(timezone.utc)
 
             self._record_history(
                 instance_id=instance.id,
@@ -490,7 +490,7 @@ class WorkflowActionService:
 
         active_step = self._get_active_step(instance_id)
         active_step.status = WorkflowInstanceStepStatus.rejected
-        active_step.completed_at = datetime.utcnow()
+        active_step.completed_at = datetime.now(timezone.utc)
         active_step.result_json = payload.payload_json
 
         instance.status = WorkflowInstanceStatus.rejected
@@ -524,7 +524,7 @@ class WorkflowActionService:
 
         active_step = self._get_active_step(instance_id)
         active_step.status = WorkflowInstanceStepStatus.returned
-        active_step.completed_at = datetime.utcnow()
+        active_step.completed_at = datetime.now(timezone.utc)
         active_step.result_json = payload.payload_json
 
         instance.status = WorkflowInstanceStatus.returned
@@ -681,7 +681,7 @@ class WorkflowEscalationProcessorService:
         self.notification_service = NotificationService(db)
 
     def assign_due_dates_for_active_steps(self) -> int:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         active_rules = self.rule_repository.list_active()
         rule_lookup = {}
 
@@ -724,7 +724,7 @@ class WorkflowEscalationProcessorService:
         return updated_count
 
     def process_overdue_steps(self) -> dict:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         rules = self.rule_repository.list_active()
         overdue_steps = self.step_repository.list_overdue_active_steps(now)
 

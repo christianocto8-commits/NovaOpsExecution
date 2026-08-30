@@ -50,7 +50,7 @@ async function resolveIdleTimeoutMinutes() {
   try {
     const settings = await getSettings();
     const minutes = Number(settings.session_timeout_minutes);
-    if (minutes === 15 || minutes === 30) {
+    if (Number.isFinite(minutes) && minutes >= 5 && minutes <= 1440) {
       return minutes;
     }
   } catch {

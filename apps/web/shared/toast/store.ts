@@ -16,8 +16,14 @@ export function subscribeToast(listener: () => void) {
   };
 }
 
+const EMPTY_TOASTS: ToastItem[] = [];
+
 export function getToastSnapshot() {
   return toasts;
+}
+
+export function getToastServerSnapshot() {
+  return EMPTY_TOASTS;
 }
 
 export function showToast(options: ToastOptions) {

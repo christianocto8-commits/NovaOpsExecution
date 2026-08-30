@@ -118,19 +118,27 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, key) => {
-      if (!RESPONSE_DROP_HEADERS.has(key.toLowerCase())) {
+      const lowerKey = key.toLowerCase();
+      if (
+        !RESPONSE_DROP_HEADERS.has(lowerKey) &&
+        lowerKey !== "content-encoding" &&
+        lowerKey !== "transfer-encoding"
+      ) {
         responseHeaders.set(key, value);
       }
     });
-    // Ensure a fixed Content-Length is delivered to the browser. Streaming a
-    // body without one forces chunked transfer-encoding, which some mobile/ISP
-    // proxies truncate mid-stream and surface as a fetch TypeError
-    // ("Koneksi ke backend gagal") on cellular networks.
-    if (!responseHeaders.has("content-length")) {
-      const contentLength = upstream.headers.get("content-length");
-      if (contentLength) {
-        responseHeaders.set("content-length", contentLength);
-      }
+
+    const isNoContent =
+      upstream.status === 204 || upstream.status === 304 || request.method === "HEAD";
+    let responseBody: BodyInit | null = null;
+
+    if (!isNoContent) {
+      const buffer = await upstream.arrayBuffer();
+      responseBody = buffer;
+      responseHeaders.set("content-length", String(buffer.byteLength));
+    } else {
+      responseHeaders.delete("content-length");
+      responseHeaders.delete("content-type");
     }
 
     let authPayload:
@@ -140,10 +148,15 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
           expires_in_minutes?: number;
         }
       | undefined;
-    if (upstream.ok && AUTH_RESPONSE_PATHS.has(relativePath)) {
-      authPayload = await upstream.clone().json();
+    if (upstream.ok && AUTH_RESPONSE_PATHS.has(relativePath) && responseBody) {
+      try {
+        const text = new TextDecoder().decode(responseBody as ArrayBuffer);
+        authPayload = JSON.parse(text);
+      } catch {
+        // ignore parse error
+      }
     }
-    const response = new NextResponse(upstream.body, {
+    const response = new NextResponse(responseBody, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: responseHeaders,

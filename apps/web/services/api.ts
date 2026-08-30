@@ -31,6 +31,13 @@ function getRefreshChannel(): BroadcastChannel | null {
   return refreshChannel;
 }
 
+export function closeRefreshChannel() {
+  if (refreshChannel) {
+    refreshChannel.close();
+    refreshChannel = null;
+  }
+}
+
 function acquireCrossTabRefreshLock(): boolean {
   if (typeof window === "undefined") return true;
   try {
@@ -42,7 +49,16 @@ function acquireCrossTabRefreshLock(): boolean {
         return false;
       }
     }
-    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ nonce: crypto.randomUUID(), at: now }));
+    const myNonce = crypto.randomUUID();
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ nonce: myNonce, at: now }));
+    // Double-check: re-read to verify we actually won the race against other tabs
+    const check = localStorage.getItem(REFRESH_LOCK_KEY);
+    if (check) {
+      const verified = JSON.parse(check) as { nonce: string; at: number };
+      if (verified.nonce !== myNonce) {
+        return false;
+      }
+    }
     return true;
   } catch {
     return true;

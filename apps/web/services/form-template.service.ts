@@ -227,16 +227,20 @@ export function mapBackendFormTemplate(template: BackendFormTemplate): FormTempl
 
 function toBackendFields(fields: FormField[]) {
   return fields
-    .map((field, index) => ({
-      label: field.label.trim(),
-      field_type: field.type,
-      placeholder: null,
-      help_text: field.section ?? null,
-      is_required: field.required,
-      options_json: field.options ?? null,
-      validation_json: field.validation ?? null,
-      sort_order: index,
-    }))
+    .map((field, index) => {
+      const isPersisted = isPersistedTemplateId(field.id);
+      return {
+        ...(isPersisted ? { id: Number(field.id) } : {}),
+        label: field.label.trim(),
+        field_type: field.type,
+        placeholder: null,
+        help_text: field.section ?? null,
+        is_required: field.required,
+        options_json: field.options ?? null,
+        validation_json: field.validation ?? null,
+        sort_order: index,
+      };
+    })
     .filter((field) => field.label.length > 0);
 }
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -89,7 +90,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "detail": "Validation failed",
             "code": ErrorCode.VALIDATION_ERROR,
-            "errors": exc.errors(),
+            "errors": jsonable_encoder(exc.errors()),
         },
     )
 

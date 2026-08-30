@@ -59,7 +59,7 @@ def test_refresh_rotation_rejects_reuse_and_revokes_family_when_stale():
     repo.all_by_hash[token_hash] = reused
 
     with pytest.raises(HTTPException) as exc:
-        AuthService.refresh_tokens(
+        AuthService.rotate_refresh_token(
             service,
             raw_refresh_token=raw,
             ip_address="127.0.0.1",
@@ -86,7 +86,7 @@ def test_refresh_reuse_within_grace_window_does_not_revoke_other_sessions():
     repo.all_by_hash[token_hash] = reused
 
     with pytest.raises(HTTPException) as exc:
-        AuthService.refresh_tokens(
+        AuthService.rotate_refresh_token(
             service,
             raw_refresh_token=raw,
             ip_address="127.0.0.1",

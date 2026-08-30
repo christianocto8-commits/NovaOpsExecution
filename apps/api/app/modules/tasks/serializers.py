@@ -40,6 +40,8 @@ def build_task_response(
     task: Task,
     *,
     outlet_name_by_id: dict[int, str] | None = None,
+    template_map: dict[int, FormTemplate] | None = None,
+    fields_map: dict[int, list[FormField]] | None = None,
 ) -> TaskResponse:
     template_id = resolve_task_form_template_id(task)
     template_name: str | None = None
@@ -47,18 +49,26 @@ def build_task_response(
     checklist_field_count = 0
 
     if template_id:
-        template = db.query(FormTemplate).filter(FormTemplate.id == template_id).first()
-        if template:
-            template_name = template.title
+        if template_map is not None and fields_map is not None:
+            template = template_map.get(template_id)
+            fields = fields_map.get(template_id, [])
+            if template:
+                template_name = template.title
+            checklist_field_count = len(fields)
+            checklist_preview = [field.label for field in fields[:8] if field.label and field.label.strip()]
+        else:
+            template = db.query(FormTemplate).filter(FormTemplate.id == template_id).first()
+            if template:
+                template_name = template.title
 
-        fields = (
-            db.query(FormField)
-            .filter(FormField.form_template_id == template_id)
-            .order_by(FormField.sort_order.asc())
-            .all()
-        )
-        checklist_field_count = len(fields)
-        checklist_preview = [field.label for field in fields[:8] if field.label.strip()]
+            fields = (
+                db.query(FormField)
+                .filter(FormField.form_template_id == template_id)
+                .order_by(FormField.sort_order.asc())
+                .all()
+            )
+            checklist_field_count = len(fields)
+            checklist_preview = [field.label for field in fields[:8] if field.label and field.label.strip()]
 
     payload = TaskResponse.model_validate(task).model_dump()
     payload.update(
@@ -84,8 +94,31 @@ def build_task_responses(db: Session, tasks: list[Task]) -> list[TaskResponse]:
             for outlet in db.query(Outlet).filter(Outlet.id.in_(outlet_ids)).all()
         }
 
+    # Batch load templates + fields to avoid N+1 (previously 2 queries per task)
+    template_ids = {resolve_task_form_template_id(t) for t in tasks}
+    template_ids.discard(None)
+    template_map: dict[int, FormTemplate] = {}
+    fields_map: dict[int, list[FormField]] = {}
+    if template_ids:
+        for tmpl in db.query(FormTemplate).filter(FormTemplate.id.in_(template_ids)).all():
+            template_map[tmpl.id] = tmpl
+        for field in (
+            db.query(FormField)
+            .filter(FormField.form_template_id.in_(template_ids))
+            .order_by(FormField.form_template_id, FormField.sort_order.asc())
+            .all()
+        ):
+            fields_map.setdefault(field.form_template_id, []).append(field)
+
     return [
-        build_task_response(db, task, outlet_name_by_id=outlet_name_by_id) for task in tasks
+        build_task_response(
+            db,
+            task,
+            outlet_name_by_id=outlet_name_by_id,
+            template_map=template_map,
+            fields_map=fields_map,
+        )
+        for task in tasks
     ]
 
 

@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+const realtimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "medium",
+});
+
 function formatRealtime(value: Date) {
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "medium",
-  }).format(value);
+  return realtimeFormatter.format(value);
 }
 
 export function RealtimeClock() {

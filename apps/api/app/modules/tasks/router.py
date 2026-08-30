@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user
 from app.core.permissions import has_permission
 from app.core.scheduler import verify_scheduler_secret
@@ -241,6 +241,8 @@ def resolve_task_outlet_access(
 @router.get("", response_model=list[TaskResponse])
 def list_tasks(
     source_type: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -255,6 +257,8 @@ def list_tasks(
         outlet_ids=None if x_outlet_id else outlet_ids,
         all_outlets=full_access and x_outlet_id is None,
         source_type=source_type,
+        limit=limit,
+        offset=offset,
     )
     return build_task_responses(db, tasks)
 
@@ -465,6 +469,7 @@ def submit_task_execution(
 def review_task(
     task_id: int,
     payload: TaskReviewUpdate,
+    background_tasks: BackgroundTasks,
     x_outlet_id: str | None = Header(None, alias="X-Outlet-Id"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -480,6 +485,34 @@ def review_task(
         actor_id=actor_id,
         payload=payload,
     )
+
+    # Non-blocking notification fan-out (previously blocked approval by 800-3000ms)
+    review_approved = payload.review == "approved"
+    review_note = payload.note
+    saved_task_id = task.id
+
+    def _notify_review_in_background() -> None:
+        bg_db = SessionLocal()
+        try:
+            from app.models.task import Task as TaskModel
+
+            from app.modules.notifications.task_notifications import notify_task_reviewed
+
+            bg_task = bg_db.get(TaskModel, saved_task_id)
+            if bg_task is not None:
+                try:
+                    notify_task_reviewed(
+                        bg_db,
+                        task=bg_task,
+                        approved=review_approved,
+                        note=review_note,
+                    )
+                except Exception:
+                    pass
+        finally:
+            bg_db.close()
+
+    background_tasks.add_task(_notify_review_in_background)
     return build_task_response(db, task)
 
 

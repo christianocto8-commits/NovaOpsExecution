@@ -26,7 +26,7 @@ function configuredApiUrl() {
   );
 }
 
-/** Frontend :3000 + API :8000 on localhost — must not use same-origin relative URLs. */
+/** Frontend :3000 + API :8000 on localhost — relative URLs work via Next.js API route proxy. */
 function isLocalSplitDev() {
   if (typeof window === "undefined") return false;
   if (!isLocalHostname(window.location.hostname)) return false;

@@ -73,17 +73,19 @@ class TaskService:
         outlet_ids: list[int] | None = None,
         all_outlets: bool = False,
         source_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> list[Task]:
         if all_outlets:
-            return self.repo.list_all(source_type=source_type)
+            return self.repo.list_all(source_type=source_type, limit=limit, offset=offset)
 
         if outlet_ids is not None:
-            return self.repo.list_by_outlets(outlet_ids, source_type=source_type)
+            return self.repo.list_by_outlets(outlet_ids, source_type=source_type, limit=limit, offset=offset)
 
         if outlet_id is None:
             return []
 
-        return self.repo.list_by_outlet(outlet_id, source_type=source_type)
+        return self.repo.list_by_outlet(outlet_id, source_type=source_type, limit=limit, offset=offset)
 
     def list_outlet_members(self, outlet_id: int) -> list[User]:
         return self.repo.list_outlet_members(outlet_id)
@@ -415,7 +417,7 @@ class TaskService:
         payload: TaskExecutionSubmit,
         *,
         actor_identity_id: UUID | None = None,
-    ) -> tuple[Task, dict]:
+    ) -> tuple[Task, dict, "Task | None"]:
         task = self.get_task(task_id, outlet_id)
 
         if task.status in {"completed", "cancelled"}:
@@ -804,15 +806,9 @@ class TaskService:
         self.db.commit()
         self.db.refresh(task)
 
-        try:
-            notify_task_reviewed(
-                self.db,
-                task=task,
-                approved=approved,
-                note=payload.note,
-            )
-        except Exception:
-            pass
+        # Notification fan-out is intentionally NOT done here — router
+        # schedules it via BackgroundTasks to avoid blocking the approval
+        # response (previously added 800-3000ms of SMTP/FCM/webhook latency).
 
         return task
 

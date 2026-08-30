@@ -21,21 +21,22 @@ export function AccessDenied({ email, roleLabel, onLogout }: AccessDeniedProps) 
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-400/20 text-3xl">
           {"\u{1F512}"}
         </div>
-        <h1 className="text-xl font-bold">Akses Ditolak</h1>
+        <h1 className="text-xl font-bold">{t("accessDenied.title")}</h1>
         <p className="mt-3 text-sm leading-6 text-emerald-100">
-          Aplikasi NovaOps Mobile hanya untuk role <strong>Outlet</strong>. Akun Anda (
-          {email ?? "—"}
-          {roleLabel ? `, ${roleLabel}` : ""}) tidak memiliki akses ke aplikasi ini.
+          {t("accessDenied.body", {
+            email: email ?? "—",
+            role: roleLabel ? `, ${roleLabel}` : "",
+          })}
         </p>
         <p className="mt-3 text-xs text-emerald-200/70">
-          Gunakan akun outlet, atau buka web di https://nova-ops.cloud untuk akses penuh.
+          {t("accessDenied.hint")}
         </p>
         <button
           type="button"
           onClick={onLogout}
           className="mt-6 w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#274733] transition hover:bg-emerald-50"
         >
-          Keluar
+          {t("accessDenied.logout")}
         </button>
       </div>
     </main>

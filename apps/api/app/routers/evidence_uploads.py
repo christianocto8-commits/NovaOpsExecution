@@ -4,14 +4,20 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.services.s3_storage import download_bytes, is_s3_configured, upload_bytes
+from app.services.s3_storage import (
+    download_bytes,
+    generate_presigned_url,
+    is_s3_configured,
+    stream_s3_object,
+    upload_bytes,
+)
 from app.services.workspace_settings import get_max_upload_bytes
 
 router = APIRouter(prefix="/evidence-uploads", tags=["Evidence Uploads"])
@@ -103,40 +109,51 @@ async def upload_evidence(
     }
 
 
-def _serve_evidence_file(stored_name: str):
+def _serve_evidence_file(stored_name: str, use_presigned: bool = True):
     if not SAFE_STORED_NAME.fullmatch(stored_name):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found")
 
     content_type = mimetypes.guess_type(stored_name)[0] or "application/octet-stream"
+    headers = {"Cache-Control": "public, max-age=31536000, immutable"}
 
     if is_s3_configured():
+        object_key = f"evidence/{stored_name}"
+        if use_presigned:
+            presigned = generate_presigned_url(object_key, expires_in=3600)
+            if presigned:
+                return RedirectResponse(url=presigned, status_code=302, headers=headers)
         try:
-            content = download_bytes(f"evidence/{stored_name}")
+            # Fallback to streaming (no full buffer) with cache headers
+            return StreamingResponse(
+                stream_s3_object(object_key),
+                media_type=content_type,
+                headers=headers,
+            )
         except Exception as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found") from exc
-
-        return Response(content=content, media_type=content_type)
 
     path = UPLOAD_ROOT / stored_name
     if not path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found")
 
-    return FileResponse(path, media_type=content_type)
+    return FileResponse(path, media_type=content_type, headers=headers)
 
 
 @router.get("/{stored_name}", response_model=None)
 def get_evidence_file(
     stored_name: str,
+    redirect: bool = Query(default=True),
     current_user: User = Depends(get_current_user),
 ):
     del current_user
-    return _serve_evidence_file(stored_name)
+    return _serve_evidence_file(stored_name, use_presigned=redirect)
 
 
 @legacy_router.get("/{stored_name}", response_model=None)
 def get_legacy_evidence_file(
     stored_name: str,
+    redirect: bool = Query(default=True),
     current_user: User = Depends(get_current_user),
 ):
     del current_user
-    return _serve_evidence_file(stored_name)
+    return _serve_evidence_file(stored_name, use_presigned=redirect)

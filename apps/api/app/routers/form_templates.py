@@ -42,12 +42,39 @@ bearer_scheme = HTTPBearer(auto_error=True)
 
 
 def _sync_fields(db: Session, form_template: FormTemplate, fields_payload) -> None:
-    db.query(FormField).filter(FormField.form_template_id == form_template.id).delete()
+    existing_fields = {
+        field.id: field
+        for field in db.query(FormField)
+        .filter(FormField.form_template_id == form_template.id)
+        .all()
+    }
 
+    incoming_ids: set[int] = set()
     for index, field_payload in enumerate(fields_payload):
         field_data = field_payload.model_dump()
         field_data["sort_order"] = field_data.get("sort_order", index)
-        db.add(FormField(form_template_id=form_template.id, **field_data))
+        field_id = field_data.pop("id", None)
+
+        if field_id and field_id in existing_fields:
+            incoming_ids.add(field_id)
+            existing = existing_fields[field_id]
+            for key, val in field_data.items():
+                setattr(existing, key, val)
+        else:
+            db.add(FormField(form_template_id=form_template.id, **field_data))
+
+    for old_id, old_field in existing_fields.items():
+        if old_id not in incoming_ids:
+            has_answers = (
+                db.query(FormAnswer.id)
+                .filter(FormAnswer.form_field_id == old_id)
+                .first()
+                is not None
+            )
+            if not has_answers:
+                db.delete(old_field)
+            else:
+                old_field.is_required = False
 
 
 def _get_template_or_404(db: Session, form_template_id: int) -> FormTemplate:

@@ -81,12 +81,19 @@ export function getStoredWorkspace(): CurrentWorkspace {
     return cachedSnapshot;
   }
 
-  cachedSnapshotKey = snapshotKey;
-  cachedSnapshot = {
+  const nextSnapshot = {
     ...workspaceMap[storedRole],
     ...getStoredWorkspaceContext(),
   };
 
+  // Stabilize snapshot: only create a new object reference when values actually changed
+  if (cachedSnapshot && JSON.stringify(cachedSnapshot) === JSON.stringify(nextSnapshot)) {
+    cachedSnapshotKey = snapshotKey;
+    return cachedSnapshot;
+  }
+
+  cachedSnapshotKey = snapshotKey;
+  cachedSnapshot = nextSnapshot;
   return cachedSnapshot;
 }
 

@@ -10,7 +10,9 @@ class TaskRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list_by_outlet(self, outlet_id: int, source_type: str | None = None) -> list[Task]:
+    def list_by_outlet(
+        self, outlet_id: int, source_type: str | None = None, limit: int = 100, offset: int = 0
+    ) -> list[Task]:
         query = (
             self.db.query(Task)
             .options(joinedload(Task.schedule), joinedload(Task.outlet))
@@ -18,10 +20,10 @@ class TaskRepository:
         )
         if source_type:
             query = query.filter(Task.source_type == source_type)
-        return query.order_by(Task.created_at.desc()).all()
+        return query.order_by(Task.created_at.desc()).limit(limit).offset(offset).all()
 
     def list_by_outlets(
-        self, outlet_ids: list[int], source_type: str | None = None
+        self, outlet_ids: list[int], source_type: str | None = None, limit: int = 100, offset: int = 0
     ) -> list[Task]:
         if not outlet_ids:
             return []
@@ -33,13 +35,13 @@ class TaskRepository:
         )
         if source_type:
             query = query.filter(Task.source_type == source_type)
-        return query.order_by(Task.created_at.desc()).all()
+        return query.order_by(Task.created_at.desc()).limit(limit).offset(offset).all()
 
-    def list_all(self, source_type: str | None = None) -> list[Task]:
+    def list_all(self, source_type: str | None = None, limit: int = 100, offset: int = 0) -> list[Task]:
         query = self.db.query(Task).options(joinedload(Task.schedule), joinedload(Task.outlet))
         if source_type:
             query = query.filter(Task.source_type == source_type)
-        return query.order_by(Task.created_at.desc()).all()
+        return query.order_by(Task.created_at.desc()).limit(limit).offset(offset).all()
 
     def get_any_by_id(self, task_id: int) -> Task | None:
         return self.db.query(Task).filter(Task.id == task_id).first()

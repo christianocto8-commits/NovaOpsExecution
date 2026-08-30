@@ -14,7 +14,7 @@ type OnlineStore = {
 };
 
 let store: OnlineStore = {
-  browserOnline: true,
+  browserOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
   backendReachable: true,
   capacitorOnline: null,
 };

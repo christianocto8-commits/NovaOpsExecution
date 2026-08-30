@@ -73,3 +73,9 @@ _standalone.tar.gz
 # Deploy artifacts
 standalone-deploy.tar.gz
 **/standalone-deploy.tar.gz
+
+# Uploads & local scratches
+apps/api/uploads/
+strix-repo/
+opencode.json
+

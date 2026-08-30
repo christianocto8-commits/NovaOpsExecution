@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
-import { dismissToast, getToastSnapshot, subscribeToast } from "../store";
+import { dismissToast, getToastSnapshot, getToastServerSnapshot, subscribeToast } from "../store";
 import { ToastVariant } from "../types";
 
 const toastStyles: Record<
@@ -42,7 +42,7 @@ const toastStyles: Record<
 };
 
 export function Toaster() {
-  const toasts = useSyncExternalStore(subscribeToast, getToastSnapshot, getToastSnapshot);
+  const toasts = useSyncExternalStore(subscribeToast, getToastSnapshot, getToastServerSnapshot);
 
   if (toasts.length === 0) return null;
 

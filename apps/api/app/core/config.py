@@ -10,6 +10,10 @@ API_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = API_ROOT / ".env"
 
 load_dotenv(dotenv_path=ENV_FILE, override=True)
+for _key in list(os.environ.keys()):
+    if _key.startswith("\ufeff"):
+        _val = os.environ.pop(_key)
+        os.environ[_key.lstrip("\ufeff")] = _val
 
 
 def _sanitize_env_value(value: str) -> str:

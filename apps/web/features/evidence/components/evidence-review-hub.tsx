@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
@@ -137,6 +137,8 @@ function extractEvidenceFromFormSubmissions(
   return items;
 }
 
+const EVIDENCE_PAGE_SIZE = 20;
+
 function ReviewEvidenceCard({
   item,
   t,
@@ -159,6 +161,8 @@ function ReviewEvidenceCard({
           <img
             src={displayUrl}
             alt={item.caption}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
           />
         ) : (
@@ -192,7 +196,7 @@ function ReviewEvidenceLightboxImage({ item }: { item: ReviewEvidenceItem }) {
     );
   }
 
-  return <img src={displayUrl} alt={item.caption} className="max-h-[70vh] w-full object-contain" />;
+  return <img src={displayUrl} alt={item.caption} loading="eager" decoding="async" className="max-h-[70vh] w-full object-contain" />;
 }
 
 function ReviewStatusPill({
@@ -242,10 +246,34 @@ export function EvidenceReviewHub({
     "all"
   );
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(EVIDENCE_PAGE_SIZE);
 
   const reviewMutation = useMutation({
     mutationFn: ({ taskId, review }: { taskId: string; review: "approved" | "rejected" }) =>
       taskService.review(taskId, review),
+    onMutate: async ({ taskId, review }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.sop.tasks() });
+      const prev = queryClient.getQueryData<Task[]>(queryKeys.sop.tasks());
+      if (prev) {
+        queryClient.setQueryData<Task[]>(
+          queryKeys.sop.tasks(),
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  execution: task.execution
+                    ? { ...task.execution, reviewStatus: review as Task["execution"] extends { reviewStatus: infer R } ? R : never }
+                    : task.execution,
+                }
+              : task
+          )
+        );
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKeys.sop.tasks(), ctx.prev);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sop.tasks() });
     },
@@ -259,6 +287,22 @@ export function EvidenceReviewHub({
       submissionId: number;
       review: "approved" | "rejected";
     }) => formSubmissionService.review(submissionId, review),
+    onMutate: async ({ submissionId, review }) => {
+      await queryClient.cancelQueries({ queryKey: ["form-submissions"] });
+      const prev = queryClient.getQueryData<FormSubmissionResponse[]>(["form-submissions"]);
+      if (prev) {
+        queryClient.setQueryData(
+          ["form-submissions"],
+          prev.map((submission) =>
+            submission.id === submissionId ? { ...submission, status: review } : submission
+          )
+        );
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["form-submissions"], ctx.prev);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form-submissions"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() });
@@ -267,6 +311,22 @@ export function EvidenceReviewHub({
 
   const reopenMutation = useMutation({
     mutationFn: (submissionId: number) => formSubmissionService.reopen(submissionId),
+    onMutate: async (submissionId) => {
+      await queryClient.cancelQueries({ queryKey: ["form-submissions"] });
+      const prev = queryClient.getQueryData<FormSubmissionResponse[]>(["form-submissions"]);
+      if (prev) {
+        queryClient.setQueryData(
+          ["form-submissions"],
+          prev.map((submission) =>
+            submission.id === submissionId ? { ...submission, status: "submitted" } : submission
+          )
+        );
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["form-submissions"], ctx.prev);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form-submissions"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.history.formSubmissions() });
@@ -322,6 +382,15 @@ export function EvidenceReviewHub({
       );
     });
   }, [evidenceItems, outletFilter, query, sourceFilter, statusFilter]);
+
+  useEffect(() => {
+    setVisibleCount(EVIDENCE_PAGE_SIZE);
+  }, [query, sourceFilter, outletFilter, statusFilter, evidenceItems.length]);
+
+  const displayedItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount]
+  );
 
   const pendingItems = useMemo(
     () => evidenceItems.filter((item) => (item.reviewStatus ?? "pending") === "pending"),
@@ -519,16 +588,29 @@ export function EvidenceReviewHub({
           <p className="mt-1 text-sm text-slate-500">{t("evidence.emptyBody")}</p>
         </div>
       ) : (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredItems.map((item, index) => (
-            <ReviewEvidenceCard
-              key={item.id}
-              item={item}
-              t={t}
-              onOpen={() => openLightbox(index)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {displayedItems.map((item, index) => (
+              <ReviewEvidenceCard
+                key={item.id}
+                item={item}
+                t={t}
+                onOpen={() => openLightbox(index)}
+              />
+            ))}
+          </div>
+          {displayedItems.length < filteredItems.length ? (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + EVIDENCE_PAGE_SIZE)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Muat {Math.min(EVIDENCE_PAGE_SIZE, filteredItems.length - displayedItems.length)} lagi ({displayedItems.length}/{filteredItems.length})
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
 
       {activeItem ? (

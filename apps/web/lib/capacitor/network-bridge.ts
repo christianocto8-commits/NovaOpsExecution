@@ -47,9 +47,10 @@ export async function probeBackendConnectivity() {
   }
 
   try {
+    const { buildApiUrl } = await import("@/lib/api-url");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4000);
-    const response = await fetch("/api/v1/health", {
+    const response = await fetch(buildApiUrl("/api/v1/health"), {
       cache: "no-store",
       signal: controller.signal,
     });

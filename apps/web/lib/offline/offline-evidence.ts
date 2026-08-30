@@ -31,11 +31,30 @@ export async function storeOfflineEvidence(file: File): Promise<EvidenceBlobReco
   return record;
 }
 
+const blobUrlCache = new Map<string, string>();
+
 export async function getOfflineEvidenceBlobUrl(url: string): Promise<string | null> {
   if (!isOfflineEvidenceUrl(url)) return null;
 
-  const record = await getEvidenceBlob(getOfflineEvidenceId(url));
+  const id = getOfflineEvidenceId(url);
+
+  const cached = blobUrlCache.get(id);
+  if (cached) return cached;
+
+  const record = await getEvidenceBlob(id);
   if (!record) return null;
 
-  return URL.createObjectURL(record.blob);
+  const blobUrl = URL.createObjectURL(record.blob);
+  blobUrlCache.set(id, blobUrl);
+  return blobUrl;
+}
+
+export function revokeOfflineEvidenceBlobUrl(url: string) {
+  if (!isOfflineEvidenceUrl(url)) return;
+  const id = getOfflineEvidenceId(url);
+  const cached = blobUrlCache.get(id);
+  if (cached) {
+    URL.revokeObjectURL(cached);
+    blobUrlCache.delete(id);
+  }
 }
