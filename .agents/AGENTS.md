@@ -1,5 +1,6 @@
 # Project Rules for NovaOps Execution Platform
 
-## Git Commit & Push Workflow Policy
-- **Jangan langsung commit atau push otomatis ke repositori.**
-- Setiap kali selesai melakukan perubahan kode atau fitur, selalu konfirmasi dan berikan pengingat (*remind*) kepada USER terlebih dahulu apakah ingin melakukan commit & push saat itu atau dikumpulkan terlebih dahulu.
+## Platform Scope Policy (Web & API Only)
+- **Jangan buat, build, atau update apapun untuk APK Android / Mobile.**
+- Seluruh fokus pengembangan, optimasi, dan deployment adalah **Web Application** (Next.js / Responsive PWA) dan **API Backend** (FastAPI).
+- Semua workflow CI/CD tidak boleh menyertakan proses kompilasi Gradle/APK Android.

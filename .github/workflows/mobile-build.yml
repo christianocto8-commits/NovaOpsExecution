@@ -1,11 +1,7 @@
 name: NovaOps Native Mobile Build CI
 
 on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-mobile:
