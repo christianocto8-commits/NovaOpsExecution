@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_optional_current_user
+from app.core.deps import get_current_user
 from app.models.user import User
 from app.services.s3_storage import (
     download_bytes,
@@ -162,9 +162,7 @@ def _serve_evidence_file(stored_name: str, use_presigned: bool = True):
 def get_evidence_file(
     stored_name: str,
     redirect: bool = Query(default=True),
-    current_user: User | None = Depends(get_optional_current_user),
 ):
-    del current_user
     return _serve_evidence_file(stored_name, use_presigned=redirect)
 
 
@@ -172,7 +170,5 @@ def get_evidence_file(
 def get_legacy_evidence_file(
     stored_name: str,
     redirect: bool = Query(default=True),
-    current_user: User | None = Depends(get_optional_current_user),
 ):
-    del current_user
     return _serve_evidence_file(stored_name, use_presigned=redirect)

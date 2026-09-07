@@ -101,10 +101,15 @@ class HttpSecurityMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "camera=(self), geolocation=(self), microphone=()",
         )
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        is_media_path = (
+            request.url.path.startswith("/api/v1/evidence-uploads")
+            or request.url.path.startswith("/uploads/evidence")
         )
+        if not is_media_path:
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+            )
 
         forwarded_proto = request.headers.get("x-forwarded-proto", "")
         if request.url.scheme == "https" or forwarded_proto.lower() == "https":

@@ -136,11 +136,7 @@ export function PhotoFieldInput({
     setUploadError(null);
 
     try {
-      const uploadedPhotos = [];
-
-      for (const file of files) {
-        uploadedPhotos.push(await uploadFile(file));
-      }
+      const uploadedPhotos = await Promise.all(files.map((file) => uploadFile(file)));
 
       onChange(serializePhotoFieldValues([...parsedValues, ...uploadedPhotos]));
     } catch (error) {

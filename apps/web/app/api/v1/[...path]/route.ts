@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 const ACCESS_COOKIE = "novaops_access";
 const REFRESH_COOKIE = "novaops_refresh";
 const AUTH_RESPONSE_PATHS = new Set(["auth/login", "auth/verify-otp", "auth/refresh"]);

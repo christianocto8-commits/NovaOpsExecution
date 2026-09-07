@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { RefObject, useEffect, useRef } from "react";
 
@@ -13,7 +13,10 @@ export function useClickOutside<T extends HTMLElement>(
 ) {
   const { enabled = true } = options;
   const callbackRef = useRef(onClickOutside);
-  callbackRef.current = onClickOutside;
+
+  useEffect(() => {
+    callbackRef.current = onClickOutside;
+  }, [onClickOutside]);
 
   useEffect(() => {
     if (!enabled) return;

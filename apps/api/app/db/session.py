@@ -1,4 +1,4 @@
-﻿from collections.abc import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -9,6 +9,9 @@ settings = get_settings()
 
 engine = create_engine(
     settings.database_url,
+    pool_size=20,
+    max_overflow=20,
+    pool_recycle=1800,
     pool_pre_ping=True,
     connect_args={"connect_timeout": 15},
 )

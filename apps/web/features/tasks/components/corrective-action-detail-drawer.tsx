@@ -8,6 +8,7 @@ import { type ChangeEvent, useEffect, useState, useSyncExternalStore } from "rea
 import type { Task } from "@/features/tasks/types";
 import { queryKeys } from "@/lib/query/keys";
 import { taskService, type BackendTaskStatus } from "@/services/task.service";
+import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
 import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 import { useLanguage } from "@/shared/i18n";
 import {
@@ -126,7 +127,10 @@ export function CorrectiveActionDetailDrawer({ task, onClose }: CorrectiveAction
 
     setUploadingSlot(slot);
     try {
-      const uploaded = await uploadEvidenceFile(file);
+      const prepared = await prepareEvidenceFile(file);
+      const uploaded = await uploadEvidenceFile(prepared.file, {
+        geolocation: prepared.geolocation,
+      });
       if (slot === "before") {
         setBeforeEvidenceUrl(uploaded.url);
       } else {

@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { mobileDashboardMainClass } from "@/shared/layout/mobile-page";
 import { AIEvidenceBadge } from "@/features/evidence/components/ai-evidence-badge";
+import { prepareEvidenceFile } from "@/shared/evidence/prepare-evidence-file";
+import { uploadEvidenceFile } from "@/shared/evidence/upload-evidence";
 import { api } from "@/services/api";
 
 type AuditResult = {
@@ -91,23 +93,34 @@ export default function AIAuditPage() {
 
   const [submissions, setSubmissions] = useState<TaskEvidenceItem[]>(SAMPLE_SUBMISSIONS);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      runDirectAudit(url);
+      const localUrl = URL.createObjectURL(file);
+      setPreviewUrl(localUrl);
+
+      try {
+        setLoading(true);
+        const prepared = await prepareEvidenceFile(file, { captureGps: false });
+        const uploaded = await uploadEvidenceFile(prepared.file);
+        setPreviewUrl(uploaded.url);
+        await runDirectAudit(uploaded.url);
+      } catch (err) {
+        console.error("Failed to upload evidence for AI audit", err);
+        setLoading(false);
+      }
     }
   };
 
   const runDirectAudit = async (targetUrl?: string) => {
     setLoading(true);
     try {
+      const resolvedUrl = targetUrl || previewUrl || activeTask?.image_url || "/uploads/sample.jpg";
       const json = await api<AuditResult>("/api/v1/evidence/audit", {
         method: "POST",
         body: JSON.stringify({
-          evidence_url: targetUrl || previewUrl || activeTask?.image_url || "/uploads/sample.jpg",
+          evidence_url: resolvedUrl,
           context_note: testNote,
         }),
       });

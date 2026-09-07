@@ -42,9 +42,16 @@ function loadImageFromFile(file: File) {
 
 export async function applyPhotoWatermark(file: File, options: WatermarkOptions) {
   const image = await loadImageFromFile(file);
+
+  // Resize excessively large photos (e.g. 48MP phone cameras) to max 1600px dimension
+  const maxDimension = 1600;
+  const naturalWidth = image.naturalWidth || image.width;
+  const naturalHeight = image.naturalHeight || image.height;
+  const scale = Math.min(1, maxDimension / Math.max(naturalWidth, naturalHeight));
+
   const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
+  canvas.width = Math.round(naturalWidth * scale);
+  canvas.height = Math.round(naturalHeight * scale);
 
   const context = canvas.getContext("2d");
   if (!context) {
@@ -76,13 +83,18 @@ export async function applyPhotoWatermark(file: File, options: WatermarkOptions)
     context.fillText(line, padding, y);
   });
 
+  const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
   const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, file.type || "image/jpeg", 0.92);
+    canvas.toBlob(resolve, outputType, 0.85);
   });
 
   if (!blob) {
     return file;
   }
 
-  return new File([blob], file.name, { type: blob.type || file.type || "image/jpeg" });
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  const extension = outputType === "image/png" ? ".png" : ".jpg";
+  const fileName = file.name.endsWith(extension) ? file.name : `${baseName}${extension}`;
+
+  return new File([blob], fileName, { type: outputType });
 }

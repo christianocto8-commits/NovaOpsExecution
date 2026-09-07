@@ -50,6 +50,11 @@ def _resolve_legacy_user(db: Session, subject: str, payload: dict | None = None)
     if not active_session:
         return None
 
+    # Fast-path: return existing legacy user without triggering DB write transactions
+    legacy_user = db.query(User).filter(User.email == identity_user.email).first()
+    if legacy_user and legacy_user.is_active == identity_user.is_active:
+        return legacy_user
+
     identity_outlet = get_default_identity_outlet(identity_user)
     legacy_outlet = get_or_create_legacy_outlet(db, identity_outlet) if identity_outlet else None
     legacy_user = sync_legacy_user(db, identity_user, legacy_outlet)

@@ -17,24 +17,27 @@ export async function prepareEvidenceFile(
   file: File,
   options: PrepareEvidenceFileOptions = {}
 ): Promise<PreparedEvidenceFile> {
-  const geolocationPromise = options.captureGps ? getCurrentPosition() : Promise.resolve(null);
+  const geolocationPromise = options.captureGps
+    ? getCurrentPosition(4000)
+    : Promise.resolve(null);
 
-  let preparedFile = file;
-
-  if (options.timestampWatermark && file.type.startsWith("image/")) {
-    try {
-      preparedFile = await applyPhotoWatermark(preparedFile, {
-        timestamp: new Date(),
-        timezone: options.timezone,
-        outletName: options.outletName,
-      });
-    } catch {
-      // Fallback safely to original file if canvas/image decoding fails
-      preparedFile = file;
+  const watermarkPromise = (async () => {
+    if (options.timestampWatermark && file.type.startsWith("image/")) {
+      try {
+        return await applyPhotoWatermark(file, {
+          timestamp: new Date(),
+          timezone: options.timezone,
+          outletName: options.outletName,
+        });
+      } catch {
+        // Fallback safely to original file if canvas/image decoding fails
+        return file;
+      }
     }
-  }
+    return file;
+  })();
 
-  const geolocation = await geolocationPromise;
+  const [preparedFile, geolocation] = await Promise.all([watermarkPromise, geolocationPromise]);
 
   return {
     file: preparedFile,
