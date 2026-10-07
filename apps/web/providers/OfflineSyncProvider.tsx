@@ -169,6 +169,21 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     }
   }, [isOnline, syncNow]);
 
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "SYNC_TRIGGERED") {
+        void syncNow();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+    };
+  }, [syncNow]);
+
   const value = useMemo(
     () => ({
       isOnline,

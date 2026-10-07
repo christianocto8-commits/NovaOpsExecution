@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Sparkles,
   ShieldCheck,
@@ -285,9 +286,12 @@ export default function AIAuditPage() {
             {/* Photo Preview */}
             <div className="mt-4 overflow-hidden rounded-xl border border-emerald-800/80 bg-slate-950/60 p-2 text-center">
               {previewUrl ? (
-                <img
+                <Image
                   src={previewUrl}
                   alt="Preview Upload"
+                  width={600}
+                  height={300}
+                  unoptimized
                   className="max-h-48 w-full object-cover rounded-lg"
                 />
               ) : (

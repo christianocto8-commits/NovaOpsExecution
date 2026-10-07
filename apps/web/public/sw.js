@@ -116,7 +116,14 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("sync", (event) => {
   if (event.tag === SYNC_TAG) {
-    event.waitUntil(processOfflineQueueFromSW());
+    event.waitUntil(
+      Promise.all([
+        processOfflineQueueFromSW(),
+        self.clients.matchAll({ type: "window" }).then((clients) => {
+          clients.forEach((client) => client.postMessage({ type: "SYNC_TRIGGERED" }));
+        }),
+      ])
+    );
   }
 });
 

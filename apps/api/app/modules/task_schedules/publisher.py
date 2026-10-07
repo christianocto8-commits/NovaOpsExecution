@@ -39,6 +39,8 @@ class TaskSchedulePublisher:
     def __init__(self, db: Session):
         self.db = db
         self._timezone: ZoneInfo | None = None
+        self._exception_rules_cache: dict[object, tuple[bool, set[int]]] = {}
+        self._legacy_outlet_id_cache: dict[str, int] = {}
 
     def _workspace_timezone(self) -> ZoneInfo:
         if self._timezone is not None:
@@ -169,123 +171,50 @@ class TaskSchedulePublisher:
     def _schedule_publish_time(self, schedule: TaskSchedule) -> str:
         return resolve_publish_time(getattr(schedule, "publish_time", None), schedule.due_time)
 
-    def _publish_schedule(
-        self,
-        schedule: TaskSchedule,
-        current: datetime,
-        *,
-        force: bool,
-    ) -> tuple[int, int, int]:
-        created = 0
-        skipped = 0
-        skipped_by_exception = 0
-        outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
-
-        if schedule.recurrence == "once":
-            for outlet_ref in outlet_ids:
-                if self._is_exception_day(outlet_ref, current):
-                    skipped_by_exception += 1
-                    continue
-                if self._task_exists(schedule, outlet_ref, None, current, force=force):
-                    skipped += 1
-                    continue
-
-                if self._create_task(schedule, outlet_ref, None, current):
-                    created += 1
-            return created, skipped, skipped_by_exception
-
-        if schedule.recurrence == "weekly":
-            for outlet_ref in outlet_ids:
-                if self._is_exception_day(outlet_ref, current):
-                    skipped_by_exception += 1
-                    continue
-                if self._task_exists(schedule, outlet_ref, None, current, force=force):
-                    skipped += 1
-                    continue
-
-                if self._create_task(schedule, outlet_ref, None, current):
-                    created += 1
-            return created, skipped, skipped_by_exception
-
-        if schedule.recurrence == "monthly":
-            for outlet_ref in outlet_ids:
-                if self._is_exception_day(outlet_ref, current):
-                    skipped_by_exception += 1
-                    continue
-                if self._task_exists(schedule, outlet_ref, None, current, force=force):
-                    skipped += 1
-                    continue
-
-                if self._create_task(schedule, outlet_ref, None, current):
-                    created += 1
-            return created, skipped, skipped_by_exception
-
-        # Daily: one task per outlet (no shift fan-out). Publish/due times are explicit.
-        for outlet_ref in outlet_ids:
-            if self._is_exception_day(outlet_ref, current):
-                skipped_by_exception += 1
-                continue
-            if self._task_exists(schedule, outlet_ref, None, current, force=force):
-                skipped += 1
-                continue
-
-            if self._create_task(schedule, outlet_ref, None, current):
-                created += 1
-
-        return created, skipped, skipped_by_exception
-
-    def _is_exception_day(self, outlet_ref: str, current: datetime) -> bool:
+    def _resolve_outlet_id(self, outlet_ref: str) -> int | None:
+        if outlet_ref in self._legacy_outlet_id_cache:
+            return self._legacy_outlet_id_cache[outlet_ref]
         try:
-            outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
+            oid = resolve_legacy_outlet_id(self.db, outlet_ref)
+            self._legacy_outlet_id_cache[outlet_ref] = oid
+            return oid
         except ValueError:
-            return True
+            return None
 
-        # Schedules publish on workspace-local dates, so the exception day must be
-        # compared in the same timezone (UTC can drift a day near midnight WIB).
+    def _get_exception_outlet_rules(self, current: datetime) -> tuple[bool, set[int]]:
         local_date = current.astimezone(self._workspace_timezone()).date()
+        if local_date in self._exception_rules_cache:
+            return self._exception_rules_cache[local_date]
 
-        return (
-            self.db.query(TaskScheduleException.id)
+        rows = (
+            self.db.query(TaskScheduleException.outlet_id)
             .filter(TaskScheduleException.date == local_date)
-            .filter(
-                (TaskScheduleException.outlet_id.is_(None))
-                | (TaskScheduleException.outlet_id == outlet_id)
-            )
-            .first()
-            is not None
+            .all()
         )
+        all_closed = any(row[0] is None for row in rows)
+        closed_ids = {row[0] for row in rows if row[0] is not None}
+        result = (all_closed, closed_ids)
+        self._exception_rules_cache[local_date] = result
+        return result
 
-    def _task_exists(
+    def _get_existing_task_outlet_ids(
         self,
         schedule: TaskSchedule,
-        outlet_ref: str,
-        shift: str | None,
         current: datetime,
-        *,
-        force: bool,
-    ) -> bool:
-        try:
-            outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
-        except ValueError:
-            return True
-
-        query = self.db.query(Task.id).filter(
+    ) -> set[int]:
+        query = self.db.query(Task.outlet_id).filter(
             Task.schedule_id == schedule.id,
-            Task.outlet_id == outlet_id,
             Task.status != "cancelled",
         )
 
-        if shift:
-            query = query.filter(Task.shift == shift)
-
         if schedule.recurrence == "once":
-            query = query.filter(Task.schedule_id == schedule.id)
+            pass
         elif schedule.recurrence == "weekly":
             tz = self._workspace_timezone()
             local_current = current.astimezone(tz)
             week_start = local_current.date() - timedelta(days=local_current.weekday())
             start_utc = datetime.combine(week_start, time.min, tzinfo=tz).astimezone(timezone.utc)
-            end_utc = (start_utc + timedelta(days=7))
+            end_utc = start_utc + timedelta(days=7)
             query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
         elif schedule.recurrence == "monthly":
             tz = self._workspace_timezone()
@@ -305,11 +234,65 @@ class TaskSchedulePublisher:
             end_utc = (local_midnight + timedelta(days=1)).astimezone(timezone.utc)
             query = query.filter(Task.created_at >= start_utc, Task.created_at < end_utc)
 
-        exists = query.first() is not None
-        if exists and not force:
-            return True
+        return {row[0] for row in query.all()}
 
-        return exists
+    def _publish_schedule(
+        self,
+        schedule: TaskSchedule,
+        current: datetime,
+        *,
+        force: bool,
+    ) -> tuple[int, int, int]:
+        created = 0
+        skipped = 0
+        skipped_by_exception = 0
+        outlet_ids = [str(outlet_id) for outlet_id in (schedule.outlet_ids_json or [])]
+
+        all_closed, closed_outlet_ids = self._get_exception_outlet_rules(current)
+        existing_outlet_ids = set() if force else self._get_existing_task_outlet_ids(schedule, current)
+
+        for outlet_ref in outlet_ids:
+            outlet_id = self._resolve_outlet_id(outlet_ref)
+            if outlet_id is None:
+                skipped_by_exception += 1
+                continue
+
+            if all_closed or outlet_id in closed_outlet_ids:
+                skipped_by_exception += 1
+                continue
+
+            if not force and outlet_id in existing_outlet_ids:
+                skipped += 1
+                continue
+
+            if self._create_task(schedule, outlet_ref, None, current):
+                created += 1
+                existing_outlet_ids.add(outlet_id)
+
+        return created, skipped, skipped_by_exception
+
+    def _is_exception_day(self, outlet_ref: str, current: datetime) -> bool:
+        outlet_id = self._resolve_outlet_id(outlet_ref)
+        if outlet_id is None:
+            return True
+        all_closed, closed_outlet_ids = self._get_exception_outlet_rules(current)
+        return all_closed or outlet_id in closed_outlet_ids
+
+    def _task_exists(
+        self,
+        schedule: TaskSchedule,
+        outlet_ref: str,
+        shift: str | None,
+        current: datetime,
+        *,
+        force: bool,
+    ) -> bool:
+        if force:
+            return False
+        outlet_id = self._resolve_outlet_id(outlet_ref)
+        if outlet_id is None:
+            return True
+        return outlet_id in self._get_existing_task_outlet_ids(schedule, current)
 
     def _create_task(
         self,
@@ -318,9 +301,8 @@ class TaskSchedulePublisher:
         shift: str | None,
         current: datetime,
     ) -> bool:
-        try:
-            outlet_id = resolve_legacy_outlet_id(self.db, outlet_ref)
-        except ValueError:
+        outlet_id = self._resolve_outlet_id(outlet_ref)
+        if outlet_id is None:
             return False
 
         due_date = self._build_due_date(schedule, shift, current)

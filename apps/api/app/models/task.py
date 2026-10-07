@@ -9,6 +9,8 @@ class Task(Base):
     __table_args__ = (
         Index("ix_tasks_outlet_status", "outlet_id", "status"),
         Index("ix_tasks_status_created", "status", "created_at"),
+        Index("ix_tasks_status_due_date", "status", "due_date"),
+        Index("ix_tasks_schedule_outlet", "schedule_id", "outlet_id"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -26,7 +28,7 @@ class Task(Base):
     priority = Column(String(50), nullable=False, default="medium", index=True)
     status = Column(String(50), nullable=False, default="open", index=True)
 
-    due_date = Column(DateTime(timezone=True), nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True, index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     expired_at = Column(DateTime(timezone=True), nullable=True)

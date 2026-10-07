@@ -9,6 +9,8 @@ class FormSubmission(Base):
     __table_args__ = (
         Index("ix_form_submissions_outlet_status", "outlet_id", "status"),
         Index("ix_form_submissions_template_status", "form_template_id", "status"),
+        Index("ix_form_submissions_outlet_created", "outlet_id", "created_at"),
+        Index("ix_form_submissions_template_created", "form_template_id", "created_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
