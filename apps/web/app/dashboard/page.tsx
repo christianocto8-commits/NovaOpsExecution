@@ -251,8 +251,8 @@ export default function DashboardPage() {
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const visibleTasks = useMemo(
-    () => (workspace.mode === "outlet" ? getVisibleTasks(tasks, workspace.outletName) : tasks),
-    [tasks, workspace.mode, workspace.outletName]
+    () => (workspace.outletName ? getVisibleTasks(tasks, workspace.outletName) : tasks),
+    [tasks, workspace.outletName]
   );
   const priorityQueue = getNeedsAction(visibleTasks);
   const inProgressCount = visibleTasks.filter((task) => task.status === "In Progress").length;

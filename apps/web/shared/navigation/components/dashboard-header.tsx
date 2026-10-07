@@ -80,9 +80,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
                 : t("header.operationsCommandCenter")}
             </p>
             <h2 className="mt-1 truncate text-base font-bold text-[#274733] sm:text-lg">
-              {workspace.mode === "outlet"
-                ? (workspace.outletName ?? t("header.outletWorkspace"))
-                : t("header.workspace")}
+              {workspace.outletName ? workspace.outletName : t("header.workspace")}
             </h2>
           </div>
         </div>

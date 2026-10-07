@@ -8,7 +8,8 @@ export type OutletScopeContext = Pick<
 >;
 
 export function taskBelongsToWorkspace(task: Task, workspace: OutletScopeContext) {
-  if (workspace.mode !== "outlet") {
+  // If no specific outlet is selected and not in outlet mode, all tasks belong to workspace
+  if (!workspace.outletId && !workspace.outletName && workspace.mode !== "outlet") {
     return true;
   }
 
@@ -43,14 +44,8 @@ export function taskBelongsToWorkspace(task: Task, workspace: OutletScopeContext
 }
 
 export function filterTasksForWorkspace(tasks: Task[], workspace: OutletScopeContext) {
-  if (workspace.mode !== "outlet") {
-    return tasks;
-  }
-
-  // Backend already scopes GET /tasks by X-Outlet-Id / identity sync (legacy outlet id).
-  // When local workspace cache lacks legacyOutletId, client-side ID matching would hide
-  // valid API results (task.outletId is legacy numeric, workspace.outletId is UUID).
-  if (workspace.legacyOutletId == null) {
+  // If no outlet filter is active and not an outlet-only workspace, show all
+  if (!workspace.outletId && !workspace.outletName && workspace.mode !== "outlet") {
     return tasks;
   }
 

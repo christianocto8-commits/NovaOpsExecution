@@ -118,11 +118,25 @@ export function setStoredWorkspaceRole(role: NovaRole, context: StoredWorkspaceC
 export function setStoredOutletContext(context: StoredWorkspaceContext | null) {
   if (context && (context.outletId || context.outletName)) {
     localStorage.setItem(WORKSPACE_CONTEXT_KEY, JSON.stringify(context));
+    if (context.outletId) {
+      localStorage.setItem("novaops_outlet_id", context.outletId);
+    }
+    if (context.legacyOutletId != null) {
+      localStorage.setItem("current_outlet_id", String(context.legacyOutletId));
+    }
   } else {
     localStorage.removeItem(WORKSPACE_CONTEXT_KEY);
+    localStorage.removeItem("novaops_outlet_id");
+    localStorage.removeItem("current_outlet_id");
+    localStorage.removeItem("outlet_id");
   }
 
+  // Clear cached snapshot so immediate reads fetch fresh state
+  cachedSnapshotKey = "";
+  cachedSnapshot = null;
+
   window.dispatchEvent(new Event("novaops-workspace-change"));
+  window.dispatchEvent(new Event("storage"));
 }
 
 export function subscribeWorkspace(callback: () => void) {

@@ -868,7 +868,7 @@ export function TasksWorkspace() {
   }, [isOutletRole, openExecution, openTaskDetail, searchParams, tasks]);
 
   const outletScopedTasks = useMemo(() => {
-    if (!isOutletWorkspace) return tasks;
+    if (!isOutletWorkspace && !workspace.outletId && !workspace.outletName) return tasks;
 
     return filterTasksForWorkspace(tasks, workspace);
   }, [isOutletWorkspace, tasks, workspace]);
