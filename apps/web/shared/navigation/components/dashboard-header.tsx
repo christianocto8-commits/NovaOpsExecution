@@ -12,6 +12,7 @@ import { useLanguage } from "@/shared/i18n";
 import { CurrentWorkspace } from "@/shared/navigation";
 import { CommandTrigger } from "@/shared/command-center/components/command-trigger";
 import { OfflineSyncBadge } from "@/shared/navigation/components/offline-sync-badge";
+import { OutletQuickSwitcher } from "./outlet-quick-switcher";
 
 type DashboardHeaderProps = {
   workspace: CurrentWorkspace;
@@ -89,6 +90,7 @@ export function DashboardHeader({ workspace, onOpenMobileMenu }: DashboardHeader
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {!isOutletWorkspace ? (
             <>
+              <OutletQuickSwitcher workspace={workspace} />
               <CommandTrigger />
               <CommandTrigger compact />
             </>

@@ -9,6 +9,7 @@ export * from "./upload-evidence";
 export * from "./geolocation";
 export * from "./geofence-precheck";
 export * from "./photo-watermark";
+export * from "./image-compressor";
 export * from "./prepare-evidence-file";
 export * from "./photo-value";
 export * from "./submission-evidence";

@@ -1,5 +1,6 @@
 import { getCurrentPosition, type GeolocationResult } from "./geolocation";
 import { applyPhotoWatermark } from "./photo-watermark";
+import { compressImageFile } from "./image-compressor";
 
 export type PrepareEvidenceFileOptions = {
   timestampWatermark?: boolean;
@@ -21,23 +22,28 @@ export async function prepareEvidenceFile(
     ? getCurrentPosition(4000)
     : Promise.resolve(null);
 
-  const watermarkPromise = (async () => {
-    if (options.timestampWatermark && file.type.startsWith("image/")) {
-      try {
-        return await applyPhotoWatermark(file, {
-          timestamp: new Date(),
-          timezone: options.timezone,
-          outletName: options.outletName,
-        });
-      } catch {
-        // Fallback safely to original file if canvas/image decoding fails
-        return file;
+  const processImagePromise = (async () => {
+    if (file.type.startsWith("image/")) {
+      if (options.timestampWatermark) {
+        try {
+          return await applyPhotoWatermark(file, {
+            timestamp: new Date(),
+            timezone: options.timezone,
+            outletName: options.outletName,
+          });
+        } catch {
+          // Fallback safely to compression if watermark fails
+          return await compressImageFile(file);
+        }
       }
+
+      // Always compress non-watermarked evidence images before upload
+      return await compressImageFile(file);
     }
     return file;
   })();
 
-  const [preparedFile, geolocation] = await Promise.all([watermarkPromise, geolocationPromise]);
+  const [preparedFile, geolocation] = await Promise.all([processImagePromise, geolocationPromise]);
 
   return {
     file: preparedFile,

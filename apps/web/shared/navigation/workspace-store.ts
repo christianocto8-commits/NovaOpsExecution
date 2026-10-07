@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import { CurrentWorkspace, NovaRole } from "./role-config";
 
 const WORKSPACE_STORAGE_KEY = "novaops_workspace_role";
 const WORKSPACE_CONTEXT_KEY = "novaops_workspace_context";
 
-type StoredWorkspaceContext = {
+export type StoredWorkspaceContext = {
   outletId?: string;
   outletName?: string;
   outletCode?: string;
@@ -107,6 +107,16 @@ export function setStoredWorkspaceRole(role: NovaRole, context: StoredWorkspaceC
     role === "REGIONAL_MANAGER" ||
     role === "FINANCE"
   ) {
+    localStorage.setItem(WORKSPACE_CONTEXT_KEY, JSON.stringify(context));
+  } else {
+    localStorage.removeItem(WORKSPACE_CONTEXT_KEY);
+  }
+
+  window.dispatchEvent(new Event("novaops-workspace-change"));
+}
+
+export function setStoredOutletContext(context: StoredWorkspaceContext | null) {
+  if (context && (context.outletId || context.outletName)) {
     localStorage.setItem(WORKSPACE_CONTEXT_KEY, JSON.stringify(context));
   } else {
     localStorage.removeItem(WORKSPACE_CONTEXT_KEY);

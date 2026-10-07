@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2, CircleAlert, Clock3 } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, Clock3, Sparkles } from "lucide-react";
 
 import { AnnouncementBanner } from "@/features/announcements/components/announcement-banner";
 import { PushNotificationPrompt } from "@/features/notifications/components/push-notification-prompt";
@@ -23,6 +23,7 @@ import {
 import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 import { OutletStreakCard } from "@/features/gamification/components/outlet-streak-card";
 import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
+import { ShiftHandoverModal } from "@/features/tasks/components/shift-handover-modal";
 import { TaskSkeleton } from "@/shared/skeleton/skeleton";
 
 function isDueToday(task: Task) {
@@ -103,6 +104,8 @@ export default function OperatorHomePage() {
     (task) => (task.backendStatus ?? "open") !== "completed"
   );
 
+  const [isHandoverOpen, setIsHandoverOpen] = useState(false);
+
   return (
     <main className={mobileDashboardMainClass}>
       <header className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(145deg,#1f4d38_0%,#2f6b4d_48%,#3f8f66_100%)] px-5 py-6 text-white shadow-sm">
@@ -130,130 +133,182 @@ export default function OperatorHomePage() {
                 {overdueCount} {t("operator.overdue").toLowerCase()}
               </span>
             ) : null}
-            {completedToday > 0 ? (
-              <span className="rounded-full bg-white/15 px-3 py-1.5">
-                {completedToday} {t("operator.doneToday").toLowerCase()}
+            <button
+              type="button"
+              onClick={() => setIsHandoverOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 transition hover:bg-white/30 active:scale-95"
+            >
+              <span>
+                {completedToday > 0
+                  ? `${completedToday} ${t("operator.doneToday").toLowerCase()}`
+                  : "0 selesai"}
               </span>
-            ) : null}
+              <span className="text-emerald-200">· Log Shift ↗</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Outlet Gamification Streak Card */}
-      <OutletStreakCard />
-
-      {nextTask ? (
-        <Link
-          href={`/dashboard/tasks?taskId=${nextTask.id}`}
-          className="group relative flex items-center justify-between gap-4 overflow-hidden rounded-[1.75rem] border border-emerald-800/40 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 px-6 py-5 text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:shadow-xl active:scale-[0.99]"
-        >
-          <div className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-emerald-500/10 blur-xl transition group-hover:bg-emerald-500/20" />
-          <div className="relative min-w-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-md">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              {t("operator.nextUp")}
-            </span>
-            <p className="mt-2 truncate text-xl font-bold tracking-tight text-white group-hover:text-emerald-300 transition">
-              {nextTask.title}
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300">
-              <Clock3 className="size-3.5 text-emerald-400" />
-              {formatDueLabel(nextTask, t("operator.overdue"), t("operator.dueToday")) ||
-                t("operator.open")}
-            </p>
-          </div>
-          <span className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-slate-950 shadow-md transition group-hover:scale-105 group-hover:bg-emerald-400">
-            <ArrowRight className="size-6" />
-          </span>
-        </Link>
-      ) : (
-        <div className="rounded-[1.75rem] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white px-6 py-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-700">
-              <CheckCircle2 className="size-6 text-emerald-700" />
-            </span>
-            <div>
-              <p className="font-bold text-emerald-950">{t("operator.allCaughtUp")}</p>
-              <p className="text-xs text-emerald-800/80">{t("operator.allCaughtUpBody")}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {openCorrectiveActions.length > 0 ? (
-        <Link
-          href="/dashboard/corrective-actions"
-          className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm font-bold text-amber-950 shadow-sm transition hover:bg-amber-100/80"
-        >
-          <span className="inline-flex items-center gap-2">
-            <CircleAlert className="size-4 text-amber-600" />
-            {t("operator.openCorrectiveActions", { count: openCorrectiveActions.length })}
-          </span>
-          <ArrowRight className="size-4" />
-        </Link>
-      ) : null}
-
-      <AnnouncementBanner />
-
-      <PushNotificationPrompt compact />
-
-      {/* Gamification Outlet Standings */}
-      <LeaderboardPanel />
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold tracking-tight text-slate-950">
-            {t("operator.queueTitle")}
-          </h2>
-          <Link
-            href="/dashboard/tasks"
-            className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800"
-          >
-            {t("operator.viewAllTasks")} →
-          </Link>
-        </div>
-
-        {tasksQuery.isLoading ? (
-          <TaskSkeleton />
-        ) : queue.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-            {t("operator.emptyQueue")}
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm">
-            {queue.slice(0, 6).map((task) => {
-              const overdue = isOverdue(task);
-              return (
-                <li key={task.id}>
-                  <Link
-                    href={`/dashboard/tasks?taskId=${task.id}`}
-                    className="flex min-h-[64px] items-center justify-between gap-3 px-5 py-4 transition hover:bg-slate-50/80 active:bg-slate-100"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-slate-900">{task.title}</p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                        <Clock3 className="size-3.5 text-slate-400" />
-                        {formatDueLabel(task, t("operator.overdue"), t("operator.dueToday")) ||
-                          t("operator.open")}
-                        {task.executionDraft ? ` · ${t("operator.draftBadge")}` : ""}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-extrabold ${
-                        overdue
-                          ? "bg-red-50 text-red-700 border border-red-200"
-                          : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                      }`}
-                    >
-                      {overdue ? t("operator.overdue") : t("operator.open")}
+      {/* Responsive Grid for Tablet (MatePad/iPad) and Desktop */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-12 md:gap-6">
+        {/* Left Column: Primary Work Stream */}
+        <div className="space-y-5 md:col-span-7 lg:col-span-8">
+          {nextTask ? (
+            <Link
+              href={`/dashboard/tasks?taskId=${nextTask.id}`}
+              className="group relative flex items-center justify-between gap-4 overflow-hidden rounded-[1.75rem] border border-emerald-800/40 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 px-6 py-5 text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:shadow-xl active:scale-[0.99]"
+            >
+              <div className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-emerald-500/10 blur-xl transition group-hover:bg-emerald-500/20" />
+              <div className="relative min-w-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-md">
+                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {t("operator.nextUp")}
+                </span>
+                <p className="mt-2 truncate text-xl font-bold tracking-tight text-white group-hover:text-emerald-300 transition">
+                  {nextTask.title}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300">
+                  <Clock3 className="size-3.5 text-emerald-400" />
+                  {formatDueLabel(nextTask, t("operator.overdue"), t("operator.dueToday")) ||
+                    t("operator.open")}
+                </p>
+              </div>
+              <span className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-slate-950 shadow-md transition group-hover:scale-105 group-hover:bg-emerald-400">
+                <ArrowRight className="size-6" />
+              </span>
+            </Link>
+          ) : completedToday > 0 ? (
+            <div className="relative overflow-hidden rounded-[1.75rem] border border-emerald-300/40 bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 p-6 text-white shadow-xl">
+              <div className="pointer-events-none absolute -right-8 -top-8 size-40 rounded-full bg-emerald-400/20 blur-2xl" />
+              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3.5">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/20 text-emerald-300 shadow-inner">
+                    <Sparkles className="size-6 text-emerald-300" />
+                  </span>
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/30 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-emerald-200">
+                      100% Shift Selesai
                     </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+                    <h3 className="mt-1 text-lg font-bold text-white">Semua SOP Hari Ini Tuntas! 🎉</h3>
+                    <p className="mt-0.5 text-xs text-emerald-100/80">
+                      Luar biasa! {completedToday} checklist operasional telah selesai dikerjakan.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHandoverOpen(true)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-emerald-950 shadow-md transition hover:bg-emerald-50 active:scale-95"
+                >
+                  Buka Log Handover ↗
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[1.75rem] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white px-6 py-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-700">
+                  <CheckCircle2 className="size-6 text-emerald-700" />
+                </span>
+                <div>
+                  <p className="font-bold text-emerald-950">{t("operator.allCaughtUp")}</p>
+                  <p className="text-xs text-emerald-800/80">{t("operator.allCaughtUpBody")}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {openCorrectiveActions.length > 0 ? (
+            <Link
+              href="/dashboard/corrective-actions"
+              className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm font-bold text-amber-950 shadow-sm transition hover:bg-amber-100/80"
+            >
+              <span className="inline-flex items-center gap-2">
+                <CircleAlert className="size-4 text-amber-600" />
+                {t("operator.openCorrectiveActions", { count: openCorrectiveActions.length })}
+              </span>
+              <ArrowRight className="size-4" />
+            </Link>
+          ) : null}
+
+          {/* Antrean Tugas Queue */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold tracking-tight text-slate-950">
+                {t("operator.queueTitle")}
+              </h2>
+              <Link
+                href="/dashboard/tasks"
+                className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800"
+              >
+                {t("operator.viewAllTasks")} →
+              </Link>
+            </div>
+
+            {tasksQuery.isLoading ? (
+              <TaskSkeleton />
+            ) : queue.length === 0 ? (
+              <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
+                {t("operator.emptyQueue")}
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm">
+                {queue.slice(0, 8).map((task) => {
+                  const overdue = isOverdue(task);
+                  return (
+                    <li key={task.id}>
+                      <Link
+                        href={`/dashboard/tasks?taskId=${task.id}`}
+                        className="flex min-h-[64px] items-center justify-between gap-3 px-5 py-4 transition hover:bg-slate-50/80 active:bg-slate-100"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-900">{task.title}</p>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                            <Clock3 className="size-3.5 text-slate-400" />
+                            {formatDueLabel(task, t("operator.overdue"), t("operator.dueToday")) ||
+                              t("operator.open")}
+                            {task.executionDraft ? ` · ${t("operator.draftBadge")}` : ""}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-extrabold ${
+                            overdue
+                              ? "bg-red-50 text-red-700 border border-red-200"
+                              : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          }`}
+                        >
+                          {overdue ? t("operator.overdue") : t("operator.open")}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* Right Column: Outlet Hub & Standings */}
+        <div className="space-y-5 md:col-span-5 lg:col-span-4">
+          {/* Outlet Streak */}
+          <OutletStreakCard />
+
+          {/* Leaderboard Standings */}
+          <LeaderboardPanel />
+
+          {/* Announcements & Push Prompts */}
+          <AnnouncementBanner />
+          <PushNotificationPrompt compact />
+        </div>
+      </div>
+
+      {/* Shift Handover Modal */}
+      <ShiftHandoverModal
+        isOpen={isHandoverOpen}
+        onClose={() => setIsHandoverOpen(false)}
+        tasks={tasks}
+        outletName={workspace.outletName}
+      />
     </main>
   );
 }

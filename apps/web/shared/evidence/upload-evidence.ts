@@ -1,6 +1,7 @@
 import { buildApiUrl } from "@/lib/api-url";
 import { storeOfflineEvidence } from "@/lib/offline/offline-evidence";
 import type { GeolocationResult } from "./geolocation";
+import { compressImageFile } from "./image-compressor";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -44,14 +45,18 @@ async function storeEvidenceForOfflineSync(file: File, options: EvidenceUploadOp
 }
 
 export async function uploadEvidenceFile(file: File, options: EvidenceUploadOptions = {}) {
+  const processedFile = file.type.startsWith("image/")
+    ? await compressImageFile(file)
+    : file;
+
   if (isOfflineContext()) {
-    return storeEvidenceForOfflineSync(file, options);
+    return storeEvidenceForOfflineSync(processedFile, options);
   }
 
   const formData = new FormData();
   const token = getToken();
 
-  formData.append("file", file);
+  formData.append("file", processedFile);
 
   if (options.geolocation) {
     if (

@@ -3,4 +3,5 @@ export * from "./checklist-submit-result-modal";
 export * from "./task-filters";
 export * from "./task-form-drawer";
 export * from "./outlet-task-execution-drawer";
+export * from "./shift-handover-modal";
 export * from "./tasks-workspace";
