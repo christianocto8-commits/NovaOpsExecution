@@ -11,14 +11,18 @@ import {
   Eye,
   GripVertical,
   History,
+  ListPlus,
   Plus,
   Save,
   Search,
   Settings2,
+  Sparkles,
   Trash2,
   MoreVertical,
 } from "lucide-react";
 
+import { StarterTemplatesModal } from "./starter-templates-modal";
+import { BulkAddFieldsModal } from "./bulk-add-fields-modal";
 import {
   FormLibraryPanel,
   rememberRecentTemplate,
@@ -584,6 +588,8 @@ export function FormsWorkspace() {
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [versionsError, setVersionsError] = useState<string | null>(null);
   const [restoringVersionId, setRestoringVersionId] = useState<number | null>(null);
+  const [starterModalOpen, setStarterModalOpen] = useState(false);
+  const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
   const toast = useToast();
 
   const { isPopupOpen, togglePopup, closePopup } = usePopup();
@@ -850,6 +856,49 @@ export function FormsWorkspace() {
     });
   }
 
+  function duplicateField(fieldId: string) {
+    if (!selectedTemplate) return;
+
+    const targetIndex = selectedTemplate.fields.findIndex((f) => f.id === fieldId);
+    if (targetIndex < 0) return;
+
+    const targetField = selectedTemplate.fields[targetIndex];
+    if (isResponsiblePersonField(targetField)) return;
+
+    const clonedField: FormField = {
+      ...JSON.parse(JSON.stringify(targetField)),
+      id: `local-field-${createLocalId()}`,
+      label: `${targetField.label} (Salinan)`,
+    };
+
+    const nextFields = [...selectedTemplate.fields];
+    nextFields.splice(targetIndex + 1, 0, clonedField);
+
+    updateSelectedTemplate({ fields: nextFields });
+    toast.success("Pertanyaan berhasil diduplikasi");
+  }
+
+  function handleBulkAddFields(newFields: FormField[]) {
+    if (!selectedTemplate) return;
+
+    // Filter out duplicate responsible_person field if already exists
+    const hasResponsible = selectedTemplate.fields.some(isResponsiblePersonField);
+    const safeFields = hasResponsible
+      ? newFields.filter((f) => !isResponsiblePersonField(f))
+      : newFields;
+
+    updateSelectedTemplate({
+      fields: [...selectedTemplate.fields, ...safeFields],
+    });
+    toast.success(`${safeFields.length} pertanyaan berhasil ditambahkan`);
+  }
+
+  function handleSelectStarterTemplate(newTemplate: FormTemplate) {
+    setTemplates((currentTemplates) => [newTemplate, ...currentTemplates]);
+    setSelectedTemplateId(newTemplate.id);
+    toast.success(`Template "${newTemplate.name}" berhasil dimuat!`);
+  }
+
   function reorderField(fromIndex: number, toIndex: number) {
     if (!selectedTemplate || fromIndex === toIndex) return;
 
@@ -980,6 +1029,16 @@ export function FormsWorkspace() {
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setStarterModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm hover:bg-amber-100 transition"
+              title="Pilih dari template standar F&B siap pakai"
+            >
+              <Sparkles className="size-4 text-amber-600" />
+              Template Standar F&B
+            </button>
+
             <button
               type="button"
               onClick={() =>
@@ -1168,6 +1227,15 @@ export function FormsWorkspace() {
                 <div className="flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
+                    onClick={() => setStarterModalOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm hover:bg-amber-100 transition"
+                  >
+                    <Sparkles className="size-4 text-amber-600" />
+                    Pilih Template Standar F&B
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => createTemplate()}
                     className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-100"
                   >
@@ -1212,8 +1280,18 @@ export function FormsWorkspace() {
                     <>
                       <button
                         type="button"
+                        onClick={() => setBulkAddModalOpen(true)}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 transition"
+                        title="Paste daftar pertanyaan dari Excel / Word sekaligus"
+                      >
+                        <ListPlus className="size-4" />
+                        Quick Paste / Bulk Add
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={addField}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition"
                       >
                         <Plus className="size-4" />
                         Add Item
@@ -1299,6 +1377,15 @@ export function FormsWorkspace() {
 
                             {!isAreaWorkspace && !isSystemResponsibleField ? (
                               <div className="flex shrink-0 items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => duplicateField(field.id)}
+                                  className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 transition"
+                                  title="Duplikat pertanyaan ini"
+                                  aria-label="Duplikat pertanyaan"
+                                >
+                                  <Copy className="size-4" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => reorderField(index, index - 1)}
@@ -2079,6 +2166,18 @@ export function FormsWorkspace() {
           />
         </Modal>
       ) : null}
+
+      <StarterTemplatesModal
+        open={starterModalOpen}
+        onClose={() => setStarterModalOpen(false)}
+        onSelectTemplate={handleSelectStarterTemplate}
+      />
+
+      <BulkAddFieldsModal
+        open={bulkAddModalOpen}
+        onClose={() => setBulkAddModalOpen(false)}
+        onAddFields={handleBulkAddFields}
+      />
     </main>
   );
 }
