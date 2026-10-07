@@ -44,7 +44,7 @@ export function NotificationHeaderButton() {
         type="button"
         title={t("navigation.notifications")}
         onClick={openPanel}
-        className="relative flex size-10 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
+        className="relative flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
       >
         <Bell className="size-4" />
         {badgeCount > 0 ? (

@@ -98,7 +98,7 @@ export function OutletQuickSwitcher({ workspace }: OutletQuickSwitcherProps) {
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 ${
+          className={`flex items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 py-1.5 sm:px-3 text-xs font-bold shadow-sm transition active:scale-95 ${
             isFiltered
               ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100/70"
               : "border-[#DDE8E1] bg-[#F7FAF8] text-[#274733] hover:border-[#BFD3C6] hover:bg-[#EAF1EC]"
@@ -106,19 +106,19 @@ export function OutletQuickSwitcher({ workspace }: OutletQuickSwitcherProps) {
           title="Beralih Tinjauan Gerai"
           aria-expanded={isOpen}
         >
-          <Store className={`size-3.5 ${isFiltered ? "text-emerald-700" : "text-[#3D6B49]"}`} />
-          <span className="max-w-[130px] truncate sm:max-w-[180px]">
+          <Store className={`size-3.5 shrink-0 ${isFiltered ? "text-emerald-700" : "text-[#3D6B49]"}`} />
+          <span className="max-w-[80px] truncate sm:max-w-[180px]">
             {isFiltered ? (
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                {workspace.outletName}
+              <span className="inline-flex items-center gap-1">
+                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="truncate">{workspace.outletName}</span>
               </span>
             ) : (
               "Semua Gerai"
             )}
           </span>
           <ChevronDown
-            className={`size-3.5 transition-transform ${isFiltered ? "text-emerald-700" : "text-[#3D6B49]"} ${
+            className={`size-3.5 shrink-0 transition-transform ${isFiltered ? "text-emerald-700" : "text-[#3D6B49]"} ${
               isOpen ? "rotate-180" : ""
             }`}
           />
@@ -132,9 +132,9 @@ export function OutletQuickSwitcher({ workspace }: OutletQuickSwitcherProps) {
               handleSelectOutlet(null);
             }}
             title="Kembali ke Semua Gerai"
-            className="flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+            className="flex size-6 sm:size-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
           >
-            <X className="size-3.5" />
+            <X className="size-3 sm:size-3.5" />
           </button>
         ) : null}
       </div>

@@ -17,10 +17,10 @@ export function CommandTrigger({ compact = false }: CommandTriggerProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex size-11 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] md:hidden"
+        className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-full border border-[#DDE8E1] bg-[#F7FAF8] text-[#3D6B49] shadow-sm transition hover:border-[#BFD3C6] hover:bg-[#EAF1EC] md:hidden"
         aria-label={t("header.search")}
       >
-        <Search className="size-5" />
+        <Search className="size-4" />
       </button>
     );
   }
