@@ -16,6 +16,7 @@ import {
   subscribeWorkspace,
 } from "@/shared/navigation";
 import { BrandThemeProvider } from "@/shared/branding/brand-theme-provider";
+import { PwaInstallPrompt } from "@/features/pwa/components/pwa-install-prompt";
 
 const SIDEBAR_STORAGE_KEY = "novaops_sidebar_collapsed";
 
@@ -105,6 +106,10 @@ function DashboardShell({ children }: { children: ReactNode }) {
           workspace={workspace}
           onOpenMobileMenu={isOutletShell ? undefined : () => setMobileSidebarOpen(true)}
         />
+
+        <div className="px-3 pt-2.5 sm:px-6 sm:pt-4">
+          <PwaInstallPrompt />
+        </div>
 
         <div className="min-w-0 overflow-x-hidden">{canAccess ? children : <AccessDenied />}</div>
       </div>
