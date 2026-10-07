@@ -24,6 +24,7 @@ import { filterTasksForWorkspace } from "@/shared/navigation/outlet-scope";
 import { OutletStreakCard } from "@/features/gamification/components/outlet-streak-card";
 import { LeaderboardPanel } from "@/features/gamification/components/leaderboard-panel";
 import { ShiftHandoverModal } from "@/features/tasks/components/shift-handover-modal";
+import { ShiftHandoverBanner } from "@/features/handover/components/shift-handover-banner";
 import { TaskSkeleton } from "@/shared/skeleton/skeleton";
 
 function isDueToday(task: Task) {
@@ -148,6 +149,12 @@ export default function OperatorHomePage() {
           </div>
         </div>
       </header>
+ 
+      {/* Shift Handover Pending Notification & Acknowledgment Banner */}
+      <ShiftHandoverBanner
+        outletId={workspace.outletId}
+        onOpenModal={() => setIsHandoverOpen(true)}
+      />
 
       {/* Responsive Grid for Tablet (MatePad/iPad) and Desktop */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-12 md:gap-6">
@@ -308,6 +315,7 @@ export default function OperatorHomePage() {
         onClose={() => setIsHandoverOpen(false)}
         tasks={tasks}
         outletName={workspace.outletName}
+        outletId={workspace.outletId}
       />
     </main>
   );

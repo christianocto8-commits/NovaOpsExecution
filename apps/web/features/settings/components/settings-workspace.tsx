@@ -28,6 +28,7 @@ import { ApiKeysPanel } from "@/features/settings/components/api-keys-panel";
 import { AppVersionPanel } from "@/features/settings/components/app-version-panel";
 import { IntegrationsStatusPanel } from "@/features/settings/components/integrations-status-panel";
 import { NotificationPreferencesPanel } from "@/features/settings/components/notification-preferences-panel";
+import { WhatsAppTelegramAlertPanel } from "@/features/settings/components/whatsapp-telegram-alert-panel";
 import { useSettings } from "@/features/settings/hooks/use-settings";
 import { useAuth } from "@/hooks/useAuth";
 import { clearOfflineClientData } from "@/lib/offline/store";
@@ -2071,6 +2072,8 @@ export function SettingsWorkspace() {
       {settingsTab === "integrations" ? (
         <>
           <IntegrationsStatusPanel />
+
+          <WhatsAppTelegramAlertPanel />
 
           <div className="grid gap-6 xl:grid-cols-2">
             <SectionCard title="Integrations & Automation">

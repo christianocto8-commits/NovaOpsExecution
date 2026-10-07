@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ShiftHandoverModal } from "@/features/handover/components/shift-handover-modal";
+import { ShiftHandoverBanner } from "@/features/handover/components/shift-handover-banner";
 import {
   CheckCircle,
   Clock,
@@ -258,6 +260,7 @@ export default function DashboardPage() {
   const inProgressCount = visibleTasks.filter((task) => task.status === "In Progress").length;
   const openCount = visibleTasks.filter((task) => task.status !== "Completed").length;
   const outletProgress = getOutletProgress(visibleTasks);
+  const [isHandoverOpen, setIsHandoverOpen] = useState(false);
 
   if (workspace.mode === "outlet") {
     return (
@@ -278,17 +281,18 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/dashboard/tasks"
+              <button
+                type="button"
+                onClick={() => setIsHandoverOpen(true)}
                 className="rounded-2xl bg-white px-5 py-3.5 text-sm font-bold text-slate-950 shadow-md hover:bg-slate-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Open Tasks
-              </Link>
+                Log Shift Handover ↗
+              </button>
               <Link
-                href="/dashboard/forms"
+                href="/dashboard/tasks"
                 className="rounded-2xl bg-emerald-600/50 backdrop-blur-md border border-emerald-500/30 px-5 py-3.5 text-sm font-bold text-white hover:bg-emerald-600/70 transition-all hover:scale-[1.02]"
               >
-                Manual Form
+                Open Tasks
               </Link>
               <div className="rounded-2xl bg-black/10 px-4 py-3 border border-white/5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
@@ -300,6 +304,12 @@ export default function DashboardPage() {
           </div>
           <div className="absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
         </div>
+
+        {/* Shift Handover Pending Notification & Acknowledgment Banner */}
+        <ShiftHandoverBanner
+          outletId={workspace.outletId}
+          onOpenModal={() => setIsHandoverOpen(true)}
+        />
 
         {/* Gamification Outlet Streak Card & Leaderboard Panel */}
         <OutletStreakCard />
@@ -419,6 +429,14 @@ export default function DashboardPage() {
             </section>
           </div>
         </div>
+
+        <ShiftHandoverModal
+          isOpen={isHandoverOpen}
+          onClose={() => setIsHandoverOpen(false)}
+          tasks={visibleTasks}
+          outletName={workspace.outletName}
+          outletId={workspace.outletId}
+        />
       </main>
     );
   }
@@ -441,6 +459,13 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsHandoverOpen(true)}
+              className="rounded-2xl bg-emerald-600/60 backdrop-blur-md border border-emerald-500/40 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-600/80 transition-all hover:scale-[1.02]"
+            >
+              Logbook Shift ↗
+            </button>
             <Link
               href="/dashboard/tasks"
               className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-950 shadow-md hover:bg-slate-50 transition-all hover:scale-[1.02] active:scale-[0.98] duration-200"
@@ -697,6 +722,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <ShiftHandoverModal
+        isOpen={isHandoverOpen}
+        onClose={() => setIsHandoverOpen(false)}
+        tasks={visibleTasks}
+        outletName={workspace.outletName ?? "Semua Gerai"}
+        outletId={workspace.outletId}
+      />
     </main>
   );
 }

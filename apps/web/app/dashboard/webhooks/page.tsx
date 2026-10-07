@@ -16,6 +16,7 @@ import {
   updateWebhook,
 } from "@/services/webhook.service";
 import { EnterpriseCheckbox, EnterpriseField, EnterpriseInput } from "@/shared/form";
+import { WhatsAppTelegramAlertPanel } from "@/features/settings/components/whatsapp-telegram-alert-panel";
 
 function generateSecret() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -213,6 +214,8 @@ export default function WebhooksPage() {
           </div>
         ))}
       </section>
+
+      <WhatsAppTelegramAlertPanel />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <form
