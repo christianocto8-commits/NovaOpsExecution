@@ -71,20 +71,20 @@ const SHIFT_CONFIG: Record<
   { label: string; time: string; badgeColor: string; icon: string }
 > = {
   pagi: {
-    label: "Shift Pagi",
-    time: "06:00 - 14:00",
+    label: "Opening (Shift Pagi)",
+    time: "07:00 - 16:00",
     badgeColor: "bg-amber-100 text-amber-800 border-amber-300",
     icon: "🌅",
   },
   sore: {
-    label: "Shift Sore",
-    time: "14:00 - 22:00",
+    label: "Evening (Shift Sore)",
+    time: "15:00 - 00:00",
     badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
     icon: "🌇",
   },
   malam: {
-    label: "Shift Malam / Closing",
-    time: "22:00 - Selesai",
+    label: "Midnight (Shift Malam)",
+    time: "23:00 - 08:00",
     badgeColor: "bg-purple-100 text-purple-800 border-purple-300",
     icon: "🌙",
   },

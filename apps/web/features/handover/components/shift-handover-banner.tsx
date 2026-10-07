@@ -107,10 +107,10 @@ export function ShiftHandoverBanner({ outletId, onOpenModal }: ShiftHandoverBann
 
   const shiftLabel =
     pendingHandover.shift === "pagi"
-      ? "Shift Pagi"
+      ? "Opening (07:00 - 16:00)"
       : pendingHandover.shift === "sore"
-        ? "Shift Sore"
-        : "Shift Malam";
+        ? "Evening (15:00 - 00:00)"
+        : "Midnight (23:00 - 08:00)";
 
   return (
     <div className="relative overflow-hidden rounded-[1.75rem] border border-amber-300/80 bg-gradient-to-r from-amber-50 via-amber-100/40 to-white p-4 sm:p-5 text-slate-900 shadow-md transition">

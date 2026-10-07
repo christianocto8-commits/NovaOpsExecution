@@ -1,6 +1,6 @@
 import type { ShiftHandoverEntry, ShiftPeriod } from "../types";
 
-const STORAGE_KEY = "novaops_shift_handovers_v1";
+const STORAGE_KEY = "novaops_shift_handovers_v2";
 const EVENT_NAME = "novaops_handover_update";
 
 function getTodayDateString(): string {
