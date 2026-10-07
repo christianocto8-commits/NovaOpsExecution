@@ -1,11 +1,12 @@
 [Unit]
-Description=Run NovaOps scheduler every 15 minutes
+Description=Run NovaOps recurring task and alert scheduler
 
 Unit=novaops-scheduler.service
 
 [Timer]
-OnBootSec=5min
-OnUnitActiveSec=15min
+OnBootSec=1min
+OnCalendar=*:0/1
+AccuracySec=1s
 Persistent=true
 
 [Install]

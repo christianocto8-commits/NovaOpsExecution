@@ -65,7 +65,8 @@ cp "$ROOT/deploy/systemd/novaops-backup.timer" /etc/systemd/system/
 
 systemctl daemon-reload
 systemctl enable novaops-scheduler.timer novaops-backup.timer
-systemctl start novaops-scheduler.timer novaops-backup.timer
+systemctl restart novaops-scheduler.timer
+systemctl start novaops-backup.timer
 echo "Scheduler timer: $(systemctl is-active novaops-scheduler.timer)"
 echo "Backup timer: $(systemctl is-active novaops-backup.timer)"
 

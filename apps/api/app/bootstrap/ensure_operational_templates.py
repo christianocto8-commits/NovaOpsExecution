@@ -313,6 +313,20 @@ def install_operational_templates(
     schedules_created.extend(barista.get("schedules_created") or [])
     schedules_existing.extend(barista.get("schedules_existing") or [])
 
+    # Ensure all active schedules have next_publish_at populated
+    from datetime import datetime, timezone
+    from app.modules.task_schedules.publisher import TaskSchedulePublisher
+
+    publisher = TaskSchedulePublisher(db)
+    now_utc = datetime.now(timezone.utc)
+    for schedule in db.scalars(
+        select(TaskSchedule).where(
+            TaskSchedule.is_active.is_(True),
+            TaskSchedule.next_publish_at.is_(None),
+        )
+    ).all():
+        schedule.next_publish_at = publisher.compute_next_publish_at(schedule, now_utc)
+
     return {
         "ok": True,
         "message": "Starter pack terpasang: " + ", ".join(message_parts) + (

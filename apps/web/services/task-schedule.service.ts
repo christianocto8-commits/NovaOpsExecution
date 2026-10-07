@@ -142,6 +142,16 @@ function toSchedulePayload(form: TaskFormState): CreateTaskSchedulePayload {
   };
 }
 
+function formatToLocalDateTimeInput(value?: string | null): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.slice(0, 16);
+  }
+  const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
 export function scheduleToFormState(
   schedule: BackendTaskSchedule,
   outletNameById: Record<string, string> = {}
@@ -171,8 +181,8 @@ export function scheduleToFormState(
     assignee: schedule.assigned_to ? `User ${schedule.assigned_to}` : "Outlet Team",
     assignedToId: schedule.assigned_to,
     assigneeSelection,
-    due: schedule.one_time_due_at ? schedule.one_time_due_at.slice(0, 16) : "",
-    publishAt: schedule.next_publish_at ? schedule.next_publish_at.slice(0, 16) : "",
+    due: formatToLocalDateTimeInput(schedule.one_time_due_at),
+    publishAt: formatToLocalDateTimeInput(schedule.next_publish_at),
     description: schedule.description ?? "",
     formTemplateId: schedule.form_template_id ? String(schedule.form_template_id) : "",
     recurrence,
