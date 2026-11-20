@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { getSettings } from "@/features/settings/settings-api";
+import { hasActiveSessionIndicator } from "@/lib/auth/browser-session";
 import { getMe, logout as logoutService, type AuthUser } from "@/services/auth.service";
 import type { NovaRole } from "@/shared/navigation/role-config";
 import { setStoredWorkspaceRole } from "@/shared/navigation/workspace-store";
@@ -117,6 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("idle");
 
   const restoreSession = useCallback(async () => {
+    // Fast-path: If client has no session indicator (neither cookie marker nor stored token),
+    // skip network calls immediately so unauthenticated pages (like /login) render in < 1ms.
+    if (typeof window !== "undefined" && !hasActiveSessionIndicator()) {
+      setUser(null);
+      setDeniedUser(null);
+      setStatus("unauthenticated");
+      return null;
+    }
+
     setStatus("loading");
 
     try {

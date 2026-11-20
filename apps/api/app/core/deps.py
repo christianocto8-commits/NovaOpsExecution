@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.models.user import User
 from app.modules.api_keys.models import ApiKey
 from app.modules.api_keys.service import ApiKeyService
@@ -120,12 +120,15 @@ def get_optional_current_user(
 
 def get_optional_api_key(
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
-    db: Session = Depends(get_db),
 ) -> ApiKey | None:
     if not x_api_key:
         return None
 
-    return ApiKeyService(db).authenticate(x_api_key)
+    db = SessionLocal()
+    try:
+        return ApiKeyService(db).authenticate(x_api_key)
+    finally:
+        db.close()
 
 
 def require_jwt_or_api_key(required_scope: str):

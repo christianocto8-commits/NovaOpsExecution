@@ -15,6 +15,14 @@ export function hasBrowserSessionMarker() {
   return localStorage.getItem(SESSION_MARKER_KEY) === "1";
 }
 
+export function hasActiveSessionIndicator(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    localStorage.getItem(SESSION_MARKER_KEY) === "1" ||
+    Boolean(localStorage.getItem(ACCESS_TOKEN_KEY))
+  );
+}
+
 export function storeAuthenticatedSession(accessToken: string, refreshToken: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(SESSION_MARKER_KEY, "1");
@@ -47,9 +55,20 @@ export async function establishBrowserSession(accessToken: string, refreshToken:
   }
 }
 
+let clearCookieInFlight: Promise<Response> | null = null;
+
 export function clearBrowserSessionCookie() {
-  void fetch("/api/v1/auth/browser-session", {
+  if (typeof window === "undefined") return;
+  if (!hasBrowserSessionMarker()) return;
+
+  localStorage.removeItem(SESSION_MARKER_KEY);
+
+  if (clearCookieInFlight) return;
+
+  clearCookieInFlight = fetch("/api/v1/auth/browser-session", {
     method: "DELETE",
     keepalive: true,
+  }).finally(() => {
+    clearCookieInFlight = null;
   });
 }

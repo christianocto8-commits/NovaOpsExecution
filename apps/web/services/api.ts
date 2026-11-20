@@ -2,6 +2,8 @@ import { buildApiUrl, isLocalDevEnvironment, resolveApiDisplayUrl } from "@/lib/
 import {
   clearAuthenticatedSession,
   clearBrowserSessionCookie,
+  hasActiveSessionIndicator,
+  hasBrowserSessionMarker,
   storeAuthenticatedSession,
   usesNativeTokenStorage,
 } from "@/lib/auth/browser-session";
@@ -308,6 +310,10 @@ async function refreshSession(): Promise<boolean> {
         }
       }
 
+      if (!hasBrowserSessionMarker()) {
+        return false;
+      }
+
       const response = await fetch("/api/v1/auth/browser-session/refresh", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -344,9 +350,11 @@ async function executeRequest<T>(
     });
 
     if (response.status === 401 && allowRefresh && !isAuthEndpoint(endpoint)) {
-      const refreshed = await refreshSession();
-      if (refreshed) {
-        return executeRequest<T>(endpoint, options, false);
+      if (hasActiveSessionIndicator()) {
+        const refreshed = await refreshSession();
+        if (refreshed) {
+          return executeRequest<T>(endpoint, options, false);
+        }
       }
     }
 

@@ -29,6 +29,15 @@ def health_check(
     return payload
 
 
+@router.get("/health/app-version")
+def health_app_version() -> dict[str, str | int]:
+    return {
+        "latestVersionName": get_settings().app_version,
+        "latestVersionCode": 5,
+        "service": get_settings().app_name,
+    }
+
+
 @router.get("/ready")
 def readiness_check(db: Session = Depends(get_db)) -> dict:
     settings = get_settings()
