@@ -8,11 +8,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from app.api.v1.router import api_router
-from app.bootstrap.ensure_online_admin import ensure_online_admin
-from app.bootstrap.ensure_operational_templates import ensure_operational_templates
 from app.core.error_codes import ErrorCode, http_error_code_to_enum
 from app.db.session import SessionLocal
-from app.modules.identity.management_api import ensure_system_roles_and_permissions
 from app.core.config import get_settings
 from app.core.http_security import HttpSecurityMiddleware
 from app.routers.evidence_uploads import legacy_router as legacy_evidence_router
@@ -115,6 +112,10 @@ def bootstrap_online_admin() -> None:
     def _run_bootstrap() -> None:
         logger = logging.getLogger("novaops.startup")
         try:
+            from app.bootstrap.ensure_online_admin import ensure_online_admin
+            from app.bootstrap.ensure_operational_templates import ensure_operational_templates
+            from app.modules.identity.management_api import ensure_system_roles_and_permissions
+
             db = SessionLocal()
             try:
                 ensure_system_roles_and_permissions(db, overwrite=False)

@@ -8,6 +8,7 @@ WorkingDirectory=/opt/NovaOpsExecution/apps/web/.next/standalone
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOSTNAME=127.0.0.1
+Environment=NODE_OPTIONS="--max-old-space-size=256"
 Environment=API_PROXY_TARGET=http://127.0.0.1:8000
 Environment=NEXT_PUBLIC_USE_RELATIVE_API=true
 ExecStart=/usr/bin/node /opt/NovaOpsExecution/apps/web/.next/standalone/server.js

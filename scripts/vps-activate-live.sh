@@ -28,6 +28,8 @@ else
   pip install --no-cache-dir -q -r requirements.txt
   echo "$CURRENT_HASH" > "$REQ_HASH_FILE"
 fi
+echo "==> Pre-compiling Python bytecode"
+python3 -m compileall -q "$API_DIR/app" || true
 
 echo "==> Alembic migrations"
 ALEMBIC_HASH_FILE="$API_DIR/.alembic_versions.hash"
@@ -132,8 +134,8 @@ systemctl daemon-reload
 
 echo "==> Restart API"
 systemctl restart novaops-api
-wait_for_url "http://127.0.0.1:8000/api/v1/health" "API health" 40 3
-wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready" 20 3
+wait_for_url "http://127.0.0.1:8000/api/v1/health" "API health" 60 3
+wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready" 30 3
 
 echo "==> Restart Web"
 systemctl restart novaops-web
