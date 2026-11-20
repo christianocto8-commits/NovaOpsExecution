@@ -5,10 +5,14 @@ set -euo pipefail
 ENV_FILE="${NOVAOPS_ENV_FILE:-/opt/NovaOpsExecution/apps/api/.env}"
 API_DIR="/opt/NovaOpsExecution/apps/api"
 
-echo "==> Install system deps (xmlsec for SAML ACS)"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq xmlsec1 libxmlsec1-openssl 2>/dev/null || apt-get install -y -qq xmlsec1
+if ! command -v xmlsec1 >/dev/null 2>&1; then
+  echo "==> Install system deps (xmlsec for SAML ACS)"
+  export DEBIAN_FRONTEND=noninteractive
+  timeout 30 apt-get update -qq -o Acquire::Connect-Timeout=5 -o Acquire::Http::Timeout=10 || true
+  timeout 60 apt-get install -y -qq xmlsec1 libxmlsec1-openssl 2>/dev/null || timeout 60 apt-get install -y -qq xmlsec1 || true
+else
+  echo "==> System deps: xmlsec1 already installed (skipping apt-get)"
+fi
 
 echo "==> Python deps"
 cd "$API_DIR"
@@ -36,7 +40,7 @@ wait_for_url() {
   local response=""
 
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if response="$(curl -fsS "$url" 2>/dev/null)"; then
+    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>/dev/null)"; then
       echo "$response"
       return 0
     fi

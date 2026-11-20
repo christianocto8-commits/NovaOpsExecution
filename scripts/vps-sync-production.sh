@@ -27,7 +27,7 @@ wait_for_url() {
   local response=""
 
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if response="$(curl -fsS "$url" 2>/dev/null)"; then
+    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>/dev/null)"; then
       echo "$response"
       return 0
     fi
@@ -62,6 +62,12 @@ cp "$ROOT/deploy/systemd/novaops-scheduler.service" /etc/systemd/system/
 cp "$ROOT/deploy/systemd/novaops-scheduler.timer" /etc/systemd/system/
 cp "$ROOT/deploy/systemd/novaops-backup.service" /etc/systemd/system/
 cp "$ROOT/deploy/systemd/novaops-backup.timer" /etc/systemd/system/
+if [[ -f "$ROOT/deploy/systemd/novaops-api.service" ]]; then
+  cp "$ROOT/deploy/systemd/novaops-api.service" /etc/systemd/system/
+fi
+if [[ -f "$ROOT/deploy/systemd/novaops-web.service" ]]; then
+  cp "$ROOT/deploy/systemd/novaops-web.service" /etc/systemd/system/
+fi
 
 systemctl daemon-reload
 systemctl enable novaops-scheduler.timer novaops-backup.timer
