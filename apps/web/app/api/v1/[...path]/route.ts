@@ -80,6 +80,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     method: request.method,
     headers,
     redirect: "manual",
+    signal: AbortSignal.timeout(15000),
   };
 
   let body: ArrayBuffer | undefined;

@@ -130,15 +130,16 @@ if [[ -f "$ROOT/deploy/systemd/novaops-web.service" ]]; then
 fi
 systemctl daemon-reload
 
-echo "==> Restart services"
+echo "==> Restart API"
 systemctl restart novaops-api
-systemctl restart novaops-web
-systemctl restart nginx || true
+wait_for_url "http://127.0.0.1:8000/api/v1/health" "API health" 40 3
+wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready" 20 3
 
-echo "==> Health"
-wait_for_url "http://127.0.0.1:8000/api/v1/health" "API health"
-wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready"
-echo
-wait_for_url "http://127.0.0.1:3000/api/keep-alive" "Web keep-alive"
+echo "==> Restart Web"
+systemctl restart novaops-web
+wait_for_url "http://127.0.0.1:3000/api/keep-alive" "Web keep-alive" 40 3
+
+echo "==> Reload Nginx"
+systemctl reload nginx || systemctl restart nginx || true
 echo
 echo "Activate-live complete."

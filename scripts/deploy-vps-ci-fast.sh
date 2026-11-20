@@ -119,7 +119,6 @@ rm -f "\$BACKEND_ARCHIVE"
 
 tar -xzf "\$FRONTEND_ARCHIVE" -C "\$FRONTEND_TMP"
 test -f "\$FRONTEND_TMP/standalone/server.js"
-systemctl stop novaops-web 2>/dev/null || true
 rm -rf "\$ROOT/apps/web/.next/standalone.previous"
 if [[ -d "\$ROOT/apps/web/.next/standalone" ]]; then
   mv "\$ROOT/apps/web/.next/standalone" "\$ROOT/apps/web/.next/standalone.previous"
@@ -127,7 +126,6 @@ fi
 mv "\$FRONTEND_TMP/standalone" "\$ROOT/apps/web/.next/standalone"
 rm -rf "\$FRONTEND_TMP"
 rm -f "\$FRONTEND_ARCHIVE"
-systemctl restart novaops-web
 echo "Remote payload swap complete."
 EOF
 

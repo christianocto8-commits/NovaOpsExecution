@@ -1,4 +1,4 @@
-export const DEFAULT_PRODUCTION_API_URL = "http://103.247.10.145";
+export const DEFAULT_PRODUCTION_API_URL = "https://nova-ops.cloud";
 
 function normalizeApiUrl(value: string) {
   return value.trim().replace(/\/+$/, "").replace("://localhost", "://127.0.0.1");
