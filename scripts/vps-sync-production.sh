@@ -22,7 +22,7 @@ run_optional() {
 wait_for_url() {
   local url="$1"
   local label="$2"
-  local attempts="${3:-20}"
+  local attempts="${3:-30}"
   local sleep_seconds="${4:-3}"
   local response=""
 

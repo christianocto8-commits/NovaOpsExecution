@@ -10,7 +10,8 @@ Environment=PORT=3000
 Environment=HOSTNAME=127.0.0.1
 ExecStart=/usr/bin/node /opt/NovaOpsExecution/apps/web/.next/standalone/server.js
 Restart=always
-RestartSec=5
+RestartSec=3
+TimeoutStopSec=5
 
 [Install]
 WantedBy=multi-user.target

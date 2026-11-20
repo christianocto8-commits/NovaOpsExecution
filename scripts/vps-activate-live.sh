@@ -28,15 +28,14 @@ else
   echo "$CURRENT_HASH" > "$REQ_HASH_FILE"
 fi
 
-echo "==> Stop novaops-api before migrations"
-systemctl stop novaops-api 2>/dev/null || true
-
 echo "==> Alembic migrations"
 ALEMBIC_HASH_FILE="$API_DIR/.alembic_versions.hash"
 CURRENT_ALEMBIC_HASH="$(ls -1 "$API_DIR/alembic/versions" 2>/dev/null | md5sum | awk '{print $1}' || echo "none")"
 if [[ -f "$ALEMBIC_HASH_FILE" ]] && [[ "$(cat "$ALEMBIC_HASH_FILE")" == "$CURRENT_ALEMBIC_HASH" ]]; then
   echo "==> Alembic migrations: versions unchanged (skipping alembic upgrade)"
 else
+  echo "==> Stop novaops-api before migrations"
+  systemctl stop novaops-api 2>/dev/null || true
   echo "==> Alembic migrations: running upgrade head..."
   timeout 30 alembic upgrade head || echo "WARN: alembic upgrade timed out or failed, continuing..."
   echo "$CURRENT_ALEMBIC_HASH" > "$ALEMBIC_HASH_FILE"
@@ -55,7 +54,7 @@ merge_env() {
 wait_for_url() {
   local url="$1"
   local label="$2"
-  local attempts="${3:-20}"
+  local attempts="${3:-30}"
   local sleep_seconds="${4:-3}"
   local response=""
 
