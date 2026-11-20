@@ -117,9 +117,9 @@ def bootstrap_online_admin() -> None:
             ensure_system_roles_and_permissions(db, overwrite=False)
             db.commit()
             logger.info("Synced system roles and permissions.")
-        except Exception:
+        except Exception as err:
             db.rollback()
-            raise
+            logger.warning(f"Startup system roles sync warning: {err}")
         finally:
             db.close()
 

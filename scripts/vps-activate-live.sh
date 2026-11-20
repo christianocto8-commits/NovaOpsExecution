@@ -32,7 +32,15 @@ echo "==> Stop novaops-api before migrations"
 systemctl stop novaops-api 2>/dev/null || true
 
 echo "==> Alembic migrations"
-timeout 45 alembic upgrade head || echo "WARN: alembic upgrade timed out or failed, continuing..."
+ALEMBIC_HASH_FILE="$API_DIR/.alembic_versions.hash"
+CURRENT_ALEMBIC_HASH="$(ls -1 "$API_DIR/alembic/versions" 2>/dev/null | md5sum | awk '{print $1}' || echo "none")"
+if [[ -f "$ALEMBIC_HASH_FILE" ]] && [[ "$(cat "$ALEMBIC_HASH_FILE")" == "$CURRENT_ALEMBIC_HASH" ]]; then
+  echo "==> Alembic migrations: versions unchanged (skipping alembic upgrade)"
+else
+  echo "==> Alembic migrations: running upgrade head..."
+  timeout 30 alembic upgrade head || echo "WARN: alembic upgrade timed out or failed, continuing..."
+  echo "$CURRENT_ALEMBIC_HASH" > "$ALEMBIC_HASH_FILE"
+fi
 
 merge_env() {
   local key="$1"
@@ -61,6 +69,12 @@ wait_for_url() {
   done
 
   echo "FAILED: $label did not become ready at $url" >&2
+  echo "--- Diagnostics: systemctl status novaops-api ---" >&2
+  systemctl status novaops-api --no-pager -l || true >&2
+  echo "--- Diagnostics: recent novaops-api logs ---" >&2
+  journalctl -u novaops-api -n 40 --no-pager || true >&2
+  echo "--- Diagnostics: recent novaops-web logs ---" >&2
+  journalctl -u novaops-web -n 40 --no-pager || true >&2
   return 1
 }
 

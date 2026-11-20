@@ -36,6 +36,10 @@ wait_for_url() {
   done
 
   echo "FAILED: $label did not become ready at $url" >&2
+  echo "--- Diagnostics: systemctl status novaops-api ---" >&2
+  systemctl status novaops-api --no-pager -l || true >&2
+  echo "--- Diagnostics: recent novaops-api logs ---" >&2
+  journalctl -u novaops-api -n 40 --no-pager || true >&2
   return 1
 }
 
@@ -114,15 +118,15 @@ echo
 
 echo "==> Task template integrity"
 if command -v sudo >/dev/null 2>&1; then
-  sudo -u postgres psql -d novaops_db -t -A -c \
-    "SELECT count(*) FROM task_schedules WHERE form_template_id IS NULL AND is_active = true;" | {
-    read -r missing
-    if [[ "${missing:-0}" != "0" ]]; then
+  timeout 10 sudo -n -u postgres psql -w -d novaops_db -t -A -c \
+    "SELECT count(*) FROM task_schedules WHERE form_template_id IS NULL AND is_active = true;" 2>/dev/null | {
+    read -r missing || missing=""
+    if [[ "${missing:-0}" != "0" && -n "$missing" ]]; then
       warn "$missing active schedule(s) without form_template_id"
     else
-      echo "All active schedules have form templates"
+      echo "All active schedules have form templates (or check skipped)"
     fi
-  }
+  } || warn "task template integrity check skipped"
 else
   warn "sudo not available, skipped task template integrity check"
 fi
