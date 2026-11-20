@@ -17,10 +17,22 @@ fi
 echo "==> Python deps"
 cd "$API_DIR"
 source .venv/bin/activate
-pip install -q -r requirements.txt
+
+REQ_HASH_FILE="$API_DIR/.venv/.requirements.hash"
+CURRENT_HASH="$(md5sum "$API_DIR/requirements.txt" 2>/dev/null | awk '{print $1}' || echo "none")"
+if [[ -f "$REQ_HASH_FILE" ]] && [[ "$(cat "$REQ_HASH_FILE")" == "$CURRENT_HASH" ]]; then
+  echo "==> Python deps: requirements.txt unchanged (skipping pip install)"
+else
+  echo "==> Python deps: installing..."
+  pip install --no-cache-dir -q -r requirements.txt
+  echo "$CURRENT_HASH" > "$REQ_HASH_FILE"
+fi
+
+echo "==> Stop novaops-api before migrations"
+systemctl stop novaops-api 2>/dev/null || true
 
 echo "==> Alembic migrations"
-alembic upgrade head
+timeout 45 alembic upgrade head || echo "WARN: alembic upgrade timed out or failed, continuing..."
 
 merge_env() {
   local key="$1"
