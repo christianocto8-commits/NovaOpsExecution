@@ -27,11 +27,14 @@ wait_for_url() {
   local response=""
 
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>/dev/null)"; then
+    local err_output
+    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>&1)"; then
       echo "$response"
       return 0
+    else
+      err_output="$response"
     fi
-    echo "$label not ready ($attempt/$attempts), retrying in ${sleep_seconds}s..." >&2
+    echo "$label not ready ($attempt/$attempts): ${err_output:-connection failed}, retrying in ${sleep_seconds}s..." >&2
     sleep "$sleep_seconds"
   done
 
@@ -39,7 +42,7 @@ wait_for_url() {
   echo "--- Diagnostics: systemctl status novaops-api ---" >&2
   systemctl status novaops-api --no-pager -l || true >&2
   echo "--- Diagnostics: recent novaops-api logs ---" >&2
-  journalctl -u novaops-api -n 40 --no-pager || true >&2
+  journalctl -u novaops-api -n 50 --since "5 minutes ago" --no-pager || true >&2
   return 1
 }
 
@@ -86,7 +89,6 @@ if [[ -f "$ROOT/scripts/vps-harden-production.sh" ]]; then
     bash "$ROOT/scripts/vps-harden-production.sh"
   else
     echo "Bootstrap already disabled - skipping password rotation"
-    systemctl restart novaops-api novaops-web
   fi
 else
   warn "hardening script missing"

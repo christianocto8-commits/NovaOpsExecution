@@ -110,24 +110,29 @@ app.include_router(api_router)
 @app.on_event("startup")
 def bootstrap_online_admin() -> None:
     import logging
-    logger = logging.getLogger("novaops.startup")
-    try:
-        db = SessionLocal()
-        try:
-            ensure_system_roles_and_permissions(db, overwrite=False)
-            db.commit()
-            logger.info("Synced system roles and permissions.")
-        except Exception as err:
-            db.rollback()
-            logger.warning(f"Startup system roles sync warning: {err}")
-        finally:
-            db.close()
+    import threading
 
-        ensure_online_admin()
-        ensure_operational_templates()
-        logger.info("Successfully executed startup bootstrap tasks.")
-    except Exception as e:
-        logger.warning(f"Startup bootstrap warning (database may still be initializing): {e}")
+    def _run_bootstrap() -> None:
+        logger = logging.getLogger("novaops.startup")
+        try:
+            db = SessionLocal()
+            try:
+                ensure_system_roles_and_permissions(db, overwrite=False)
+                db.commit()
+                logger.info("Synced system roles and permissions.")
+            except Exception as err:
+                db.rollback()
+                logger.warning(f"Startup system roles sync warning: {err}")
+            finally:
+                db.close()
+
+            ensure_online_admin()
+            ensure_operational_templates()
+            logger.info("Successfully executed startup bootstrap tasks.")
+        except Exception as e:
+            logger.warning(f"Startup bootstrap warning (database may still be initializing): {e}")
+
+    threading.Thread(target=_run_bootstrap, name="novaops-bootstrap", daemon=True).start()
 
 
 

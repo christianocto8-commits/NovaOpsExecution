@@ -2,8 +2,9 @@
 # Run on VPS after deploy - install deps + merge integration env keys.
 set -euo pipefail
 
-ENV_FILE="${NOVAOPS_ENV_FILE:-/opt/NovaOpsExecution/apps/api/.env}"
-API_DIR="/opt/NovaOpsExecution/apps/api"
+ROOT="${NOVAOPS_ROOT:-/opt/NovaOpsExecution}"
+ENV_FILE="${NOVAOPS_ENV_FILE:-$ROOT/apps/api/.env}"
+API_DIR="$ROOT/apps/api"
 
 if ! command -v xmlsec1 >/dev/null 2>&1; then
   echo "==> Install system deps (xmlsec for SAML ACS)"
@@ -59,11 +60,14 @@ wait_for_url() {
   local response=""
 
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>/dev/null)"; then
+    local err_output
+    if response="$(curl --max-time 5 --connect-timeout 3 -fsS "$url" 2>&1)"; then
       echo "$response"
       return 0
+    else
+      err_output="$response"
     fi
-    echo "$label not ready ($attempt/$attempts), retrying in ${sleep_seconds}s..." >&2
+    echo "$label not ready ($attempt/$attempts): ${err_output:-connection failed}, retrying in ${sleep_seconds}s..." >&2
     sleep "$sleep_seconds"
   done
 
@@ -71,9 +75,9 @@ wait_for_url() {
   echo "--- Diagnostics: systemctl status novaops-api ---" >&2
   systemctl status novaops-api --no-pager -l || true >&2
   echo "--- Diagnostics: recent novaops-api logs ---" >&2
-  journalctl -u novaops-api -n 40 --no-pager || true >&2
+  journalctl -u novaops-api -n 50 --since "5 minutes ago" --no-pager || true >&2
   echo "--- Diagnostics: recent novaops-web logs ---" >&2
-  journalctl -u novaops-web -n 40 --no-pager || true >&2
+  journalctl -u novaops-web -n 50 --since "5 minutes ago" --no-pager || true >&2
   return 1
 }
 
@@ -117,12 +121,22 @@ fi
 
 merge_env "ENVIRONMENT" "production"
 
+echo "==> Sync systemd units"
+if [[ -f "$ROOT/deploy/systemd/novaops-api.service" ]]; then
+  cp "$ROOT/deploy/systemd/novaops-api.service" /etc/systemd/system/
+fi
+if [[ -f "$ROOT/deploy/systemd/novaops-web.service" ]]; then
+  cp "$ROOT/deploy/systemd/novaops-web.service" /etc/systemd/system/
+fi
+systemctl daemon-reload
+
 echo "==> Restart services"
 systemctl restart novaops-api
 systemctl restart novaops-web
 systemctl restart nginx || true
 
 echo "==> Health"
+wait_for_url "http://127.0.0.1:8000/api/v1/health" "API health"
 wait_for_url "http://127.0.0.1:8000/api/v1/ready" "API ready"
 echo
 wait_for_url "http://127.0.0.1:3000/api/keep-alive" "Web keep-alive"
